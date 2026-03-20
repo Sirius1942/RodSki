@@ -1,10 +1,12 @@
-"""关键字引擎 - 支持28个操作关键字（UI / HTTP / DB）"""
+"""关键字引擎 - 支持14个操作关键字（UI / API / DB / Code）"""
+import json
 import logging
+import subprocess
+import sys
 import time
 from typing import Dict, Any, Optional, List
 from pathlib import Path
 from drivers.base_driver import BaseDriver
-from api.rest_helper import RestHelper
 from core.performance import monitor_performance
 from core.data_parser import DataParser
 from core.exceptions import (
@@ -35,13 +37,10 @@ class KeywordEngine:
     """
     
     SUPPORTED = [
-        "open", "close", "click", "type", "verify", "wait", "navigate",
-        "select", "hover", "drag", "scroll", "assert",
-        "http_get", "http_post", "http_put", "http_delete",
-        "assert_json", "assert_status",
-        "upload_file", "clear", "double_click", "right_click",
-        "key_press", "get_text", "get",
-        "send", "set", "DB",
+        "close", "type", "verify", "wait", "navigate",
+        "assert",
+        "upload_file", "clear", "get_text", "get",
+        "send", "set", "DB", "run",
     ]
 
     # 默认重试配置
@@ -56,9 +55,10 @@ class KeywordEngine:
                  model_parser=None, data_manager=None,
                  global_vars: Optional[Dict] = None,
                  case_file: Optional[str] = None,
-                 data_resolver=None):
+                 data_resolver=None,
+                 driver_factory: Optional[Any] = None):
         self.driver = driver
-        self._last_response = None
+        self._driver_factory = driver_factory
         self._variables: Dict[str, Any] = {}
         self._return_values: list = []
         self.data_parser = DataParser(data_dir, self)
@@ -238,43 +238,23 @@ class KeywordEngine:
 
     # ── UI 操作关键字 ─────────────────────────────────────────────
 
-    def _kw_open(self, params: Dict) -> bool:
-        """打开URL"""
-        url = params.get("url") or params.get("data", "")
-        if not url:
-            raise InvalidParameterError(
-                keyword="open",
-                param_name="url",
-                reason="缺少必需参数 'url' 或 'data'"
-            )
-        
-        logger.info(f"导航到: {url}")
-        result = self.driver.navigate(url)
-        if not result:
-            raise DriverError(f"导航失败: {url}")
-        return result
+    def _ensure_driver(self) -> None:
+        """确保驱动可用，如果已关闭则通过工厂重新创建"""
+        is_closed = getattr(self.driver, '_is_closed', False)
+        if is_closed is True:
+            if self._driver_factory:
+                logger.info("浏览器已关闭，自动创建新浏览器实例...")
+                self.driver = self._driver_factory()
+            else:
+                raise DriverStoppedError(
+                    "浏览器未启动且未提供 driver_factory，无法自动创建"
+                )
 
     def _kw_close(self, params: Dict) -> bool:
         """关闭浏览器"""
         logger.info("关闭浏览器")
         self.driver.close()
         return True
-
-    def _kw_click(self, params: Dict) -> bool:
-        """点击元素"""
-        locator = params.get("locator", "") or params.get("data", "")
-        if not locator:
-            raise InvalidParameterError(
-                keyword="click",
-                param_name="locator",
-                reason="缺少必需参数 'locator'"
-            )
-        
-        logger.info(f"点击: {locator}")
-        result = self.driver.click(locator)
-        if not result:
-            raise DriverError(f"点击失败: {locator}")
-        return result
 
     def _kw_type(self, params: Dict) -> bool:
         """输入文本"""
@@ -301,17 +281,99 @@ class KeywordEngine:
             raise DriverError(f"输入失败: {locator}")
         return result
 
-    def _batch_type(self, model_name: str, data_ref: str) -> bool:
-        """批量输入：遍历模型元素，匹配数据表字段"""
-        parts = data_ref.split('.')
-        if len(parts) < 2:
-            raise InvalidParameterError(
-                keyword="type", 
-                param_name="data", 
-                reason=f"数据引用格式错误: '{data_ref}'，应为 'TableName.DataID' 格式"
-            )
+    # ── 数据表动作值支持 ─────────────────────────────────────────
+    # 数据表单元格中可写入 UI 动作关键字，type 批量模式会自动识别并执行。
+    # 支持: click / double_click / right_click / hover / select【值】
+    #       key_press【按键】 / drag【目标】 / scroll / scroll【x,y】
 
-        table_name, data_id = parts[0], parts[1]
+    ELEMENT_ACTIONS = {
+        'click', 'double_click', 'right_click', 'hover', 'scroll',
+    }
+
+    @staticmethod
+    def _extract_bracket_value(value: str) -> str:
+        """提取中文方括号【】中的参数值"""
+        start = value.find('【')
+        end = value.find('】')
+        if start != -1 and end != -1 and end > start:
+            return value[start + 1:end]
+        return ''
+
+    def _execute_element_action(self, value: str, locator: str, element_name: str):
+        """检查数据表值是否为 UI 动作关键字，是则执行对应操作。
+
+        Returns:
+            (action_name, element_name, result) 或 None（表示不是动作，应当作文本输入）
+        """
+        value_lower = value.strip().lower()
+
+        # 简单动作：值恰好等于关键字名
+        if value_lower in self.ELEMENT_ACTIONS:
+            action_map = {
+                'click': self.driver.click,
+                'double_click': self.driver.double_click,
+                'right_click': self.driver.right_click,
+                'hover': self.driver.hover,
+                'scroll': lambda loc: self.driver.scroll(0, 300),
+            }
+            fn = action_map[value_lower]
+            logger.debug(f"{element_name}: {value_lower} {locator}")
+            return (value_lower, element_name, fn(locator))
+
+        # 带参数的动作：key_press【按键】
+        if value_lower.startswith('key_press'):
+            key = self._extract_bracket_value(value)
+            if not key:
+                logger.warning(f"{element_name}: key_press 缺少按键参数，格式应为 key_press【按键】")
+                return None
+            logger.debug(f"{element_name}: 按键 '{key}'")
+            return ('key_press', element_name, self.driver.key_press(key))
+
+        # 带参数的动作：select【选项值】
+        if value_lower.startswith('select'):
+            select_value = self._extract_bracket_value(value)
+            if not select_value:
+                return None
+            logger.debug(f"{element_name}: 选择 {locator} = '{select_value}'")
+            return ('select', element_name, self.driver.select(locator, select_value))
+
+        # 带参数的动作：drag【目标定位器】
+        if value_lower.startswith('drag'):
+            target = self._extract_bracket_value(value)
+            if not target:
+                return None
+            logger.debug(f"{element_name}: 拖拽 {locator} -> {target}")
+            return ('drag', element_name, self.driver.drag(locator, target))
+
+        # 带参数的动作：scroll【x,y】
+        if value_lower.startswith('scroll'):
+            params_str = self._extract_bracket_value(value)
+            parts = params_str.split(',')
+            x = int(parts[0].strip()) if len(parts) > 0 and parts[0].strip() else 0
+            y = int(parts[1].strip()) if len(parts) > 1 and parts[1].strip() else 300
+            logger.debug(f"{element_name}: 滚动 ({x}, {y})")
+            return ('scroll', element_name, self.driver.scroll(x, y))
+
+        return None
+
+    def _batch_type(self, model_name: str, data_ref: str) -> bool:
+        """批量输入：遍历模型元素，匹配数据表字段
+
+        数据引用格式: type ModelName DataID
+        - 数据表名 = 模型名（强制一致）
+        - data_ref 直接就是 DataID
+
+        数据表单元格的值决定对该元素执行什么操作：
+        - 普通文本 → 输入到元素
+        - click / double_click / right_click / hover → 执行对应 UI 动作
+        - select【值】 → 下拉选择
+        - key_press【按键】 → 按键（支持组合键如 Control+C）
+        - drag【目标】 → 拖拽到目标元素
+        - scroll / scroll【x,y】 → 页面滚动
+        """
+        table_name = model_name
+        data_id = data_ref
+
         model = self.model_parser.get_model(model_name)
         data_row = self.data_manager.get_data(table_name, data_id)
 
@@ -326,10 +388,10 @@ class KeywordEngine:
             raise InvalidParameterError(
                 keyword="type",
                 param_name="data",
-                reason=f"数据不存在: '{data_ref}' (表 '{table_name}' 中找不到 DataID='{data_id}')"
+                reason=f"数据不存在: 表 '{table_name}' 中找不到 DataID='{data_id}'"
             )
 
-        logger.info(f"批量输入: 模型={model_name}, 数据={data_ref}")
+        logger.info(f"批量输入: 模型={model_name}, DataID={data_id}")
         
         operations = []
         resolved_values = {}
@@ -368,11 +430,12 @@ class KeywordEngine:
             locator_value = element_info['value']
             locator = f"{locator_type}={locator_value}"
 
-            if value.lower() == 'click':
-                logger.debug(f"{element_name}: 点击 {locator}")
-                result = self.driver.click(locator)
-                operations.append(('click', element_name, result))
+            # 尝试作为 UI 动作执行
+            action_result = self._execute_element_action(value, locator, element_name)
+            if action_result is not None:
+                operations.append(action_result)
             else:
+                # 普通文本输入
                 display_value = value
                 if value.endswith('.Password'):
                     value = value[:-9]
@@ -390,6 +453,139 @@ class KeywordEngine:
         self.store_return(resolved_values)
         return True
 
+    # ── 接口测试关键字 ─────────────────────────────────────────────
+
+    def _kw_send(self, params: Dict) -> bool:
+        """发送接口请求 — 与 type 对称的接口测试关键字
+
+        公式: send ApiModel DataID
+        从模型获取接口定义（请求方式/URL），从数据表取值发送 HTTP 请求，
+        响应自动保存为步骤返回值（含 status 和响应体字段）。
+        """
+        model_name = params.get("model", "")
+        data_ref = params.get("data", "")
+
+        if not model_name or not data_ref:
+            raise InvalidParameterError(
+                keyword="send",
+                param_name="model/data",
+                reason="send 必须指定模型和 DataID (send ApiModel DataID)"
+            )
+        if not self.model_parser or not self.data_manager:
+            raise InvalidParameterError(
+                keyword="send",
+                param_name="context",
+                reason="send 需要 model_parser 和 data_manager（请通过 SKIExecutor 执行）"
+            )
+        return self._batch_send(model_name, data_ref)
+
+    def _batch_send(self, model_name: str, data_ref: str) -> bool:
+        """批量发送接口请求：从模型和数据表组装 HTTP 请求
+
+        数据引用格式: send ModelName DataID
+        - 数据表名 = 模型名（强制一致）
+        - data_ref 直接就是 DataID
+
+        接口模型元素命名约定：
+        - _method: HTTP 请求方式（GET/POST/PUT/DELETE），模型中定义默认值
+        - _url: 请求 URL（绝对路径或相对路径）
+        - _header_*: 请求头（如 _header_Authorization）
+        - 其他元素: 请求体字段（POST/PUT → JSON body；GET/DELETE → 查询参数）
+        """
+        table_name = model_name
+        data_id = data_ref
+
+        model = self.model_parser.get_model(model_name)
+        data_row = self.data_manager.get_data(table_name, data_id)
+
+        if not model:
+            raise InvalidParameterError(
+                keyword="send", param_name="model",
+                reason=f"模型不存在: '{model_name}'"
+            )
+        if not data_row:
+            raise InvalidParameterError(
+                keyword="send", param_name="data",
+                reason=f"数据不存在: 表 '{table_name}' 中找不到 DataID='{data_id}'"
+            )
+
+        logger.info(f"接口请求: 模型={model_name}, DataID={data_id}")
+
+        method = "GET"
+        url = ""
+        headers = {}
+        body = {}
+
+        for element_name, element_info in model.items():
+            if element_name in data_row:
+                value = str(data_row[element_name])
+                if self.data_resolver:
+                    value = self.data_resolver.resolve_with_return(value)
+            else:
+                value = element_info.get('value', '')
+
+            if not value or not value.strip():
+                continue
+            value = value.strip()
+
+            if element_name == '_method':
+                method = value.upper()
+            elif element_name == '_url':
+                url = value
+            elif element_name.startswith('_header_'):
+                header_name = element_name[8:]
+                headers[header_name] = value
+            else:
+                value_upper = value.upper()
+                if value_upper == 'BLANK':
+                    body[element_name] = ''
+                elif value_upper == 'NULL':
+                    body[element_name] = None
+                elif value_upper == 'NONE':
+                    continue
+                else:
+                    body[element_name] = value
+
+        if not url:
+            raise InvalidParameterError(
+                keyword="send", param_name="_url",
+                reason="接口模型或数据中缺少 _url（请求地址）"
+            )
+
+        from api.rest_helper import RestHelper
+        try:
+            if method in ('POST', 'PUT', 'PATCH'):
+                response = RestHelper.send_request(
+                    method=method, url=url,
+                    headers=headers or None,
+                    body=body if body else None,
+                )
+            else:
+                if body:
+                    from urllib.parse import urlencode
+                    sep = '&' if '?' in url else '?'
+                    url = f"{url}{sep}{urlencode(body)}"
+                response = RestHelper.send_request(
+                    method=method, url=url,
+                    headers=headers or None,
+                )
+        except Exception as e:
+            raise DriverError(f"HTTP {method} 请求失败: {url} - {e}")
+
+        result_data = {"status": response.status_code}
+        try:
+            json_body = response.json()
+            if isinstance(json_body, dict):
+                result_data.update(json_body)
+            else:
+                result_data["body"] = json_body
+        except (ValueError, TypeError):
+            result_data["body"] = response.text
+
+        self.store_return(result_data)
+        logger.info(f"HTTP {method} {url} → {response.status_code}")
+        return True
+
     def _kw_check(self, params: Dict) -> bool:
         """check → verify 的内部别名，保留向后兼容"""
         return self._kw_verify(params)
@@ -402,7 +598,7 @@ class KeywordEngine:
         return True
 
     def _kw_navigate(self, params: Dict) -> bool:
-        """导航到URL"""
+        """导航到URL，如果当前没有浏览器则自动创建新实例"""
         url = params.get("url", "") or params.get("data", "")
         if not url:
             raise InvalidParameterError(
@@ -410,6 +606,7 @@ class KeywordEngine:
                 param_name="url",
                 reason="缺少必需参数 'url'"
             )
+        self._ensure_driver()
         logger.info(f"导航: {url}")
         result = self.driver.navigate(url)
         if not result:
@@ -421,42 +618,6 @@ class KeywordEngine:
         path = params.get("path", "") or params.get("data", "") or "screenshot.png"
         logger.info(f"截图: {path}")
         return self.driver.screenshot(path)
-
-    def _kw_select(self, params: Dict) -> bool:
-        """下拉选择"""
-        locator = params.get("locator", "") or params.get("data", "")
-        value = params.get("value", "") or params.get("model", "")
-        logger.info(f"选择: {locator} = {value}")
-        result = self.driver.select(locator, value)
-        if not result:
-            raise DriverError(f"选择失败: {locator}")
-        return result
-
-    def _kw_hover(self, params: Dict) -> bool:
-        """悬停"""
-        locator = params.get("locator", "") or params.get("data", "")
-        logger.info(f"悬停: {locator}")
-        result = self.driver.hover(locator)
-        if not result:
-            raise DriverError(f"悬停失败: {locator}")
-        return result
-
-    def _kw_drag(self, params: Dict) -> bool:
-        """拖拽"""
-        from_loc = params.get("from", "")
-        to_loc = params.get("to", "")
-        logger.info(f"拖拽: {from_loc} -> {to_loc}")
-        result = self.driver.drag(from_loc, to_loc)
-        if not result:
-            raise DriverError(f"拖拽失败: {from_loc} -> {to_loc}")
-        return result
-
-    def _kw_scroll(self, params: Dict) -> bool:
-        """滚动"""
-        x = int(params.get("x", 0))
-        y = int(params.get("y", 300))
-        logger.info(f"滚动: ({x}, {y})")
-        return self.driver.scroll(x, y)
 
     def _kw_assert(self, params: Dict) -> bool:
         """断言（保留兼容）"""
@@ -472,9 +633,9 @@ class KeywordEngine:
     def _kw_verify(self, params: Dict) -> bool:
         """验证 - 与 type 对称的批量验证关键字
         
-        公式: verify ModelName DataTable.DataID
-        遍历模型中的每个元素，从界面读取实际值，与数据表中的期望值比较。
-        数据表字段中可以使用 Return[-1] 引用前序步骤的返回值。
+        公式: verify ModelName DataID
+        自动在 ModelName_verify 数据表中查找 DataID 行，
+        遍历模型元素，从界面/接口读取实际值并与期望值比较。
         """
         model_name = params.get("model", "")
         data_ref = params.get("data", "")
@@ -483,7 +644,7 @@ class KeywordEngine:
             raise InvalidParameterError(
                 keyword="verify",
                 param_name="model/data",
-                reason="verify 必须指定模型和数据表引用 (verify ModelName DataTable.DataID)"
+                reason="verify 必须指定模型和 DataID (verify ModelName DataID)"
             )
         if not self.model_parser or not self.data_manager:
             raise InvalidParameterError(
@@ -494,21 +655,15 @@ class KeywordEngine:
         return self._batch_verify(model_name, data_ref)
 
     def _batch_verify(self, model_name: str, data_ref: str) -> bool:
-        """批量验证：遍历模型元素，读取界面实际值，与数据表期望值比较
-        
-        与 _batch_type 完全对称:
-        - _batch_type: 模型元素定位 + 数据表值 → 写入界面
-        - _batch_verify: 模型元素定位 → 读取界面 → 与数据表值比较
-        """
-        parts = data_ref.split('.')
-        if len(parts) < 2:
-            raise InvalidParameterError(
-                keyword="verify",
-                param_name="data",
-                reason=f"数据引用格式错误: '{data_ref}'，应为 'TableName.DataID' 格式"
-            )
+        """批量验证：遍历模型元素，读取界面/接口实际值，与期望值比较
 
-        table_name, data_id = parts[0], parts[1]
+        数据引用格式: verify ModelName DataID
+        - 数据表名 = ModelName_verify（自动拼接）
+        - data_ref 直接就是 DataID
+        """
+        table_name = f"{model_name}_verify"
+        data_id = data_ref
+
         model = self.model_parser.get_model(model_name)
         data_row = self.data_manager.get_data(table_name, data_id)
 
@@ -520,7 +675,7 @@ class KeywordEngine:
         if not data_row:
             raise InvalidParameterError(
                 keyword="verify", param_name="data",
-                reason=f"数据不存在: '{data_ref}'"
+                reason=f"数据不存在: 表 '{table_name}' 中找不到 DataID='{data_id}'"
             )
 
         logger.info(f"批量验证: 模型={model_name}, 期望数据={data_ref}")
@@ -615,33 +770,6 @@ class KeywordEngine:
             raise DriverError(f"清空失败: {locator}")
         return result
 
-    def _kw_double_click(self, params: Dict) -> bool:
-        """双击"""
-        locator = params.get("locator", "") or params.get("data", "")
-        logger.info(f"双击: {locator}")
-        result = self.driver.double_click(locator)
-        if not result:
-            raise DriverError(f"双击失败: {locator}")
-        return result
-
-    def _kw_right_click(self, params: Dict) -> bool:
-        """右键点击"""
-        locator = params.get("locator", "") or params.get("data", "")
-        logger.info(f"右键点击: {locator}")
-        result = self.driver.right_click(locator)
-        if not result:
-            raise DriverError(f"右键点击失败: {locator}")
-        return result
-
-    def _kw_key_press(self, params: Dict) -> bool:
-        """按键"""
-        key = params.get("key", "") or params.get("data", "")
-        logger.info(f"按键: {key}")
-        result = self.driver.key_press(key)
-        if not result:
-            raise DriverError(f"按键失败: {key}")
-        return result
-
     def _kw_get_text(self, params: Dict) -> bool:
         """获取文本"""
         locator = params.get("locator", "") or params.get("data", "")
@@ -667,126 +795,6 @@ class KeywordEngine:
             raise DriverError(f"上传文件失败: {file_path}")
         return result
 
-    # ── HTTP/API 关键字（通过 RestHelper 直接发送，不经过 UI 驱动）──
-
-    def _send_http(self, method: str, url: str, body=None, headers=None, expected_status=200) -> bool:
-        """统一 HTTP 请求发送逻辑"""
-        logger.info(f"HTTP {method}: {url}")
-        try:
-            self._last_response = RestHelper.send_request(
-                method=method, url=url, body=body, headers=headers
-            )
-        except Exception as e:
-            logger.error(f"HTTP {method} 请求失败: {e}")
-            self.store_return(None)
-            raise DriverError(f"HTTP {method} 请求失败: {url} - {e}")
-
-        if self._last_response and hasattr(self._last_response, "status_code"):
-            actual_status = self._last_response.status_code
-            logger.info(f"HTTP 响应: {actual_status}")
-            result = actual_status == expected_status
-            self.store_return(
-                self._last_response.text 
-                if hasattr(self._last_response, "text") 
-                else str(self._last_response)
-            )
-            if not result:
-                logger.warning(f"状态码不匹配: 期望 {expected_status}, 实际 {actual_status}")
-            return result
-        self.store_return(None)
-        return bool(self._last_response)
-
-    def _kw_http_get(self, params: Dict) -> bool:
-        """HTTP GET 请求"""
-        url = params.get("url", "") or params.get("data", "")
-        if not url:
-            raise InvalidParameterError(keyword="http_get", param_name="url", reason="缺少必需参数")
-        return self._send_http("GET", url, 
-                               headers=params.get("headers"),
-                               expected_status=int(params.get("expected_status", 200)))
-
-    def _kw_http_post(self, params: Dict) -> bool:
-        """HTTP POST 请求"""
-        url = params.get("url", "") or params.get("data", "")
-        if not url:
-            raise InvalidParameterError(keyword="http_post", param_name="url", reason="缺少必需参数")
-        return self._send_http("POST", url, 
-                               body=params.get("body"), 
-                               headers=params.get("headers"),
-                               expected_status=int(params.get("expected_status", 200)))
-
-    def _kw_http_put(self, params: Dict) -> bool:
-        """HTTP PUT 请求"""
-        url = params.get("url", "") or params.get("data", "")
-        if not url:
-            raise InvalidParameterError(keyword="http_put", param_name="url", reason="缺少必需参数")
-        return self._send_http("PUT", url,
-                               body=params.get("body"),
-                               headers=params.get("headers"),
-                               expected_status=int(params.get("expected_status", 200)))
-
-    def _kw_http_delete(self, params: Dict) -> bool:
-        """HTTP DELETE 请求"""
-        url = params.get("url", "") or params.get("data", "")
-        if not url:
-            raise InvalidParameterError(keyword="http_delete", param_name="url", reason="缺少必需参数")
-        return self._send_http("DELETE", url,
-                               headers=params.get("headers"),
-                               expected_status=int(params.get("expected_status", 200)))
-
-    def _kw_assert_json(self, params: Dict) -> bool:
-        """JSON 断言"""
-        if not self._last_response:
-            raise RuntimeError("无可用的 HTTP 响应，请先执行 HTTP 请求关键字")
-        
-        data = self._last_response
-        if hasattr(data, "json"):
-            data = data.json()
-        
-        path = params.get("path", "")
-        expected = params.get("expected")
-        
-        logger.info(f"JSON断言: {path} = {expected}")
-        actual = RestHelper.jsonpath_extract(data, path)
-        result = actual == expected
-        
-        if not result:
-            logger.warning(f"JSON断言失败: 实际值={actual}")
-        return result
-
-    def _kw_assert_status(self, params: Dict) -> bool:
-        """状态码断言"""
-        if not self._last_response:
-            raise RuntimeError("无可用的 HTTP 响应，请先执行 HTTP 请求关键字")
-        
-        expected = int(params.get("expected", 200))
-        
-        if hasattr(self._last_response, "status_code"):
-            actual = self._last_response.status_code
-            logger.info(f"状态码断言: {actual} == {expected}")
-            result = actual == expected
-            if not result:
-                logger.warning("状态码断言失败")
-            return result
-        return False
-
-    def _kw_send(self, params: Dict) -> bool:
-        """发送HTTP请求（通用）"""
-        url = params.get("url", "") or params.get("data", "")
-        if not url:
-            raise InvalidParameterError(keyword="send", param_name="url", reason="缺少必需参数")
-        
-        method = params.get("method", "POST").upper()
-        if method not in ("GET", "POST", "PUT", "DELETE"):
-            raise InvalidParameterError(keyword="send", param_name="method", reason=f"不支持的 HTTP 方法: {method}")
-
-        return self._send_http(
-            method, url,
-            body=params.get("body"),
-            headers=params.get("headers"),
-            expected_status=int(params.get("expected_status", 200))
-        )
-
     # ── 高级关键字 ─────────────────────────────────────────────────
 
     def _kw_set(self, params: Dict) -> bool:
@@ -798,6 +806,78 @@ class KeywordEngine:
         
         logger.info(f"设置变量: {var_name} = '{value}'")
         self._variables[var_name] = value
+        return True
+
+    def _kw_run(self, params: Dict) -> bool:
+        """在沙箱中执行 Python 代码
+
+        用例格式: run | 工程名 | 代码文件路径
+        目录结构:
+            test_project/
+            ├── case/          ← 用例文件
+            └── fun/           ← 代码工程根目录
+                └── <工程名>/  ← model 列指定
+                    └── xxx.py ← data 列指定
+
+        脚本的 stdout 输出自动保存为步骤返回值（尝试 JSON 解析）。
+        """
+        project_name = params.get("model", "")
+        code_path = params.get("data", "")
+
+        if not code_path:
+            raise InvalidParameterError(
+                keyword="run", param_name="data",
+                reason="缺少代码文件路径"
+            )
+
+        if not self._case_file:
+            raise InvalidParameterError(
+                keyword="run", param_name="context",
+                reason="run 需要知道用例文件位置以定位 fun/ 目录"
+            )
+
+        fun_dir = self._case_file.parent.parent / "fun"
+        if project_name:
+            project_dir = fun_dir / project_name
+            script_path = project_dir / code_path
+        else:
+            project_dir = fun_dir
+            script_path = fun_dir / code_path
+
+        if not script_path.exists():
+            raise InvalidParameterError(
+                keyword="run", param_name="data",
+                reason=f"代码文件不存在: {script_path}"
+            )
+
+        logger.info(f"执行代码: {script_path}")
+
+        try:
+            result = subprocess.run(
+                [sys.executable, str(script_path)],
+                capture_output=True, text=True,
+                cwd=str(project_dir),
+                timeout=300,
+            )
+        except subprocess.TimeoutExpired:
+            raise DriverError(f"代码执行超时 (300s): {script_path}")
+
+        if result.returncode != 0:
+            error_msg = result.stderr.strip() or f"退出码: {result.returncode}"
+            logger.error(f"代码执行失败:\n{error_msg}")
+            raise DriverError(f"代码执行失败: {error_msg}")
+
+        output = result.stdout.strip()
+        if output:
+            try:
+                parsed = json.loads(output)
+                self.store_return(parsed)
+            except (json.JSONDecodeError, ValueError):
+                self.store_return(output)
+        else:
+            self.store_return(None)
+
+        logger.info(f"代码执行成功: {script_path}")
         return True
 
     def _kw_db(self, params: Dict) -> bool:

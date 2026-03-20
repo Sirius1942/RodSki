@@ -41,10 +41,10 @@ def sample_xlsx(tmp_path):
     ws.title = "TestCase"
     ws.append(["keyword", "name", "locator", "text", "url"])
     ws.append(["navigate", "Open page", None, None, "https://example.com"])
-    ws.append(["click", "Click login", "#login-btn", None, None])
+    ws.append(["wait", "Wait login", None, None, None])
     ws.append(["type", "Enter user", "#user", "admin", None])
     ws.append(["type", "Enter pass", "#pass", "123456", None])
-    ws.append(["click", "Submit", "#submit", None, None])
+    ws.append(["wait", "Wait submit", None, None, None])
     ws.append(["wait", "Wait load", None, None, None])
     ws.append(["assert", "Verify page", "#dashboard", None, None])
     wb.save(path)
@@ -112,8 +112,8 @@ class TestEndToEnd:
         assert locator == "#login-btn"
 
         engine = KeywordEngine(mock_driver)
-        engine.execute("click", {"locator": locator})
-        mock_driver.click.assert_called_with("#login-btn")
+        engine.execute("clear", {"locator": locator})
+        mock_driver.clear.assert_called_with("#login-btn")
 
     def test_config_driven_execution(self, tmp_path):
         cfg = ConfigManager(config_path=str(tmp_path / "config.json"))
@@ -140,17 +140,16 @@ class TestEndToEnd:
 
     def test_partial_failure_flow(self, tmp_path):
         driver = _mock_driver()
-        # click is called: S1(attempt1)=True, S3(attempt1)=False, S3(attempt2)=False
-        driver.click.side_effect = [True, False, False]
+        driver.clear.side_effect = [True, False, False]
         driver.type.return_value = True
 
         engine = KeywordEngine(driver)
         executor = TaskExecutor(engine, max_retries=1)
 
         steps = [
-            {"keyword": "click", "params": {"locator": "#a"}, "name": "S1"},
+            {"keyword": "clear", "params": {"locator": "#a"}, "name": "S1"},
             {"keyword": "type", "params": {"locator": "#b", "text": "hi"}, "name": "S2"},
-            {"keyword": "click", "params": {"locator": "#c"}, "name": "S3"},
+            {"keyword": "clear", "params": {"locator": "#c"}, "name": "S3"},
         ]
         success = executor.execute_steps(steps)
         assert success is False

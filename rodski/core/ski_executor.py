@@ -81,7 +81,8 @@ class SKIExecutor:
             model_parser=self.model_parser,
             data_manager=self.data_manager,
             global_vars=self.global_vars,
-            case_file=str(self.case_file)
+            case_file=str(self.case_file),
+            driver_factory=self.driver_factory,
         )
         self.data_resolver = DataResolver(
             data_manager=self.data_manager,
@@ -111,7 +112,8 @@ class SKIExecutor:
                     model_parser=self.model_parser,
                     data_manager=self.data_manager,
                     global_vars=self.global_vars,
-                    case_file=str(self.case_file)
+                    case_file=str(self.case_file),
+                    driver_factory=self.driver_factory,
                 )
                 self.data_resolver.return_provider = self.keyword_engine.get_return
                 self.keyword_engine.data_resolver = self.data_resolver
@@ -291,6 +293,11 @@ class SKIExecutor:
         if action.lower() == 'close':
             self._driver_closed = True
             logger.info("浏览器已关闭")
+        
+        # navigate 可能自动重建了驱动，同步引用
+        if self.keyword_engine.driver is not self.driver:
+            self.driver = self.keyword_engine.driver
+            self._driver_closed = False
         
         # 自动截图（驱动存活且非 close/wait/DB 等无界面操作时）
         if not self._driver_closed and action.lower() not in ('close', 'wait', 'DB'):

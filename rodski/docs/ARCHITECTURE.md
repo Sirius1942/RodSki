@@ -20,7 +20,7 @@ rodski/
 ├── core/                    # 核心引擎层
 │   ├── __init__.py
 │   ├── ski_executor.py      # ⭐ SKI执行引擎 - 主执行器
-│   ├── keyword_engine.py    # ⭐ 关键字引擎 - 28+关键字实现
+│   ├── keyword_engine.py    # ⭐ 关键字引擎 - 14+关键字实现
 │   ├── task_executor.py     # 任务执行器 - 步骤执行与重试
 │   ├── parallel_executor.py # 并发执行器 - 多线程执行
 │   ├── case_parser.py       # 用例解析器 - Case Sheet解析
@@ -104,9 +104,9 @@ rodski/
 │           │              │                 │               │                │
 │           ▼              ▼                 ▼               ▼                │
 │  ┌──────────────────┐  ┌────────────┐  ┌────────────┐  ┌────────────────┐ │
-│  │  TaskExecutor    │  │ 28+关键字   │  │ HTTP/API   │  │ Playwright     │ │
-│  │  (步骤执行/重试)   │  │ click/type │  │ http_get   │  │ Appium         │ │
-│  └──────────────────┘  │ wait/...   │  │ http_post  │  │ Pywinauto      │ │
+│  │  TaskExecutor    │  │ 14+关键字   │  │ API/send   │  │ Playwright     │ │
+│  │  (步骤执行/重试)   │  │ type/send  │  │ RestHelper │  │ Appium         │ │
+│  └──────────────────┘  │ verify/... │  │            │  │ Pywinauto      │ │
 │                        └────────────┘  └────────────┘  └────────────────┘ │
 │                                                                             │
 │  ┌──────────────────────────────────────────────────────────────────────┐  │
@@ -194,10 +194,10 @@ rodski/
                          │     KeywordEngine       │
                          │ ┌─────────────────────┐ │
                          │ │ execute(kw, params) │ │
-                         │ │ _kw_click()         │ │
                          │ │ _kw_type()          │ │
-                         │ │ _kw_http_get()      │ │
-                         │ │ ... (28+ 关键字)     │ │
+                         │ │ _kw_send()          │ │
+                         │ │ _kw_verify()        │ │
+                         │ │ ... (14+ 关键字)     │ │
                          │ └──────────┬──────────┘ │
                          └────────────┼────────────┘
                                       │
@@ -243,7 +243,7 @@ rodski/
 │  │执行 │CaseID │ 标题  │ 预处理 │ 测试步骤 │ 预期结果 │ 后处理           │   │
 │  │控制 │       │       │action │ action  │ action  │ action           │   │
 │  ├─────┼───────┼───────┼────────────────────────────────────────────────┤   │
-│  │ 是  │TC001  │登录   │open   │ type    │ assert  │ close            │   │
+│  │ 是  │TC001  │登录   │navigate│ type    │ assert  │ close            │   │
 │  │     │       │       │       │ click   │         │                  │   │
 │  └─────┴───────┴───────┴────────────────────────────────────────────────┘   │
 │                                                                             │
@@ -305,7 +305,7 @@ rodski/
 │  5. 执行用例步骤                              │ │
 │  ┌─────────────────────────────────────────┐│ │
 │  │ 预处理 (pre_process)                     ││ │
-│  │   └─► open → navigate                    ││ │
+│  │   └─► navigate                            ││ │
 │  ├─────────────────────────────────────────┤│ │
 │  │ 测试步骤 (test_step)                     ││ │
 │  │   └─► type → click                       ││ │
@@ -341,47 +341,37 @@ rodski/
 
 ---
 
-## 5. 关键字清单 (28+)
+## 5. 关键字清单 (14+)
 
 ### UI 操作关键字
 | 关键字 | 功能 | 参数 |
 |--------|------|------|
-| `open` | 打开URL | url/data |
+| `navigate` | 导航到URL（无浏览器时自动创建） | url/data |
 | `close` | 关闭浏览器 | - |
-| `click` | 点击元素 | locator |
-| `type` | 输入文本 | locator, text |
-| `check` | 检查元素可见 | locator |
+| `type` | UI 批量输入（PC/移动端统一） | model, data 或 locator, text |
+| `verify` | 批量验证（UI + 接口通用） | model, data |
+| `check` | verify 的兼容别名 | model, data |
 | `wait` | 等待 | seconds/data |
-| `navigate` | 导航 | url |
 | `screenshot` | 截图 | path |
-| `select` | 下拉选择 | locator, value |
-| `hover` | 悬停 | locator |
-| `drag` | 拖拽 | from, to |
-| `scroll` | 滚动 | x, y |
 | `assert` | 断言元素 | locator, expected |
 | `upload_file` | 上传文件 | locator, file_path |
 | `clear` | 清空输入 | locator |
-| `double_click` | 双击 | locator |
-| `right_click` | 右键点击 | locator |
-| `key_press` | 按键 | key |
 | `get_text` | 获取文本 | locator, var_name |
 
-### HTTP/API 关键字
+> click / select / hover / drag / scroll / double_click / right_click / key_press 作为数据表字段值在 `type` 批量模式中使用。
+
+### 接口测试关键字
 | 关键字 | 功能 | 参数 |
 |--------|------|------|
-| `http_get` | GET请求 | url, headers, expected_status |
-| `http_post` | POST请求 | url, body, headers, expected_status |
-| `http_put` | PUT请求 | url, body, headers, expected_status |
-| `http_delete` | DELETE请求 | url, headers, expected_status |
-| `assert_json` | JSON断言 | path, expected |
-| `assert_status` | 状态码断言 | expected |
-| `send` | 通用HTTP请求 | url, method, body, headers |
+| `send` | 发送接口请求（模型定义请求方式+URL） | model=接口模型名, data=DataID |
+
+> 接口测试通过 `send`（发送请求）+ `verify`（验证响应）完成。接口模型定义 _method/_url/_header_* 等属性，verify 数据表（ModelName_verify）包含 status 列。
 
 ### 高级关键字
 | 关键字 | 功能 | 参数 |
 |--------|------|------|
 | `set` | 设置变量 | var_name, value |
-| `run` | 执行Logic用例 | case_name, case_file |
+| `run` | 沙箱执行 Python 代码 | model=工程名, data=代码路径 |
 | `DB` | 数据库操作 | operation, query, var_name |
 
 ---
@@ -413,7 +403,7 @@ rodski/
 位置: core/keyword_engine.py
 
 特性:
-├── 28+ 关键字支持
+├── 14+ 关键字支持
 ├── 自动重试机制 (max_retries, retry_delay)
 ├── 数据引用解析
 ├── 返回值存储 (store_return/get_return)
@@ -476,7 +466,7 @@ rodski/
 {
     'case_id': 'TC001',
     'title': '登录测试',
-    'pre_process': {'action': 'open', 'model': '', 'data': 'url'},
+    'pre_process': {'action': 'navigate', 'model': '', 'data': 'url'},
     'test_step': {'action': 'type', 'model': 'LoginPage', 'data': 'LoginData.data001'},
     'expected_result': {...},
     'post_process': {...}

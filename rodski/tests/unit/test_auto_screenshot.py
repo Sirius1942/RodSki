@@ -23,8 +23,8 @@ def tmp_excel(tmp_path):
     ws = wb.active
     ws.title = "Case"
     ws.append(["Execute", "CaseID", "Title", "PreProcess", "TestStep", "ExpectedResult", "PostProcess"])
-    ws.append(["是", "TC001", "登录测试", "open||url=https://example.com", "type||locator=#input", "", ""])
-    ws.append(["是", "TC002", "失败测试", "open||url=https://example.com", "click||locator=#nonexistent", "", ""])
+    ws.append(["是", "TC001", "登录测试", "navigate||url=https://example.com", "type||locator=#input", "", ""])
+    ws.append(["是", "TC002", "失败测试", "navigate||url=https://example.com", "wait||data=1", "", ""])
     wb.save(path)
     return str(path)
 
@@ -120,8 +120,7 @@ class TestSKIExecutorScreenshot:
     
     def test_screenshot_taken_on_failure(self, tmp_excel, tmp_model, mock_driver, config_with_screenshot):
         """失败时应自动截图"""
-        # 设置 click 方法抛出异常
-        mock_driver.click.side_effect = RuntimeError("Element not found")
+        mock_driver.wait.side_effect = RuntimeError("Element not found")
         
         executor = SKIExecutor(tmp_excel, tmp_model, mock_driver, config_with_screenshot)
         
@@ -130,7 +129,7 @@ class TestSKIExecutorScreenshot:
             'case_id': 'TC_FAIL',
             'title': '失败测试',
             'pre_process': {'action': ''},
-            'test_step': {'action': 'click', 'model': '', 'data': ''},
+            'test_step': {'action': 'wait', 'model': '', 'data': ''},
             'expected_result': {'action': ''},
             'post_process': {'action': ''},
         }
@@ -175,8 +174,7 @@ class TestSKIExecutorScreenshot:
     
     def test_no_screenshot_when_disabled(self, tmp_excel, tmp_model, mock_driver, config_without_screenshot):
         """禁用截图时失败也不截图"""
-        # 设置 click 方法抛出异常
-        mock_driver.click.side_effect = RuntimeError("Element not found")
+        mock_driver.wait.side_effect = RuntimeError("Element not found")
         
         executor = SKIExecutor(tmp_excel, tmp_model, mock_driver, config_without_screenshot)
         
@@ -184,7 +182,7 @@ class TestSKIExecutorScreenshot:
             'case_id': 'TC_FAIL_NO_SS',
             'title': '失败但不截图',
             'pre_process': {'action': ''},
-            'test_step': {'action': 'click', 'model': '', 'data': ''},
+            'test_step': {'action': 'wait', 'model': '', 'data': ''},
             'expected_result': {'action': ''},
             'post_process': {'action': ''},
         }
@@ -202,7 +200,7 @@ class TestSKIExecutorScreenshot:
     
     def test_screenshot_filename_format(self, tmp_excel, tmp_model, mock_driver, config_with_screenshot):
         """截图文件名格式应符合规范: {case_id}_{timestamp}_failure.png"""
-        mock_driver.click.side_effect = RuntimeError("Test error")
+        mock_driver.wait.side_effect = RuntimeError("Test error")
         
         executor = SKIExecutor(tmp_excel, tmp_model, mock_driver, config_with_screenshot)
         
@@ -210,7 +208,7 @@ class TestSKIExecutorScreenshot:
             'case_id': 'TC_001',
             'title': '测试文件名格式',
             'pre_process': {'action': ''},
-            'test_step': {'action': 'click', 'model': '', 'data': ''},
+            'test_step': {'action': 'wait', 'model': '', 'data': ''},
             'expected_result': {'action': ''},
             'post_process': {'action': ''},
         }
@@ -292,7 +290,7 @@ class TestAutoScreenshotIntegration:
     
     def test_full_flow_with_failure_screenshot(self, tmp_excel, tmp_model, mock_driver, config_with_screenshot):
         """测试完整流程: 失败 -> 截图 -> 写入结果"""
-        mock_driver.click.side_effect = RuntimeError("Timeout waiting for element")
+        mock_driver.wait.side_effect = RuntimeError("Timeout waiting for element")
         
         executor = SKIExecutor(tmp_excel, tmp_model, mock_driver, config_with_screenshot)
         
@@ -300,7 +298,7 @@ class TestAutoScreenshotIntegration:
             'case_id': 'TC_INTEGRATION',
             'title': '集成测试',
             'pre_process': {'action': ''},
-            'test_step': {'action': 'click', 'model': '', 'data': '#button'},
+            'test_step': {'action': 'wait', 'model': '', 'data': '1'},
             'expected_result': {'action': ''},
             'post_process': {'action': ''},
         }
@@ -319,7 +317,7 @@ class TestAutoScreenshotIntegration:
     def test_screenshot_failure_does_not_break_execution(self, tmp_excel, tmp_model, mock_driver, config_with_screenshot):
         """截图失败不应中断测试执行"""
         mock_driver.screenshot.side_effect = Exception("Screenshot failed")
-        mock_driver.click.side_effect = RuntimeError("Test error")
+        mock_driver.wait.side_effect = RuntimeError("Test error")
         
         executor = SKIExecutor(tmp_excel, tmp_model, mock_driver, config_with_screenshot)
         
@@ -327,7 +325,7 @@ class TestAutoScreenshotIntegration:
             'case_id': 'TC_SCREENSHOT_FAIL',
             'title': '截图失败测试',
             'pre_process': {'action': ''},
-            'test_step': {'action': 'click', 'model': '', 'data': '#button'},
+            'test_step': {'action': 'wait', 'model': '', 'data': '1'},
             'expected_result': {'action': ''},
             'post_process': {'action': ''},
         }

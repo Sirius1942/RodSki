@@ -78,7 +78,7 @@ RodSki 用例由三部分组成：**关键字 + 模型 + 数据**。
 
 | 执行控制 | 编号 | 标题 | 描述 | 类型 | 预处理动作 | 预处理模型 | 预处理数据 | 测试动作 | 测试模型 | 测试数据 |
 |---------|------|------|------|------|-----------|-----------|-----------|---------|---------|---------|
-| 是 | c001 | 登录 | 验证登录 | 界面 | open | | GlobalValue.DefaultValue.URL/login | type | Login | LoginData.L001 |
+| 是 | c001 | 登录 | 验证登录 | 界面 | navigate | | GlobalValue.DefaultValue.URL/login | type | Login | LoginData.L001 |
 
 `type Login LoginData.L001` 的含义：遍历 Login 模型的每个元素（username、password），从 LoginData.L001 取同名列的值，逐一输入。
 

@@ -8,13 +8,13 @@ class TestParallelExecutor:
     def test_execute_cases_success(self):
         """测试并发执行成功"""
         cases = [
-            {"name": "case1", "steps": [{"keyword": "click", "params": {"locator": "#btn1"}}]},
+            {"name": "case1", "steps": [{"keyword": "clear", "params": {"locator": "#btn1"}}]},
             {"name": "case2", "steps": [{"keyword": "type", "params": {"locator": "#input", "text": "test"}}]},
         ]
         
         def driver_factory():
             driver = Mock()
-            driver.click = Mock(return_value=True)
+            driver.clear = Mock(return_value=True)
             driver.type = Mock(return_value=True)
             driver.quit = Mock()
             return driver
@@ -28,12 +28,12 @@ class TestParallelExecutor:
     def test_execute_cases_with_failure(self):
         """测试部分用例失败"""
         cases = [
-            {"name": "case1", "steps": [{"keyword": "click", "params": {"locator": "#btn"}}]},
+            {"name": "case1", "steps": [{"keyword": "clear", "params": {"locator": "#btn"}}]},
         ]
         
         def driver_factory():
             driver = Mock()
-            driver.click = Mock(side_effect=Exception("Click failed"))
+            driver.clear = Mock(side_effect=Exception("Clear failed"))
             driver.quit = Mock()
             return driver
         

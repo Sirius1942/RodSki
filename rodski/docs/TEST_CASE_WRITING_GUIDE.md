@@ -31,14 +31,15 @@ RodSki 的用例由三部分组成：
 
 | 组成部分 | 作用 | 存储位置 |
 |---------|------|---------|
-| 关键字 | 定义操作类型（打开页面、输入、点击、验证…） | Case Sheet 的「动作」列 |
-| 模型 | 定义页面元素的定位信息 | model.xml 文件 |
+| 关键字 | 定义操作类型（type UI输入 / send 接口请求 / verify 批量验证 …） | Case Sheet 的「动作」列 |
+| 模型 | 定义页面元素 / 接口字段的定位信息 | model.xml 文件 |
 | 数据 | 定义输入值 / 期望值 / 配置参数 | Excel 数据表 Sheet + GlobalValue Sheet |
 
 这三者的协作方式：
 
-- **type（写入）**：关键字 `type` + 模型 `Login` + 数据 `LoginData.L001` → 框架遍历 Login 模型的每个元素，从 LoginData 表取对应字段的值，逐一输入到界面
-- **verify（验证）**：关键字 `verify` + 模型 `ItemDetail` + 数据 `ExpectData.E001` → 框架遍历 ItemDetail 模型的每个元素，从界面读取实际值，与 ExpectData 表的期望值逐字段比较
+- **type（UI 写入）**：关键字 `type` + 模型 `Login` + 数据 `L001` → 框架遍历 Login 模型的每个元素，从 Login 表取对应字段的值，逐一输入到界面
+- **send（接口请求）**：关键字 `send` + 模型 `LoginAPI` + 数据 `D001` → 框架从 LoginAPI 模型获取请求方式和 URL，从 LoginAPI 表取字段值，发送 HTTP 请求
+- **verify（验证）**：关键字 `verify` + 模型 `Login` + 数据 `V001` → 框架遍历 Login 模型的每个元素，从界面/接口读取实际值，与 Login_verify 表的期望值逐字段比较
 
 **关键规则：模型元素 name = 数据表列名**。这是整个框架运转的基础。
 
@@ -105,8 +106,8 @@ Case Sheet 必须有 **2 行表头**，用例数据从第 3 行开始。
 
 | 阶段 | 典型用途 | 示例 |
 |------|---------|------|
-| 预处理 | 打开页面、准备环境 | `open` / `navigate` / `DB`（初始化数据） |
-| 测试步骤 | 核心操作 | `type`（批量输入）/ `click` / `http_post` |
+| 预处理 | 打开页面、准备环境 | `navigate` / `DB`（初始化数据） |
+| 测试步骤 | 核心操作 | `type`（UI 批量输入）/ `send`（接口请求） |
 | 预期结果 | 验证检查 | `verify`（批量验证）/ `DB`（查询验证） |
 | 后处理 | 清理环境 | `close` / `DB`（清理数据） |
 
@@ -127,8 +128,8 @@ Case Sheet 必须有 **2 行表头**，用例数据从第 3 行开始。
 
 | 执行控制 | 编号 | 标题 | 描述 | 类型 | 预处理动作 | 预处理模型 | 预处理数据 | 测试动作 | 测试模型 | 测试数据 | 预期动作 | 预期模型 | 预期数据 | 后处理动作 | 后处理模型 | 后处理数据 |
 |---------|------|------|------|------|-----------|-----------|-----------|---------|---------|---------|---------|---------|---------|-----------|-----------|-----------|
-| 是 | c001 | 登录测试 | 验证登录 | 界面 | open | | GlobalValue.DefaultValue.URL/login | type | Login | LoginData.L001 | verify | Dashboard | ExpectDash.E001 | close | | |
-| 是 | c002 | DB验证 | 查询验证 | 数据库 | | | | DB | demodb | QuerySQL.Q001 | verify | | QueryExpect.E001 | | | |
+| 是 | c001 | 登录测试 | 验证登录 | 界面 | navigate | | GlobalValue.DefaultValue.URL/login | type | Login | L001 | verify | Login | V001 | close | | |
+| 是 | c002 | DB验证 | 查询验证 | 数据库 | | | | DB | demodb | QuerySQL.Q001 | verify | QueryResult | V001 | | | |
 
 ---
 
@@ -245,7 +246,7 @@ model.xml 元素 name  ===  数据表 Sheet 的列名
 
 ### 5.2 示例：登录数据表
 
-**Sheet 名: LoginData**
+**Sheet 名: Login**（与模型同名，强制一致）
 
 | DataID | Remark | username | password |
 |--------|--------|----------|----------|
@@ -253,31 +254,91 @@ model.xml 元素 name  ===  数据表 Sheet 的列名
 | L002 | 普通用户 | testuser | test123 |
 | L003 | 空密码 | admin | |
 
-### 5.3 数据表引用语法
+**Sheet 名: Login_verify**（验证数据表，自动匹配）
 
-在 Case Sheet 的「数据」列中使用：
+| DataID | Remark | welcome_text |
+|--------|--------|-------------|
+| V001 | 验证管理员登录 | 欢迎, admin |
+| V002 | 验证普通用户 | 欢迎, testuser |
 
-```
-表名.DataID           → 引用整行数据（用于 type / verify 批量模式）
-```
+### 5.3 数据表命名与引用规则
+
+> **核心规则**：模型名 = 数据表 Sheet 名，强制一致。数据列只写 DataID，不写表名。
+
+| 关键字 | Case 写法 | 数据表名（自动推导） |
+|--------|-----------|---------------------|
+| `type` | `type Login L001` | Sheet = `Login` |
+| `verify` | `verify Login V001` | Sheet = `Login_verify` |
 
 示例：
 
 ```
-LoginData.L001        → {username: "admin", password: "admin123"}
+type Login L001       → 在 Login 表中查找 DataID=L001
+verify Login V001     → 在 Login_verify 表中查找 DataID=V001
 ```
 
 ### 5.4 批量输入时的特殊值
 
 在数据表的字段值中，以下值有特殊含义：
 
+#### 控制值
+
 | 特殊值 | Web 行为 | 接口行为 |
 |--------|---------|---------|
-| `click` | 对该元素执行**点击**而非输入 | — |
 | `.Password` 后缀 | 输入时去掉后缀，日志中显示 `***` | — |
 | 空值 | 跳过该元素（不输入） | — |
+| `BLANK` | 跳过（UI）/ 空字符串（接口） | 传空字符串 |
+| `NULL` / `NONE` | 跳过（UI） | 传 null / none |
 
-示例：数据表中 `loginBtn` 列写 `click`，则 `type` 批量模式遇到该元素时执行点击。
+#### UI 动作关键字
+
+数据表单元格中可以写入以下 **UI 动作关键字**，`type` 批量模式会自动识别并执行对应操作，而非输入文本：
+
+| 动作值 | 说明 | 示例 |
+|--------|------|------|
+| `click` | 点击该元素 | `click` |
+| `double_click` | 双击该元素 | `double_click` |
+| `right_click` | 右键点击该元素 | `right_click` |
+| `hover` | 鼠标悬停到该元素 | `hover` |
+| `select【选项值】` | 下拉选择指定值 | `select【管理员】` |
+| `key_press【按键】` | 按下键盘按键 | `key_press【Tab】` |
+| `key_press【组合键】` | 按下组合键 | `key_press【Control+C】` |
+| `drag【目标定位器】` | 拖拽元素到目标位置 | `drag【#drop-zone】` |
+| `scroll` | 默认滚动（向下 300px） | `scroll` |
+| `scroll【x,y】` | 自定义滚动距离 | `scroll【0,500】` |
+
+> **注意**：动作关键字使用中文方括号 **【】** 包裹参数。
+
+#### key_press 按键参考
+
+`key_press` 支持 Playwright 的所有按键名称：
+
+| 分类 | 按键名 | 示例写法 |
+|------|--------|---------|
+| 功能键 | `Tab` `Enter` `Escape` `Backspace` `Delete` | `key_press【Tab】` |
+| 方向键 | `ArrowUp` `ArrowDown` `ArrowLeft` `ArrowRight` | `key_press【ArrowDown】` |
+| 修饰键组合 | `Control+A` `Control+C` `Control+V` `Control+Z` | `key_press【Control+A】` |
+| Shift 组合 | `Shift+Tab` `Shift+Enter` | `key_press【Shift+Tab】` |
+| Alt 组合 | `Alt+F4` | `key_press【Alt+F4】` |
+| 多键组合 | `Control+Shift+I` | `key_press【Control+Shift+I】` |
+| F 功能键 | `F1` `F5` `F12` | `key_press【F5】` |
+
+> 组合键使用 `+` 连接，修饰键在前、普通键在后。macOS 上 `Control` 对应 `Command` 键行为。
+
+#### 示例：含动作关键字的数据表
+
+**Sheet 名: Login**（与模型同名）
+
+| DataID | Remark | username | password | loginBtn | roleSelect |
+|--------|--------|----------|----------|----------|------------|
+| L001 | 管理员登录 | admin | admin123 | click | select【管理员】 |
+| L002 | Tab 切换 | admin | key_press【Tab】 | click | — |
+
+Case Sheet 写 `type Login L001` 时，框架遍历 Login 模型：
+1. `username` → 输入 "admin"
+2. `password` → 输入 "admin123"
+3. `loginBtn` → 执行点击
+4. `roleSelect` → 下拉选择 "管理员"
 
 ### 5.5 SQL 数据表
 
@@ -361,7 +422,7 @@ GlobalValue.DefaultValue.WaitTime     → "2"
 
 | 关键字 | 是否应用 WaitTime |
 |--------|-----------------|
-| open / type / click / verify 等 | 是 |
+| navigate / type / click / verify 等 | 是 |
 | wait | 否（wait 自身已包含等待） |
 | close | 否（浏览器已关闭） |
 
@@ -431,59 +492,112 @@ Case Sheet:
 | verify | 批量验证时的实际值字典 |
 | assert | 断言结果 |
 | type（批量模式） | 本次输入使用的完整数据行 |
-| http_get/post/put/delete | HTTP 响应 body |
-| send | HTTP 响应 body |
+| send | HTTP 响应（含 `status` 状态码 + 响应体字段） |
 | DB | query → 结果集列表；execute → 受影响行数 |
+| run | 脚本 stdout 输出（自动尝试 JSON 解析） |
 
 ---
 
 ## 8. 关键字手册
 
-### 8.1 Web 操作关键字
+### 8.1 UI 操作关键字
 
 | 关键字 | 说明 | 模型列 | 数据列 |
 |--------|------|--------|--------|
-| **open** | 打开 URL | — | URL 或 GlobalValue 引用 |
-| **navigate** | 导航到 URL | — | URL 或 GlobalValue 引用 |
+| **navigate** | 导航到 URL（无浏览器时自动创建） | — | URL 或 GlobalValue 引用 |
 | **close** | 关闭浏览器 | — | — |
-| **click** | 点击元素 | — | CSS 选择器（如 `#login-btn`） |
-| **type** | 输入文本 | 模型名（批量）或留空 | 数据表引用（批量）或留空 |
-| **verify** | 批量验证 | 模型名 | 数据表引用（TableName.DataID） |
+| **type** | UI 批量输入（PC 端 / 移动端统一） | 模型名 | DataID |
+| **verify** | 批量验证（UI / 接口通用） | 模型名 | DataID（自动查 `模型名_verify` 表） |
 | **wait** | 等待指定秒数 | — | 秒数（如 `3`） |
-| **select** | 下拉选择 | — | CSS 选择器 |
 | **clear** | 清空输入框 | — | CSS 选择器 |
 | **get_text** / **get** | 获取元素文本 | — | CSS 选择器 |
-| **hover** | 鼠标悬停 | — | CSS 选择器 |
-| **scroll** | 页面滚动 | — | — （默认向下 300px）|
-| **double_click** | 双击 | — | CSS 选择器 |
-| **right_click** | 右键点击 | — | CSS 选择器 |
-| **key_press** | 按键 | — | 键名（如 `Tab`、`Enter`、`Escape`） |
 | **screenshot** | 手动截图 | — | 文件路径 |
 | **upload_file** | 上传文件 | — | 文件路径 |
 
-### 8.2 type 和 verify — 批量模式详解
+> `click`、`select`、`hover`、`scroll`、`double_click`、`right_click`、`key_press`、`drag` 等 UI 原子动作不作为独立关键字使用，而是写在**数据表的字段值**中，由 `type` 批量模式自动识别执行。详见 [5.4 批量输入时的特殊值](#54-批量输入时的特殊值)。
 
-`type` 和 `verify` 是框架最核心的两个关键字，它们完全对称：
+> **type 统一 UI 测试**：无论 PC Web、移动端（Android/iOS），所有 UI 输入操作都使用 `type`，不区分平台。
 
-| | type | verify |
-|--|------|--------|
-| 方向 | 数据 → 写入界面 | 界面 → 读取并比较 |
-| 模型列 | 模型名（必填） | 模型名（必填） |
-| 数据列 | `表名.DataID`（必填） | `表名.DataID`（必填） |
-| 执行逻辑 | 遍历模型每个元素，从数据表取值，输入到界面 | 遍历模型每个元素，从界面取实际值，与数据表期望值比较 |
-| 匹配规则 | 元素 name = 数据表列名 | 元素 name = 数据表列名 |
+### 8.2 type / send / verify — 核心关键字详解
 
-### 8.3 API 测试关键字
+框架有三个核心批量关键字，分工明确：
+
+| | type（UI） | send（接口） | verify（通用验证） |
+|--|-----------|-------------|-------------------|
+| 作用 | 数据 → 写入 UI 界面 | 数据 → 发送 HTTP 请求 | 界面/响应 → 读取并比较 |
+| 适用场景 | PC Web / 移动端 | REST API 接口 | UI 验证 + 接口验证 |
+| 模型列 | UI 模型名（必填） | 接口模型名（必填） | 模型名（必填） |
+| 数据列 | DataID | DataID | DataID |
+| 数据表 | 模型名（同名） | 模型名（同名） | 模型名_verify（自动拼接） |
+| 匹配规则 | 元素 name = 数据表列名 | 元素 name = 数据表列名 | 元素 name = 数据表列名 |
+
+> **数据表命名规则**：模型名 = 数据表 Sheet 名（强制一致）。数据列只写 `DataID`，不写表名前缀。
+
+#### 接口测试：send + verify
+
+接口测试不再使用独立 HTTP 关键字，而是通过 **send / verify** 批量模式完成：
+
+1. **接口模型**：在 model.xml 中定义接口元素，包含 `_method`（请求方式）、`_url`（请求地址）、`_header_*`（请求头）以及接口字段
+2. **send 发送请求**：`send LoginAPI D001` → 从 `LoginAPI` 模型获取请求方式和 URL，从 `LoginAPI` 数据表取值，组装并发送 HTTP 请求
+3. **verify 验证响应**：`verify LoginAPI V001` → 从 `LoginAPI_verify` 表取期望值，与 send 的响应进行比较
+
+**接口模型元素命名约定**：
+
+| 元素名 | 作用 | 说明 |
+|--------|------|------|
+| `_method` | HTTP 请求方式 | 值为 GET / POST / PUT / DELETE，在模型中定义默认值 |
+| `_url` | 请求地址 | 绝对 URL 或相对路径 |
+| `_header_*` | 请求头 | 如 `_header_Authorization`、`_header_Content-Type` |
+| 其他 | 请求体字段 | POST/PUT → JSON body；GET/DELETE → 查询参数 |
+
+**接口模型示例**：
+
+```xml
+<model name="LoginAPI" servicename="">
+    <element name="_method" type="interface">
+        <location type="static">POST</location>
+    </element>
+    <element name="_url" type="interface">
+        <location type="static">http://api.example.com/login</location>
+    </element>
+    <element name="username" type="interface">
+        <location type="field">username</location>
+    </element>
+    <element name="password" type="interface">
+        <location type="field">password</location>
+    </element>
+</model>
+```
+
+**数据表 LoginAPI**（与模型同名）：
+
+| DataID | Remark | username | password |
+|--------|--------|----------|----------|
+| D001 | 管理员登录 | admin | admin123 |
+| D002 | 普通用户 | testuser | test123 |
+
+**验证数据表 LoginAPI_verify**：
+
+| DataID | Remark | status | username | role |
+|--------|--------|--------|----------|------|
+| V001 | 验证管理员登录 | 200 | admin | 管理员 |
+| V002 | 验证普通用户 | 200 | testuser | 普通用户 |
+
+> `status` 列：期望的 HTTP 状态码。其他列：期望的响应字段值。
+
+**Case Sheet 写法**：
+
+| 测试动作 | 测试模型 | 测试数据 | 预期动作 | 预期模型 | 预期数据 |
+|---------|---------|---------|---------|---------|---------|
+| send | LoginAPI | D001 | verify | LoginAPI | V001 |
+
+### 8.3 接口测试关键字
 
 | 关键字 | 说明 | 模型列 | 数据列 |
 |--------|------|--------|--------|
-| **http_get** | GET 请求 | — | URL |
-| **http_post** | POST 请求 | — | URL |
-| **http_put** | PUT 请求 | — | URL |
-| **http_delete** | DELETE 请求 | — | URL |
-| **send** | 通用 HTTP 请求 | — | URL |
-| **assert_status** | 断言 HTTP 状态码 | — | 期望状态码（如 `200`） |
-| **assert_json** | 断言 JSON 响应字段 | — | — |
+| **send** | 发送接口请求（模型 + 数据） | 接口模型名 | DataID |
+
+> send 是接口测试的核心关键字，与 UI 的 type 对称。响应自动保存为步骤返回值（含 `status` 和响应体字段），可通过 `verify` 验证。详见 [8.2 接口测试：send + verify](#接口测试send--verify)。
 
 ### 8.4 数据库关键字
 
@@ -499,13 +613,89 @@ DB 用例格式：
 
 - **模型列**：填写 GlobalValue 中配置的数据库连接组名（如 `demodb`）
 - **数据列**：填写 SQL 数据表引用（如 `QuerySQL.Q001`），或直接写 SQL
+- **返回值**：待实现
+- **db模版文件**：在model目录下必须以db_template.md命名，用于生成db模版文件。db_template必须与数据表的sheet名称一致。如数据表为QuerySQL，则db_template为QuerySQL.md。
 
 ### 8.5 高级关键字
 
 | 关键字 | 说明 | 模型列 | 数据列 |
 |--------|------|--------|--------|
 | **set** | 设置变量 | — | — |
-| **run** | 运行 Logic 子用例 | — | 子用例名称 |
+| **run** | 沙箱执行 Python 代码 | 工程名（fun/ 下的子目录） | 代码文件路径 |
+
+### 8.6 run — 沙箱代码执行
+
+`run` 在独立子进程中执行 Python 脚本，脚本的 **stdout 输出**自动保存为步骤返回值，可在后续步骤中通过 `Return[-1]` 引用。
+
+#### 目录结构
+
+代码文件以"工程"形式组织，存放在与 `case/` 同级的 `fun/` 目录下：
+
+```
+test_project/
+├── case/                  ← 用例文件
+│   └── test_login.xlsx
+├── model/
+├── data/
+└── fun/                   ← 代码工程根目录
+    ├── data_gen/          ← 工程名（模型列填写）
+    │   ├── gen_phone.py   ← 数据列填写
+    │   └── utils.py       ← 可供 gen_phone.py import
+    └── crypto/
+        └── encrypt.py
+```
+
+#### Case Sheet 写法
+
+| Execute | CaseID | Title | PreProcess | TestStep | ExpectedResult |
+|---------|--------|-------|------------|----------|----------------|
+| 是 | TC001 | 注册 | navigate\|\|url=https://... | run\|data_gen\|gen_phone.py | verify\|RegResult\|VerifyData.V001 |
+
+对应解析：
+- **关键字** = `run`
+- **模型列** = `data_gen`（fun/ 下的工程目录名）
+- **数据列** = `gen_phone.py`（工程内的 Python 文件路径）
+
+#### 脚本编写规范
+
+脚本通过 `print()` 输出返回值。框架会自动尝试 JSON 解析，解析失败则作为纯文本保存。
+
+**返回简单值**：
+
+```python
+# fun/data_gen/gen_phone.py
+import random
+phone = f"138{random.randint(10000000, 99999999)}"
+print(phone)
+```
+
+后续步骤可通过 `Return[-1]` 获取该手机号。
+
+**返回结构化数据**：
+
+```python
+# fun/data_gen/gen_user.py
+import json
+import random
+user = {
+    "username": f"user_{random.randint(1000, 9999)}",
+    "phone": f"138{random.randint(10000000, 99999999)}",
+    "email": f"test{random.randint(100, 999)}@example.com"
+}
+print(json.dumps(user, ensure_ascii=False))
+```
+
+后续步骤数据表中可通过 `Return[-1]` 获取完整字典。
+
+#### 执行环境说明
+
+| 特性 | 说明 |
+|------|------|
+| 解释器 | 与框架运行的 Python 解释器相同 |
+| 工作目录 | 工程目录（`fun/<工程名>/`），支持工程内相对 import |
+| 超时 | 默认 300 秒，超时自动终止 |
+| 隔离性 | 独立子进程，不共享框架内存空间 |
+| 目前支持 | 仅 Python（`.py`） |
 
 ---
 
@@ -566,7 +756,7 @@ product/DEMO/demo_site/
 
 | 执行控制 | 编号 | 标题 | 描述 | 类型 | 预处理动作 | 预处理模型 | 预处理数据 | 测试动作 | 测试模型 | 测试数据 | 预期动作 | 预期模型 | 预期数据 | 后处理动作 | 后处理模型 | 后处理数据 |
 |---------|------|------|------|------|-----------|-----------|-----------|---------|---------|---------|---------|---------|---------|-----------|-----------|-----------|
-| 是 | c001 | 登录 | 验证登录 | 界面 | open | | GlobalValue.DefaultValue.URL/login | type | Login | LoginData.L001 | wait | | 2 | close | | |
+| 是 | c001 | 登录 | 验证登录 | 界面 | navigate | | GlobalValue.DefaultValue.URL/login | type | Login | LoginData.L001 | wait | | 2 | close | | |
 
 ### 9.4 运行命令
 
@@ -609,6 +799,51 @@ Return 引用只应写在**数据表的字段值中**，不要直接写在 Case 
 1. 检查数据表 Sheet 名是否正确
 2. 检查 DataID 是否存在
 3. 引用格式：`表名.DataID`（整行）或 `表名.DataID.字段名`（单字段）
+
+---
+
+## 附录：关键字速查清单（代码对齐版）
+
+以下清单基于当前实现（`core/keyword_engine.py`）整理，可直接用于快速查询。
+
+### A. UI 关键字
+
+| 关键字 | 用途 |
+|--------|------|
+| `navigate` | 导航到 URL（无浏览器时自动创建） |
+| `close` | 关闭浏览器 |
+| `type` | UI 批量输入（PC/移动端统一） |
+| `verify` | 批量验证（UI + 接口通用） |
+| `assert` | 断言元素值 |
+| `wait` | 等待指定秒数 |
+| `upload_file` | 上传文件 |
+| `clear` | 清空输入框 |
+| `get_text` | 获取元素文本 |
+| `get` | `get_text` 的别名 |
+
+### B. 接口关键字
+
+| 关键字 | 用途 |
+|--------|------|
+| `send` | 发送接口请求（模型 + 数据），响应含 status + body |
+
+### C. 数据与高级关键字
+
+| 关键字 | 用途 |
+|--------|------|
+| `set` | 设置变量 |
+| `DB` | 执行数据库操作（query/execute） |
+| `run` | 沙箱执行 Python 代码，stdout → Return |
+
+### D. 兼容关键字（实现已支持）
+
+| 关键字 | 说明 |
+|--------|------|
+| `check` | 兼容写法，内部等同于 `verify` |
+
+> 合计：14 个主关键字（`SUPPORTED` 列表）+ 1 个兼容关键字（`check`）。
+> UI 原子动作（click / select / hover / drag / scroll / double_click / right_click / key_press）通过数据表字段值在 `type` 批量模式中使用。
+> 接口测试通过 `send`（发送请求）+ `verify`（验证响应）完成，与 UI 的 `type` + `verify` 完全对称。
 
 ---
 
