@@ -79,7 +79,9 @@ class SKIExecutor:
         self.keyword_engine = KeywordEngine(
             driver, 
             model_parser=self.model_parser,
-            data_manager=self.data_manager
+            data_manager=self.data_manager,
+            global_vars=self.global_vars,
+            case_file=str(self.case_file)
         )
 
         # 初始化数据解析器，连接 KeywordEngine 的返回值作为 Return 引用源
@@ -108,7 +110,9 @@ class SKIExecutor:
                 self.keyword_engine = KeywordEngine(
                     self.driver,
                     model_parser=self.model_parser,
-                    data_manager=self.data_manager
+                    data_manager=self.data_manager,
+                    global_vars=self.global_vars,
+                    case_file=str(self.case_file)
                 )
                 
                 logger.info("驱动重新创建成功")

@@ -517,22 +517,79 @@ class TestAdvancedKeywords:
         with pytest.raises(InvalidParameterError, match="缺少必需参数"):
             engine.execute("run", {})
 
-    def test_db_query(self, engine, mock_driver):
-        result = engine.execute(
-            "DB", {"operation": "query", "query": "SELECT * FROM users", "var_name": "users"}
-        )
-        assert result is True
-        assert "users" in engine._variables
+    def test_db_with_sqlite(self, mock_driver, tmp_path):
+        """DB 关键字: 使用 SQLite 执行查询"""
+        import sqlite3
+        db_path = str(tmp_path / "test.db")
+        conn = sqlite3.connect(db_path)
+        conn.execute("CREATE TABLE users (id INTEGER, name TEXT)")
+        conn.execute("INSERT INTO users VALUES (1, 'alice')")
+        conn.commit()
+        conn.close()
 
-    def test_db_insert(self, engine, mock_driver):
-        result = engine.execute(
-            "DB", {"operation": "insert", "query": "INSERT INTO users VALUES (1, 'test')"}
+        engine = KeywordEngine(
+            mock_driver,
+            global_vars={'testdb': {'type': 'sqlite', 'database': db_path}}
         )
+        result = engine.execute("DB", {"model": "testdb", "data": "SELECT * FROM users"})
         assert result is True
+        ret = engine.get_return(-1)
+        assert len(ret) == 1
+        assert ret[0]['name'] == 'alice'
 
-    def test_db_missing_query(self, engine, mock_driver):
-        with pytest.raises(InvalidParameterError, match="缺少必需参数"):
-            engine.execute("DB", {"operation": "query"})
+    def test_db_execute(self, mock_driver, tmp_path):
+        """DB 关键字: 执行 INSERT"""
+        import sqlite3
+        db_path = str(tmp_path / "test.db")
+        conn = sqlite3.connect(db_path)
+        conn.execute("CREATE TABLE logs (msg TEXT)")
+        conn.commit()
+        conn.close()
+
+        engine = KeywordEngine(
+            mock_driver,
+            global_vars={'testdb': {'type': 'sqlite', 'database': db_path}}
+        )
+        result = engine.execute("DB", {"model": "testdb", "data": "INSERT INTO logs VALUES ('hello')"})
+        assert result is True
+        ret = engine.get_return(-1)
+        assert ret['affected_rows'] == 1
+
+    def test_db_missing_data(self, engine, mock_driver):
+        with pytest.raises(InvalidParameterError, match="SQL"):
+            engine.execute("DB", {"model": "testdb"})
+
+    def test_db_missing_connection(self, engine, mock_driver):
+        """连接变量不存在时应报错"""
+        from core.exceptions import DriverError, RetryExhaustedError
+        with pytest.raises((DriverError, RetryExhaustedError)):
+            engine.execute("DB", {"model": "nonexistent", "data": "SELECT 1"})
+
+    def test_db_with_data_table(self, mock_driver, tmp_path):
+        """DB 关键字: 从数据表读取 SQL"""
+        import sqlite3
+        db_path = str(tmp_path / "test.db")
+        conn = sqlite3.connect(db_path)
+        conn.execute("CREATE TABLE items (id INTEGER, price TEXT)")
+        conn.execute("INSERT INTO items VALUES (1, '10元')")
+        conn.commit()
+        conn.close()
+
+        mock_data_manager = MagicMock()
+        mock_data_manager.get_data.return_value = {
+            'sql': "SELECT price FROM items WHERE id=1",
+            'operation': 'query',
+            'var_name': 'item_price',
+        }
+
+        engine = KeywordEngine(
+            mock_driver,
+            data_manager=mock_data_manager,
+            global_vars={'testdb': {'type': 'sqlite', 'database': db_path}}
+        )
+        result = engine.execute("DB", {"model": "testdb", "data": "ItemSQL.Q001"})
+        assert result is True
+        assert engine._variables['item_price'][0]['price'] == '10元'
 
 
 class TestRetryMechanism:

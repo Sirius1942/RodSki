@@ -530,14 +530,126 @@ model.xml 定义：
 | http_put | PUT 请求 | URL\|body |
 | http_delete | DELETE 请求 | URL |
 
-### 7.4 数据库关键字
+### 7.4 DB 数据库关键字
 
-| 关键字 | 说明 | 数据格式 |
-|--------|------|----------|
-| db_query | 查询数据 | SQL\|变量名 |
-| db_insert | 插入数据 | SQL |
-| db_update | 更新数据 | SQL |
-| db_delete | 删除数据 | SQL |
+#### 用例格式
+
+| 动作 | 模型 | 数据 |
+|------|------|------|
+| DB | 连接变量名 | SQL数据表引用 或 直接SQL |
+
+- **模型** = GlobalValue 中数据库连接配置的组名（如 `cassdb`）
+- **数据** = `TableName.DataID`（从数据表读取 SQL）或直接 SQL 语句
+
+#### GlobalValue 连接配置
+
+在 GlobalValue Sheet 中以组名定义数据库连接信息：
+
+| GroupName | Key | Value |
+|-----------|-----|-------|
+| cassdb | type | mysql |
+| cassdb | host | 192.168.1.100 |
+| cassdb | port | 3306 |
+| cassdb | database | testdb |
+| cassdb | username | root |
+| cassdb | password | secret123 |
+
+支持的 `type` 值：
+
+| type | 数据库 | 需安装 |
+|------|--------|--------|
+| mysql / mariadb | MySQL / MariaDB | `pip install pymysql` |
+| postgresql / pg | PostgreSQL | `pip install psycopg2` |
+| sqlite | SQLite | 内置，database 填文件路径 |
+| sqlserver / mssql | SQL Server | `pip install pymssql` |
+
+#### SQL 数据表
+
+创建一个 Excel Sheet 存放 SQL，Sheet 名即表名（如 `QuerySQL`）：
+
+| DataID | Remark | sql | operation | var_name |
+|--------|--------|-----|-----------|----------|
+| Q001 | 查询订单金额 | SELECT amount FROM orders WHERE id='ORD001' | query | order_amount |
+| Q002 | 插入审计日志 | INSERT INTO audit_log (action) VALUES ('test') | execute | |
+| Q003 | 按条件查询 | SELECT * FROM users WHERE name='Return[-1]' | query | user_info |
+
+| 列名 | 必需 | 说明 |
+|------|------|------|
+| DataID | 是 | 数据行标识 |
+| sql | 是 | 实际执行的 SQL 语句 |
+| operation | 否 | `query`（查询，默认）或 `execute`（增删改） |
+| var_name | 否 | 将结果存入变量名，后续可通过变量引用 |
+
+SQL 中可以使用 `Return[-1]` 引用前序步骤的返回值。
+
+#### SQL 数据表说明文件（.md）
+
+每个 SQL 数据表 Sheet 应配套一个同名的 Markdown 说明文件，放在 model 目录下：
+
+```
+product/CASSTIME/login/
+├── case/
+│   └── casstime_login_case.xlsx
+└── model/
+    ├── model.xml
+    ├── OrderSQL.md       ← 与 Sheet 名一致
+    └── AuditSQL.md
+```
+
+说明文件内容应包括：该数据表的用途、涉及的业务场景、SQL 语句的设计意图、依赖的数据库表结构等。此文件不参与框架执行，但它是测试用例的组成部分——供测试设计者和 AI 辅助执行时作为上下文参考。
+
+示例 `OrderSQL.md`：
+
+```markdown
+# OrderSQL - 订单查询 SQL 集
+
+## 用途
+用于订单管理模块的自动化测试，包含订单创建后的数据验证和测试数据清理。
+
+## 涉及表
+- orders: 订单主表 (order_no, amount, status, created_at)
+- audit_log: 审计日志表 (action, operator, timestamp)
+
+## SQL 说明
+| DataID | 用途 |
+|--------|------|
+| Q001 | 按订单号查询金额，用于验证创建订单后金额是否正确 |
+| Q002 | 插入审计日志，用于测试后处理阶段记录操作 |
+| Q003 | 按用户名查询，配合 Return[-1] 获取前序步骤产生的用户名 |
+```
+
+#### 完整示例
+
+**GlobalValue:**
+
+| GroupName | Key | Value |
+|-----------|-----|-------|
+| cassdb | type | mysql |
+| cassdb | host | 10.0.0.1 |
+| cassdb | port | 3306 |
+| cassdb | database | order_system |
+| cassdb | username | tester |
+| cassdb | password | Test@123 |
+
+**SQL 数据表 (Sheet: OrderSQL):**
+
+| DataID | Remark | sql | operation | var_name |
+|--------|--------|-----|-----------|----------|
+| S001 | 查询订单 | SELECT * FROM orders WHERE order_no='ORD001' | query | order_data |
+| S002 | 清理测试数据 | DELETE FROM orders WHERE source='autotest' | execute | |
+
+**Case Sheet:**
+
+| 动作 | 模型 | 数据 |
+|------|------|------|
+| DB | cassdb | OrderSQL.S001 |
+| verify | | Return[-1] |
+| DB | cassdb | OrderSQL.S002 |
+
+执行流程：
+1. 从 GlobalValue 读取 `cassdb` 组的连接信息 → 连接 MySQL
+2. 从 `OrderSQL` 表的 `S001` 行读取 SQL → 执行查询
+3. 查询结果通过 `Return[-1]` 可供后续步骤引用
 
 ---
 

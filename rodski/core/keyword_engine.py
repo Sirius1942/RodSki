@@ -53,7 +53,9 @@ class KeywordEngine:
 
     def __init__(self, driver: BaseDriver, data_dir: Optional[Path] = None, 
                  retry_config: Optional[Dict[str, Any]] = None,
-                 model_parser=None, data_manager=None):
+                 model_parser=None, data_manager=None,
+                 global_vars: Optional[Dict] = None,
+                 case_file: Optional[str] = None):
         self.driver = driver
         self._last_response = None
         self._variables: Dict[str, Any] = {}
@@ -61,6 +63,9 @@ class KeywordEngine:
         self.data_parser = DataParser(data_dir, self)
         self.model_parser = model_parser
         self.data_manager = data_manager
+        self._global_vars = global_vars or {}
+        self._db_connections: Dict[str, Any] = {}
+        self._case_file = Path(case_file) if case_file else None
         
         # 初始化重试配置
         self._retry_config = {**self.DEFAULT_RETRY_CONFIG, **(retry_config or {})}
@@ -852,67 +857,215 @@ class KeywordEngine:
         return None
 
     def _kw_db(self, params: Dict) -> bool:
-        """数据库操作"""
-        operation = params.get("operation", "query").lower()
-        query = params.get("query", "") or params.get("data", "")
-        var_name = params.get("var_name", "")
-        db_config = params.get("db_config", "default")
-
-        if not query:
-            raise InvalidParameterError(keyword="DB", param_name="query", reason="缺少必需参数")
-
-        logger.info(f"DB {operation}: {query[:50]}...")
-
-        db_connection = self._get_db_connection(db_config, params.get("connection_string"))
+        """数据库操作
         
-        if db_connection:
-            try:
-                result = self._execute_db_operation(db_connection, operation, query)
-                if operation == "query" and var_name:
-                    self._variables[var_name] = result
-                self.store_return(result)
-                logger.info("DB 操作成功")
-                return True
-            except Exception as e:
-                logger.error(f"数据库操作失败: {e}")
-                self.store_return(None)
-                return False
-        else:
-            logger.warning("未配置数据库连接，使用模拟模式")
-            if operation == "query":
-                mock_result = [{"id": 1, "name": "mock_data"}]
-                if var_name:
-                    self._variables[var_name] = mock_result
-                self.store_return(mock_result)
-            else:
-                self.store_return({"affected_rows": 1, "status": "simulated"})
+        用例格式: DB | 连接变量名 | SQL数据引用或直接SQL
+        
+        执行流程:
+        1. model 字段 = GlobalValue 中的数据库连接配置组名 (如 cassdb)
+        2. data 字段 = 数据表引用 (如 QuerySQL.Q001) 或直接 SQL
+        3. 从 GlobalValue 读取连接配置: cassdb.type, cassdb.host, cassdb.port 等
+        4. 如果 data 是数据表引用，从数据表中读取 sql/operation/var_name
+        5. 建立连接 → 执行 SQL → store_return 保存结果
+        """
+        conn_var = params.get("model", "")
+        data_ref = params.get("data", "")
+
+        if not data_ref:
+            raise InvalidParameterError(keyword="DB", param_name="data", reason="缺少 SQL 或数据表引用")
+
+        # 解析 SQL：从数据表读取 or 直接使用
+        sql, operation, var_name = self._resolve_db_sql(data_ref)
+
+        if not sql:
+            raise InvalidParameterError(keyword="DB", param_name="data", reason=f"无法解析 SQL: '{data_ref}'")
+
+        logger.info(f"DB {operation}: {sql[:80]}{'...' if len(sql) > 80 else ''}")
+
+        # 获取数据库连接
+        connection = self._get_db_connection(conn_var)
+
+        if not connection:
+            logger.error(f"无法建立数据库连接: {conn_var}")
+            raise DriverError(f"数据库连接失败: 连接变量 '{conn_var}' 未配置或连接失败")
+
+        try:
+            result = self._execute_db_sql(connection, operation, sql)
+            if var_name:
+                self._variables[var_name] = result
+            self.store_return(result)
+            logger.info(f"DB 操作成功 ({operation})")
             return True
+        except Exception as e:
+            logger.error(f"SQL 执行失败: {e}")
+            self.store_return(None)
+            raise DriverError(f"SQL 执行失败: {e}")
 
-    def _get_db_connection(self, config_name: str, connection_string: str = None):
-        """获取数据库连接"""
-        if hasattr(self, 'data_manager') and hasattr(self.data_manager, 'db_connections'):
-            return self.data_manager.db_connections.get(config_name)
+    def _resolve_db_sql(self, data_ref: str):
+        """解析 DB 的 data 字段，返回 (sql, operation, var_name)
         
-        if connection_string:
+        如果 data_ref 匹配 TableName.DataID 格式且数据表存在，从数据表读取:
+            - sql 列: 实际 SQL
+            - operation 列: query/execute (默认 query)
+            - var_name 列: 可选，结果存入变量
+        否则视为直接 SQL 语句。
+        
+        附带检查: 数据表对应的 .md 说明文件是否存在，不存在则自动创建空模板。
+        """
+        if self.data_manager and '.' in data_ref:
+            parts = data_ref.split('.')
+            if len(parts) >= 2:
+                table_name, data_id = parts[0], parts[1]
+                self._ensure_sql_doc(table_name)
+                row = self.data_manager.get_data(table_name, data_id)
+                if row:
+                    sql = str(row.get('sql', '') or row.get('SQL', '')).strip()
+                    operation = str(row.get('operation', '') or row.get('Operation', 'query')).strip().lower()
+                    var_name = str(row.get('var_name', '') or row.get('VarName', '')).strip()
+                    if sql:
+                        return sql, operation or 'query', var_name
+
+        # 直接 SQL
+        data_ref = data_ref.strip()
+        if data_ref.upper().startswith(('SELECT', 'INSERT', 'UPDATE', 'DELETE', 'CREATE', 'DROP', 'ALTER')):
+            is_query = data_ref.upper().startswith('SELECT')
+            return data_ref, 'query' if is_query else 'execute', ''
+
+        return data_ref, 'query', ''
+
+    def _ensure_sql_doc(self, table_name: str) -> None:
+        """检查 SQL 数据表的 .md 说明文件是否存在，不存在则创建空模板"""
+        if not self._case_file:
+            return
+        model_dir = self._case_file.parent.parent / "model"
+        md_path = model_dir / f"{table_name}.md"
+        if md_path.exists():
+            return
+        try:
+            sql_dir.mkdir(parents=True, exist_ok=True)
+            md_path.write_text(
+                f"# {table_name}\n\n"
+                f"## 用途\n\n（请补充该 SQL 数据表的用途说明）\n\n"
+                f"## 涉及表\n\n（请补充涉及的数据库表及关键字段）\n\n"
+                f"## SQL 说明\n\n"
+                f"| DataID | 用途 |\n"
+                f"|--------|------|\n"
+                f"| | |\n",
+                encoding="utf-8"
+            )
+            logger.warning(f"SQL 数据表 '{table_name}' 缺少说明文件，已创建模板: {md_path}")
+        except Exception as e:
+            logger.warning(f"无法创建 SQL 说明文件 {md_path}: {e}")
+
+    # ── 数据库连接管理 ──────────────────────────────────────────
+
+    def _get_db_connection(self, conn_var: str):
+        """根据 GlobalValue 中的连接变量名获取/创建数据库连接
+        
+        从 global_vars（通过 SKIExecutor 传入的 keyword_engine 上下文）读取:
+            conn_var.type     → mysql / postgresql / sqlite
+            conn_var.host     → 主机
+            conn_var.port     → 端口
+            conn_var.database → 数据库名
+            conn_var.username → 用户名
+            conn_var.password → 密码
+        """
+        if not conn_var:
+            return None
+
+        # 连接池复用
+        if conn_var in self._db_connections:
+            conn = self._db_connections[conn_var]
             try:
-                import sqlite3
-                if connection_string.endswith('.db') or connection_string.endswith('.sqlite'):
-                    return sqlite3.connect(connection_string)
-            except Exception as e:
-                logger.warning(f"创建数据库连接失败: {e}")
-        
-        return None
+                # 简单存活检测
+                conn.cursor().execute("SELECT 1")
+                return conn
+            except Exception:
+                self._db_connections.pop(conn_var, None)
 
-    def _execute_db_operation(self, connection, operation: str, query: str):
-        """执行数据库操作"""
-        cursor = connection.cursor()
-        
-        if operation == "query":
-            cursor.execute(query)
-            columns = [desc[0] for desc in cursor.description] if cursor.description else []
-            results = [dict(zip(columns, row)) for row in cursor.fetchall()]
-            return results
+        # 从 SKIExecutor 上下文获取 global_vars
+        global_vars = {}
+        if hasattr(self, '_global_vars'):
+            global_vars = self._global_vars
+        elif self.data_manager and hasattr(self.data_manager, '_global_vars'):
+            global_vars = self.data_manager._global_vars
+
+        config = global_vars.get(conn_var, {})
+        if not config:
+            logger.warning(f"GlobalValue 中未找到连接配置: {conn_var}")
+            return None
+
+        db_type = config.get('type', 'sqlite').lower()
+        host = config.get('host', 'localhost')
+        port = config.get('port', '')
+        database = config.get('database', '')
+        username = config.get('username', '')
+        password = config.get('password', '')
+
+        logger.info(f"建立数据库连接: {conn_var} ({db_type}://{host}/{database})")
+
+        try:
+            conn = self._create_connection(db_type, host, port, database, username, password)
+            if conn:
+                self._db_connections[conn_var] = conn
+            return conn
+        except Exception as e:
+            logger.error(f"创建数据库连接失败 [{conn_var}]: {e}")
+            return None
+
+    @staticmethod
+    def _create_connection(db_type: str, host: str, port: str, database: str,
+                           username: str, password: str):
+        """根据数据库类型创建连接"""
+        port_int = int(port) if port else None
+
+        if db_type in ('mysql', 'mariadb'):
+            import pymysql
+            return pymysql.connect(
+                host=host, port=port_int or 3306,
+                user=username, password=password,
+                database=database, charset='utf8mb4',
+                cursorclass=pymysql.cursors.DictCursor
+            )
+        elif db_type in ('postgresql', 'postgres', 'pg'):
+            import psycopg2
+            import psycopg2.extras
+            return psycopg2.connect(
+                host=host, port=port_int or 5432,
+                user=username, password=password,
+                dbname=database
+            )
+        elif db_type == 'sqlite':
+            import sqlite3
+            sqlite3.Row
+            conn = sqlite3.connect(database)
+            conn.row_factory = sqlite3.Row
+            return conn
+        elif db_type in ('sqlserver', 'mssql'):
+            import pymssql
+            return pymssql.connect(
+                server=host, port=str(port_int or 1433),
+                user=username, password=password,
+                database=database, charset='utf8'
+            )
         else:
-            cursor.execute(query)
+            raise ValueError(f"不支持的数据库类型: {db_type}")
+
+    @staticmethod
+    def _execute_db_sql(connection, operation: str, sql: str):
+        """执行 SQL 并返回结果"""
+        cursor = connection.cursor()
+        cursor.execute(sql)
+
+        if operation == 'query':
+            if hasattr(cursor, 'description') and cursor.description:
+                columns = [desc[0] for desc in cursor.description]
+                rows = cursor.fetchall()
+                # 兼容 DictCursor (pymysql) 和普通 cursor
+                if rows and isinstance(rows[0], dict):
+                    return rows
+                return [dict(zip(columns, row)) for row in rows]
+            return []
+        else:
             connection.commit()
             return {"affected_rows": cursor.rowcount}
