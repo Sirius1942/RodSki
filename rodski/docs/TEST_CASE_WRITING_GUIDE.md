@@ -347,8 +347,55 @@ GlobalValue.DefaultValue.WaitTime     # 返回: "5"
 |------|-----|------|--------|
 | DefaultValue | URL | 测试环境地址 | https://www.cassmall.com/passport/login |
 | DefaultValue | BrowserType | 浏览器类型 | chromium / firefox / webkit |
-| DefaultValue | WaitTime | 默认等待时间(秒) | 5 |
+| DefaultValue | **WaitTime** | **默认步骤等待时间(秒)** | 5 |
 | DefaultValue | Headless | 无头模式 | True / False |
+
+### 6.4 ⚠️ 特殊项：DefaultValue.WaitTime（默认步骤等待时间）
+
+`WaitTime` 是一个**具有特殊行为的全局变量**，它不仅可以作为数据引用使用，还会**自动影响测试执行节奏**。
+
+#### 作用
+
+设置 `DefaultValue.WaitTime` 后，框架会在**每个测试步骤执行完成后**自动等待指定的秒数，为页面渲染和网络请求留出缓冲时间。
+
+#### 生效规则
+
+| 场景 | 是否自动等待 | 说明 |
+|------|-------------|------|
+| open / type / click 等 UI 操作 | ✅ 等待 | 步骤执行后自动等待 WaitTime 秒 |
+| wait 关键字 | ❌ 不等待 | wait 自身已包含等待逻辑，不再叠加默认等待 |
+| close 关键字 | ❌ 不等待 | 浏览器已关闭，无需等待 |
+
+#### 示例
+
+```
+# GlobalValue Sheet
+| GroupName    | Key      | Value |
+|------------- |----------|-------|
+| DefaultValue | WaitTime | 5     |
+
+# 执行流程：
+# open → 执行 → 自动等待5秒
+# type → 执行 → 自动等待5秒
+# click → 执行 → 自动等待5秒
+# wait 3 → 等待3秒 → 不再叠加默认等待
+# close → 执行 → 不等待
+```
+
+#### WaitTime 与 wait 关键字的区别
+
+| 特性 | DefaultValue.WaitTime | wait 关键字 |
+|------|----------------------|-------------|
+| 作用范围 | 所有步骤（全局） | 仅当前步骤（局部） |
+| 配置位置 | GlobalValue Sheet | Case Sheet 中的动作列 |
+| 等待时机 | 步骤执行**后**自动触发 | 作为**独立步骤**执行 |
+| 典型用途 | 统一控制页面加载缓冲 | 特定场景的精确等待（如等待弹窗、异步加载） |
+
+#### 使用建议
+
+- **推荐设置 2~5 秒**：适合大多数 Web 页面的加载速度
+- **设为 0 或不设置**：禁用默认等待，适合追求执行速度的场景
+- **需要精确控制时**：使用 `wait` 关键字插入特定等待时间
 
 ---
 
@@ -361,10 +408,12 @@ GlobalValue.DefaultValue.WaitTime     # 返回: "5"
 | open | 打开页面 | 模型名 | URL 或 GlobalValue 引用 |
 | type | 输入文本 | 模型名.元素名 或 模型名 | 数据表引用 |
 | click | 点击元素 | 模型名.元素名 | - |
-| wait | 等待 | - | 秒数 |
+| wait | 插入等待时间（见下方说明） | - | 秒数 |
 | verify | 验证 | 模型名.元素名 或 空 | 验证条件 |
 | close | 关闭浏览器 | - | - |
 | screenshot | 截图 | - | 文件名(可选) |
+
+> **wait 关键字说明**：`wait` 是一个**独立的等待步骤**，用于在特定位置插入精确的等待时间。它与 `DefaultValue.WaitTime`（全局默认步骤等待）互不影响——`wait` 步骤执行后**不会**再叠加默认等待。详见 [6.4 特殊项：DefaultValue.WaitTime](#64-️-特殊项defaultvaluewaittime默认步骤等待时间)。
 
 ### 7.2 verify 验证条件
 

@@ -71,8 +71,27 @@ python3 cli_main.py report --format html
 python3 cli_main.py report --format json
 ```
 
+## 5️⃣ 控制执行节奏
+
+在 GlobalValue Sheet 中设置 `DefaultValue.WaitTime` 可以让每个步骤执行后自动等待，避免因页面加载不完全导致的操作失败：
+
+| GroupName | Key | Value |
+|-----------|-----|-------|
+| DefaultValue | WaitTime | 5 |
+
+设置后，`open`、`type`、`click` 等步骤执行完毕后会自动等待 5 秒。`wait` 和 `close` 关键字不受此影响。
+
+如需在特定位置精确等待，使用 `wait` 关键字（数据列填入秒数）：
+
+| 预期动作 | 预期模型 | 预期数据 |
+|---------|---------|---------|
+| wait | | 3 |
+
+详见 `docs/TEST_CASE_WRITING_GUIDE.md` 第 6.4 节。
+
 ## 📚 进阶学习
 
+- **用例编写规范**：`docs/TEST_CASE_WRITING_GUIDE.md`
 - **API 测试**：`docs/API_TESTING_GUIDE.md`
 - **移动端测试**：`docs/MOBILE_GUIDE.md`
 - **GUI 使用**：`docs/GUI_USAGE.md`

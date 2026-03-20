@@ -53,14 +53,16 @@ class PlaywrightDriver(BaseDriver):
         """转换定位器格式为 CSS 选择器"""
         if locator.startswith('id='):
             return '#' + locator[3:]
+        elif locator.startswith('class='):
+            return '.' + locator[6:]
         elif locator.startswith('css='):
             return locator[4:]
         elif locator.startswith('xpath='):
-            return locator  # XPath 保持原样
+            return locator
         elif locator.startswith('text='):
-            return locator  # Playwright text 选择器
+            return locator
         elif locator.startswith('#') or locator.startswith('.'):
-            return locator  # 已经是 CSS 选择器
+            return locator
         else:
             return locator
 
@@ -144,13 +146,18 @@ class PlaywrightDriver(BaseDriver):
                     except:
                         pass
                     
-                    # 尝试 JavaScript 点击
+                    # 尝试 JavaScript 点击，验证元素确实存在
                     logger.debug(f"尝试 JavaScript 点击...")
-                    self.page.evaluate(f"""
-                        const el = document.querySelector('{css_locator}');
-                        if (el) {{ el.click(); }}
+                    clicked = self.page.evaluate(f"""
+                        (() => {{
+                            const el = document.querySelector('{css_locator}');
+                            if (el) {{ el.click(); return true; }}
+                            return false;
+                        }})()
                     """)
-                    return True
+                    if clicked:
+                        return True
+                    raise DriverError(f"点击失败: 元素未找到 {locator}", locator=locator)
                 
                 # 其他错误
                 raise DriverError(f"点击失败: {locator}", locator=locator, cause=e)
@@ -206,18 +213,24 @@ class PlaywrightDriver(BaseDriver):
                     except:
                         pass
                     
-                    # 尝试 JavaScript 输入
+                    # 尝试 JavaScript 输入，验证元素确实存在
                     logger.debug(f"尝试 JavaScript 输入...")
                     safe_text = text.replace("'", "\\'").replace("\n", "\\n")
-                    self.page.evaluate(f"""
-                        const el = document.querySelector('{css_locator}');
-                        if (el) {{ 
-                            el.value = '{safe_text}'; 
-                            el.dispatchEvent(new Event('input', {{ bubbles: true }}));
-                            el.dispatchEvent(new Event('change', {{ bubbles: true }}));
-                        }}
+                    typed = self.page.evaluate(f"""
+                        (() => {{
+                            const el = document.querySelector('{css_locator}');
+                            if (el) {{ 
+                                el.value = '{safe_text}'; 
+                                el.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                                el.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                                return true;
+                            }}
+                            return false;
+                        }})()
                     """)
-                    return True
+                    if typed:
+                        return True
+                    raise DriverError(f"输入失败: 元素未找到 {locator}", locator=locator, cause=e)
                 
                 # 其他错误
                 raise DriverError(f"输入失败: {locator}", locator=locator, cause=e)

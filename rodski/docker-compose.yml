@@ -1,0 +1,17 @@
+services:
+  sandbox:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rodski-sandbox
+    volumes:
+      - ./sandbox/cases:/app/sandbox/cases
+      - ./sandbox/results:/app/sandbox/results
+      - ./sandbox/screenshots:/app/screenshots
+      - ./sandbox/logs:/app/logs
+    environment:
+      - PYTHONPATH=/app
+      - RODSKI_HEADLESS=1
+    stdin_open: true
+    tty: true
+    shm_size: "512m"

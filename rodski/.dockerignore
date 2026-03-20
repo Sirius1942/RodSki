@@ -57,14 +57,15 @@ Thumbs.db
 .git/
 .gitignore
 
-# Docker
-Dockerfile
-docker-compose.yml
+# Docker (keep Dockerfile & compose in context, ignore .dockerignore)
 .dockerignore
 
 # Documentation
 *.md
 docs/
+
+# Sandbox local volumes (results mounted at runtime)
+sandbox/
 
 # Temporary files
 *.tmp

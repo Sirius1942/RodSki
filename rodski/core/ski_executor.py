@@ -68,6 +68,13 @@ class SKIExecutor:
         self.global_vars = self.global_parser.parse()
         self.case_parser = CaseParser(str(case_file))
 
+        # 读取默认等待时间
+        default_wait_str = self.global_vars.get('DefaultValue', {}).get('WaitTime', '0')
+        try:
+            self.default_wait_time = float(default_wait_str)
+        except (ValueError, TypeError):
+            self.default_wait_time = 0.0
+
         # 初始化数据解析器
         self.data_resolver = DataResolver(
             data_manager=self.data_manager,
@@ -254,6 +261,7 @@ class SKIExecutor:
             step_type: 步骤类型（预处理/测试步骤/预期结果/后处理）
         
         特殊处理 close 关键字：执行后标记驱动已关闭
+        每个步骤执行后自动应用 GlobalValue.DefaultValue.WaitTime 默认等待
         """
         action = step['action']
         model = step['model']
@@ -273,13 +281,17 @@ class SKIExecutor:
         try:
             self.keyword_engine.execute(action, params)
         except Exception as e:
-            # 重新抛出异常，保留堆栈信息
             raise
         
         # 特殊处理：close 关键字执行后标记驱动已关闭
         if action.lower() == 'close':
             self._driver_closed = True
             print(f"   🔒 浏览器已关闭")
+        
+        # 应用默认等待时间（wait/close 关键字除外）
+        if self.default_wait_time > 0 and action.lower() not in ('wait', 'close'):
+            logger.debug(f"默认等待 {self.default_wait_time}s")
+            time.sleep(self.default_wait_time)
 
     def close(self):
         """关闭资源"""
