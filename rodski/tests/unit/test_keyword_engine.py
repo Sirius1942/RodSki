@@ -55,10 +55,19 @@ class TestKeywordEngine:
         assert result is True
         mock_driver.type.assert_called_once_with("#input", "hello")
 
-    def test_check_routes_to_verify(self, engine, mock_driver):
-        """check 关键字内部走 verify 逻辑"""
-        mock_driver.check.return_value = True
-        result = engine.execute("check", {"data": "#elem"})
+    def test_check_still_works_as_alias(self, mock_driver):
+        """check 走 verify 批量模式"""
+        mock_model_parser = MagicMock()
+        mock_model_parser.get_model.return_value = {
+            'status': {'type': 'id', 'value': 'status', 'driver_type': 'web'},
+        }
+        mock_data_manager = MagicMock()
+        mock_data_manager.get_data.return_value = {'status': 'OK'}
+        mock_driver.get_text.return_value = 'OK'
+        engine = KeywordEngine(mock_driver,
+                               model_parser=mock_model_parser,
+                               data_manager=mock_data_manager)
+        result = engine.execute("check", {"model": "Page", "data": "Expected.E001"})
         assert result is True
 
     def test_wait(self, engine, mock_driver):
@@ -111,17 +120,17 @@ class TestKeywordEngine:
 
     def test_get_keywords(self, engine):
         keywords = engine.get_keywords()
-        assert len(keywords) == 30
+        assert len(keywords) == 28
         assert "click" in keywords
         assert "verify" in keywords
         assert "check" not in keywords
+        assert "run" not in keywords
         assert "get" in keywords
         assert "assert" in keywords
         assert "http_get" in keywords
         assert "get_text" in keywords
         assert "send" in keywords
         assert "set" in keywords
-        assert "run" in keywords
         assert "DB" in keywords
 
     def test_click_failure(self, engine, mock_driver):
@@ -509,14 +518,6 @@ class TestAdvancedKeywords:
         assert result is True
         assert engine._variables["count"] == 42
 
-    def test_run_case(self, engine, mock_driver):
-        result = engine.execute("run", {"case_name": "LoginTest"})
-        assert result is True
-
-    def test_run_missing_case_name(self, engine, mock_driver):
-        with pytest.raises(InvalidParameterError, match="缺少必需参数"):
-            engine.execute("run", {})
-
     def test_db_with_sqlite(self, mock_driver, tmp_path):
         """DB 关键字: 使用 SQLite 执行查询"""
         import sqlite3
@@ -738,50 +739,18 @@ class TestRetryMechanism:
 
 
 class TestVerifyKeyword:
-    """verify 关键字测试"""
+    """verify 关键字测试 — 只支持批量模式 (model + data)"""
 
-    def test_verify_element_visible(self, engine, mock_driver):
-        mock_driver.check.return_value = True
-        result = engine.execute("verify", {"data": "#login-form"})
-        assert result is True
-
-    def test_verify_element_not_visible(self, engine, mock_driver):
-        mock_driver.check.return_value = False
-        result = engine.execute("verify", {"data": "#missing"})
-        assert result is False
-
-    def test_verify_element_text_match(self, engine, mock_driver):
-        """简单模式: data=定位器, model=期望文本 (非批量，因为 model_parser 为 None)"""
-        mock_driver.get_text.return_value = "欢迎来到首页"
-        result = engine.execute("verify", {"data": "#title", "model": "首页"})
-        assert result is True
-
-    def test_verify_element_text_mismatch(self, engine, mock_driver):
-        mock_driver.get_text.return_value = "登录页面"
-        result = engine.execute("verify", {"data": "#title", "model": "首页"})
-        assert result is False
-
-    def test_verify_value_equal(self, engine, mock_driver):
-        """值比较模式: data 不像定位器"""
-        result = engine.execute("verify", {"data": "order-123", "model": "order-123"})
-        assert result is True
-
-    def test_verify_value_not_equal(self, engine, mock_driver):
-        result = engine.execute("verify", {"data": "order-123", "model": "order-456"})
-        assert result is False
-
-    def test_verify_stores_return(self, engine, mock_driver):
-        mock_driver.get_text.return_value = "实际文本"
-        engine.execute("verify", {"data": "#elem", "model": "实际文本"})
-        assert engine.get_return(-1) == "实际文本"
-
-    def test_verify_missing_target(self, engine, mock_driver):
+    def test_verify_requires_model_and_data(self, engine, mock_driver):
         from core.exceptions import InvalidParameterError
-        with pytest.raises(InvalidParameterError, match="验证目标"):
+        with pytest.raises(InvalidParameterError, match="model/data"):
             engine.execute("verify", {})
+        with pytest.raises(InvalidParameterError, match="model/data"):
+            engine.execute("verify", {"data": "#login-form"})
+        with pytest.raises(InvalidParameterError, match="model/data"):
+            engine.execute("verify", {"model": "Login"})
 
     def test_batch_verify_all_match(self, mock_driver):
-        """批量验证: 模型+数据表, 全部匹配"""
         mock_model_parser = MagicMock()
         mock_model_parser.get_model.return_value = {
             'username': {'type': 'id', 'value': 'userName', 'driver_type': 'web'},
@@ -804,7 +773,6 @@ class TestVerifyKeyword:
         assert result is True
 
     def test_batch_verify_mismatch(self, mock_driver):
-        """批量验证: 某字段不匹配 → False"""
         mock_model_parser = MagicMock()
         mock_model_parser.get_model.return_value = {
             'amount': {'type': 'id', 'value': 'orderAmount', 'driver_type': 'web'},
@@ -820,7 +788,6 @@ class TestVerifyKeyword:
         assert result is False
 
     def test_batch_verify_stores_actual_values(self, mock_driver):
-        """批量验证结果通过 store_return 保存"""
         mock_model_parser = MagicMock()
         mock_model_parser.get_model.return_value = {
             'status': {'type': 'id', 'value': 'status', 'driver_type': 'web'},
@@ -833,8 +800,29 @@ class TestVerifyKeyword:
                                model_parser=mock_model_parser,
                                data_manager=mock_data_manager)
         engine.execute("verify", {"model": "Order", "data": "OrderData.V001"})
-        ret = engine.get_return(-1)
-        assert ret == {'status': '已完成'}
+        assert engine.get_return(-1) == {'status': '已完成'}
+
+    def test_batch_verify_with_return_in_data_table(self, mock_driver):
+        """数据表字段中使用 Return[-1]"""
+        from data.data_resolver import DataResolver
+
+        mock_model_parser = MagicMock()
+        mock_model_parser.get_model.return_value = {
+            'orderNo': {'type': 'id', 'value': 'order-id', 'driver_type': 'web'},
+        }
+        mock_data_manager = MagicMock()
+        mock_data_manager.get_data.return_value = {'orderNo': 'Return[-1]'}
+        mock_driver.get_text.return_value = 'ORD-999'
+
+        engine = KeywordEngine(mock_driver,
+                               model_parser=mock_model_parser,
+                               data_manager=mock_data_manager)
+        engine.store_return('ORD-999')
+        resolver = DataResolver(return_provider=engine.get_return)
+        engine.data_resolver = resolver
+
+        result = engine.execute("verify", {"model": "Order", "data": "OrderExpect.E001"})
+        assert result is True
 
 
 class TestReturnMechanism:
@@ -845,9 +833,8 @@ class TestReturnMechanism:
         engine.execute("get_text", {"locator": "#order-id"})
         assert engine.get_return(-1) == "order-001"
 
-    def test_return_values_stored_by_verify(self, engine, mock_driver):
-        mock_driver.check.return_value = True
-        engine.execute("verify", {"data": "#element"})
+    def test_return_values_stored_by_assert(self, engine, mock_driver):
+        engine.execute("assert", {"data": "#element", "expected": "text"})
         assert engine.get_return(-1) is True
 
     def test_return_multiple_steps(self, engine, mock_driver):
@@ -862,7 +849,8 @@ class TestReturnMechanism:
         assert engine.get_return(-3) == "step1"
         assert engine.get_return(0) == "step1"
 
-    def test_data_resolver_with_return_provider(self):
+    def test_data_resolver_resolve_with_return(self):
+        """resolve_with_return 解析数据表字段中的 Return 引用"""
         from data.data_resolver import DataResolver
 
         values = ["order-001", "user-42", "token-xyz"]
@@ -873,14 +861,16 @@ class TestReturnMechanism:
                 return None
 
         resolver = DataResolver(return_provider=mock_provider)
-        assert resolver.resolve("Return[-1]") == "token-xyz"
-        assert resolver.resolve("Return[-2]") == "user-42"
-        assert resolver.resolve("Return[0]") == "order-001"
-        assert resolver.resolve("订单号: Return[-1]") == "订单号: token-xyz"
+        assert resolver.resolve_with_return("Return[-1]") == "token-xyz"
+        assert resolver.resolve_with_return("Return[-2]") == "user-42"
+        assert resolver.resolve_with_return("Return[0]") == "order-001"
+        assert resolver.resolve_with_return("订单号: Return[-1]") == "订单号: token-xyz"
 
-    def test_data_resolver_unresolved_return(self):
+    def test_data_resolver_resolve_does_not_touch_return(self):
+        """resolve (Case Sheet 层) 不解析 Return"""
         from data.data_resolver import DataResolver
-        resolver = DataResolver()
+        values = ["some-value"]
+        resolver = DataResolver(return_provider=lambda i: values[i])
         assert resolver.resolve("Return[-1]") == "Return[-1]"
 
     def test_get_keyword_alias(self, engine, mock_driver):

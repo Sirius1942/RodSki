@@ -46,7 +46,7 @@ def sample_xlsx(tmp_path):
     ws.append(["type", "Enter pass", "#pass", "123456", None])
     ws.append(["click", "Submit", "#submit", None, None])
     ws.append(["wait", "Wait load", None, None, None])
-    ws.append(["check", "Verify page", "#dashboard", None, None])
+    ws.append(["assert", "Verify page", "#dashboard", None, None])
     wb.save(path)
     return str(path)
 

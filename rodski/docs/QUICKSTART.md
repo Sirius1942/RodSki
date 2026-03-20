@@ -1,12 +1,10 @@
-# RodSki 快速入门指南 ⚡
+# RodSki 快速入门指南
 
-5 分钟快速上手 SKI 自动化测试框架。
+5 分钟快速上手 RodSki 自动化测试框架。
 
-## 1️⃣ 安装（1分钟）
+## 1. 安装
 
 ```bash
-# 克隆项目
-git clone <repo-url>
 cd rodski
 
 # 安装依赖
@@ -16,108 +14,102 @@ pip install -r requirements.txt
 playwright install chromium
 ```
 
-## 2️⃣ 第一个测试（2分钟）
+## 2. 运行演示项目
 
-### 方式一：使用 GUI（推荐新手）
+项目自带一个完整的演示测试网站和测试用例，路径 `product/DEMO/demo_site/`。
 
-```bash
-python3 ski_gui.py
-```
-
-1. 点击"选择用例文件" → 选择 `examples/demo_case.xlsx`
-2. 点击"开始执行"
-3. 查看实时日志和结果
-
-### 方式二：使用 CLI
+**启动测试网站**：
 
 ```bash
-python3 cli_main.py run examples/demo_case.xlsx
+python product/DEMO/demo_site/app.py
 ```
 
-## 3️⃣ 创建自己的测试（2分钟）
+网站地址 http://127.0.0.1:5555，账号 admin / admin123。
 
-### Excel 用例格式
+**执行测试用例**：
 
-| 用例ID | 用例名称 | 前置条件 | 测试步骤 | 后置条件 |
-|--------|----------|----------|----------|----------|
-| TC001  | 登录测试 | navigate\|https://example.com | type\|#username\|admin<br>type\|#password\|123456<br>click\|#login | screenshot\|login_result |
-
-### 支持的关键字
-
-**Web 操作**：
-- `click|locator` - 点击元素
-- `type|locator|text` - 输入文本
-- `navigate|url` - 打开网页
-- `screenshot|filename` - 截图
-
-**API 测试**：
-- `http_get|url` - GET 请求
-- `http_post|url|body` - POST 请求
-- `assert_status|200` - 断言状态码
-- `assert_json|$.data.name|expected` - 断言 JSON
-
-**完整列表**：查看 `docs/API_TESTING_GUIDE.md`
-
-## 4️⃣ 查看结果
-
-### HTML 报告
 ```bash
-python3 cli_main.py report --format html
-```
-打开 `logs/report.html` 查看详细报告。
-
-### JSON 报告
-```bash
-python3 cli_main.py report --format json
+python ski_run.py product/DEMO/demo_site/case/demo_test_case.xlsx
 ```
 
-## 5️⃣ 控制执行节奏
+## 3. 理解用例结构
 
-在 GlobalValue Sheet 中设置 `DefaultValue.WaitTime` 可以让每个步骤执行后自动等待，避免因页面加载不完全导致的操作失败：
+RodSki 用例由三部分组成：**关键字 + 模型 + 数据**。
+
+```
+关键字（做什么） + 模型（对哪些元素） + 数据（用什么值）
+```
+
+一个 Excel 用例文件包含：
+
+| Sheet | 作用 |
+|-------|------|
+| Case | 测试步骤（动作 + 模型 + 数据） |
+| GlobalValue | 全局配置（URL、等待时间、数据库连接等） |
+| 数据表 | 测试数据（如 LoginData、ItemData） |
+| TestResult | 执行结果（框架自动回填） |
+
+核心规则：**模型元素名 = 数据表列名**。
+
+## 4. 写第一个用例
+
+### model.xml（定义页面元素）
+
+```xml
+<models>
+<model name="Login">
+  <element name="username" type="web">
+    <location type="id">username</location>
+  </element>
+  <element name="password" type="web">
+    <location type="id">password</location>
+  </element>
+</model>
+</models>
+```
+
+### 数据表 LoginData（定义输入数据）
+
+| DataID | Remark | username | password |
+|--------|--------|----------|----------|
+| L001 | 管理员 | admin | admin123 |
+
+### Case Sheet（定义用例步骤）
+
+| 执行控制 | 编号 | 标题 | 描述 | 类型 | 预处理动作 | 预处理模型 | 预处理数据 | 测试动作 | 测试模型 | 测试数据 |
+|---------|------|------|------|------|-----------|-----------|-----------|---------|---------|---------|
+| 是 | c001 | 登录 | 验证登录 | 界面 | open | | GlobalValue.DefaultValue.URL/login | type | Login | LoginData.L001 |
+
+`type Login LoginData.L001` 的含义：遍历 Login 模型的每个元素（username、password），从 LoginData.L001 取同名列的值，逐一输入。
+
+## 5. 控制执行节奏
+
+在 GlobalValue Sheet 中设置 `DefaultValue.WaitTime`，每步执行后自动等待：
 
 | GroupName | Key | Value |
 |-----------|-----|-------|
-| DefaultValue | WaitTime | 5 |
+| DefaultValue | WaitTime | 2 |
 
-设置后，`open`、`type`、`click` 等步骤执行完毕后会自动等待 5 秒。`wait` 和 `close` 关键字不受此影响。
+`wait` 和 `close` 关键字不受此影响。
 
-如需在特定位置精确等待，使用 `wait` 关键字（数据列填入秒数）：
+## 6. 查看结果
 
-| 预期动作 | 预期模型 | 预期数据 |
-|---------|---------|---------|
-| wait | | 3 |
+执行完成后，结果自动回填到 Excel 的 TestResult Sheet。
 
-详见 `docs/TEST_CASE_WRITING_GUIDE.md` 第 6.4 节。
+生成 HTML 报告：
 
-## 📚 进阶学习
+```bash
+PYTHONPATH=. python cli_main.py report --input logs/latest_results.json
+```
 
-- **用例编写规范**：`docs/TEST_CASE_WRITING_GUIDE.md`
+## 7. 进阶学习
+
+- **用例编写规范**：`docs/TEST_CASE_WRITING_GUIDE.md`（最重要）
 - **API 测试**：`docs/API_TESTING_GUIDE.md`
-- **移动端测试**：`docs/MOBILE_GUIDE.md`
 - **GUI 使用**：`docs/GUI_USAGE.md`
-- **性能优化**：`docs/PERFORMANCE.md`
-
-## 🆘 常见问题
-
-### Q: 浏览器启动失败？
-```bash
-playwright install chromium --force
-```
-
-### Q: 找不到元素？
-使用浏览器开发者工具（F12）检查元素的 CSS 选择器或 XPath。
-
-### Q: 如何调试？
-```bash
-python3 cli_main.py run examples/demo_case.xlsx --verbose
-```
-
-## 🎯 示例项目
-
-- `examples/baidu_test/` - 百度搜索测试
-- `examples/api_test/` - RESTful API 测试
-- `examples/demo_case.xlsx` - 综合示例
+- **架构说明**：`docs/ARCHITECTURE.md`
+- **故障排查**：`docs/TROUBLESHOOTING.md`
 
 ---
 
-**下一步**：尝试修改 `examples/demo_case.xlsx`，创建你的第一个自动化测试！
+**下一步**：阅读 `docs/TEST_CASE_WRITING_GUIDE.md` 了解完整的用例编写规范。

@@ -24,6 +24,16 @@ class DataResolver:
         self.return_provider = return_provider
 
     def resolve(self, text: str) -> str:
+        """解析数据引用（Case Sheet 层面，不含 Return）"""
+        if not isinstance(text, str):
+            return str(text) if text is not None else ""
+        text = self._resolve_vars(text)
+        text = self._resolve_models(text)
+        text = self._resolve_ski_refs(text)
+        return text
+
+    def resolve_with_return(self, text: str) -> str:
+        """解析数据引用 + Return 引用（数据表字段值使用）"""
         if not isinstance(text, str):
             return str(text) if text is not None else ""
         text = self._resolve_returns(text)

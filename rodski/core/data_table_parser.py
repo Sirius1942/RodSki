@@ -11,7 +11,7 @@ class DataTableParser:
 
     def parse_all_tables(self) -> Dict[str, Dict[str, Dict[str, Any]]]:
         """解析所有数据表（除了 Main/Case/GlobalValue/TestResult/Logic）"""
-        skip_sheets = {'Main', 'Case', 'GlobalValue', 'TestResult', 'Logic'}
+        skip_sheets = {'Main', 'Case', 'GlobalValue', 'TestResult'}
 
         for sheet_name in self.wb.sheetnames:
             if sheet_name not in skip_sheets:

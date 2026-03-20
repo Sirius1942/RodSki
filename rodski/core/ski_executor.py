@@ -75,7 +75,7 @@ class SKIExecutor:
         except (ValueError, TypeError):
             self.default_wait_time = 0.0
 
-        # 初始化关键字引擎（先于 DataResolver，因为 DataResolver 需要引用 return_provider）
+        # 初始化关键字引擎和数据解析器（互相引用，创建后注入）
         self.keyword_engine = KeywordEngine(
             driver, 
             model_parser=self.model_parser,
@@ -83,13 +83,12 @@ class SKIExecutor:
             global_vars=self.global_vars,
             case_file=str(self.case_file)
         )
-
-        # 初始化数据解析器，连接 KeywordEngine 的返回值作为 Return 引用源
         self.data_resolver = DataResolver(
             data_manager=self.data_manager,
             global_vars=self.global_vars,
             return_provider=self.keyword_engine.get_return
         )
+        self.keyword_engine.data_resolver = self.data_resolver
 
         # 初始化结果回填器
         self.result_writer = ResultWriter(str(case_file))
@@ -106,7 +105,7 @@ class SKIExecutor:
                 self.driver = self.driver_factory()
                 self._driver_closed = False
                 
-                # 重新初始化关键字引擎
+                # 重新初始化关键字引擎，重连双向引用
                 self.keyword_engine = KeywordEngine(
                     self.driver,
                     model_parser=self.model_parser,
@@ -114,6 +113,8 @@ class SKIExecutor:
                     global_vars=self.global_vars,
                     case_file=str(self.case_file)
                 )
+                self.data_resolver.return_provider = self.keyword_engine.get_return
+                self.keyword_engine.data_resolver = self.data_resolver
                 
                 logger.info("驱动重新创建成功")
             else:
@@ -190,6 +191,9 @@ class SKIExecutor:
         start = time.time()
         screenshot_path = None
         
+        self._current_case_id = case['case_id']
+        self._step_index = 0
+        
         try:
             # 预处理
             if case['pre_process']['action']:
@@ -265,48 +269,64 @@ class SKIExecutor:
     def execute_step(self, step: Dict[str, str], step_type: str = ""):
         """执行单个步骤
         
-        Args:
-            step: 步骤字典，包含 action, model, data
-            step_type: 步骤类型（预处理/测试步骤/预期结果/后处理）
-        
-        特殊处理 close 关键字：执行后标记驱动已关闭
-        每个步骤执行后自动应用 GlobalValue.DefaultValue.WaitTime 默认等待
+        每个步骤执行后自动:
+        1. 截图（close/wait/DB 除外）
+        2. 应用 DefaultValue.WaitTime 默认等待
         """
         action = step['action']
         model = step['model']
         data = step['data']
 
-        # 解析数据引用
+        # 解析数据引用（Case Sheet 层面，不含 Return —— Return 只在数据表中）
         resolved_data = self.data_resolver.resolve(data)
         
-        # 打印数据解析结果
         if data and resolved_data != data:
             logger.debug(f"数据解析: '{data}' -> '{resolved_data}'")
 
-        # 构建参数
         params = {'model': model, 'data': resolved_data}
 
-        # 执行关键字
-        try:
-            self.keyword_engine.execute(action, params)
-        except Exception as e:
-            raise
+        self.keyword_engine.execute(action, params)
         
         # 特殊处理：close 关键字执行后标记驱动已关闭
         if action.lower() == 'close':
             self._driver_closed = True
             logger.info("浏览器已关闭")
         
+        # 自动截图（驱动存活且非 close/wait/DB 等无界面操作时）
+        if not self._driver_closed and action.lower() not in ('close', 'wait', 'DB'):
+            self._auto_screenshot(step_type)
+        
         # 应用默认等待时间（wait/close 关键字除外）
         if self.default_wait_time > 0 and action.lower() not in ('wait', 'close'):
             logger.debug(f"默认等待 {self.default_wait_time}s")
             time.sleep(self.default_wait_time)
+
+    def _auto_screenshot(self, step_type: str) -> None:
+        """步骤执行后自动截图"""
+        try:
+            self._step_index = getattr(self, '_step_index', 0) + 1
+            case_id = getattr(self, '_current_case_id', 'unknown')
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"{case_id}_{self._step_index:02d}_{step_type}_{timestamp}.png"
+            path = self.screenshot_dir / filename
+            self.driver.screenshot(str(path))
+            logger.debug(f"步骤截图: {path}")
+        except Exception as e:
+            logger.debug(f"自动截图失败: {e}")
 
     def close(self):
         """关闭资源"""
         self.case_parser.close()
         self.data_manager.close()
         self.global_parser.close()
+        
+        # 关闭数据库连接
+        for name, conn in self.keyword_engine._db_connections.items():
+            try:
+                conn.close()
+            except Exception as e:
+                logger.debug(f"关闭数据库连接 {name} 时出错: {e}")
+        self.keyword_engine._db_connections.clear()
         
         # 确保驱动被关闭
         if not self._driver_closed and self.driver:
