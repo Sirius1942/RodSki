@@ -49,8 +49,8 @@ def main():
     )
     results = executor.execute_all_cases()
     
-    # 关闭驱动
-    driver.close()
+    # 关闭执行器（内部会关闭驱动）
+    executor.close()
     
     print("-" * 60)
     print(f"✅ 执行完成")

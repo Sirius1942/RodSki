@@ -315,6 +315,55 @@ Login.L001.username   # 返回: "testuser"
 Login.L002.password   # 返回: "Test@123456"
 ```
 
+### 5.5 Return 引用 — 跨步骤传递运行时数据
+
+在真实测试场景中，很多数据是在测试运行时才产生的（比如新建订单的订单号、注册用户的 ID）。这些数据无法提前写在数据表中。**Return 机制**解决了这个问题：框架自动保存每个步骤的关键返回值，后续步骤可以通过 `Return[index]` 引用它们。
+
+#### 语法
+
+```
+Return[-1]    # 上一个步骤的返回值
+Return[-2]    # 上上个步骤的返回值
+Return[0]     # 第一个步骤的返回值
+Return[3]     # 第四个步骤的返回值
+```
+
+#### 哪些关键字会产生返回值
+
+| 关键字 | 返回值内容 |
+|--------|-----------|
+| get / get_text | 获取到的元素文本内容 |
+| verify | 验证时获取到的实际值（元素文本、可见性等） |
+| assert | 断言结果（True/False） |
+| type（批量模式） | 本次输入使用的完整数据行 |
+| http_get/post/put/delete | HTTP 响应 body 文本 |
+| send | HTTP 响应 body 文本 |
+| DB | 查询结果集或受影响行数 |
+
+#### 典型场景：跨步骤数据传递
+
+**场景**: 创建订单后验证订单号
+
+| 阶段 | 动作 | 模型 | 数据 | 说明 |
+|------|------|------|------|------|
+| 测试步骤 | type | Order | Order.NEW001 | 填写订单信息并提交 |
+| 预期结果 | get_text | | #order-number | 获取页面上的订单号 → 自动保存为 Return |
+| 后处理 | verify | | Return[-1] | 验证订单号非空 |
+
+**场景**: API 创建资源后用返回的 ID 做后续操作
+
+| 阶段 | 动作 | 模型 | 数据 |
+|------|------|------|------|
+| 预处理 | http_post | | https://api.example.com/users |
+| 测试步骤 | verify | | Return[-1] |
+
+#### 注意事项
+
+- Return 索引从 0 开始（正向），或从 -1 开始（反向取最新）
+- 如果引用的 Return 索引不存在，原文保持不变（不会报错）
+- Return 值在**同一个用例文件的所有用例**间共享（跨用例可用）
+- 每次 `close` 后重建驱动不会清空 Return 值
+
 ---
 
 ## 6. GlobalValue 编写规范
@@ -405,26 +454,72 @@ GlobalValue.DefaultValue.WaitTime     # 返回: "5"
 
 | 关键字 | 说明 | 模型参数 | 数据参数 |
 |--------|------|----------|----------|
-| open | 打开页面 | 模型名 | URL 或 GlobalValue 引用 |
-| type | 输入文本 | 模型名.元素名 或 模型名 | 数据表引用 |
-| click | 点击元素 | 模型名.元素名 | - |
-| wait | 插入等待时间（见下方说明） | - | 秒数 |
-| verify | 验证 | 模型名.元素名 或 空 | 验证条件 |
+| open | 打开页面 | - | URL 或 GlobalValue 引用 |
+| type | 输入文本 | 模型名（批量）或空 | 数据表引用（批量）或 locator |
+| click | 点击元素 | - | 元素定位器 |
+| verify | 验证 | 期望值（文本匹配时） | 元素定位器或 Return 引用 |
+| get / get_text | 获取元素文本 | - | 元素定位器 |
+| wait | 等待指定秒数 | - | 秒数 |
 | close | 关闭浏览器 | - | - |
 | screenshot | 截图 | - | 文件名(可选) |
+| set | 设置变量 | - | 变量名=值 |
 
 > **wait 关键字说明**：`wait` 是一个**独立的等待步骤**，用于在特定位置插入精确的等待时间。它与 `DefaultValue.WaitTime`（全局默认步骤等待）互不影响——`wait` 步骤执行后**不会**再叠加默认等待。详见 [6.4 特殊项：DefaultValue.WaitTime](#64-️-特殊项defaultvaluewaittime默认步骤等待时间)。
 
-### 7.2 verify 验证条件
+### 7.2 verify 验证关键字
 
-| 条件 | 说明 | 示例 |
+`verify` 是 RodSki 的核心验证关键字，与 `type` 完全对称：
+
+- **`type`**: 按模型 + 数据表 → **写入**界面
+- **`verify`**: 按模型 + 数据表 → **读取**界面并**比较**
+
+#### 核心用法：批量验证（model + 数据引用）
+
+```
+动作: verify    模型: ModelName    数据: TableName.DataID
+```
+
+框架遍历模型中的每个元素：
+1. 用元素的定位器去界面上读取实际文本
+2. 与数据表中同名字段的值做比较
+3. 全部匹配 → PASS，任一不匹配 → FAIL
+
+**示例**：验证订单详情页各字段
+
+model.xml 定义：
+```xml
+<element name="orderNo" type="web"><location type="id">order-number</location></element>
+<element name="amount" type="web"><location type="id">order-amount</location></element>
+<element name="status" type="web"><location type="id">order-status</location></element>
+```
+
+数据表 `OrderExpect`:
+
+| DataID | orderNo | amount | status |
+|--------|---------|--------|--------|
+| E001 | ORD-2026001 | 10元 | 已完成 |
+
+用例写法：
+
+| 动作 | 模型 | 数据 |
 |------|------|------|
-| visible | 元素可见 | `visible` |
-| hidden | 元素隐藏 | `hidden` |
-| text_contains:xxx | 文本包含 | `text_contains:成功` |
-| text_equals:xxx | 文本等于 | `text_equals:登录` |
-| title_contains:xxx | 标题包含 | `title_contains:首页` |
-| title_equals:xxx | 标题等于 | `title_equals:开思` |
+| verify | OrderDetail | OrderExpect.E001 |
+
+执行时框架自动：
+- 读取 `#order-number` 的文本 → 比较是否为 `ORD-2026001`
+- 读取 `#order-amount` 的文本 → 比较是否为 `10元`
+- 读取 `#order-status` 的文本 → 比较是否为 `已完成`
+
+接口类型同理：如果模型元素的 `type="interface"`，则从上一次接口返回值中取对应字段来比较。
+
+#### 简单用法（无 model/data 时的降级模式）
+
+| 用例 | 动作 | 模型 | 数据 | 效果 |
+|------|------|------|------|------|
+| 检查元素可见 | verify | | #login-form | 元素存在且可见 → PASS |
+| 验证页面标题 | verify | 首页 | .page-title | 元素文本包含"首页" → PASS |
+| 验证 Return 值 | verify | ORD-001 | Return[-1] | 上一步返回值 == "ORD-001" → PASS |
+| 验证非空 | verify | | Return[-1] | 上一步返回值非空 → PASS |
 
 ### 7.3 HTTP 关键字
 

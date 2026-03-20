@@ -33,6 +33,7 @@ RUN pip install --no-cache-dir \
         psutil>=5.9.0 \
         requests>=2.31.0 \
         jsonschema>=4.20.0 \
+        Appium-Python-Client>=3.0.0 \
     && playwright install chromium \
     && playwright install-deps chromium
 

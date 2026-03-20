@@ -11,27 +11,33 @@ def model_parser():
 
 def test_get_element_with_id(model_parser):
     result = model_parser.get_element("LoginPage.UsernameInput")
-    assert result == {'locator_type': 'id', 'locator_value': 'username'}
+    assert result['locator_type'] == 'id'
+    assert result['locator_value'] == 'username'
+    assert result['driver_type'] == 'web'
 
 
 def test_get_element_with_name(model_parser):
     result = model_parser.get_element("LoginPage.PasswordInput")
-    assert result == {'locator_type': 'name', 'locator_value': 'password'}
+    assert result['locator_type'] == 'name'
+    assert result['locator_value'] == 'password'
 
 
 def test_get_element_with_xpath(model_parser):
     result = model_parser.get_element("LoginPage.LoginButton")
-    assert result == {'locator_type': 'xpath', 'locator_value': "//button[@type='submit']"}
+    assert result['locator_type'] == 'xpath'
+    assert result['locator_value'] == "//button[@type='submit']"
 
 
 def test_get_element_with_css(model_parser):
     result = model_parser.get_element("LoginPage.ErrorMessage")
-    assert result == {'locator_type': 'css', 'locator_value': '.error-msg'}
+    assert result['locator_type'] == 'css'
+    assert result['locator_value'] == '.error-msg'
 
 
 def test_get_element_from_different_model(model_parser):
     result = model_parser.get_element("HomePage.WelcomeText")
-    assert result == {'locator_type': 'id', 'locator_value': 'welcome'}
+    assert result['locator_type'] == 'id'
+    assert result['locator_value'] == 'welcome'
 
 
 def test_get_element_not_found(model_parser):

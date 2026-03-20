@@ -147,4 +147,4 @@ class AppiumDriver(BaseDriver):
         return mapping.get(strategy.lower(), AppiumBy.ID), value
     
     def get_supported_keywords(self) -> list:
-        return super().get_supported_keywords() + ["swipe", "tap", "long_press", "hide_keyboard"]
+        return ["swipe", "tap", "long_press", "hide_keyboard"]

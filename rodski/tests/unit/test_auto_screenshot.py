@@ -300,27 +300,24 @@ class TestAutoScreenshotIntegration:
             'case_id': 'TC_INTEGRATION',
             'title': '集成测试',
             'pre_process': {'action': ''},
-            'test_step': {'action': 'click', 'model': '', 'data': ''},
+            'test_step': {'action': 'click', 'model': '', 'data': '#button'},
             'expected_result': {'action': ''},
             'post_process': {'action': ''},
         }
         
         result = executor.execute_case(case)
         
-        # 验证结果完整性
         assert result['case_id'] == 'TC_INTEGRATION'
         assert result['status'] == 'FAIL'
         assert 'Timeout' in result['error']
         assert result['screenshot_path'] != ''
         
-        # 验证截图文件存在（Mock 情况下路径生成正确）
         path = Path(result['screenshot_path'])
         assert path.name.startswith('TC_INTEGRATION')
         assert path.name.endswith('_failure.png')
     
     def test_screenshot_failure_does_not_break_execution(self, tmp_excel, tmp_model, mock_driver, config_with_screenshot):
         """截图失败不应中断测试执行"""
-        # 设置截图方法抛出异常
         mock_driver.screenshot.side_effect = Exception("Screenshot failed")
         mock_driver.click.side_effect = RuntimeError("Test error")
         
@@ -330,7 +327,7 @@ class TestAutoScreenshotIntegration:
             'case_id': 'TC_SCREENSHOT_FAIL',
             'title': '截图失败测试',
             'pre_process': {'action': ''},
-            'test_step': {'action': 'click', 'model': '', 'data': ''},
+            'test_step': {'action': 'click', 'model': '', 'data': '#button'},
             'expected_result': {'action': ''},
             'post_process': {'action': ''},
         }

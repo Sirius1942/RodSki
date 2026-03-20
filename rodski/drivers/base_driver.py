@@ -1,6 +1,10 @@
-"""统一驱动接口基类 - 支持23种操作关键字"""
+"""统一 UI 驱动接口基类
+
+BaseDriver 只负责 UI 自动化操作。HTTP/API 操作由 RestHelper 独立处理，
+通过 KeywordEngine 根据 model.xml 中 element 的 driver_type 路由到对应后端。
+"""
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Optional
 
 
 class BaseDriver(ABC):
@@ -53,21 +57,7 @@ class BaseDriver(ABC):
     def close(self) -> None:
         pass
 
-    # ── New: HTTP methods ─────────────────────────────────────────
-
-    def http_get(self, url: str, headers: Optional[dict] = None) -> Any:
-        return True
-
-    def http_post(self, url: str, body: Any = None, headers: Optional[dict] = None) -> Any:
-        return True
-
-    def http_put(self, url: str, body: Any = None, headers: Optional[dict] = None) -> Any:
-        return True
-
-    def http_delete(self, url: str, headers: Optional[dict] = None) -> Any:
-        return True
-
-    # ── New: UI interaction methods ───────────────────────────────
+    # ── 扩展 UI 操作（非抽象，提供默认实现）─────────────────────
 
     def upload_file(self, locator: str, file_path: str) -> bool:
         return True
@@ -86,13 +76,3 @@ class BaseDriver(ABC):
 
     def get_text(self, locator: str) -> Optional[str]:
         return ""
-
-    def get_supported_keywords(self) -> list:
-        return [
-            "click", "type", "check", "wait", "navigate",
-            "screenshot", "select", "hover", "drag", "scroll", "assert",
-            "http_get", "http_post", "http_put", "http_delete",
-            "assert_json", "assert_status",
-            "upload_file", "clear", "double_click", "right_click",
-            "key_press", "get_text",
-        ]

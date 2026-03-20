@@ -35,12 +35,12 @@ class KeywordEngine:
     """
     
     SUPPORTED = [
-        "open", "close", "click", "type", "check", "wait", "navigate",
+        "open", "close", "click", "type", "verify", "wait", "navigate",
         "screenshot", "select", "hover", "drag", "scroll", "assert",
         "http_get", "http_post", "http_put", "http_delete",
         "assert_json", "assert_status",
         "upload_file", "clear", "double_click", "right_click",
-        "key_press", "get_text",
+        "key_press", "get_text", "get",
         "send", "set", "run", "DB",
     ]
 
@@ -52,12 +52,15 @@ class KeywordEngine:
     }
 
     def __init__(self, driver: BaseDriver, data_dir: Optional[Path] = None, 
-                 retry_config: Optional[Dict[str, Any]] = None):
+                 retry_config: Optional[Dict[str, Any]] = None,
+                 model_parser=None, data_manager=None):
         self.driver = driver
         self._last_response = None
         self._variables: Dict[str, Any] = {}
         self._return_values: list = []
         self.data_parser = DataParser(data_dir, self)
+        self.model_parser = model_parser
+        self.data_manager = data_manager
         
         # 初始化重试配置
         self._retry_config = {**self.DEFAULT_RETRY_CONFIG, **(retry_config or {})}
@@ -179,20 +182,14 @@ class KeywordEngine:
         raise RetryExhaustedError(keyword, attempts, last_error)
     
     def _log_keyword_start(self, keyword: str, params: Dict) -> None:
-        """打印关键字执行开始日志"""
-        # 过滤掉空的参数
         param_str = ", ".join(f"{k}={v}" for k, v in params.items() if v)
-        if param_str:
-            print(f"   🔹 {keyword}({param_str})")
-        else:
-            print(f"   🔹 {keyword}()")
+        logger.info(f"执行关键字: {keyword}({param_str})" if param_str else f"执行关键字: {keyword}()")
     
     def _log_keyword_success(self, keyword: str, attempts: int, result: bool) -> None:
-        """打印关键字执行成功日志"""
         if attempts > 1:
-            print(f"   ✅ {keyword} 成功 (第{attempts}次尝试)")
+            logger.info(f"{keyword} 成功 (第{attempts}次尝试)")
         else:
-            print(f"   ✅ {keyword} 成功")
+            logger.debug(f"{keyword} 成功")
     
     def _should_retry(self, error_message: str, retry_on_errors: List[str]) -> bool:
         """检查错误是否应该重试"""
@@ -244,7 +241,7 @@ class KeywordEngine:
                 reason="缺少必需参数 'url' 或 'data'"
             )
         
-        print(f"      🌐 导航到: {url}")
+        logger.info(f"导航到: {url}")
         result = self.driver.navigate(url)
         if not result:
             raise DriverError(f"导航失败: {url}")
@@ -252,13 +249,13 @@ class KeywordEngine:
 
     def _kw_close(self, params: Dict) -> bool:
         """关闭浏览器"""
-        print(f"      🔒 关闭浏览器")
+        logger.info("关闭浏览器")
         self.driver.close()
         return True
 
     def _kw_click(self, params: Dict) -> bool:
         """点击元素"""
-        locator = params.get("locator", "")
+        locator = params.get("locator", "") or params.get("data", "")
         if not locator:
             raise InvalidParameterError(
                 keyword="click",
@@ -266,7 +263,7 @@ class KeywordEngine:
                 reason="缺少必需参数 'locator'"
             )
         
-        print(f"      🖱️ 点击: {locator}")
+        logger.info(f"点击: {locator}")
         result = self.driver.click(locator)
         if not result:
             raise DriverError(f"点击失败: {locator}")
@@ -280,7 +277,7 @@ class KeywordEngine:
         data_ref = params.get("data", "")
 
         # 批量输入模式：type 模型名 数据引用
-        if model_name and data_ref and hasattr(self, 'model_parser') and hasattr(self, 'data_manager'):
+        if model_name and data_ref and self.model_parser and self.data_manager:
             return self._batch_type(model_name, data_ref)
 
         # 单字段输入模式
@@ -291,7 +288,7 @@ class KeywordEngine:
                 reason="缺少必需参数 'locator'"
             )
         
-        print(f"      ⌨️ 输入: {locator} <- '{text}'")
+        logger.info(f"输入: {locator} <- '{text}'")
         result = self.driver.type(locator, text)
         if not result:
             raise DriverError(f"输入失败: {locator}")
@@ -325,7 +322,7 @@ class KeywordEngine:
                 reason=f"数据不存在: '{data_ref}' (表 '{table_name}' 中找不到 DataID='{data_id}')"
             )
 
-        print(f"      📋 批量输入: 模型={model_name}, 数据={data_ref}")
+        logger.info(f"批量输入: 模型={model_name}, 数据={data_ref}")
         
         operations = []  # 记录操作用于日志
         for element_name, element_info in model.items():
@@ -337,7 +334,7 @@ class KeywordEngine:
 
                 # 特殊值处理：click
                 if value.lower() == 'click':
-                    print(f"         🖱️ {element_name}: 点击 {locator}")
+                    logger.debug(f"{element_name}: 点击 {locator}")
                     result = self.driver.click(locator)
                     operations.append(('click', element_name, result))
                 else:
@@ -346,7 +343,7 @@ class KeywordEngine:
                     if value.endswith('.Password'):
                         value = value[:-9]
                         display_value = '***'
-                    print(f"         ⌨️ {element_name}: {locator} <- '{display_value}'")
+                    logger.debug(f"{element_name}: {locator} <- '{display_value}'")
                     result = self.driver.type(locator, value)
                     operations.append(('type', element_name, result))
         
@@ -356,18 +353,18 @@ class KeywordEngine:
             failed_names = [op[1] for op in failed_ops]
             raise DriverError(f"批量输入失败: {', '.join(failed_names)}")
         
+        # 存储本次批量输入的数据行作为返回值，供后续步骤通过 Return 引用
+        self.store_return(data_row)
         return True
 
     def _kw_check(self, params: Dict) -> bool:
-        """检查元素可见"""
-        locator = params.get("locator", "")
-        print(f"      👁️ 检查可见: {locator}")
-        return self.driver.check(locator)
+        """check → verify 的内部别名，保留向后兼容"""
+        return self._kw_verify(params)
 
     def _kw_wait(self, params: Dict) -> bool:
         """等待"""
         seconds = params.get("seconds") or params.get("data", "1.0")
-        print(f"      ⏳ 等待: {seconds}秒")
+        logger.info(f"等待: {seconds}秒")
         self.driver.wait(float(seconds))
         return True
 
@@ -380,7 +377,7 @@ class KeywordEngine:
                 param_name="url",
                 reason="缺少必需参数 'url'"
             )
-        print(f"      🌐 导航: {url}")
+        logger.info(f"导航: {url}")
         result = self.driver.navigate(url)
         if not result:
             raise DriverError(f"导航失败: {url}")
@@ -389,14 +386,14 @@ class KeywordEngine:
     def _kw_screenshot(self, params: Dict) -> bool:
         """截图"""
         path = params.get("path", "screenshot.png")
-        print(f"      📸 截图: {path}")
+        logger.info(f"截图: {path}")
         return self.driver.screenshot(path)
 
     def _kw_select(self, params: Dict) -> bool:
         """下拉选择"""
         locator = params.get("locator", "")
         value = params.get("value", "")
-        print(f"      📝 选择: {locator} = {value}")
+        logger.info(f"选择: {locator} = {value}")
         result = self.driver.select(locator, value)
         if not result:
             raise DriverError(f"选择失败: {locator}")
@@ -405,7 +402,7 @@ class KeywordEngine:
     def _kw_hover(self, params: Dict) -> bool:
         """悬停"""
         locator = params.get("locator", "")
-        print(f"      🖱️ 悬停: {locator}")
+        logger.info(f"悬停: {locator}")
         result = self.driver.hover(locator)
         if not result:
             raise DriverError(f"悬停失败: {locator}")
@@ -415,7 +412,7 @@ class KeywordEngine:
         """拖拽"""
         from_loc = params.get("from", "")
         to_loc = params.get("to", "")
-        print(f"      🔄 拖拽: {from_loc} -> {to_loc}")
+        logger.info(f"拖拽: {from_loc} -> {to_loc}")
         result = self.driver.drag(from_loc, to_loc)
         if not result:
             raise DriverError(f"拖拽失败: {from_loc} -> {to_loc}")
@@ -425,24 +422,176 @@ class KeywordEngine:
         """滚动"""
         x = int(params.get("x", 0))
         y = int(params.get("y", 300))
-        print(f"      📜 滚动: ({x}, {y})")
+        logger.info(f"滚动: ({x}, {y})")
         return self.driver.scroll(x, y)
 
     def _kw_assert(self, params: Dict) -> bool:
-        """断言"""
-        locator = params.get("locator", "")
+        """断言（保留兼容）"""
+        locator = params.get("locator", "") or params.get("data", "")
         expected = params.get("expected", "")
-        print(f"      ✔️ 断言: {locator} 包含 '{expected}'")
+        logger.info(f"断言: {locator} 包含 '{expected}'")
         result = self.driver.assert_element(locator, expected)
         self.store_return(result)
         if not result:
-            print(f"      ⚠️ 断言失败")
+            logger.warning("断言失败")
         return result
+
+    def _kw_verify(self, params: Dict) -> bool:
+        """验证 - 统一验证关键字，与 type 对称
+        
+        核心模式 - 批量验证（model + data）:
+            verify ModelName DataTable.DataID
+            遍历模型中的每个元素，从界面读取实际值，与数据表中的期望值比较。
+            type 是"按模型写入"，verify 是"按模型读取并比较"。
+        
+        简单模式（无 model/data 或非批量格式）:
+            verify locator            → 检查元素可见
+            verify value expected     → 值相等比较（配合 Return 使用）
+        """
+        model_name = params.get("model", "")
+        data_ref = params.get("data", "")
+
+        # 批量验证模式：有 model + data 且 model_parser/data_manager 可用
+        if model_name and data_ref and self.model_parser and self.data_manager:
+            return self._batch_verify(model_name, data_ref)
+        
+        # 简单模式
+        target = data_ref or params.get("locator", "")
+        expected = model_name or params.get("expected", "")
+
+        if not target:
+            raise InvalidParameterError(
+                keyword="verify",
+                param_name="data",
+                reason="缺少验证目标"
+            )
+
+        is_element_locator = (
+            target.startswith(('#', '.', '/', '[', 'id=', 'css=', 'xpath=', 'text='))
+            or '>' in target
+        )
+
+        if is_element_locator:
+            if expected:
+                logger.info(f"验证: {target} 包含 '{expected}'")
+                actual_text = self.driver.get_text(target)
+                self.store_return(actual_text)
+                if actual_text is None:
+                    logger.warning(f"验证失败: 元素 {target} 不存在")
+                    return False
+                result = expected in str(actual_text)
+                if not result:
+                    logger.warning(f"验证失败: 实际='{actual_text}', 期望包含='{expected}'")
+                return result
+            else:
+                logger.info(f"验证: {target} 可见")
+                result = self.driver.check(target)
+                self.store_return(result)
+                if not result:
+                    logger.warning(f"验证失败: 元素 {target} 不可见")
+                return result
+        else:
+            if expected:
+                logger.info(f"验证: '{target}' == '{expected}'")
+                result = str(target) == str(expected)
+                self.store_return(target)
+                if not result:
+                    logger.warning(f"验证失败: 实际='{target}', 期望='{expected}'")
+                return result
+            else:
+                logger.info(f"验证: '{target}' 非空")
+                result = bool(target and str(target).strip())
+                self.store_return(target)
+                return result
+
+    def _batch_verify(self, model_name: str, data_ref: str) -> bool:
+        """批量验证：遍历模型元素，读取界面实际值，与数据表期望值比较
+        
+        与 _batch_type 完全对称:
+        - _batch_type: 模型元素定位 + 数据表值 → 写入界面
+        - _batch_verify: 模型元素定位 → 读取界面 → 与数据表值比较
+        """
+        parts = data_ref.split('.')
+        if len(parts) < 2:
+            raise InvalidParameterError(
+                keyword="verify",
+                param_name="data",
+                reason=f"数据引用格式错误: '{data_ref}'，应为 'TableName.DataID' 格式"
+            )
+
+        table_name, data_id = parts[0], parts[1]
+        model = self.model_parser.get_model(model_name)
+        data_row = self.data_manager.get_data(table_name, data_id)
+
+        if not model:
+            raise InvalidParameterError(
+                keyword="verify", param_name="model",
+                reason=f"模型不存在: '{model_name}'"
+            )
+        if not data_row:
+            raise InvalidParameterError(
+                keyword="verify", param_name="data",
+                reason=f"数据不存在: '{data_ref}'"
+            )
+
+        logger.info(f"批量验证: 模型={model_name}, 期望数据={data_ref}")
+
+        results = {}
+        mismatches = []
+
+        for element_name, element_info in model.items():
+            if element_name not in data_row:
+                continue
+
+            expected = str(data_row[element_name])
+            locator_type = element_info['type']
+            locator_value = element_info['value']
+            locator = f"{locator_type}={locator_value}"
+            driver_type = element_info.get('driver_type', 'web')
+
+            if driver_type == 'web':
+                actual = self.driver.get_text(locator)
+                actual_str = str(actual) if actual is not None else ""
+            else:
+                # 接口类型：从上一次 HTTP 响应中取值（通过 Return）
+                last_return = self.get_return(-1)
+                if isinstance(last_return, dict):
+                    actual_str = str(last_return.get(element_name, ""))
+                else:
+                    actual_str = str(last_return) if last_return is not None else ""
+
+            results[element_name] = actual_str
+            matched = expected in actual_str or actual_str == expected
+            logger.debug(f"{element_name}: 实际='{actual_str}', 期望='{expected}' → {'OK' if matched else 'FAIL'}")
+
+            if not matched:
+                mismatches.append({
+                    'element': element_name,
+                    'expected': expected,
+                    'actual': actual_str,
+                })
+
+        self.store_return(results)
+
+        if mismatches:
+            detail = "; ".join(
+                f"{m['element']}(期望='{m['expected']}', 实际='{m['actual']}')"
+                for m in mismatches
+            )
+            logger.warning(f"批量验证失败: {detail}")
+            return False
+
+        logger.info(f"批量验证通过: {len(results)} 个字段全部匹配")
+        return True
+
+    def _kw_get(self, params: Dict) -> bool:
+        """获取元素文本（兼容老 SKI 的 get 关键字）"""
+        return self._kw_get_text(params)
 
     def _kw_clear(self, params: Dict) -> bool:
         """清空输入框"""
         locator = params.get("locator", "")
-        print(f"      🗑️ 清空: {locator}")
+        logger.info(f"清空: {locator}")
         result = self.driver.clear(locator)
         if not result:
             raise DriverError(f"清空失败: {locator}")
@@ -451,7 +600,7 @@ class KeywordEngine:
     def _kw_double_click(self, params: Dict) -> bool:
         """双击"""
         locator = params.get("locator", "")
-        print(f"      🖱️ 双击: {locator}")
+        logger.info(f"双击: {locator}")
         result = self.driver.double_click(locator)
         if not result:
             raise DriverError(f"双击失败: {locator}")
@@ -460,7 +609,7 @@ class KeywordEngine:
     def _kw_right_click(self, params: Dict) -> bool:
         """右键点击"""
         locator = params.get("locator", "")
-        print(f"      🖱️ 右键点击: {locator}")
+        logger.info(f"右键点击: {locator}")
         result = self.driver.right_click(locator)
         if not result:
             raise DriverError(f"右键点击失败: {locator}")
@@ -469,7 +618,7 @@ class KeywordEngine:
     def _kw_key_press(self, params: Dict) -> bool:
         """按键"""
         key = params.get("key", "")
-        print(f"      ⌨️ 按键: {key}")
+        logger.info(f"按键: {key}")
         result = self.driver.key_press(key)
         if not result:
             raise DriverError(f"按键失败: {key}")
@@ -479,10 +628,10 @@ class KeywordEngine:
         """获取文本"""
         locator = params.get("locator", "")
         var_name = params.get("var_name", "")
-        print(f"      📖 获取文本: {locator}")
+        logger.info(f"获取文本: {locator}")
         text = self.driver.get_text(locator)
         if text is not None:
-            print(f"         文本: '{text}'")
+            logger.debug(f"获取到文本: '{text}'")
             if var_name:
                 self._variables[var_name] = text
             self.store_return(text)
@@ -494,99 +643,78 @@ class KeywordEngine:
         """上传文件"""
         locator = params.get("locator", "")
         file_path = params.get("file_path", "")
-        print(f"      📤 上传文件: {file_path} -> {locator}")
+        logger.info(f"上传文件: {file_path} -> {locator}")
         result = self.driver.upload_file(locator, file_path)
         if not result:
             raise DriverError(f"上传文件失败: {file_path}")
         return result
 
-    # ── HTTP/API 关键字 ───────────────────────────────────────────
+    # ── HTTP/API 关键字（通过 RestHelper 直接发送，不经过 UI 驱动）──
+
+    def _send_http(self, method: str, url: str, body=None, headers=None, expected_status=200) -> bool:
+        """统一 HTTP 请求发送逻辑"""
+        logger.info(f"HTTP {method}: {url}")
+        try:
+            self._last_response = RestHelper.send_request(
+                method=method, url=url, body=body, headers=headers
+            )
+        except Exception as e:
+            logger.error(f"HTTP {method} 请求失败: {e}")
+            self.store_return(None)
+            raise DriverError(f"HTTP {method} 请求失败: {url} - {e}")
+
+        if self._last_response and hasattr(self._last_response, "status_code"):
+            actual_status = self._last_response.status_code
+            logger.info(f"HTTP 响应: {actual_status}")
+            result = actual_status == expected_status
+            self.store_return(
+                self._last_response.text 
+                if hasattr(self._last_response, "text") 
+                else str(self._last_response)
+            )
+            if not result:
+                logger.warning(f"状态码不匹配: 期望 {expected_status}, 实际 {actual_status}")
+            return result
+        self.store_return(None)
+        return bool(self._last_response)
 
     def _kw_http_get(self, params: Dict) -> bool:
         """HTTP GET 请求"""
         url = params.get("url", "")
         if not url:
             raise InvalidParameterError(keyword="http_get", param_name="url", reason="缺少必需参数")
-        
-        headers = params.get("headers")
-        expected_status = int(params.get("expected_status", 200))
-        
-        print(f"      📨 GET: {url}")
-        self._last_response = self.driver.http_get(url, headers=headers)
-        
-        if self._last_response and hasattr(self._last_response, "status_code"):
-            actual_status = self._last_response.status_code
-            print(f"         状态码: {actual_status}")
-            result = actual_status == expected_status
-            self.store_return(self._last_response.text if hasattr(self._last_response, "text") else str(self._last_response))
-            if not result:
-                print(f"      ⚠️ 状态码不匹配: 期望 {expected_status}, 实际 {actual_status}")
-            return result
-        self.store_return(None)
-        return bool(self._last_response)
+        return self._send_http("GET", url, 
+                               headers=params.get("headers"),
+                               expected_status=int(params.get("expected_status", 200)))
 
     def _kw_http_post(self, params: Dict) -> bool:
         """HTTP POST 请求"""
         url = params.get("url", "")
         if not url:
             raise InvalidParameterError(keyword="http_post", param_name="url", reason="缺少必需参数")
-        
-        body = params.get("body")
-        headers = params.get("headers")
-        expected_status = int(params.get("expected_status", 200))
-        
-        print(f"      📨 POST: {url}")
-        self._last_response = self.driver.http_post(url, body=body, headers=headers)
-        
-        if self._last_response and hasattr(self._last_response, "status_code"):
-            actual_status = self._last_response.status_code
-            print(f"         状态码: {actual_status}")
-            result = actual_status == expected_status
-            self.store_return(self._last_response.text if hasattr(self._last_response, "text") else str(self._last_response))
-            if not result:
-                print(f"      ⚠️ 状态码不匹配: 期望 {expected_status}, 实际 {actual_status}")
-            return result
-        self.store_return(None)
-        return bool(self._last_response)
+        return self._send_http("POST", url, 
+                               body=params.get("body"), 
+                               headers=params.get("headers"),
+                               expected_status=int(params.get("expected_status", 200)))
 
     def _kw_http_put(self, params: Dict) -> bool:
         """HTTP PUT 请求"""
         url = params.get("url", "")
         if not url:
             raise InvalidParameterError(keyword="http_put", param_name="url", reason="缺少必需参数")
-        
-        body = params.get("body")
-        headers = params.get("headers")
-        expected_status = int(params.get("expected_status", 200))
-        
-        print(f"      📨 PUT: {url}")
-        self._last_response = self.driver.http_put(url, body=body, headers=headers)
-        
-        if self._last_response and hasattr(self._last_response, "status_code"):
-            result = self._last_response.status_code == expected_status
-            self.store_return(self._last_response.text if hasattr(self._last_response, "text") else str(self._last_response))
-            return result
-        self.store_return(None)
-        return bool(self._last_response)
+        return self._send_http("PUT", url,
+                               body=params.get("body"),
+                               headers=params.get("headers"),
+                               expected_status=int(params.get("expected_status", 200)))
 
     def _kw_http_delete(self, params: Dict) -> bool:
         """HTTP DELETE 请求"""
         url = params.get("url", "")
         if not url:
             raise InvalidParameterError(keyword="http_delete", param_name="url", reason="缺少必需参数")
-        
-        headers = params.get("headers")
-        expected_status = int(params.get("expected_status", 200))
-        
-        print(f"      📨 DELETE: {url}")
-        self._last_response = self.driver.http_delete(url, headers=headers)
-        
-        if self._last_response and hasattr(self._last_response, "status_code"):
-            result = self._last_response.status_code == expected_status
-            self.store_return(self._last_response.text if hasattr(self._last_response, "text") else str(self._last_response))
-            return result
-        self.store_return(None)
-        return bool(self._last_response)
+        return self._send_http("DELETE", url,
+                               headers=params.get("headers"),
+                               expected_status=int(params.get("expected_status", 200)))
 
     def _kw_assert_json(self, params: Dict) -> bool:
         """JSON 断言"""
@@ -600,12 +728,12 @@ class KeywordEngine:
         path = params.get("path", "")
         expected = params.get("expected")
         
-        print(f"      ✔️ JSON断言: {path} = {expected}")
+        logger.info(f"JSON断言: {path} = {expected}")
         actual = RestHelper.jsonpath_extract(data, path)
         result = actual == expected
         
         if not result:
-            print(f"      ⚠️ JSON断言失败: 实际值={actual}")
+            logger.warning(f"JSON断言失败: 实际值={actual}")
         return result
 
     def _kw_assert_status(self, params: Dict) -> bool:
@@ -617,10 +745,10 @@ class KeywordEngine:
         
         if hasattr(self._last_response, "status_code"):
             actual = self._last_response.status_code
-            print(f"      ✔️ 状态码断言: {actual} == {expected}")
+            logger.info(f"状态码断言: {actual} == {expected}")
             result = actual == expected
             if not result:
-                print(f"      ⚠️ 状态码断言失败")
+                logger.warning("状态码断言失败")
             return result
         return False
 
@@ -631,26 +759,15 @@ class KeywordEngine:
             raise InvalidParameterError(keyword="send", param_name="url", reason="缺少必需参数")
         
         method = params.get("method", "POST").upper()
-        body = params.get("body")
-        headers = params.get("headers")
-        expected_status = int(params.get("expected_status", 200))
-
-        print(f"      📨 {method}: {url}")
-
-        if method == "GET":
-            self._last_response = self.driver.http_get(url, headers=headers)
-        elif method == "POST":
-            self._last_response = self.driver.http_post(url, body=body, headers=headers)
-        elif method == "PUT":
-            self._last_response = self.driver.http_put(url, body=body, headers=headers)
-        elif method == "DELETE":
-            self._last_response = self.driver.http_delete(url, headers=headers)
-        else:
+        if method not in ("GET", "POST", "PUT", "DELETE"):
             raise InvalidParameterError(keyword="send", param_name="method", reason=f"不支持的 HTTP 方法: {method}")
 
-        if self._last_response and hasattr(self._last_response, "status_code"):
-            return self._last_response.status_code == expected_status
-        return bool(self._last_response)
+        return self._send_http(
+            method, url,
+            body=params.get("body"),
+            headers=params.get("headers"),
+            expected_status=int(params.get("expected_status", 200))
+        )
 
     # ── 高级关键字 ─────────────────────────────────────────────────
 
@@ -661,7 +778,7 @@ class KeywordEngine:
         if not var_name:
             raise InvalidParameterError(keyword="set", param_name="var_name", reason="缺少必需参数")
         
-        print(f"      📝 设置变量: {var_name} = '{value}'")
+        logger.info(f"设置变量: {var_name} = '{value}'")
         self._variables[var_name] = value
         return True
 
@@ -673,11 +790,11 @@ class KeywordEngine:
         
         logic_file = self._find_logic_file(case_name, params.get("case_file"))
         if not logic_file:
-            print(f"      ⚠️ 未找到 Logic 用例: {case_name} (模拟执行)")
+            logger.warning(f"未找到 Logic 用例: {case_name} (模拟执行)")
             self.store_return(f"Logic {case_name} executed (simulated)")
             return True
         
-        print(f"      🔄 运行Logic: {case_name}")
+        logger.info(f"运行Logic: {case_name}")
         
         try:
             from core.case_parser import CaseParser
@@ -744,7 +861,7 @@ class KeywordEngine:
         if not query:
             raise InvalidParameterError(keyword="DB", param_name="query", reason="缺少必需参数")
 
-        print(f"      🗄️ DB {operation}: {query[:50]}...")
+        logger.info(f"DB {operation}: {query[:50]}...")
 
         db_connection = self._get_db_connection(db_config, params.get("connection_string"))
         
@@ -754,14 +871,14 @@ class KeywordEngine:
                 if operation == "query" and var_name:
                     self._variables[var_name] = result
                 self.store_return(result)
-                print(f"         ✅ 操作成功")
+                logger.info("DB 操作成功")
                 return True
             except Exception as e:
                 logger.error(f"数据库操作失败: {e}")
                 self.store_return(None)
                 return False
         else:
-            print(f"         ⚠️ 未配置数据库连接，使用模拟模式")
+            logger.warning("未配置数据库连接，使用模拟模式")
             if operation == "query":
                 mock_result = [{"id": 1, "name": "mock_data"}]
                 if var_name:

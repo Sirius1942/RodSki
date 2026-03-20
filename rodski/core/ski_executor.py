@@ -75,16 +75,19 @@ class SKIExecutor:
         except (ValueError, TypeError):
             self.default_wait_time = 0.0
 
-        # 初始化数据解析器
-        self.data_resolver = DataResolver(
-            data_manager=self.data_manager,
-            global_vars=self.global_vars
+        # 初始化关键字引擎（先于 DataResolver，因为 DataResolver 需要引用 return_provider）
+        self.keyword_engine = KeywordEngine(
+            driver, 
+            model_parser=self.model_parser,
+            data_manager=self.data_manager
         )
 
-        # 初始化关键字引擎
-        self.keyword_engine = KeywordEngine(driver)
-        self.keyword_engine.model_parser = self.model_parser
-        self.keyword_engine.data_manager = self.data_manager
+        # 初始化数据解析器，连接 KeywordEngine 的返回值作为 Return 引用源
+        self.data_resolver = DataResolver(
+            data_manager=self.data_manager,
+            global_vars=self.global_vars,
+            return_provider=self.keyword_engine.get_return
+        )
 
         # 初始化结果回填器
         self.result_writer = ResultWriter(str(case_file))
@@ -102,9 +105,11 @@ class SKIExecutor:
                 self._driver_closed = False
                 
                 # 重新初始化关键字引擎
-                self.keyword_engine = KeywordEngine(self.driver)
-                self.keyword_engine.model_parser = self.model_parser
-                self.keyword_engine.data_manager = self.data_manager
+                self.keyword_engine = KeywordEngine(
+                    self.driver,
+                    model_parser=self.model_parser,
+                    data_manager=self.data_manager
+                )
                 
                 logger.info("驱动重新创建成功")
             else:
@@ -272,7 +277,7 @@ class SKIExecutor:
         
         # 打印数据解析结果
         if data and resolved_data != data:
-            print(f"      📎 数据解析: '{data}' -> '{resolved_data}'")
+            logger.debug(f"数据解析: '{data}' -> '{resolved_data}'")
 
         # 构建参数
         params = {'model': model, 'data': resolved_data}
@@ -286,7 +291,7 @@ class SKIExecutor:
         # 特殊处理：close 关键字执行后标记驱动已关闭
         if action.lower() == 'close':
             self._driver_closed = True
-            print(f"   🔒 浏览器已关闭")
+            logger.info("浏览器已关闭")
         
         # 应用默认等待时间（wait/close 关键字除外）
         if self.default_wait_time > 0 and action.lower() not in ('wait', 'close'):

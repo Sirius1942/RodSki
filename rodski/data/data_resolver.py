@@ -1,6 +1,6 @@
-"""数据引用解析 - 支持 ${var} 和 表名.DataID.字段名"""
+"""数据引用解析 - 支持 ${var}、表名.DataID.字段名、Return[-1] 等引用格式"""
 import re
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 from pathlib import Path
 
 
@@ -8,20 +8,46 @@ class DataResolver:
     def __init__(self, data_source: Optional[Dict[str, Any]] = None,
                  model_manager=None, data_manager=None,
                  global_vars: Optional[Dict[str, Dict[str, str]]] = None,
-                 base_path=None):
+                 base_path=None,
+                 return_provider: Optional[Callable[[int], Any]] = None):
+        """
+        Args:
+            return_provider: 回调函数，接收 index 参数，返回对应步骤的返回值。
+                            用于解析 Return[-1]、Return[0] 等引用。
+                            典型实现: keyword_engine.get_return
+        """
         self.data_source = data_source or {}
         self.model_manager = model_manager
         self.data_manager = data_manager
         self.global_vars = global_vars or {}
         self.base_path = Path(base_path) if base_path else None
+        self.return_provider = return_provider
 
     def resolve(self, text: str) -> str:
         if not isinstance(text, str):
             return str(text) if text is not None else ""
+        text = self._resolve_returns(text)
         text = self._resolve_vars(text)
         text = self._resolve_models(text)
         text = self._resolve_ski_refs(text)
         return text
+
+    def _resolve_returns(self, text: str) -> str:
+        """解析 Return[index] 引用
+        
+        支持格式:
+        - Return[-1]  → 上一个步骤的返回值
+        - Return[-2]  → 上上个步骤的返回值
+        - Return[0]   → 第一个步骤的返回值
+        """
+        if not self.return_provider:
+            return text
+        pattern = r'Return\[(-?\d+)\]'
+        def replacer(match):
+            index = int(match.group(1))
+            value = self.return_provider(index)
+            return str(value) if value is not None else match.group(0)
+        return re.sub(pattern, replacer, text)
 
     def _resolve_vars(self, text: str) -> str:
         pattern = r'\$\{([^}]+)\}'

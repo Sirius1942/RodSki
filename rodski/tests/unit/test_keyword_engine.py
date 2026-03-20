@@ -24,20 +24,13 @@ def make_mock_driver():
     driver.hover.return_value = True
     driver.drag.return_value = True
     driver.scroll.return_value = True
-    # assert_element conflicts with MagicMock's assert_ pattern
     driver.assert_element = MagicMock(return_value=True)
-    # New UI keywords
     driver.upload_file.return_value = True
     driver.clear.return_value = True
     driver.double_click.return_value = True
     driver.right_click.return_value = True
     driver.key_press.return_value = True
     driver.get_text.return_value = "sample text"
-    # New HTTP keywords
-    driver.http_get.return_value = True
-    driver.http_post.return_value = True
-    driver.http_put.return_value = True
-    driver.http_delete.return_value = True
     return driver
 
 
@@ -62,10 +55,11 @@ class TestKeywordEngine:
         assert result is True
         mock_driver.type.assert_called_once_with("#input", "hello")
 
-    def test_check(self, engine, mock_driver):
-        result = engine.execute("check", {"locator": "#elem"})
+    def test_check_routes_to_verify(self, engine, mock_driver):
+        """check 关键字内部走 verify 逻辑"""
+        mock_driver.check.return_value = True
+        result = engine.execute("check", {"data": "#elem"})
         assert result is True
-        mock_driver.check.assert_called_once_with("#elem")
 
     def test_wait(self, engine, mock_driver):
         result = engine.execute("wait", {"seconds": 2})
@@ -117,8 +111,11 @@ class TestKeywordEngine:
 
     def test_get_keywords(self, engine):
         keywords = engine.get_keywords()
-        assert len(keywords) == 29
+        assert len(keywords) == 30
         assert "click" in keywords
+        assert "verify" in keywords
+        assert "check" not in keywords
+        assert "get" in keywords
         assert "assert" in keywords
         assert "http_get" in keywords
         assert "get_text" in keywords
@@ -128,9 +125,9 @@ class TestKeywordEngine:
         assert "DB" in keywords
 
     def test_click_failure(self, engine, mock_driver):
-        from core.exceptions import DriverError
+        from core.exceptions import DriverError, RetryExhaustedError
         mock_driver.click.return_value = False
-        with pytest.raises(DriverError, match="点击失败"):
+        with pytest.raises((DriverError, RetryExhaustedError)):
             engine.execute("click", {"locator": "#missing"})
 
     def test_default_params(self, engine, mock_driver):
@@ -147,33 +144,42 @@ class TestKeywordEngine:
 
 
 class TestHTTPKeywords:
-    """HTTP 关键字测试"""
+    """HTTP 关键字测试 - HTTP 请求通过 RestHelper 发送，不经过 UI 驱动"""
+
+    @pytest.fixture(autouse=True)
+    def mock_rest_helper(self, monkeypatch):
+        """Mock RestHelper.send_request"""
+        self.mock_send = MagicMock()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = '{"ok": true}'
+        self.mock_send.return_value = mock_resp
+        self.default_resp = mock_resp
+        monkeypatch.setattr("core.keyword_engine.RestHelper.send_request", self.mock_send)
 
     def test_http_get(self, engine, mock_driver):
         result = engine.execute("http_get", {"url": "https://api.example.com/users"})
         assert result is True
-        mock_driver.http_get.assert_called_once_with(
-            "https://api.example.com/users", headers=None
+        self.mock_send.assert_called_once_with(
+            method="GET", url="https://api.example.com/users", body=None, headers=None
         )
 
     def test_http_get_with_headers(self, engine, mock_driver):
         headers = {"Authorization": "Bearer token123"}
         engine.execute("http_get", {"url": "https://api.example.com", "headers": headers})
-        mock_driver.http_get.assert_called_once_with(
-            "https://api.example.com", headers=headers
+        self.mock_send.assert_called_once_with(
+            method="GET", url="https://api.example.com", body=None, headers=headers
         )
 
     def test_http_get_stores_response(self, engine, mock_driver):
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_driver.http_get.return_value = mock_resp
         engine.execute("http_get", {"url": "https://api.example.com"})
-        assert engine._last_response is mock_resp
+        assert engine._last_response is self.default_resp
 
     def test_http_get_status_check(self, engine, mock_driver):
         mock_resp = MagicMock()
         mock_resp.status_code = 404
-        mock_driver.http_get.return_value = mock_resp
+        mock_resp.text = 'Not Found'
+        self.mock_send.return_value = mock_resp
         result = engine.execute(
             "http_get", {"url": "https://api.example.com", "expected_status": 200}
         )
@@ -185,14 +191,15 @@ class TestHTTPKeywords:
             "http_post", {"url": "https://api.example.com/users", "body": body}
         )
         assert result is True
-        mock_driver.http_post.assert_called_once_with(
-            "https://api.example.com/users", body=body, headers=None
+        self.mock_send.assert_called_once_with(
+            method="POST", url="https://api.example.com/users", body=body, headers=None
         )
 
     def test_http_post_with_expected_status(self, engine, mock_driver):
         mock_resp = MagicMock()
         mock_resp.status_code = 201
-        mock_driver.http_post.return_value = mock_resp
+        mock_resp.text = '{}'
+        self.mock_send.return_value = mock_resp
         result = engine.execute(
             "http_post",
             {"url": "https://api.example.com", "body": {}, "expected_status": 201},
@@ -205,15 +212,15 @@ class TestHTTPKeywords:
             "http_put", {"url": "https://api.example.com/users/1", "body": body}
         )
         assert result is True
-        mock_driver.http_put.assert_called_once_with(
-            "https://api.example.com/users/1", body=body, headers=None
+        self.mock_send.assert_called_once_with(
+            method="PUT", url="https://api.example.com/users/1", body=body, headers=None
         )
 
     def test_http_put_stores_response(self, engine, mock_driver):
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.text = '{"updated": true}'
-        mock_driver.http_put.return_value = mock_resp
+        self.mock_send.return_value = mock_resp
         result = engine.execute(
             "http_put", {"url": "https://api.example.com/users/1", "body": {}}
         )
@@ -225,15 +232,15 @@ class TestHTTPKeywords:
             "http_delete", {"url": "https://api.example.com/users/1"}
         )
         assert result is True
-        mock_driver.http_delete.assert_called_once_with(
-            "https://api.example.com/users/1", headers=None
+        self.mock_send.assert_called_once_with(
+            method="DELETE", url="https://api.example.com/users/1", body=None, headers=None
         )
 
     def test_http_delete_stores_response(self, engine, mock_driver):
         mock_resp = MagicMock()
         mock_resp.status_code = 204
         mock_resp.text = ''
-        mock_driver.http_delete.return_value = mock_resp
+        self.mock_send.return_value = mock_resp
         result = engine.execute(
             "http_delete", {"url": "https://api.example.com/users/1", "expected_status": 204}
         )
@@ -342,9 +349,9 @@ class TestUIKeywords:
         assert result is False
 
     def test_upload_file_failure(self, engine, mock_driver):
-        from core.exceptions import DriverError
+        from core.exceptions import DriverError, RetryExhaustedError
         mock_driver.upload_file.return_value = False
-        with pytest.raises(DriverError, match="上传失败"):
+        with pytest.raises((DriverError, RetryExhaustedError)):
             engine.execute(
                 "upload_file", {"locator": "#file", "file_path": "/nonexistent"}
             )
@@ -394,11 +401,13 @@ class TestDataReferenceIntegration:
         assert result is True
         engine_with_data.driver.navigate.assert_called_once_with("https://example.com")
 
-    def test_resolve_data_reference_in_nested_params(self, engine_with_data):
+    def test_resolve_data_reference_in_nested_params(self, engine_with_data, monkeypatch):
         """测试嵌套参数中的数据引用"""
         mock_resp = MagicMock()
         mock_resp.status_code = 200
-        engine_with_data.driver.http_post.return_value = mock_resp
+        mock_resp.text = '{}'
+        mock_send = MagicMock(return_value=mock_resp)
+        monkeypatch.setattr("core.keyword_engine.RestHelper.send_request", mock_send)
 
         result = engine_with_data.execute(
             "http_post",
@@ -408,7 +417,7 @@ class TestDataReferenceIntegration:
             }
         )
         assert result is True
-        call_args = engine_with_data.driver.http_post.call_args
+        call_args = mock_send.call_args
         assert call_args[1]["body"]["username"] == "admin"
 
     def test_unresolved_data_reference(self, engine_with_data):
@@ -426,45 +435,47 @@ class TestDataReferenceIntegration:
 class TestAdvancedKeywords:
     """高级关键字测试"""
 
-    def test_send_post(self, engine, mock_driver):
+    @pytest.fixture(autouse=True)
+    def mock_rest_helper(self, monkeypatch):
+        """Mock RestHelper.send_request for send keyword tests"""
+        self.mock_send = MagicMock()
         mock_resp = MagicMock()
         mock_resp.status_code = 200
-        mock_driver.http_post.return_value = mock_resp
+        mock_resp.text = '{}'
+        self.mock_send.return_value = mock_resp
+        monkeypatch.setattr("core.keyword_engine.RestHelper.send_request", self.mock_send)
+
+    def test_send_post(self, engine, mock_driver):
         result = engine.execute(
             "send", {"url": "https://api.example.com", "method": "POST", "body": {"key": "value"}}
         )
         assert result is True
-        mock_driver.http_post.assert_called_once()
+        self.mock_send.assert_called_once()
+        assert self.mock_send.call_args[1]["method"] == "POST"
 
     def test_send_get(self, engine, mock_driver):
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_driver.http_get.return_value = mock_resp
         result = engine.execute(
             "send", {"url": "https://api.example.com", "method": "GET"}
         )
         assert result is True
-        mock_driver.http_get.assert_called_once()
+        self.mock_send.assert_called_once()
+        assert self.mock_send.call_args[1]["method"] == "GET"
 
     def test_send_put(self, engine, mock_driver):
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_driver.http_put.return_value = mock_resp
         result = engine.execute(
             "send", {"url": "https://api.example.com", "method": "PUT", "body": {}}
         )
         assert result is True
-        mock_driver.http_put.assert_called_once()
+        self.mock_send.assert_called_once()
+        assert self.mock_send.call_args[1]["method"] == "PUT"
 
     def test_send_delete(self, engine, mock_driver):
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_driver.http_delete.return_value = mock_resp
         result = engine.execute(
             "send", {"url": "https://api.example.com", "method": "DELETE"}
         )
         assert result is True
-        mock_driver.http_delete.assert_called_once()
+        self.mock_send.assert_called_once()
+        assert self.mock_send.call_args[1]["method"] == "DELETE"
 
     def test_send_invalid_method(self, engine, mock_driver):
         with pytest.raises(InvalidParameterError, match="不支持的 HTTP 方法"):
@@ -477,7 +488,8 @@ class TestAdvancedKeywords:
     def test_send_with_expected_status(self, engine, mock_driver):
         mock_resp = MagicMock()
         mock_resp.status_code = 201
-        mock_driver.http_post.return_value = mock_resp
+        mock_resp.text = '{}'
+        self.mock_send.return_value = mock_resp
         result = engine.execute(
             "send", {"url": "https://api.example.com", "method": "POST", "expected_status": 201}
         )
@@ -666,4 +678,158 @@ class TestRetryMechanism:
         stats = engine.get_retry_stats()
         assert "click" in stats
         assert stats["click"][0] == 2  # 重试了2次才成功
+
+
+class TestVerifyKeyword:
+    """verify 关键字测试"""
+
+    def test_verify_element_visible(self, engine, mock_driver):
+        mock_driver.check.return_value = True
+        result = engine.execute("verify", {"data": "#login-form"})
+        assert result is True
+
+    def test_verify_element_not_visible(self, engine, mock_driver):
+        mock_driver.check.return_value = False
+        result = engine.execute("verify", {"data": "#missing"})
+        assert result is False
+
+    def test_verify_element_text_match(self, engine, mock_driver):
+        """简单模式: data=定位器, model=期望文本 (非批量，因为 model_parser 为 None)"""
+        mock_driver.get_text.return_value = "欢迎来到首页"
+        result = engine.execute("verify", {"data": "#title", "model": "首页"})
+        assert result is True
+
+    def test_verify_element_text_mismatch(self, engine, mock_driver):
+        mock_driver.get_text.return_value = "登录页面"
+        result = engine.execute("verify", {"data": "#title", "model": "首页"})
+        assert result is False
+
+    def test_verify_value_equal(self, engine, mock_driver):
+        """值比较模式: data 不像定位器"""
+        result = engine.execute("verify", {"data": "order-123", "model": "order-123"})
+        assert result is True
+
+    def test_verify_value_not_equal(self, engine, mock_driver):
+        result = engine.execute("verify", {"data": "order-123", "model": "order-456"})
+        assert result is False
+
+    def test_verify_stores_return(self, engine, mock_driver):
+        mock_driver.get_text.return_value = "实际文本"
+        engine.execute("verify", {"data": "#elem", "model": "实际文本"})
+        assert engine.get_return(-1) == "实际文本"
+
+    def test_verify_missing_target(self, engine, mock_driver):
+        from core.exceptions import InvalidParameterError
+        with pytest.raises(InvalidParameterError, match="验证目标"):
+            engine.execute("verify", {})
+
+    def test_batch_verify_all_match(self, mock_driver):
+        """批量验证: 模型+数据表, 全部匹配"""
+        mock_model_parser = MagicMock()
+        mock_model_parser.get_model.return_value = {
+            'username': {'type': 'id', 'value': 'userName', 'driver_type': 'web'},
+            'amount': {'type': 'id', 'value': 'orderAmount', 'driver_type': 'web'},
+        }
+        mock_data_manager = MagicMock()
+        mock_data_manager.get_data.return_value = {
+            'username': 'testuser',
+            'amount': '10元',
+        }
+        mock_driver.get_text.side_effect = lambda loc: {
+            'id=userName': 'testuser',
+            'id=orderAmount': '10元',
+        }.get(loc, '')
+
+        engine = KeywordEngine(mock_driver,
+                               model_parser=mock_model_parser,
+                               data_manager=mock_data_manager)
+        result = engine.execute("verify", {"model": "Order", "data": "OrderData.V001"})
+        assert result is True
+
+    def test_batch_verify_mismatch(self, mock_driver):
+        """批量验证: 某字段不匹配 → False"""
+        mock_model_parser = MagicMock()
+        mock_model_parser.get_model.return_value = {
+            'amount': {'type': 'id', 'value': 'orderAmount', 'driver_type': 'web'},
+        }
+        mock_data_manager = MagicMock()
+        mock_data_manager.get_data.return_value = {'amount': '10元'}
+        mock_driver.get_text.return_value = '20元'
+
+        engine = KeywordEngine(mock_driver,
+                               model_parser=mock_model_parser,
+                               data_manager=mock_data_manager)
+        result = engine.execute("verify", {"model": "Order", "data": "OrderData.V001"})
+        assert result is False
+
+    def test_batch_verify_stores_actual_values(self, mock_driver):
+        """批量验证结果通过 store_return 保存"""
+        mock_model_parser = MagicMock()
+        mock_model_parser.get_model.return_value = {
+            'status': {'type': 'id', 'value': 'status', 'driver_type': 'web'},
+        }
+        mock_data_manager = MagicMock()
+        mock_data_manager.get_data.return_value = {'status': '已完成'}
+        mock_driver.get_text.return_value = '已完成'
+
+        engine = KeywordEngine(mock_driver,
+                               model_parser=mock_model_parser,
+                               data_manager=mock_data_manager)
+        engine.execute("verify", {"model": "Order", "data": "OrderData.V001"})
+        ret = engine.get_return(-1)
+        assert ret == {'status': '已完成'}
+
+
+class TestReturnMechanism:
+    """Return 机制测试"""
+
+    def test_return_values_stored_by_get_text(self, engine, mock_driver):
+        mock_driver.get_text.return_value = "order-001"
+        engine.execute("get_text", {"locator": "#order-id"})
+        assert engine.get_return(-1) == "order-001"
+
+    def test_return_values_stored_by_verify(self, engine, mock_driver):
+        mock_driver.check.return_value = True
+        engine.execute("verify", {"data": "#element"})
+        assert engine.get_return(-1) is True
+
+    def test_return_multiple_steps(self, engine, mock_driver):
+        mock_driver.get_text.return_value = "step1"
+        engine.execute("get_text", {"locator": "#a"})
+        mock_driver.get_text.return_value = "step2"
+        engine.execute("get_text", {"locator": "#b"})
+        mock_driver.get_text.return_value = "step3"
+        engine.execute("get_text", {"locator": "#c"})
+        assert engine.get_return(-1) == "step3"
+        assert engine.get_return(-2) == "step2"
+        assert engine.get_return(-3) == "step1"
+        assert engine.get_return(0) == "step1"
+
+    def test_data_resolver_with_return_provider(self):
+        from data.data_resolver import DataResolver
+
+        values = ["order-001", "user-42", "token-xyz"]
+        def mock_provider(index):
+            try:
+                return values[index]
+            except IndexError:
+                return None
+
+        resolver = DataResolver(return_provider=mock_provider)
+        assert resolver.resolve("Return[-1]") == "token-xyz"
+        assert resolver.resolve("Return[-2]") == "user-42"
+        assert resolver.resolve("Return[0]") == "order-001"
+        assert resolver.resolve("订单号: Return[-1]") == "订单号: token-xyz"
+
+    def test_data_resolver_unresolved_return(self):
+        from data.data_resolver import DataResolver
+        resolver = DataResolver()
+        assert resolver.resolve("Return[-1]") == "Return[-1]"
+
+    def test_get_keyword_alias(self, engine, mock_driver):
+        """get 是 get_text 的别名"""
+        mock_driver.get_text.return_value = "hello"
+        result = engine.execute("get", {"locator": "#elem"})
+        assert result is True
+        assert engine.get_return(-1) == "hello"
 

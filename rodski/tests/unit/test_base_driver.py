@@ -127,42 +127,6 @@ class TestBaseDriver:
         driver.close()
         assert ("close",) in driver.actions
 
-    def test_http_get(self, driver):
-        result = driver.http_get("https://api.example.com")
-        assert result is True
-
-    def test_http_get_with_headers(self, driver):
-        headers = {"Authorization": "Bearer token"}
-        result = driver.http_get("https://api.example.com", headers=headers)
-        assert result is True
-
-    def test_http_post(self, driver):
-        result = driver.http_post("https://api.example.com", body={"key": "value"})
-        assert result is True
-
-    def test_http_post_with_headers(self, driver):
-        headers = {"Content-Type": "application/json"}
-        result = driver.http_post("https://api.example.com", body={}, headers=headers)
-        assert result is True
-
-    def test_http_put(self, driver):
-        result = driver.http_put("https://api.example.com/1", body={"name": "updated"})
-        assert result is True
-
-    def test_http_put_with_headers(self, driver):
-        headers = {"Authorization": "Bearer token"}
-        result = driver.http_put("https://api.example.com/1", body={}, headers=headers)
-        assert result is True
-
-    def test_http_delete(self, driver):
-        result = driver.http_delete("https://api.example.com/1")
-        assert result is True
-
-    def test_http_delete_with_headers(self, driver):
-        headers = {"Authorization": "Bearer token"}
-        result = driver.http_delete("https://api.example.com/1", headers=headers)
-        assert result is True
-
     def test_upload_file(self, driver):
         result = driver.upload_file("#file-input", "/tmp/file.pdf")
         assert result is True
@@ -187,12 +151,8 @@ class TestBaseDriver:
         result = driver.get_text("#title")
         assert result == ""
 
-    def test_get_supported_keywords(self, driver):
-        keywords = driver.get_supported_keywords()
-        assert len(keywords) == 23
-        assert "click" in keywords
-        assert "type" in keywords
-        assert "http_get" in keywords
-        assert "upload_file" in keywords
-        assert "get_text" in keywords
+    def test_is_abstract(self):
+        """验证 BaseDriver 不能直接实例化"""
+        with pytest.raises(TypeError):
+            BaseDriver()
 
