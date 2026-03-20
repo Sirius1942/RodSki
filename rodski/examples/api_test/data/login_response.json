@@ -1,0 +1,8 @@
+{
+  "status": "success",
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9",
+  "user": {
+    "id": 1001,
+    "username": "test_user"
+  }
+}

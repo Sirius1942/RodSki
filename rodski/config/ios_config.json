@@ -1,0 +1,7 @@
+{
+  "platformName": "iOS",
+  "deviceName": "iPhone 14",
+  "automationName": "XCUITest",
+  "bundleId": "com.example.app",
+  "serverUrl": "http://localhost:4723"
+}

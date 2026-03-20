@@ -1,0 +1,421 @@
+"""Playwright 驱动封装 - Web 自动化
+
+特性:
+- 自动等待元素可见/可点击
+- 智能重试机制
+- 支持多种定位器格式
+- 完善的异常处理
+"""
+import logging
+import time
+from .base_driver import BaseDriver
+from core.exceptions import (
+    DriverError, 
+    DriverStoppedError, 
+    ElementNotFoundError,
+    TimeoutError,
+    is_critical_error,
+)
+
+logger = logging.getLogger("rodski")
+
+
+class PlaywrightDriver(BaseDriver):
+    """Playwright 驱动
+    
+    自动等待策略:
+    - click: 等待元素可见、稳定、可点击
+    - type: 等待元素可见、可编辑
+    - 默认超时: 10秒
+    """
+    
+    # 默认超时时间（毫秒）
+    DEFAULT_TIMEOUT = 10000
+    
+    def __init__(self, headless: bool = False, browser: str = "chromium"):
+        from playwright.sync_api import sync_playwright
+        self._pw = sync_playwright().start()
+        browser_type = getattr(self._pw, browser, self._pw.chromium)
+        self.browser = browser_type.launch(headless=headless)
+        self.page = self.browser.new_page()
+        self._is_closed = False
+        self._timeout = self.DEFAULT_TIMEOUT
+
+    def _check_driver_alive(self):
+        """检查驱动是否存活"""
+        if self._is_closed:
+            raise DriverStoppedError(
+                "Playwright 驱动已关闭",
+                driver_type="Playwright"
+            )
+
+    def _convert_locator(self, locator: str) -> str:
+        """转换定位器格式为 CSS 选择器"""
+        if locator.startswith('id='):
+            return '#' + locator[3:]
+        elif locator.startswith('css='):
+            return locator[4:]
+        elif locator.startswith('xpath='):
+            return locator  # XPath 保持原样
+        elif locator.startswith('text='):
+            return locator  # Playwright text 选择器
+        elif locator.startswith('#') or locator.startswith('.'):
+            return locator  # 已经是 CSS 选择器
+        else:
+            return locator
+
+    def _handle_error(self, operation: str, locator: str, error: Exception) -> None:
+        """统一错误处理"""
+        error_msg = str(error)
+        
+        # 严重错误：驱动已停止
+        if is_critical_error(error):
+            self._is_closed = True
+            raise DriverStoppedError(
+                f"{operation} 操作失败: {error_msg}",
+                driver_type="Playwright"
+            )
+        
+        # 记录日志
+        logger.error(f"{operation} 失败: {locator}, 错误: {error_msg}")
+
+    def _wait_for_element_visible(self, locator: str, timeout: int = None) -> bool:
+        """等待元素可见
+        
+        Args:
+            locator: CSS 选择器
+            timeout: 超时时间（毫秒）
+            
+        Returns:
+            元素是否可见
+        """
+        timeout = timeout or self._timeout
+        try:
+            self.page.wait_for_selector(locator, state="visible", timeout=timeout)
+            return True
+        except Exception as e:
+            logger.warning(f"等待元素可见超时: {locator}")
+            return False
+
+    def _wait_for_element_editable(self, locator: str, timeout: int = None) -> bool:
+        """等待元素可编辑"""
+        timeout = timeout or self._timeout
+        try:
+            self.page.wait_for_selector(locator, state="visible", timeout=timeout)
+            return True
+        except Exception:
+            return False
+
+    def click(self, locator: str, **kwargs) -> bool:
+        """点击元素
+        
+        自动等待元素可见、稳定、可点击后执行点击
+        """
+        self._check_driver_alive()
+        
+        css_locator = self._convert_locator(locator)
+        logger.debug(f"点击元素: {locator} -> {css_locator}")
+        
+        try:
+            # 先等待元素可见
+            try:
+                self.page.wait_for_selector(css_locator, state="visible", timeout=self._timeout)
+            except Exception:
+                # 等待失败，尝试直接点击
+                pass
+            
+            # 尝试正常点击
+            try:
+                self.page.click(css_locator, timeout=5000, **kwargs)
+                return True
+            except Exception as e:
+                error_msg = str(e).lower()
+                
+                # 检查是否为严重错误
+                if is_critical_error(e):
+                    raise DriverStoppedError(str(e))
+                
+                # 元素不可见或被遮挡，尝试强制点击
+                if "not visible" in error_msg or "attached" in error_msg or "timeout" in error_msg:
+                    logger.debug(f"尝试强制点击...")
+                    try:
+                        self.page.click(css_locator, force=True, timeout=3000)
+                        return True
+                    except:
+                        pass
+                    
+                    # 尝试 JavaScript 点击
+                    logger.debug(f"尝试 JavaScript 点击...")
+                    self.page.evaluate(f"""
+                        const el = document.querySelector('{css_locator}');
+                        if (el) {{ el.click(); }}
+                    """)
+                    return True
+                
+                # 其他错误
+                raise DriverError(f"点击失败: {locator}", locator=locator, cause=e)
+                
+        except DriverStoppedError:
+            raise
+        except DriverError:
+            raise
+        except Exception as e:
+            self._handle_error("click", locator, e)
+            raise DriverError(f"点击失败: {locator}", locator=locator, cause=e)
+
+    def type(self, locator: str, text: str, **kwargs) -> bool:
+        """输入文本
+        
+        自动等待元素可见、可编辑后执行输入
+        """
+        self._check_driver_alive()
+        
+        css_locator = self._convert_locator(locator)
+        logger.debug(f"输入文本: {locator} -> {css_locator}")
+        
+        try:
+            # 先等待元素可见
+            try:
+                self.page.wait_for_selector(css_locator, state="visible", timeout=self._timeout)
+            except Exception:
+                # 等待失败，继续尝试
+                pass
+            
+            # 尝试正常输入
+            try:
+                self.page.fill(css_locator, text, timeout=5000, **kwargs)
+                return True
+            except Exception as e:
+                error_msg = str(e).lower()
+                
+                # 检查是否为严重错误
+                if is_critical_error(e):
+                    raise DriverStoppedError(str(e))
+                
+                # 元素不可编辑，尝试先清空再输入
+                if "not visible" in error_msg or "editable" in error_msg or "timeout" in error_msg:
+                    logger.debug(f"尝试清空后输入...")
+                    try:
+                        # 先聚焦元素
+                        self.page.focus(css_locator, timeout=3000)
+                        # 清空
+                        self.page.fill(css_locator, "", timeout=3000)
+                        # 输入
+                        self.page.fill(css_locator, text, timeout=3000)
+                        return True
+                    except:
+                        pass
+                    
+                    # 尝试 JavaScript 输入
+                    logger.debug(f"尝试 JavaScript 输入...")
+                    safe_text = text.replace("'", "\\'").replace("\n", "\\n")
+                    self.page.evaluate(f"""
+                        const el = document.querySelector('{css_locator}');
+                        if (el) {{ 
+                            el.value = '{safe_text}'; 
+                            el.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                            el.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                        }}
+                    """)
+                    return True
+                
+                # 其他错误
+                raise DriverError(f"输入失败: {locator}", locator=locator, cause=e)
+                
+        except DriverStoppedError:
+            raise
+        except DriverError:
+            raise
+        except Exception as e:
+            self._handle_error("type", locator, e)
+            raise DriverError(f"输入失败: {locator}", locator=locator, cause=e)
+
+    def check(self, locator: str, **kwargs) -> bool:
+        """检查元素可见"""
+        self._check_driver_alive()
+        
+        try:
+            self.page.wait_for_selector(locator, state="visible", timeout=3000)
+            return True
+        except Exception:
+            return False
+
+    def wait(self, seconds: float) -> None:
+        """等待指定秒数"""
+        time.sleep(seconds)
+
+    def navigate(self, url: str) -> bool:
+        """导航到URL，等待页面加载完成"""
+        self._check_driver_alive()
+        
+        try:
+            self.page.goto(url, wait_until="networkidle", timeout=30000)
+            logger.debug(f"导航成功: {url}")
+            return True
+        except Exception as e:
+            # 尝试不等待网络空闲
+            try:
+                self.page.goto(url, timeout=30000)
+                return True
+            except Exception as e2:
+                self._handle_error("navigate", url, e2)
+                raise DriverError(f"导航失败: {url}", cause=e2)
+
+    def screenshot(self, path: str) -> bool:
+        """截图"""
+        self._check_driver_alive()
+        
+        try:
+            self.page.screenshot(path=path)
+            logger.debug(f"截图成功: {path}")
+            return True
+        except Exception as e:
+            self._handle_error("screenshot", path, e)
+            return False
+
+    def select(self, locator: str, value: str) -> bool:
+        """下拉选择"""
+        self._check_driver_alive()
+        
+        try:
+            self.page.select_option(locator, value)
+            logger.debug(f"选择成功: {locator} = {value}")
+            return True
+        except Exception as e:
+            self._handle_error("select", locator, e)
+            raise DriverError(f"选择失败: {locator}", locator=locator, cause=e)
+
+    def hover(self, locator: str) -> bool:
+        """悬停"""
+        self._check_driver_alive()
+        
+        try:
+            self.page.hover(locator)
+            logger.debug(f"悬停成功: {locator}")
+            return True
+        except Exception as e:
+            self._handle_error("hover", locator, e)
+            raise DriverError(f"悬停失败: {locator}", locator=locator, cause=e)
+
+    def drag(self, from_loc: str, to_loc: str) -> bool:
+        """拖拽"""
+        self._check_driver_alive()
+        
+        try:
+            self.page.drag_and_drop(from_loc, to_loc)
+            logger.debug(f"拖拽成功: {from_loc} -> {to_loc}")
+            return True
+        except Exception as e:
+            self._handle_error("drag", f"{from_loc} -> {to_loc}", e)
+            raise DriverError(f"拖拽失败: {from_loc} -> {to_loc}", cause=e)
+
+    def scroll(self, x: int = 0, y: int = 300) -> bool:
+        """滚动"""
+        self._check_driver_alive()
+        
+        try:
+            self.page.evaluate(f"window.scrollBy({x}, {y})")
+            logger.debug(f"滚动成功: ({x}, {y})")
+            return True
+        except Exception as e:
+            self._handle_error("scroll", f"({x}, {y})", e)
+            raise DriverError(f"滚动失败", cause=e)
+
+    def assert_element(self, locator: str, expected: str) -> bool:
+        """断言元素文本包含预期值"""
+        self._check_driver_alive()
+        
+        try:
+            text = self.page.text_content(locator) or ""
+            if expected in text:
+                logger.debug(f"断言成功: {locator} 包含 '{expected}'")
+                return True
+            else:
+                logger.warning(f"断言失败: {locator} 文本 '{text}' 不包含 '{expected}'")
+                return False
+        except Exception as e:
+            self._handle_error("assert", locator, e)
+            return False
+
+    def clear(self, locator: str) -> bool:
+        """清空输入框"""
+        self._check_driver_alive()
+        
+        css_locator = self._convert_locator(locator)
+        try:
+            self.page.fill(css_locator, "")
+            return True
+        except Exception as e:
+            self._handle_error("clear", locator, e)
+            raise DriverError(f"清空失败: {locator}", locator=locator, cause=e)
+
+    def double_click(self, locator: str) -> bool:
+        """双击"""
+        self._check_driver_alive()
+        
+        try:
+            self.page.dblclick(locator)
+            return True
+        except Exception as e:
+            self._handle_error("double_click", locator, e)
+            raise DriverError(f"双击失败: {locator}", locator=locator, cause=e)
+
+    def right_click(self, locator: str) -> bool:
+        """右键点击"""
+        self._check_driver_alive()
+        
+        try:
+            self.page.click(locator, button="right")
+            return True
+        except Exception as e:
+            self._handle_error("right_click", locator, e)
+            raise DriverError(f"右键点击失败: {locator}", locator=locator, cause=e)
+
+    def key_press(self, key: str) -> bool:
+        """按键"""
+        self._check_driver_alive()
+        
+        try:
+            self.page.keyboard.press(key)
+            return True
+        except Exception as e:
+            self._handle_error("key_press", key, e)
+            raise DriverError(f"按键失败: {key}", cause=e)
+
+    def get_text(self, locator: str) -> str:
+        """获取元素文本"""
+        self._check_driver_alive()
+        
+        try:
+            return self.page.text_content(locator)
+        except Exception as e:
+            self._handle_error("get_text", locator, e)
+            return None
+
+    def upload_file(self, locator: str, file_path: str) -> bool:
+        """上传文件"""
+        self._check_driver_alive()
+        
+        try:
+            self.page.set_input_files(locator, file_path)
+            return True
+        except Exception as e:
+            self._handle_error("upload_file", locator, e)
+            raise DriverError(f"上传文件失败: {file_path}", cause=e)
+
+    def close(self) -> None:
+        """关闭驱动"""
+        if self._is_closed:
+            return
+            
+        self._is_closed = True
+        try:
+            if self.browser:
+                self.browser.close()
+        except Exception as e:
+            logger.debug(f"关闭浏览器时出错: {e}")
+        try:
+            if self._pw:
+                self._pw.stop()
+        except Exception as e:
+            logger.debug(f"停止 Playwright 时出错: {e}")

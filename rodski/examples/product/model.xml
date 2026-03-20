@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<models>
+    <model name="LoginPage">
+        <element name="UsernameInput" type="id" value="username"/>
+        <element name="PasswordInput" type="name" value="password"/>
+        <element name="LoginButton" type="xpath" value="//button[@type='submit']"/>
+        <element name="ErrorMessage" type="css" value=".error-msg"/>
+    </model>
+    <model name="HomePage">
+        <element name="WelcomeText" type="id" value="welcome"/>
+        <element name="LogoutButton" type="xpath" value="//a[text()='Logout']"/>
+    </model>
+</models>

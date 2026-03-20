@@ -1,0 +1,8 @@
+{
+  "platformName": "Android",
+  "deviceName": "Android Emulator",
+  "automationName": "UiAutomator2",
+  "appPackage": "com.example.app",
+  "appActivity": ".MainActivity",
+  "serverUrl": "http://localhost:4723"
+}

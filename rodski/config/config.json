@@ -1,0 +1,18 @@
+{
+  "driver": "web",
+  "browser": "chromium",
+  "headless": false,
+  "timeout": 60,
+  "retry": 0,
+  "retry_delay": 1.0,
+  "retry_on_errors": [
+    "ElementNotFound",
+    "Timeout",
+    "StaleElement"
+  ],
+  "log_level": "INFO",
+  "log_dir": "logs",
+  "report_format": "html",
+  "auto_screenshot_on_failure": true,
+  "screenshot_dir": "screenshots"
+}
