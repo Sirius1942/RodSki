@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  验证数据表：Login_verify（自动匹配 verify Login 时使用）
+  格式参见 schemas/data.xsd
+-->
+<datatable name="Login_verify">
+  <row id="V001" remark="验证管理员登录成功">
+    <field name="welcome_text">欢迎, admin</field>
+  </row>
+
+  <row id="V002" remark="验证普通用户登录成功">
+    <field name="welcome_text">欢迎, testuser</field>
+  </row>
+</datatable>

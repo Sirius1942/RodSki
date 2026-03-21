@@ -126,6 +126,32 @@ class DataParseError(ParseError):
     error_code = "SKI203"
 
 
+class XmlSchemaValidationError(ParseError):
+    """XML 实例不符合对应 XSD Schema 约束"""
+
+    error_code = "SKI204"
+
+    def __init__(
+        self,
+        message: str,
+        xml_path: Optional[str] = None,
+        document_kind: Optional[str] = None,
+        schema_path: Optional[str] = None,
+        validation_errors: Optional[list] = None,
+        **kwargs,
+    ):
+        details = kwargs.pop("details", {})
+        if xml_path:
+            details["xml_path"] = xml_path
+        if document_kind:
+            details["document_kind"] = document_kind
+        if schema_path:
+            details["schema_path"] = schema_path
+        if validation_errors:
+            details["validation_errors"] = validation_errors
+        super().__init__(message, details=details, **kwargs)
+
+
 # ── 执行错误 ──────────────────────────────────────────────────
 
 class ExecutionError(SKIError):

@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <xs:annotation>
+    <xs:documentation>
+      RodSki Model XML Schema - 模型定义规范
+      模型文件定义页面元素/接口字段的定位信息。
+      模型文件存放在测试模块的 model/ 目录下，文件名为 model.xml。
+
+      核心约束：
+      1. element 的 name 属性必须与数据表中的 field name 完全一致（区分大小写）
+      2. model 的 name 属性 = 数据表文件名（强制一致）
+      3. 接口模型中 _method/_url/_header_* 为保留元素名
+      4. 支持完整格式（带 location 子节点）和简化格式（type+value 属性）
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- 根元素 -->
+  <xs:element name="models">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="model" type="ModelType" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- 模型类型 -->
+  <xs:complexType name="ModelType">
+    <xs:sequence>
+      <xs:element name="element" type="ElementType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="name" type="xs:string" use="required"/>
+    <xs:attribute name="servicename" type="xs:string" use="optional" default=""/>
+  </xs:complexType>
+
+  <!-- 元素类型 - 支持两种格式 -->
+  <xs:complexType name="ElementType">
+    <xs:sequence>
+      <xs:element name="type" type="xs:string" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="location" type="LocationType" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="desc" type="xs:string" minOccurs="0" maxOccurs="1"/>
+    </xs:sequence>
+    <xs:attribute name="name" type="xs:string" use="required"/>
+    <xs:attribute name="type" type="DriverType" use="optional"/>
+    <xs:attribute name="value" type="xs:string" use="optional"/>
+    <xs:attribute name="interfacename" type="xs:string" use="optional" default=""/>
+    <xs:attribute name="group" type="xs:string" use="optional" default=""/>
+  </xs:complexType>
+
+  <!-- 定位信息类型 -->
+  <xs:complexType name="LocationType" mixed="true">
+    <xs:attribute name="type" type="LocatorType" use="required"/>
+    <xs:attribute name="item" type="xs:string" use="optional" default=""/>
+  </xs:complexType>
+
+  <!-- 驱动类型枚举 -->
+  <xs:simpleType name="DriverType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="web"/>
+      <xs:enumeration value="interface"/>
+      <xs:enumeration value="other"/>
+      <!-- 简化格式中 type 也可以是定位类型 -->
+      <xs:enumeration value="id"/>
+      <xs:enumeration value="class"/>
+      <xs:enumeration value="css"/>
+      <xs:enumeration value="xpath"/>
+      <xs:enumeration value="text"/>
+      <xs:enumeration value="tag"/>
+      <xs:enumeration value="name"/>
+      <xs:enumeration value="static"/>
+      <xs:enumeration value="field"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- 定位类型枚举 -->
+  <xs:simpleType name="LocatorType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="id"/>
+      <xs:enumeration value="class"/>
+      <xs:enumeration value="css"/>
+      <xs:enumeration value="xpath"/>
+      <xs:enumeration value="text"/>
+      <xs:enumeration value="tag"/>
+      <xs:enumeration value="name"/>
+      <xs:enumeration value="static"/>
+      <xs:enumeration value="field"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+</xs:schema>

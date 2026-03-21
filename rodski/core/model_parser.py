@@ -2,6 +2,8 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Dict, Optional
 
+from core.xml_schema_validator import RodskiXmlValidator
+
 
 # 驱动类型常量，对应老 SKI 中 element 的 type 属性
 DRIVER_TYPE_WEB = "web"
@@ -12,6 +14,7 @@ DRIVER_TYPE_OTHER = "other"
 class ModelParser:
     def __init__(self, xml_path: str):
         self.xml_path = Path(xml_path)
+        RodskiXmlValidator.validate_file(self.xml_path, RodskiXmlValidator.KIND_MODEL)
         self.tree = ET.parse(self.xml_path)
         self.root = self.tree.getroot()
         self.models = self._parse_models()

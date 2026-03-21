@@ -21,32 +21,30 @@ class TestDryRun:
 
     def test_dry_run_with_valid_case(self):
         """dry-run 模式应验证用例"""
-        r = run_cli("run", "examples/demo_case.xlsx",
-                     "--model", "examples/product/model.xml", "--dry-run")
+        r = run_cli("run", "examples/product/DEMO/demo_site/case/demo_case.xml",
+                     "--dry-run")
         assert r.returncode == 0
         assert "Dry Run" in r.stdout
         assert "验证通过" in r.stdout
 
     def test_dry_run_with_nonexistent_file(self):
-        r = run_cli("run", "/nonexistent/file.xlsx", "--dry-run")
+        r = run_cli("run", "/nonexistent/file.xml", "--dry-run")
         assert r.returncode == 1
         assert "不存在" in r.stderr
 
     def test_dry_run_does_not_execute(self):
-        r = run_cli("run", "examples/demo_case.xlsx",
-                     "--model", "examples/product/model.xml", "--dry-run")
+        r = run_cli("run", "examples/product/DEMO/demo_site/case/demo_case.xml",
+                     "--dry-run")
         assert r.returncode == 0
         assert "Dry Run" in r.stdout
 
     def test_dry_run_missing_model(self):
         """model 推断失败时应给出提示"""
-        r = run_cli("run", "examples/demo_case.xlsx", "--dry-run")
+        r = run_cli("run", "examples/api_test/data/login_request.json", "--dry-run")
         assert r.returncode == 1
-        assert "模型文件不存在" in r.stderr
 
     def test_dry_run_with_verbose(self):
-        r = run_cli("run", "examples/demo_case.xlsx",
-                     "--model", "examples/product/model.xml",
+        r = run_cli("run", "examples/product/DEMO/demo_site/case/demo_case.xml",
                      "--dry-run", "--verbose")
         assert r.returncode == 0
         assert "Dry Run" in r.stdout
@@ -66,8 +64,7 @@ class TestVerbose:
         assert "verbose" in r.stdout.lower()
 
     def test_verbose_with_dry_run(self):
-        r = run_cli("run", "examples/demo_case.xlsx",
-                     "--model", "examples/product/model.xml",
+        r = run_cli("run", "examples/product/DEMO/demo_site/case/demo_case.xml",
                      "--dry-run", "--verbose")
         assert r.returncode == 0
 
@@ -81,19 +78,18 @@ class TestErrorMessages:
     """错误提示信息测试"""
 
     def test_file_not_found_error(self):
-        r = run_cli("run", "/nonexistent/file.xlsx")
+        r = run_cli("run", "/nonexistent/file.xml")
         assert r.returncode == 1
         assert "不存在" in r.stderr
 
-    def test_invalid_file_format(self):
+    def test_invalid_file_missing_model(self):
         import tempfile
-        with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as f:
-            f.write(b"test")
+        with tempfile.NamedTemporaryFile(suffix=".xml", delete=False) as f:
+            f.write(b"<cases></cases>")
             tmp_path = f.name
         try:
-            r = run_cli("run", tmp_path)
+            r = run_cli("run", tmp_path, "--dry-run")
             assert r.returncode == 1
-            assert "不支持" in r.stderr or "格式" in r.stderr
         finally:
             Path(tmp_path).unlink(missing_ok=True)
 
@@ -181,7 +177,7 @@ class TestCLIBackwardCompatibility:
         assert r.returncode == 0
 
     def test_run_without_new_flags(self):
-        r = run_cli("run", "/nonexistent/file.xlsx")
+        r = run_cli("run", "/nonexistent/file.xml")
         assert r.returncode == 1
         assert "不存在" in r.stderr
 

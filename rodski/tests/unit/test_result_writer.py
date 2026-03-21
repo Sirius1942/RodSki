@@ -1,98 +1,53 @@
-"""ResultWriter 单元测试"""
+"""ResultWriter 单元测试 - XML 版本"""
 import pytest
-import openpyxl
+import xml.etree.ElementTree as ET
 from pathlib import Path
-from unittest.mock import patch
-from core.result_writer import ResultWriter, HEADERS
+from core.result_writer import ResultWriter
 
-
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
 
 @pytest.fixture
-def tmp_excel(tmp_path):
-    """创建一个最小化的 Excel 文件（含 Case Sheet）供测试使用。"""
-    path = tmp_path / "test_case.xlsx"
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "Case"
-    ws.append(["Execute", "CaseID", "Title"])
-    ws.append(["是", "TC001", "登录测试"])
-    ws.append(["是", "TC002", "搜索测试"])
-    wb.save(path)
-    return str(path)
+def result_dir(tmp_path):
+    d = tmp_path / "result"
+    d.mkdir()
+    return str(d)
 
-
-def _load_result_sheet(path: str):
-    wb = openpyxl.load_workbook(path)
-    assert "TestResult" in wb.sheetnames
-    sheet = wb["TestResult"]
-    headers = [sheet.cell(1, c).value for c in range(1, len(HEADERS) + 1)]
-    rows = []
-    for r in range(2, sheet.max_row + 1):
-        row = {headers[c]: sheet.cell(r, c + 1).value for c in range(len(HEADERS))}
-        rows.append(row)
-    return rows
-
-
-# ---------------------------------------------------------------------------
-# 基础功能
-# ---------------------------------------------------------------------------
 
 class TestResultWriterInit:
-    def test_raises_if_file_missing(self, tmp_path):
-        with pytest.raises(FileNotFoundError):
-            ResultWriter(str(tmp_path / "nonexistent.xlsx"))
+    def test_creates_dir_if_missing(self, tmp_path):
+        d = tmp_path / "new_result"
+        assert not d.exists()
+        ResultWriter(str(d))
+        assert d.exists()
 
-    def test_init_ok(self, tmp_excel):
-        rw = ResultWriter(tmp_excel)
-        assert rw.case_file == Path(tmp_excel)
+    def test_init_ok(self, result_dir):
+        rw = ResultWriter(result_dir)
+        assert rw.result_dir == Path(result_dir)
 
-
-class TestSheetCreation:
-    def test_creates_testresult_sheet(self, tmp_excel):
-        rw = ResultWriter(tmp_excel)
-        rw.write_result({"case_id": "TC001", "status": "PASS"})
-
-        wb = openpyxl.load_workbook(tmp_excel)
-        assert "TestResult" in wb.sheetnames
-
-    def test_headers_correct(self, tmp_excel):
-        rw = ResultWriter(tmp_excel)
-        rw.write_result({"case_id": "TC001", "status": "PASS"})
-
-        wb = openpyxl.load_workbook(tmp_excel)
-        sheet = wb["TestResult"]
-        actual = [sheet.cell(1, c).value for c in range(1, len(HEADERS) + 1)]
-        assert actual == HEADERS
-
-    def test_does_not_duplicate_sheet(self, tmp_excel):
-        rw = ResultWriter(tmp_excel)
-        rw.write_result({"case_id": "TC001", "status": "PASS"})
-        rw.write_result({"case_id": "TC002", "status": "FAIL"})
-
-        wb = openpyxl.load_workbook(tmp_excel)
-        assert wb.sheetnames.count("TestResult") == 1
-
-
-# ---------------------------------------------------------------------------
-# 写入内容
-# ---------------------------------------------------------------------------
 
 class TestWriteResult:
-    def test_pass_result_written(self, tmp_excel):
-        rw = ResultWriter(tmp_excel)
+    def test_single_pass_result(self, result_dir):
+        rw = ResultWriter(result_dir)
         rw.write_result({"case_id": "TC001", "title": "登录测试", "status": "PASS", "execution_time": 1.23})
 
-        wb = openpyxl.load_workbook(tmp_excel)
-        sheet = wb["TestResult"]
-        assert sheet.cell(2, 1).value == "TC001"
-        assert sheet.cell(2, 3).value == "PASS"
-        assert sheet.cell(2, 4).value == 1.23
+        result_files = list(Path(result_dir).glob("result_*.xml"))
+        assert len(result_files) == 1
 
-    def test_fail_result_with_error(self, tmp_excel):
-        rw = ResultWriter(tmp_excel)
+        tree = ET.parse(result_files[0])
+        root = tree.getroot()
+        assert root.tag == "testresult"
+
+        summary = root.find("summary")
+        assert summary.get("total") == "1"
+        assert summary.get("passed") == "1"
+        assert summary.get("failed") == "0"
+
+        results = root.find("results")
+        result_elem = results.find("result")
+        assert result_elem.get("case_id") == "TC001"
+        assert result_elem.get("status") == "PASS"
+
+    def test_fail_result_with_error(self, result_dir):
+        rw = ResultWriter(result_dir)
         rw.write_result({
             "case_id": "TC002",
             "title": "搜索测试",
@@ -101,88 +56,69 @@ class TestWriteResult:
             "error": "Element not found",
         })
 
-        wb = openpyxl.load_workbook(tmp_excel)
-        sheet = wb["TestResult"]
-        assert sheet.cell(2, 3).value == "FAIL"
-        assert sheet.cell(2, 9).value == "Element not found"
+        result_files = list(Path(result_dir).glob("result_*.xml"))
+        tree = ET.parse(result_files[0])
+        root = tree.getroot()
 
-    def test_updated_at_populated(self, tmp_excel):
-        rw = ResultWriter(tmp_excel)
-        rw.write_result({"case_id": "TC001", "status": "PASS"})
-
-        wb = openpyxl.load_workbook(tmp_excel)
-        sheet = wb["TestResult"]
-        assert sheet.cell(2, 11).value is not None
+        result_elem = root.find("results/result")
+        assert result_elem.get("status") == "FAIL"
+        assert result_elem.get("error_message") == "Element not found"
 
 
-# ---------------------------------------------------------------------------
-# 批量写入
-# ---------------------------------------------------------------------------
-
-class TestWriteResults:
-    def test_batch_write(self, tmp_excel):
-        rw = ResultWriter(tmp_excel)
+class TestBatchWrite:
+    def test_batch_write(self, result_dir):
+        rw = ResultWriter(result_dir)
         results = [
             {"case_id": "TC001", "title": "登录测试", "status": "PASS", "execution_time": 1.0},
             {"case_id": "TC002", "title": "搜索测试", "status": "FAIL", "execution_time": 0.8, "error": "Timeout"},
         ]
         rw.write_results(results)
 
-        wb = openpyxl.load_workbook(tmp_excel)
-        sheet = wb["TestResult"]
-        assert sheet.max_row == 3  # header + 2 data rows
+        result_files = list(Path(result_dir).glob("result_*.xml"))
+        tree = ET.parse(result_files[0])
+        root = tree.getroot()
 
-    def test_empty_list_no_error(self, tmp_excel):
-        rw = ResultWriter(tmp_excel)
-        rw.write_results([])  # should not raise
+        summary = root.find("summary")
+        assert summary.get("total") == "2"
+        assert summary.get("passed") == "1"
+        assert summary.get("failed") == "1"
+        assert summary.get("pass_rate") == "50.0%"
+
+        result_elems = root.findall("results/result")
+        assert len(result_elems) == 2
+
+    def test_empty_list_no_file(self, result_dir):
+        rw = ResultWriter(result_dir)
+        rw.write_results([])
+        result_files = list(Path(result_dir).glob("result_*.xml"))
+        assert len(result_files) == 0
 
 
-# ---------------------------------------------------------------------------
-# 更新（upsert）行为
-# ---------------------------------------------------------------------------
+class TestSummary:
+    def test_summary_stats(self, result_dir):
+        rw = ResultWriter(result_dir)
+        results = [
+            {"case_id": "TC001", "status": "PASS", "execution_time": 1.0},
+            {"case_id": "TC002", "status": "PASS", "execution_time": 2.0},
+            {"case_id": "TC003", "status": "FAIL", "execution_time": 0.5, "error": "err"},
+        ]
+        rw.write_results(results)
 
-class TestUpsert:
-    def test_existing_case_updated(self, tmp_excel):
-        rw = ResultWriter(tmp_excel)
-        rw.write_result({"case_id": "TC001", "status": "FAIL", "error": "first run"})
+        summary = rw.get_summary()
+        assert summary.total == 3
+        assert summary.passed == 2
+        assert summary.failed == 1
+        assert summary.pass_rate == pytest.approx(66.7, abs=0.1)
+
+
+class TestXMLValidity:
+    def test_xml_is_well_formed(self, result_dir):
+        rw = ResultWriter(result_dir)
         rw.write_result({"case_id": "TC001", "status": "PASS"})
 
-        wb = openpyxl.load_workbook(tmp_excel)
-        sheet = wb["TestResult"]
-        # 只应有一行数据
-        assert sheet.max_row == 2
-        assert sheet.cell(2, 3).value == "PASS"
-        assert sheet.cell(2, 9).value in ("", None)  # error 清空
+        result_files = list(Path(result_dir).glob("result_*.xml"))
+        content = result_files[0].read_text(encoding="utf-8")
+        assert '<?xml version="1.0" ?>' in content
 
-    def test_new_case_appended(self, tmp_excel):
-        rw = ResultWriter(tmp_excel)
-        rw.write_result({"case_id": "TC001", "status": "PASS"})
-        rw.write_result({"case_id": "TC003", "status": "PASS"})
-
-        wb = openpyxl.load_workbook(tmp_excel)
-        sheet = wb["TestResult"]
-        assert sheet.max_row == 3
-
-
-# ---------------------------------------------------------------------------
-# 颜色填充
-# ---------------------------------------------------------------------------
-
-class TestCellFill:
-    def test_pass_green_fill(self, tmp_excel):
-        rw = ResultWriter(tmp_excel)
-        rw.write_result({"case_id": "TC001", "status": "PASS"})
-
-        wb = openpyxl.load_workbook(tmp_excel)
-        sheet = wb["TestResult"]
-        fill = sheet.cell(2, 3).fill
-        assert fill.fgColor.rgb.endswith("C6EFCE")
-
-    def test_fail_red_fill(self, tmp_excel):
-        rw = ResultWriter(tmp_excel)
-        rw.write_result({"case_id": "TC001", "status": "FAIL"})
-
-        wb = openpyxl.load_workbook(tmp_excel)
-        sheet = wb["TestResult"]
-        fill = sheet.cell(2, 3).fill
-        assert fill.fgColor.rgb.endswith("FFC7CE")
+        root = ET.fromstring(content)
+        assert root.tag == "testresult"

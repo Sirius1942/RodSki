@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  接口数据表：LoginAPI（与接口模型同名）
+-->
+<datatable name="LoginAPI">
+  <row id="D001" remark="管理员登录">
+    <field name="username">admin</field>
+    <field name="password">admin123</field>
+  </row>
+
+  <row id="D002" remark="普通用户登录">
+    <field name="username">testuser</field>
+    <field name="password">test123</field>
+  </row>
+</datatable>
