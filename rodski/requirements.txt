@@ -1,7 +1,8 @@
 openpyxl>=3.1.0
+xmlschema>=2.5.0
 playwright>=1.40.0
-pytest>=7.4.0
-pytest-cov>=4.1.0
+# 注意: RodSki 不依赖 pytest 等外部测试框架
+# 自检使用自有执行器: python selftest.py
 Appium-Python-Client>=3.0.0
 PyQt6>=6.6.0
 tqdm>=4.65.0

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <xs:annotation>
+    <xs:documentation>
+      RodSki GlobalValue XML Schema - 全局变量定义规范
+      全局变量文件对应原 Excel 中的 GlobalValue Sheet。
+      文件存放在测试模块的 data/ 目录下，固定文件名为 globalvalue.xml。
+
+      核心约束：
+      1. 每个 group 的 name 必须唯一
+      2. 同一 group 内 var 的 name 必须唯一
+      3. DefaultValue 组为框架内置，包含 URL/BrowserType/WaitTime/Headless
+      4. 数据库连接组需包含 type/host/port/database/username/password
+      5. 引用格式：GlobalValue.组名.变量名
+    </xs:documentation>
+  </xs:annotation>
+
+  <xs:complexType name="VarType">
+    <xs:attribute name="name" type="xs:string" use="required"/>
+    <xs:attribute name="value" type="xs:string" use="required"/>
+  </xs:complexType>
+
+  <!-- 根元素：identity 约束必须挂在 element 上，不能放在 named complexType 内 -->
+  <xs:element name="globalvalue">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="group" minOccurs="0" maxOccurs="unbounded">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="var" type="VarType" minOccurs="1" maxOccurs="unbounded"/>
+            </xs:sequence>
+            <xs:attribute name="name" type="xs:string" use="required"/>
+          </xs:complexType>
+          <xs:unique name="uniqueVarName">
+            <xs:selector xpath="var"/>
+            <xs:field xpath="@name"/>
+          </xs:unique>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+    <xs:unique name="uniqueGroupName">
+      <xs:selector xpath="group"/>
+      <xs:field xpath="@name"/>
+    </xs:unique>
+  </xs:element>
+
+</xs:schema>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  SQL 数据表：QuerySQL
+-->
+<datatable name="QuerySQL">
+  <row id="Q001" remark="查询物品总数">
+    <field name="sql">SELECT COUNT(*) as cnt FROM items</field>
+    <field name="operation">query</field>
+  </row>
+
+  <row id="Q002" remark="插入测试数据">
+    <field name="sql">INSERT INTO items (name) VALUES ('test')</field>
+    <field name="operation">execute</field>
+  </row>
+</datatable>

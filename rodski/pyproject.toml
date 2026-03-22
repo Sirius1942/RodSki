@@ -1,6 +1,6 @@
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-python_files = ["test_*.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
-addopts = "-v --tb=short"
+[project]
+name = "rodski"
+description = "RodSki 关键字驱动自动化测试框架"
+
+# RodSki 不依赖 pytest 等外部测试框架
+# 自检使用自有执行器: python selftest.py

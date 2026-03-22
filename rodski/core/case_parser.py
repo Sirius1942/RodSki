@@ -1,57 +1,86 @@
-"""Case Sheet 解析器 - 解析三段式用例结构"""
+"""Case XML 解析器 - 三阶段多步骤用例结构
+
+从 case/*.xml 解析测试用例。每个 <case> 含：
+  pre_process（可选）→ test_case（必选，且恰有一个容器）→ post_process（可选）
+各阶段内为多个 <test_step>。
+
+XML 格式参见 schemas/case.xsd。
+"""
+import xml.etree.ElementTree as ET
+from pathlib import Path
 from typing import Dict, List, Any, Optional
-from openpyxl import load_workbook
+
+from core.xml_schema_validator import RodskiXmlValidator
 
 
 class CaseParser:
-    def __init__(self, excel_path: str):
-        self.excel_path = excel_path
-        self.wb = load_workbook(excel_path, data_only=True)
+    def __init__(self, case_path: str):
+        """初始化 Case 解析器
+
+        Args:
+            case_path: case XML 文件路径，或 case/ 目录路径（加载目录下所有 XML）
+        """
+        self.case_path = Path(case_path)
+        self._cases: List[Dict[str, Any]] = []
 
     def parse_cases(self) -> List[Dict[str, Any]]:
-        """解析 Case Sheet"""
-        if 'Case' not in self.wb.sheetnames:
-            return []
+        """解析所有用例，返回用例列表"""
+        self._cases = []
 
-        sheet = self.wb['Case']
+        if self.case_path.is_dir():
+            for xml_file in sorted(self.case_path.glob("*.xml")):
+                self._cases.extend(self._parse_file(xml_file))
+        elif self.case_path.is_file():
+            self._cases = self._parse_file(self.case_path)
+        else:
+            raise FileNotFoundError(f"用例路径不存在: {self.case_path}")
+
+        return self._cases
+
+    def _parse_file(self, xml_path: Path) -> List[Dict[str, Any]]:
+        """解析单个 case XML 文件"""
+        RodskiXmlValidator.validate_file(xml_path, RodskiXmlValidator.KIND_CASE)
+        tree = ET.parse(xml_path)
+        root = tree.getroot()
         cases = []
 
-        for row_idx in range(3, sheet.max_row + 1):
-            row = sheet[row_idx]
-            execute_control = str(row[0].value or '').strip()
-
-            if execute_control != '是':
+        for case_node in root.findall('case'):
+            execute = case_node.get('execute', '否').strip()
+            if execute != '是':
                 continue
 
             case = {
-                'case_id': str(row[1].value or ''),
-                'title': str(row[2].value or ''),
-                'description': str(row[3].value or ''),
-                'component_type': str(row[4].value or ''),
-                'pre_process': {
-                    'action': str(row[5].value or ''),
-                    'model': str(row[6].value or ''),
-                    'data': str(row[7].value or '')
-                },
-                'test_step': {
-                    'action': str(row[8].value or ''),
-                    'model': str(row[9].value or ''),
-                    'data': str(row[10].value or '')
-                },
-                'expected_result': {
-                    'action': str(row[11].value or ''),
-                    'model': str(row[12].value or ''),
-                    'data': str(row[13].value or '')
-                },
-                'post_process': {
-                    'action': str(row[14].value or ''),
-                    'model': str(row[15].value or ''),
-                    'data': str(row[16].value or '')
-                }
+                'case_id': case_node.get('id', ''),
+                'title': case_node.get('title', ''),
+                'description': case_node.get('description', ''),
+                'component_type': case_node.get('component_type', ''),
+                'pre_process': self._parse_phase_steps(case_node.find('pre_process')),
+                'test_case': self._parse_phase_steps(case_node.find('test_case')),
+                'post_process': self._parse_phase_steps(case_node.find('post_process')),
             }
             cases.append(case)
 
         return cases
 
+    @staticmethod
+    def _parse_phase_steps(phase_node: Optional[ET.Element]) -> List[Dict[str, str]]:
+        """解析一个阶段容器内的全部 test_step"""
+        if phase_node is None:
+            return []
+        steps = []
+        for el in phase_node.findall('test_step'):
+            step = CaseParser._parse_step_element(el)
+            if step.get('action'):
+                steps.append(step)
+        return steps
+
+    @staticmethod
+    def _parse_step_element(el: ET.Element) -> Dict[str, str]:
+        return {
+            'action': str(el.get('action', '') or '').strip(),
+            'model': str(el.get('model', '') or '').strip(),
+            'data': str(el.get('data', '') or '').strip(),
+        }
+
     def close(self):
-        self.wb.close()
+        pass

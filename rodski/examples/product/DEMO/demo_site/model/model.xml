@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<models>
+<model name="Login" servicename="">
+    <element name="username" interfacename="" group="" type="web">
+        <type>input</type>
+        <location type="id" item="">username</location>
+        <desc>用户名输入框</desc>
+    </element>
+    <element name="password" interfacename="" group="" type="web">
+        <type>input</type>
+        <location type="id" item="">password</location>
+        <desc>密码输入框</desc>
+    </element>
+    <element name="loginBtn" interfacename="" group="" type="web">
+        <type>button</type>
+        <location type="id" item="">login-btn</location>
+        <desc>登录按钮</desc>
+    </element>
+</model>
+
+<model name="HomePage" servicename="">
+    <element name="welcome_text" interfacename="" group="" type="web">
+        <type>text</type>
+        <location type="id" item="">welcome</location>
+        <desc>欢迎文本</desc>
+    </element>
+    <element name="logoutBtn" interfacename="" group="" type="web">
+        <type>button</type>
+        <location type="xpath" item="">//a[text()='Logout']</location>
+        <desc>注销按钮</desc>
+    </element>
+</model>
+
+<model name="LoginAPI" servicename="">
+    <element name="_method" interfacename="" group="" type="interface">
+        <location type="static" item="">POST</location>
+    </element>
+    <element name="_url" interfacename="" group="" type="interface">
+        <location type="static" item="">http://api.example.com/login</location>
+    </element>
+    <element name="_header_Content-Type" interfacename="" group="" type="interface">
+        <location type="static" item="">application/json</location>
+    </element>
+    <element name="username" interfacename="" group="" type="interface">
+        <location type="field" item="">username</location>
+    </element>
+    <element name="password" interfacename="" group="" type="interface">
+        <location type="field" item="">password</location>
+    </element>
+</model>
+</models>
