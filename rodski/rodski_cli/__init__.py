@@ -3,7 +3,7 @@ import sys
 import argparse
 from rodski_cli import run, model, config, log, report
 
-VERSION = "1.0.0"
+VERSION = "2.0.1"
 
 def main():
     parser = argparse.ArgumentParser(
