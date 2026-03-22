@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <xs:annotation>
+    <xs:documentation>
+      RodSki Result XML Schema - 测试结果报告规范
+      结果文件对应原 Excel 中的 TestResult + TestSummary Sheet。
+      文件存放在测试模块的 result/ 目录下。
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- 根元素 -->
+  <xs:element name="testresult">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="summary" type="SummaryType" minOccurs="1" maxOccurs="1"/>
+        <xs:element name="results" type="ResultsType" minOccurs="1" maxOccurs="1"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- 统计摘要类型 -->
+  <xs:complexType name="SummaryType">
+    <xs:attribute name="total" type="xs:nonNegativeInteger" use="required"/>
+    <xs:attribute name="passed" type="xs:nonNegativeInteger" use="required"/>
+    <xs:attribute name="failed" type="xs:nonNegativeInteger" use="required"/>
+    <xs:attribute name="skipped" type="xs:nonNegativeInteger" use="optional" default="0"/>
+    <xs:attribute name="errors" type="xs:nonNegativeInteger" use="optional" default="0"/>
+    <xs:attribute name="pass_rate" type="xs:string" use="optional"/>
+    <xs:attribute name="total_time" type="xs:string" use="optional"/>
+    <xs:attribute name="average_time" type="xs:string" use="optional"/>
+    <xs:attribute name="start_time" type="xs:string" use="optional"/>
+    <xs:attribute name="end_time" type="xs:string" use="optional"/>
+  </xs:complexType>
+
+  <!-- 结果集合类型 -->
+  <xs:complexType name="ResultsType">
+    <xs:sequence>
+      <xs:element name="result" type="ResultType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- 单条结果类型 -->
+  <xs:complexType name="ResultType">
+    <xs:attribute name="case_id" type="xs:string" use="required"/>
+    <xs:attribute name="title" type="xs:string" use="optional"/>
+    <xs:attribute name="status" type="StatusType" use="required"/>
+    <xs:attribute name="execution_time" type="xs:string" use="optional"/>
+    <xs:attribute name="retries" type="xs:nonNegativeInteger" use="optional" default="0"/>
+    <xs:attribute name="start_time" type="xs:string" use="optional"/>
+    <xs:attribute name="end_time" type="xs:string" use="optional"/>
+    <xs:attribute name="error_type" type="xs:string" use="optional"/>
+    <xs:attribute name="error_message" type="xs:string" use="optional"/>
+    <xs:attribute name="screenshot_path" type="xs:string" use="optional"/>
+    <xs:attribute name="updated_at" type="xs:string" use="optional"/>
+  </xs:complexType>
+
+  <!-- 状态枚举 -->
+  <xs:simpleType name="StatusType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="PASS"/>
+      <xs:enumeration value="FAIL"/>
+      <xs:enumeration value="SKIP"/>
+      <xs:enumeration value="ERROR"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+</xs:schema>

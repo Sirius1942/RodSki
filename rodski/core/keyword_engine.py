@@ -56,7 +56,8 @@ class KeywordEngine:
                  global_vars: Optional[Dict] = None,
                  case_file: Optional[str] = None,
                  data_resolver=None,
-                 driver_factory: Optional[Any] = None):
+                 driver_factory: Optional[Any] = None,
+                 module_dir: Optional[str] = None):
         self.driver = driver
         self._driver_factory = driver_factory
         self._variables: Dict[str, Any] = {}
@@ -68,6 +69,7 @@ class KeywordEngine:
         self._global_vars = global_vars or {}
         self._db_connections: Dict[str, Any] = {}
         self._case_file = Path(case_file) if case_file else None
+        self._module_dir = Path(module_dir) if module_dir else None
         
         # 初始化重试配置
         self._retry_config = {**self.DEFAULT_RETRY_CONFIG, **(retry_config or {})}
@@ -830,13 +832,14 @@ class KeywordEngine:
                 reason="缺少代码文件路径"
             )
 
-        if not self._case_file:
+        if not self._module_dir and not self._case_file:
             raise InvalidParameterError(
                 keyword="run", param_name="context",
-                reason="run 需要知道用例文件位置以定位 fun/ 目录"
+                reason="run 需要知道测试模块目录以定位 fun/ 目录"
             )
 
-        fun_dir = self._case_file.parent.parent / "fun"
+        base_dir = self._module_dir or self._case_file.parent.parent
+        fun_dir = base_dir / "fun"
         if project_name:
             project_dir = fun_dir / project_name
             script_path = project_dir / code_path
@@ -959,9 +962,10 @@ class KeywordEngine:
 
     def _ensure_sql_doc(self, table_name: str) -> None:
         """检查 SQL 数据表的 .md 说明文件是否存在，不存在则创建空模板"""
-        if not self._case_file:
+        if not self._module_dir and not self._case_file:
             return
-        model_dir = self._case_file.parent.parent / "model"
+        base_dir = self._module_dir or self._case_file.parent.parent
+        model_dir = base_dir / "model"
         md_path = model_dir / f"{table_name}.md"
         if md_path.exists():
             return

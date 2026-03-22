@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <xs:annotation>
+    <xs:documentation>
+      RodSki Case XML Schema - 测试用例定义规范
+
+      每个 case 下分三阶段（均为容器，内层为多个 test_step）：
+      1. pre_process  预处理（可选，0 个或多个 test_step）
+      2. test_case    用例阶段（必选，且每个 case 内恰好 1 个；内至少 1 个 test_step）
+      3. post_process 后处理（可选，0 个或多个 test_step）
+
+      执行语义：用例阶段若抛出异常，后处理阶段仍会执行（用于清理/关闭等）。
+    </xs:documentation>
+  </xs:annotation>
+
+  <xs:element name="cases">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="case" type="CaseType" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- 预处理 / 后处理：0..n 个步骤 -->
+  <xs:complexType name="PhaseType">
+    <xs:sequence>
+      <xs:element name="test_step" type="StepType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- 用例阶段：至少 1 个步骤 -->
+  <xs:complexType name="TestCasePhaseType">
+    <xs:sequence>
+      <xs:element name="test_step" type="StepType" minOccurs="1" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="CaseType">
+    <xs:sequence>
+      <xs:element name="pre_process" type="PhaseType" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="test_case" type="TestCasePhaseType" minOccurs="1" maxOccurs="1"/>
+      <xs:element name="post_process" type="PhaseType" minOccurs="0" maxOccurs="1"/>
+    </xs:sequence>
+    <xs:attribute name="execute" type="ExecuteType" use="required"/>
+    <xs:attribute name="id" type="xs:string" use="required"/>
+    <xs:attribute name="title" type="xs:string" use="required"/>
+    <xs:attribute name="description" type="xs:string" use="optional"/>
+    <xs:attribute name="component_type" type="ComponentType" use="optional"/>
+  </xs:complexType>
+
+  <xs:complexType name="StepType">
+    <xs:attribute name="action" type="ActionType" use="required"/>
+    <xs:attribute name="model" type="xs:string" use="optional" default=""/>
+    <xs:attribute name="data" type="xs:string" use="optional" default=""/>
+  </xs:complexType>
+
+  <xs:simpleType name="ExecuteType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="是"/>
+      <xs:enumeration value="否"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="ComponentType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="界面"/>
+      <xs:enumeration value="接口"/>
+      <xs:enumeration value="数据库"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="ActionType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="close"/>
+      <xs:enumeration value="type"/>
+      <xs:enumeration value="verify"/>
+      <xs:enumeration value="wait"/>
+      <xs:enumeration value="navigate"/>
+      <xs:enumeration value="assert"/>
+      <xs:enumeration value="upload_file"/>
+      <xs:enumeration value="clear"/>
+      <xs:enumeration value="get_text"/>
+      <xs:enumeration value="get"/>
+      <xs:enumeration value="send"/>
+      <xs:enumeration value="set"/>
+      <xs:enumeration value="DB"/>
+      <xs:enumeration value="run"/>
+      <xs:enumeration value="check"/>
+      <xs:enumeration value="screenshot"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+</xs:schema>

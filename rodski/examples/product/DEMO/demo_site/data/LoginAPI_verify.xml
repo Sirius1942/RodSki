@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  接口验证数据表：LoginAPI_verify
+-->
+<datatable name="LoginAPI_verify">
+  <row id="V001" remark="验证管理员登录响应">
+    <field name="status">200</field>
+    <field name="username">admin</field>
+  </row>
+
+  <row id="V002" remark="验证普通用户登录响应">
+    <field name="status">200</field>
+    <field name="username">testuser</field>
+  </row>
+</datatable>

@@ -305,16 +305,13 @@ rodski/
 │  5. 执行用例步骤                              │ │
 │  ┌─────────────────────────────────────────┐│ │
 │  │ 预处理 (pre_process)                     ││ │
-│  │   └─► navigate                            ││ │
+│  │   └─► 0..n 个 test_step（navigate 等）    ││ │
 │  ├─────────────────────────────────────────┤│ │
-│  │ 测试步骤 (test_step)                     ││ │
-│  │   └─► type → click                       ││ │
-│  ├─────────────────────────────────────────┤│ │
-│  │ 预期结果 (expected_result)               ││ │
-│  │   └─► assert → check                     ││ │
+│  │ 用例阶段 (test_case)                     ││ │
+│  │   └─► 1..n 个 test_step（type/verify…）  ││ │
 │  ├─────────────────────────────────────────┤│ │
 │  │ 后处理 (post_process)                    ││ │
-│  │   └─► close                              ││ │
+│  │   └─► 0..n 个 test_step（close 等）       ││ │
 │  └─────────────────────────────────────────┘│ │
 └────────────────────┬────────────────────────┘ │
                      │                          │
@@ -391,7 +388,7 @@ rodski/
 │   批量执行所有用例
 │
 ├── execute_case(case)
-│   执行单个用例（预处理→测试步骤→预期结果→后处理）
+│   执行单个用例（预处理→用例阶段多步→后处理；用例失败仍执行后处理）
 │
 └── _take_failure_screenshot(case_id)
     失败时自动截图
@@ -453,23 +450,24 @@ rodski/
 
 ### 6.4 CaseParser (用例解析器)
 ```python
-职责: 解析 Excel 中的 Case Sheet
+职责: 解析 case/*.xml（XSD: case.xsd）
 位置: core/case_parser.py
 
-三段式用例结构:
-├── pre_process (预处理)
-├── test_step (测试步骤)
-├── expected_result (预期结果)
-└── post_process (后处理)
+三阶段容器结构（每阶段内为 test_step 列表）:
+├── pre_process: List[step]   # 预处理，0..n 步
+├── test_case: List[step]     # 用例阶段，至少 1 步
+└── post_process: List[step]  # 后处理，0..n 步
 
-输出格式:
+输出格式（每步为 dict: action, model, data）:
 {
-    'case_id': 'TC001',
+    'case_id': 'c001',
     'title': '登录测试',
-    'pre_process': {'action': 'navigate', 'model': '', 'data': 'url'},
-    'test_step': {'action': 'type', 'model': 'LoginPage', 'data': 'LoginData.data001'},
-    'expected_result': {...},
-    'post_process': {...}
+    'pre_process': [{'action': 'navigate', 'model': '', 'data': '...'}],
+    'test_case': [
+        {'action': 'type', 'model': 'Login', 'data': 'L001'},
+        {'action': 'verify', 'model': 'Login', 'data': 'V001'},
+    ],
+    'post_process': [{'action': 'close', 'model': '', 'data': ''}],
 }
 ```
 

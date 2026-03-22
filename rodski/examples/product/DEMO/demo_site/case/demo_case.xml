@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  RodSki 测试用例文件
+  三阶段：pre_process / test_case / post_process，每阶段内多个 test_step
+  格式参见 schemas/case.xsd
+-->
+<cases>
+  <case execute="是" id="c001" title="登录测试" description="验证管理员登录功能" component_type="界面">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.DefaultValue.URL/login"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="Login" data="L001"/>
+      <test_step action="verify" model="Login" data="V001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+
+  <case execute="是" id="c002" title="普通用户登录" description="验证普通用户登录" component_type="界面">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.DefaultValue.URL/login"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="Login" data="L002"/>
+      <test_step action="verify" model="Login" data="V002"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+
+  <case execute="否" id="c003" title="API登录测试" description="接口测试示例" component_type="接口">
+    <test_case>
+      <test_step action="send" model="LoginAPI" data="D001"/>
+      <test_step action="verify" model="LoginAPI" data="V001"/>
+    </test_case>
+  </case>
+
+  <case execute="否" id="c004" title="DB验证" description="数据库查询验证示例" component_type="数据库">
+    <test_case>
+      <test_step action="DB" model="demodb" data="QuerySQL.Q001"/>
+    </test_case>
+  </case>
+</cases>

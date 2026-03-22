@@ -1,4 +1,4 @@
-"""run 子命令 - 通过 SKIExecutor 执行测试用例（Case Sheet + model.xml + 数据表）"""
+"""run 子命令 - 通过 SKIExecutor 执行测试用例（XML 版本）"""
 import sys
 import logging
 from pathlib import Path
@@ -8,7 +8,7 @@ logger = logging.getLogger("rodski")
 
 def setup_parser(subparsers):
     parser = subparsers.add_parser("run", help="执行测试用例")
-    parser.add_argument("case", help="用例文件路径 (Excel)")
+    parser.add_argument("case", help="用例路径（XML 文件、case/ 目录或测试模块目录）")
     parser.add_argument("--model", help="模型文件路径 (model.xml)，不指定则自动推断")
     parser.add_argument("--browser", choices=["chromium", "firefox", "webkit"],
                         default="chromium", help="浏览器类型 (默认: chromium)")
@@ -19,34 +19,44 @@ def setup_parser(subparsers):
     parser.add_argument("--output", help="报告输出路径")
 
 
-def _infer_model_path(case_path: Path) -> Path:
-    """从用例文件路径推断 model.xml 位置
-    
-    约定: case 文件在 .../case/ 目录下，model 在 .../model/model.xml
-    即 case_path.parent.parent / "model" / "model.xml"
-    """
-    model_path = case_path.parent.parent / "model" / "model.xml"
-    return model_path
+def _resolve_case_path(input_path: Path) -> Path:
+    """智能解析用例路径"""
+    if input_path.is_file() and input_path.suffix == '.xml':
+        return input_path
+    if input_path.is_dir():
+        if input_path.name == 'case':
+            return input_path
+        case_dir = input_path / 'case'
+        if case_dir.is_dir():
+            return case_dir
+    return input_path
+
+
+def _resolve_module_dir(case_path: Path) -> Path:
+    """从 case 路径推导测试模块目录"""
+    if case_path.is_file():
+        return case_path.parent.parent
+    elif case_path.is_dir() and case_path.name == 'case':
+        return case_path.parent
+    return case_path
 
 
 def handle(args):
     verbose = getattr(args, "verbose", False)
     dry_run = getattr(args, "dry_run", False)
 
-    case_path = Path(args.case)
-    if not case_path.exists():
-        print(f"错误: 用例文件不存在: {args.case}", file=sys.stderr)
+    raw_path = Path(args.case)
+    if not raw_path.exists():
+        print(f"错误: 路径不存在: {args.case}", file=sys.stderr)
         return 1
 
-    if case_path.suffix.lower() not in (".xlsx", ".xls", ".xlsm"):
-        print(f"错误: 不支持的文件格式: {case_path.suffix}", file=sys.stderr)
-        return 1
+    case_path = _resolve_case_path(raw_path)
+    module_dir = _resolve_module_dir(case_path)
 
-    # 确定 model.xml 路径
     if args.model:
         model_path = Path(args.model)
     else:
-        model_path = _infer_model_path(case_path)
+        model_path = module_dir / "model" / "model.xml"
 
     if not model_path.exists():
         print(f"错误: 模型文件不存在: {model_path}", file=sys.stderr)
@@ -57,15 +67,14 @@ def handle(args):
         logging.basicConfig(level=logging.DEBUG)
         logger.setLevel(logging.DEBUG)
 
-    print(f"用例文件: {case_path}")
+    print(f"用例路径: {case_path}")
     print(f"模型文件: {model_path}")
     print(f"浏览器: {args.browser}")
 
-    # dry-run 模式：只解析不执行
     if dry_run:
         return _handle_dry_run(case_path, model_path, verbose)
 
-    return _handle_execute(case_path, model_path, args)
+    return _handle_execute(case_path, module_dir, args)
 
 
 def _handle_dry_run(case_path: Path, model_path: Path, verbose: bool) -> int:
@@ -88,12 +97,19 @@ def _handle_dry_run(case_path: Path, model_path: Path, verbose: bool) -> int:
 
     for i, case in enumerate(cases, 1):
         print(f"\n  用例 {i}: {case['case_id']} - {case['title']}")
-        for phase in ['pre_process', 'test_step', 'expected_result', 'post_process']:
-            action = case[phase].get('action', '')
-            if action:
-                model = case[phase].get('model', '')
-                data = case[phase].get('data', '')
-                print(f"    {phase}: action={action}, model={model}, data={data}")
+        for phase_name, steps_key in (
+            ('pre_process', 'pre_process'),
+            ('test_case', 'test_case'),
+            ('post_process', 'post_process'),
+        ):
+            steps = case.get(steps_key) or []
+            for j, step in enumerate(steps, 1):
+                action = step.get('action', '')
+                if not action:
+                    continue
+                model = step.get('model', '')
+                data = step.get('data', '')
+                print(f"    {phase_name}[{j}]: action={action}, model={model}, data={data}")
                 if verbose and model:
                     model_info = model_parser.get_model(model)
                     if model_info:
@@ -105,7 +121,7 @@ def _handle_dry_run(case_path: Path, model_path: Path, verbose: bool) -> int:
     return 0
 
 
-def _handle_execute(case_path: Path, model_path: Path, args) -> int:
+def _handle_execute(case_path: Path, module_dir: Path, args) -> int:
     """实际执行测试用例"""
     from core.ski_executor import SKIExecutor
     from drivers.playwright_driver import PlaywrightDriver
@@ -122,16 +138,15 @@ def _handle_execute(case_path: Path, model_path: Path, args) -> int:
     try:
         executor = SKIExecutor(
             str(case_path),
-            str(model_path),
             driver,
-            driver_factory=lambda: create_driver()
+            driver_factory=lambda: create_driver(),
+            module_dir=str(module_dir),
         )
 
         print("-" * 60)
         results = executor.execute_all_cases()
         print("-" * 60)
 
-        # 汇总结果
         total = len(results)
         passed = sum(1 for r in results if r.get('status', '').upper() == 'PASS')
         failed = total - passed
