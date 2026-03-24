@@ -1,5 +1,7 @@
 # RodSki 需求与用户文档梳理（2026-03-20）
 
+> **路径说明**：下文中的 `rodski/docs/...` 为历史路径；当前正式文档已迁移至仓库根目录 **`doc/requirements/`**、**`doc/design/`**、**`doc/user-guides/`**，见 [`doc/README.md`](../README.md)。
+
 ## 1. 梳理范围
 
 本次梳理覆盖 `rodski/` 目录下以下内容：
@@ -16,18 +18,18 @@
 ### 2.1 用户入门与使用
 
 - `rodski/README.md`：项目总览、安装、GUI/CLI 启动方式
-- `rodski/docs/QUICKSTART.md`：5 分钟上手
-- `rodski/docs/GUI_USAGE.md`：GUI 操作说明
-- `rodski/docs/TEST_CASE_WRITING_GUIDE.md`：Excel + model.xml 编写规范
-- `rodski/docs/REPORT_GUIDE.md`：报告生成、趋势分析、PDF 导出
+- `doc/user-guides/QUICKSTART.md`：5 分钟上手
+- `GUI_USAGE.md`（历史引用；若不存在则见 GUI 相关代码与 QUICKSTART）
+- `doc/user-guides/TEST_CASE_WRITING_GUIDE.md`：用例编写规范
+- `doc/user-guides/REPORT_GUIDE.md`：报告生成、趋势分析、PDF 导出
 
 ### 2.2 设计与实现说明
 
-- `rodski/docs/ARCHITECTURE.md`：总体架构、执行流程、关键类职责
-- `rodski/docs/CLI_DESIGN.md`：CLI 子命令与交互设计
-- `rodski/docs/json_support_design.md`：API JSON 数据支持设计
-- `rodski/docs/PARALLEL_EXECUTION.md`：并发执行能力说明
-- `rodski/docs/API_TESTING_GUIDE.md`：REST API 关键字与样例
+- `doc/design/ARCHITECTURE.md`：总体架构、执行流程、关键类职责
+- `doc/user-guides/CLI_DESIGN.md`：CLI 子命令与交互设计
+- `doc/design/json_support_design.md`：API JSON 数据支持设计
+- `doc/user-guides/PARALLEL_EXECUTION.md`：并发执行能力说明
+- `doc/user-guides/API_TESTING_GUIDE.md`：REST API 关键字与样例
 
 ---
 
@@ -138,7 +140,7 @@
 1. 统一 CLI 命令前缀（建议全部使用 `rodski`）
 2. 统一最低 Python 版本声明（README/CLI_DESIGN/安装说明同步）
 3. 输出一份单独 `CHANGELOG.md`，避免历史信息散落在各文档
-4. 为“需求基线”建立单一事实源（建议新增 `docs/REQUIREMENTS.md`）
+4. 为“需求基线”建立单一事实源（已实现 `doc/requirements/RODSKI_REQUIREMENTS.md`）
 5. 每次发布时执行“文档-代码一致性检查清单”
 
 ---

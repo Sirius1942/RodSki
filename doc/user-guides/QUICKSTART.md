@@ -104,12 +104,12 @@ PYTHONPATH=. python cli_main.py report --input logs/latest_results.json
 
 ## 7. 进阶学习
 
-- **用例编写规范**：`docs/TEST_CASE_WRITING_GUIDE.md`（最重要）
-- **API 测试**：`docs/API_TESTING_GUIDE.md`
-- **GUI 使用**：`docs/GUI_USAGE.md`
-- **架构说明**：`docs/ARCHITECTURE.md`
-- **故障排查**：`docs/TROUBLESHOOTING.md`
+- **用例编写规范**：[TEST_CASE_WRITING_GUIDE.md](TEST_CASE_WRITING_GUIDE.md)（最重要）
+- **API 测试**：[API_TESTING_GUIDE.md](API_TESTING_GUIDE.md)
+- **架构说明**：[../design/ARCHITECTURE.md](../design/ARCHITECTURE.md)
+- **GUI 使用**：[GUI_USAGE.md](GUI_USAGE.md)
+- **故障排查**：[TROUBLESHOOTING.md](TROUBLESHOOTING.md)
 
 ---
 
-**下一步**：阅读 `docs/TEST_CASE_WRITING_GUIDE.md` 了解完整的用例编写规范。
+**下一步**：阅读 [TEST_CASE_WRITING_GUIDE.md](TEST_CASE_WRITING_GUIDE.md) 了解完整的用例编写规范。

@@ -1,6 +1,6 @@
 # RodSki Agent 自动化测试设计（OpenClaw 等）
 
-**版本**: v1.0  
+**版本**: v1.1  
 **日期**: 2026-03-24  
 **适用范围**: OpenClaw / 通用 AI Agent 与 RodSki 集成
 
@@ -109,10 +109,10 @@
 
 Agent 首先学习：
 
-- `docs/核心设计约束.md`
-- `docs/TEST_CASE_WRITING_GUIDE.md`
-- `docs/CLI_DESIGN.md`
-- `docs/REPORT_GUIDE.md`
+- `doc/design/核心设计约束.md`
+- `doc/user-guides/TEST_CASE_WRITING_GUIDE.md`
+- `doc/user-guides/CLI_DESIGN.md`
+- `doc/user-guides/REPORT_GUIDE.md`
 
 并抽取以下知识图谱：
 
@@ -133,6 +133,51 @@ Agent 首先学习：
 - 规则 1：`verify` 失败且错误可重试 -> `insert(wait 0.5s + verify)`  
 - 规则 2：同 case 连续失败 >= N -> `pause` 并告警
 - 规则 3：步骤超时风险高 -> `terminate(force=true)`
+
+---
+
+## 5.4 用户视角双阶段工作流（定稿）
+
+为避免 Agent 直接“边跑边猜”导致不可控，RodSki 面向通用 AI Agent 采用两阶段闭环：
+
+### A. 测试任务设计阶段（Design Time）
+
+目标：根据测试任务设计要求，利用 Agent 自身探索能力生成并调试可执行用例。
+
+1. 读取任务目标与约束（业务流程、关键断言、优先级）
+2. 探索目标测试网站（页面结构、关键路径、异常分支）
+3. 依据 RodSki 规则生成 `case/model/data/globalvalue`
+4. 进行 dry-run 与小样本执行调试
+5. 产出可执行用例包与设计说明（覆盖点/边界/已知风险）
+
+### B. 测试执行与监控阶段（Run Time）
+
+目标：根据执行需求选择合适用例运行，并在失败时通过动态机制进行分诊与处置。
+
+1. 按执行目标选择用例集（冒烟/回归/模块）
+2. 执行并实时监控（步骤状态、日志、截图、结果）
+3. 失败触发动态机制（pause/insert/terminate）
+4. 判断失败属于“用例问题”还是“环境问题”（见 §5.5）
+5. 形成执行结论与后续动作（修用例/修环境/提产品缺陷）
+
+---
+
+## 5.5 动态机制中的问题分诊（规划）
+
+在动态用例机制中，Agent 不应只做“是否重试”的浅判断，而应输出标准化问题类型：
+
+- `CASE_DEFECT`：用例设计或数据定义问题
+- `ENV_DEFECT`：环境/依赖服务异常
+- `PRODUCT_DEFECT`：疑似产品缺陷
+- `UNKNOWN`：证据不足，待人工确认
+
+该分诊结果用于后续动作路由：
+
+- `CASE_DEFECT` -> 建议修复/重生用例
+- `ENV_DEFECT` -> 暂停/重试/切换环境
+- `PRODUCT_DEFECT` -> 保全证据并提缺陷
+
+> 说明：分诊能力可先规则化实现，后续接入多模态 LLM 增强（与《核心设计约束》后续条款保持一致）。
 
 ---
 
@@ -163,10 +208,10 @@ Agent 首先学习：
 
 ## 7. 文档目录建议（doc 信息架构）
 
-建议在 `rodski/docs/agent/` 下新增专题目录：
+建议在 `doc/agent/`（或 `doc/design/agent/`）下新增专题目录：
 
 ```text
-docs/agent/
+doc/agent/
 ├── AGENT_AUTOMATION_OVERVIEW.md      # 总览与术语
 ├── AGENT_CONTROL_PROTOCOL.md         # 命令协议与字段定义
 ├── AGENT_POLICY_AND_GUARDRAILS.md    # 安全策略、权限、风控
@@ -214,5 +259,5 @@ docs/agent/
 - 运行时控制：`core/runtime_control.py`
 - 执行器消费命令：`core/ski_executor.py`
 - demo：`rodski-demo/DEMO/demo_runtime_control/`
-- 现有约束：`docs/核心设计约束.md` 第 8 节
+- 现有约束：`doc/design/核心设计约束.md` 第 8 节
 

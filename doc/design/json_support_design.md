@@ -113,7 +113,7 @@ data = resolver.resolve_json("@file:api/login_request.json")
 - `api/rest_helper.py` - API 测试辅助工具
 - `tests/unit/test_json_support.py` - 单元测试
 - `examples/api_test/` - 使用示例
-- `docs/json_support_design.md` - 本设计文档
+- `doc/design/json_support_design.md` - 本设计文档
 
 ---
 **设计者**: 阿尔茜 (Arcee) 🏍️  

@@ -91,7 +91,7 @@ tail -f logs/ski_*.log
 
 ## 获取帮助
 
-1. 查看文档：`docs/`
+1. 查看文档：[doc/README.md](../README.md)（文档索引）
 2. 运行示例：`examples/`
 3. 查看测试：`tests/`
 4. 提交 Issue
