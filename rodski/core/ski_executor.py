@@ -78,16 +78,16 @@ class SKIExecutor:
             driver_factory: 驱动工厂函数（可选）
             module_dir: 测试模块目录路径（可选，自动推导）
         """
-        self.case_path = Path(case_path)
+        self.case_path = Path(case_path).expanduser().resolve()
         self.driver = driver
         self.driver_factory = driver_factory
         self._driver_closed = False
 
-        # 推导测试模块目录
+        # 推导测试模块目录（必须为绝对路径，否则 run/subprocess 与 DB 相对路径会错位）
         if module_dir:
-            self.module_dir = Path(module_dir)
+            self.module_dir = Path(module_dir).expanduser().resolve()
         else:
-            self.module_dir = resolve_module_dir(self.case_path)
+            self.module_dir = resolve_module_dir(self.case_path).resolve()
 
         # 标准子目录
         self.model_dir = self.module_dir / "model"
@@ -122,6 +122,7 @@ class SKIExecutor:
         # 初始化关键字引擎和数据解析器
         self.keyword_engine = KeywordEngine(
             driver,
+            self.data_dir,
             model_parser=self.model_parser,
             data_manager=self.data_manager,
             global_vars=self.global_vars,
@@ -153,6 +154,7 @@ class SKIExecutor:
 
                 self.keyword_engine = KeywordEngine(
                     self.driver,
+                    self.data_dir,
                     model_parser=self.model_parser,
                     data_manager=self.data_manager,
                     global_vars=self.global_vars,
