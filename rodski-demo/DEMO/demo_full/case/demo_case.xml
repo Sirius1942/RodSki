@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+    <!-- TC001: Web登录测试 -->
+    <case execute="是" id="TC001" title="Web登录测试" component_type="界面">
+        <test_case>
+            <test_step action="navigate" model="" data="http://localhost:8000"/>
+            <test_step action="type" model="LoginForm" data="L001"/>
+        </test_case>
+    </case>
+
+    <!-- TC002: Web看板验证 -->
+    <case execute="是" id="TC002" title="看板数据验证" component_type="界面">
+        <pre_process>
+            <test_step action="navigate" model="" data="http://localhost:8000"/>
+            <test_step action="type" model="LoginForm" data="L001"/>
+        </pre_process>
+        <test_case>
+            <test_step action="verify" model="Dashboard" data="V001"/>
+        </test_case>
+    </case>
+
+    <!-- TC003: Web表单操作 -->
+    <case execute="是" id="TC003" title="功能测试页操作" component_type="界面">
+        <pre_process>
+            <test_step action="navigate" model="" data="http://localhost:8000"/>
+            <test_step action="type" model="LoginForm" data="L001"/>
+            <test_step action="type" model="NavMenu" data="N001"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="TestForm" data="T001"/>
+            <test_step action="verify" model="TestForm" data="V001"/>
+        </test_case>
+    </case>
+    <!-- TC004: API登录接口 -->
+    <case execute="是" id="TC004" title="API登录接口测试" component_type="接口">
+        <test_case>
+            <test_step action="send" model="LoginAPI" data="D001"/>
+            <test_step action="verify" model="LoginAPI" data="V001"/>
+        </test_case>
+    </case>
+
+    <!-- TC005: API查询订单 -->
+    <case execute="是" id="TC005" title="API查询订单" component_type="接口">
+        <test_case>
+            <test_step action="send" model="OrderAPI" data="D001"/>
+            <test_step action="verify" model="OrderAPI" data="V001"/>
+        </test_case>
+    </case>
+
+    <!-- TC006: 数据库查询 -->
+    <case execute="是" id="TC006" title="数据库查询订单" component_type="数据库">
+        <test_case>
+            <test_step action="DB" model="demo_db" data="QuerySQL.Q001"/>
+        </test_case>
+    </case>
+
+    <!-- TC007: Python代码执行 -->
+    <case execute="是" id="TC007" title="代码生成测试数据" component_type="界面">
+        <test_case>
+            <test_step action="run" model="data_gen" data="gen_data.py"/>
+        </test_case>
+    </case>
+</cases>

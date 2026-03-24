@@ -1,0 +1,13 @@
+<?xml version="1.0" ?>
+<testresult>
+  <summary total="7" passed="7" failed="0" skipped="0" errors="0" pass_rate="100.0%" total_time="2.82s" average_time="0.40s" start_time="2026-03-24 09:29:14" end_time="2026-03-24 09:29:14"/>
+  <results>
+    <result case_id="TC001" title="Web登录测试" status="PASS" execution_time="0.787" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-03-24 09:29:14"/>
+    <result case_id="TC002" title="看板数据验证" status="PASS" execution_time="0.83" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-03-24 09:29:14"/>
+    <result case_id="TC003" title="功能测试页操作" status="PASS" execution_time="0.937" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-03-24 09:29:14"/>
+    <result case_id="TC004" title="API登录接口测试" status="PASS" execution_time="0.099" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-03-24 09:29:14"/>
+    <result case_id="TC005" title="API查询订单" status="PASS" execution_time="0.067" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-03-24 09:29:14"/>
+    <result case_id="TC006" title="数据库查询订单" status="PASS" execution_time="0.033" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-03-24 09:29:14"/>
+    <result case_id="TC007" title="代码生成测试数据" status="PASS" execution_time="0.068" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-03-24 09:29:14"/>
+  </results>
+</testresult>

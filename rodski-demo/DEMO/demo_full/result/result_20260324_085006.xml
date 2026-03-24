@@ -1,0 +1,11 @@
+<?xml version="1.0" ?>
+<testresult>
+  <summary total="3" passed="1" failed="2" skipped="0" errors="0" pass_rate="33.3%" total_time="4.13s" average_time="1.38s" start_time="2026-03-24 08:50:06" end_time="2026-03-24 08:50:06"/>
+  <results>
+    <result case_id="TC001" title="Web登录测试" status="PASS" execution_time="1.299" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-03-24 08:50:06"/>
+    <result case_id="TC002" title="看板数据验证" status="FAIL" execution_time="0.962" retries="0" start_time="" end_time="" error_type="" error_message="[SKI312] 关键字 'verify' 参数错误: data - 数据不存在: 表 'Dashboard_verify' 中找不到 DataID='V001'
+  keyword: verify" screenshot_path="screenshots/TC002_20260324_085004_failure.png" updated_at="2026-03-24 08:50:06"/>
+    <result case_id="TC003" title="功能测试页操作" status="FAIL" execution_time="1.865" retries="0" start_time="" end_time="" error_type="" error_message="[SKI312] 关键字 'verify' 参数错误: data - 数据不存在: 表 'TestForm_verify' 中找不到 DataID='V001'
+  keyword: verify" screenshot_path="screenshots/TC003_20260324_085006_failure.png" updated_at="2026-03-24 08:50:06"/>
+  </results>
+</testresult>

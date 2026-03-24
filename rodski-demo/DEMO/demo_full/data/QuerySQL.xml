@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datatable name="QuerySQL">
+    <row id="Q001">
+        <field name="sql">SELECT order_no, customer_name, total_amount FROM orders LIMIT 3</field>
+    </row>
+</datatable>

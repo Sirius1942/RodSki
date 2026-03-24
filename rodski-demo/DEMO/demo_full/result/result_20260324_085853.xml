@@ -1,0 +1,17 @@
+<?xml version="1.0" ?>
+<testresult>
+  <summary total="7" passed="3" failed="4" skipped="0" errors="0" pass_rate="42.9%" total_time="5.07s" average_time="0.72s" start_time="2026-03-24 08:58:53" end_time="2026-03-24 08:58:53"/>
+  <results>
+    <result case_id="TC001" title="Web登录测试" status="PASS" execution_time="1.272" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-03-24 08:58:53"/>
+    <result case_id="TC002" title="看板数据验证" status="PASS" execution_time="0.986" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-03-24 08:58:53"/>
+    <result case_id="TC003" title="功能测试页操作" status="PASS" execution_time="2.039" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-03-24 08:58:53"/>
+    <result case_id="TC004" title="API登录接口测试" status="FAIL" execution_time="0.166" retries="0" start_time="" end_time="" error_type="" error_message="[SKI313] 关键字 'send' 重试 1 次后仍失败: No module named 'jsonschema'
+  keyword: send" screenshot_path="screenshots/TC004_20260324_085852_failure.png" updated_at="2026-03-24 08:58:53"/>
+    <result case_id="TC005" title="API查询订单" status="FAIL" execution_time="0.164" retries="0" start_time="" end_time="" error_type="" error_message="[SKI313] 关键字 'send' 重试 1 次后仍失败: No module named 'jsonschema'
+  keyword: send" screenshot_path="screenshots/TC005_20260324_085852_failure.png" updated_at="2026-03-24 08:58:53"/>
+    <result case_id="TC006" title="数据库查询订单" status="FAIL" execution_time="0.17" retries="0" start_time="" end_time="" error_type="" error_message="[SKI313] 关键字 'DB' 重试 1 次后仍失败: [SKI302] SQL 执行失败: no such table: orders
+  keyword: DB" screenshot_path="screenshots/TC006_20260324_085852_failure.png" updated_at="2026-03-24 08:58:53"/>
+    <result case_id="TC007" title="代码生成测试数据" status="FAIL" execution_time="0.277" retries="0" start_time="" end_time="" error_type="" error_message="[SKI313] 关键字 'run' 重试 1 次后仍失败: [SKI302] 代码执行失败: /Applications/Xcode.app/Contents/Developer/usr/bin/python3: can't open file '/Users/sirius05/Documents/project/RodSki/product/DEMO/demo_full/fun/data_gen/../product/DEMO/demo_full/fun/data_gen/gen_data.py': [Errno 2] No such file or directory
+  keyword: run" screenshot_path="screenshots/TC007_20260324_085853_failure.png" updated_at="2026-03-24 08:58:53"/>
+  </results>
+</testresult>

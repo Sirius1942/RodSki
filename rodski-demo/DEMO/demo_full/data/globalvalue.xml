@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<globalvalue>
+    <group name="env">
+        <var name="base_url" value="http://localhost:8000"/>
+        <var name="api_base" value="http://localhost:8000/api"/>
+    </group>
+    <group name="demo_db">
+        <var name="type" value="sqlite"/>
+        <!-- 相对测试模块目录，也可用绝对路径 -->
+        <var name="database" value="demo.db"/>
+    </group>
+</globalvalue>
