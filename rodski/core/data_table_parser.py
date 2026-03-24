@@ -85,5 +85,11 @@ class DataTableParser:
             self.load_single_table(table_name)
         return self.tables.get(table_name, {}).get(data_id, {})
 
+    def merge_table(self, table_name: str, rows: Dict[str, Dict[str, Any]]) -> None:
+        """合并或覆盖整张数据表（如 insert 附带的临时 datatable）。"""
+        if table_name not in self.tables:
+            self.tables[table_name] = {}
+        self.tables[table_name].update(rows)
+
     def close(self):
         pass
