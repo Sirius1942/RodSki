@@ -13,7 +13,7 @@
 
 ## 快速开始
 
-📖 **[5分钟快速入门指南](../doc/user-guides/QUICKSTART.md)** - 新手必读！
+📖 **[5分钟快速入门指南](docs/user-guides/QUICKSTART.md)** - 新手必读！
 
 ### 安装
 

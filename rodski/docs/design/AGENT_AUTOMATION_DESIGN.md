@@ -109,10 +109,10 @@
 
 Agent 首先学习：
 
-- `doc/design/核心设计约束.md`
-- `doc/user-guides/TEST_CASE_WRITING_GUIDE.md`
-- `doc/user-guides/CLI_DESIGN.md`
-- `doc/user-guides/REPORT_GUIDE.md`
+- `核心设计约束.md`
+- `../user-guides/TEST_CASE_WRITING_GUIDE.md`
+- `../user-guides/CLI_DESIGN.md`
+- `../user-guides/REPORT_GUIDE.md`
 
 并抽取以下知识图谱：
 
@@ -206,12 +206,12 @@ Agent 首先学习：
 
 ---
 
-## 7. 文档目录建议（doc 信息架构）
+## 7. 文档目录建议（信息架构）
 
-建议在 `doc/agent/`（或 `doc/design/agent/`）下新增专题目录：
+建议在 `rodski/docs/design/agent/`（或同级专题目录）下新增：
 
 ```text
-doc/agent/
+design/agent/
 ├── AGENT_AUTOMATION_OVERVIEW.md      # 总览与术语
 ├── AGENT_CONTROL_PROTOCOL.md         # 命令协议与字段定义
 ├── AGENT_POLICY_AND_GUARDRAILS.md    # 安全策略、权限、风控
@@ -259,5 +259,5 @@ doc/agent/
 - 运行时控制：`core/runtime_control.py`
 - 执行器消费命令：`core/ski_executor.py`
 - demo：`rodski-demo/DEMO/demo_runtime_control/`
-- 现有约束：`doc/design/核心设计约束.md` 第 8 节
+- 现有约束：`核心设计约束.md` 第 8 节
 

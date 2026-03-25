@@ -58,7 +58,7 @@ rodski/
 ├── ui/             # GUI 界面
 ├── utils/          # 工具函数
 ├── tests/          # 测试用例
-├── doc/            # 正式文档（requirements / design / user-guides）
+├── docs/           # 正式文档（requirements / design / user-guides），见 rodski/docs/README.md
 └── examples/       # 示例
 ```
 
