@@ -103,6 +103,13 @@ class ModelParser:
         """获取整个模型的所有元素"""
         return self.models.get(model_name)
 
+    def merge_models(self, models: Dict[str, Dict[str, Dict[str, str]]]) -> None:
+        """合并运行时注入的模型（如 insert 附带的临时 model 片段）。"""
+        for model_name, elements in models.items():
+            if model_name not in self.models:
+                self.models[model_name] = {}
+            self.models[model_name].update(elements)
+
     def get_model_driver_type(self, model_name: str) -> str:
         """获取模型的主要驱动类型（取第一个元素的 driver_type）"""
         model = self.models.get(model_name)

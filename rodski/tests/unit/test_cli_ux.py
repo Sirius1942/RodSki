@@ -170,7 +170,7 @@ class TestCLIBackwardCompatibility:
     def test_version_still_works(self):
         r = run_cli("--version")
         assert r.returncode == 0
-        assert "1.0.0" in r.stdout
+        assert "2.0.1" in r.stdout
 
     def test_no_args_still_works(self):
         r = run_cli()

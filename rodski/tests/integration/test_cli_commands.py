@@ -29,7 +29,7 @@ class TestCLIHelp:
     def test_version(self):
         r = run_cli("--version")
         assert r.returncode == 0
-        assert "1.0.0" in r.stdout
+        assert "2.0.1" in r.stdout
 
     def test_no_args(self):
         r = run_cli()

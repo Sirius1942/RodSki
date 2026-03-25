@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datatable name="NavMenu">
+    <row id="N001">
+        <field name="testLink">click</field>
+    </row>
+</datatable>

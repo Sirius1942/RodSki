@@ -1,4 +1,27 @@
-"""模型管理 - 页面对象模型的加载、保存、查询、验证"""
+"""模型管理 - 页面对象模型的加载、保存、查询、验证
+
+本模块提供基于 JSON 的页面对象模型（POM）管理功能，用于简单场景下的元素定位信息存储。
+
+**与 XML 模型体系的关系**：
+- 本模块是轻量级的 JSON 模型管理器，适用于简单的元素定位场景
+- core/model_parser.py 提供完整的 XML 模型解析能力，支持复杂的模型定义、继承、变量替换等高级特性
+- 两者互不依赖，可根据项目需求选择使用
+
+**适用场景**：
+- 简单的页面元素定位信息存储（JSON 格式）
+- 快速原型开发或小型项目
+- 不需要模型继承、变量替换等高级特性的场景
+
+**不适用场景**：
+- 需要使用 XML 模型的复杂项目（请使用 core/model_parser.py）
+- 需要模型继承、变量替换、条件判断等高级特性
+- 需要与现有 XML 模型体系集成的项目
+
+**使用示例**：
+    manager = ModelManager("models")
+    manager.register("login_page", {"elements": {"username": "//input[@id='user']"}})
+    locator = manager.get("login_page", "username")
+"""
 import json
 from typing import Dict, Any, Optional, List
 from pathlib import Path

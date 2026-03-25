@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datatable name="User_verify">
+    <row id="V001">
+        <field name="userMessage">用户添加成功</field>
+    </row>
+</datatable>

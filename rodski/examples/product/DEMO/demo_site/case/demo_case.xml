@@ -11,7 +11,7 @@
     </pre_process>
     <test_case>
       <test_step action="type" model="Login" data="L001"/>
-      <test_step action="verify" model="Login" data="V001"/>
+      <test_step action="verify" model="HomePage" data="V001"/>
     </test_case>
     <post_process>
       <test_step action="close" model="" data=""/>
@@ -24,7 +24,7 @@
     </pre_process>
     <test_case>
       <test_step action="type" model="Login" data="L002"/>
-      <test_step action="verify" model="Login" data="V002"/>
+      <test_step action="verify" model="HomePage" data="V002"/>
     </test_case>
     <post_process>
       <test_step action="close" model="" data=""/>

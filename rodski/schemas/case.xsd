@@ -19,6 +19,7 @@
       <xs:sequence>
         <xs:element name="case" type="CaseType" minOccurs="0" maxOccurs="unbounded"/>
       </xs:sequence>
+      <xs:attribute name="step_wait" type="xs:string" use="optional"/>
     </xs:complexType>
   </xs:element>
 

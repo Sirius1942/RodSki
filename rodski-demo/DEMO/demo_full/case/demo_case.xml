@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases step_wait="500">
+    <!-- TC001: Web登录测试 -->
+    <case execute="是" id="TC001" title="Web登录测试" component_type="界面">
+        <test_case>
+            <test_step action="navigate" model="" data="http://localhost:8000"/>
+            <test_step action="type" model="LoginForm" data="L001"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <!-- TC002: Web看板验证 -->
+    <case execute="是" id="TC002" title="看板数据验证" component_type="界面">
+        <pre_process>
+            <test_step action="navigate" model="" data="http://localhost:8000"/>
+            <test_step action="type" model="LoginForm" data="L001"/>
+        </pre_process>
+        <test_case>
+            <test_step action="verify" model="Dashboard" data="V001"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <!-- TC003: Web表单操作 -->
+    <case execute="是" id="TC003" title="功能测试页操作" component_type="界面">
+        <pre_process>
+            <test_step action="navigate" model="" data="http://localhost:8000"/>
+            <test_step action="type" model="LoginForm" data="L001"/>
+            <test_step action="type" model="NavMenu" data="N001"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="TestForm" data="T001"/>
+            <test_step action="verify" model="TestForm" data="V001"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+    <!-- TC004: API登录接口 -->
+    <case execute="是" id="TC004" title="API登录接口测试" component_type="接口">
+        <test_case>
+            <test_step action="send" model="LoginAPI" data="D001"/>
+            <test_step action="verify" model="LoginAPI" data="V001"/>
+        </test_case>
+    </case>
+
+    <!-- TC005: API查询订单 -->
+    <case execute="是" id="TC005" title="API查询订单" component_type="接口">
+        <test_case>
+            <test_step action="send" model="OrderAPI" data="D001"/>
+            <test_step action="verify" model="OrderAPI" data="V001"/>
+        </test_case>
+    </case>
+
+    <!-- TC006: 数据库查询 -->
+    <case execute="是" id="TC006" title="数据库查询订单" component_type="数据库">
+        <test_case>
+            <test_step action="DB" model="demo_db" data="QuerySQL.Q001"/>
+            <test_step action="DB" model="demo_db" data="QuerySQL.Q002"/>
+        </test_case>
+    </case>
+
+    <!-- TC007: Python代码执行 -->
+    <case execute="是" id="TC007" title="代码生成测试数据" component_type="界面">
+        <test_case>
+            <test_step action="run" model="data_gen" data="gen_data.py"/>
+        </test_case>
+    </case>
+
+    <!-- TC008: UI动作关键字测试 -->
+    <case execute="是" id="TC008" title="UI动作关键字测试" component_type="界面">
+        <pre_process>
+            <test_step action="navigate" model="" data="http://localhost:8000"/>
+            <test_step action="type" model="LoginForm" data="L001"/>
+            <test_step action="type" model="NavMenu" data="N001"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="UIActions" data="A001"/>
+            <test_step action="verify" model="UIActions" data="V001"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <!-- TC009: Return引用测试 -->
+    <case execute="是" id="TC009" title="Return引用测试" component_type="界面">
+        <pre_process>
+            <test_step action="navigate" model="" data="http://localhost:8000"/>
+            <test_step action="type" model="LoginForm" data="L001"/>
+            <test_step action="type" model="NavMenu" data="N001"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="ReturnTest" data="R001"/>
+            <test_step action="get_text" model="" data="#username"/>
+            <test_step action="verify" model="ReturnTest" data="V001"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <!-- TC010: set变量测试 -->
+    <case execute="否" id="TC010" title="set变量测试" component_type="界面">
+        <test_case>
+            <test_step action="navigate" model="" data="about:blank"/>
+        </test_case>
+    </case>
+</cases>

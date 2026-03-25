@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datatable name="QueryUser_verify">
+    <row id="V001">
+        <field name="username">admin</field>
+        <field name="role">admin</field>
+    </row>
+
+    <row id="V002">
+        <field name="total">3</field>
+    </row>
+</datatable>

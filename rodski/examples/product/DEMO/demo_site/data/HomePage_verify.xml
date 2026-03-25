@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  验证数据表：HomePage_verify（verify HomePage 时使用）
+  与 Login_verify 中界面断言一致，字段对应 HomePage 模型元素名
+-->
+<datatable name="HomePage_verify">
+  <row id="V001" remark="验证管理员登录成功">
+    <field name="welcome_text">欢迎, admin</field>
+  </row>
+
+  <row id="V002" remark="验证普通用户登录成功">
+    <field name="welcome_text">欢迎, testuser</field>
+  </row>
+</datatable>

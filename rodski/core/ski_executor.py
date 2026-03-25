@@ -17,9 +17,11 @@ v3.0+: 基于 XML 用例文件和目录结构，替代原 Excel 单文件模式�
 """
 import logging
 import time
+import copy
+from collections import deque
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, Optional, Callable, List
+from typing import Dict, Any, Optional, Callable, List, Deque
 from core.model_parser import ModelParser
 from core.data_table_parser import DataTableParser
 from core.global_value_parser import GlobalValueParser
@@ -31,6 +33,11 @@ from core.keyword_engine import KeywordEngine
 from drivers.base_driver import BaseDriver
 
 from core.exceptions import DriverStoppedError, is_critical_error
+from core.runtime_control import (
+    BaseRuntimeControl,
+    GracefulRunTermination,
+    ForceRunTermination,
+)
 
 logger = logging.getLogger("rodski")
 
@@ -68,6 +75,7 @@ class SKIExecutor:
         config: Optional[ConfigManager] = None,
         driver_factory: Optional[Callable[[], BaseDriver]] = None,
         module_dir: Optional[str] = None,
+        runtime_control: Optional[BaseRuntimeControl] = None,
     ):
         """初始化 SKI 执行器
 
@@ -77,17 +85,18 @@ class SKIExecutor:
             config: 配置管理器实例（可选）
             driver_factory: 驱动工厂函数（可选）
             module_dir: 测试模块目录路径（可选，自动推导）
+            runtime_control: 运行时控制队列（暂停/插入/终止）；默认无操作
         """
-        self.case_path = Path(case_path)
+        self.case_path = Path(case_path).expanduser().resolve()
         self.driver = driver
         self.driver_factory = driver_factory
         self._driver_closed = False
 
-        # 推导测试模块目录
+        # 推导测试模块目录（必须为绝对路径，否则 run/subprocess 与 DB 相对路径会错位）
         if module_dir:
-            self.module_dir = Path(module_dir)
+            self.module_dir = Path(module_dir).expanduser().resolve()
         else:
-            self.module_dir = resolve_module_dir(self.case_path)
+            self.module_dir = resolve_module_dir(self.case_path).resolve()
 
         # 标准子目录
         self.model_dir = self.module_dir / "model"
@@ -102,7 +111,8 @@ class SKIExecutor:
         # 加载配置
         self.config = config or ConfigManager()
         self.auto_screenshot = self.config.get("auto_screenshot_on_failure", True)
-        self.screenshot_dir = Path(self.config.get("screenshot_dir", "screenshots"))
+        self.auto_screenshot_on_step = self.config.get("auto_screenshot_on_step", True)
+        self._screenshot_dir_base = Path(self.config.get("screenshot_dir", "screenshots"))
 
         # 初始化解析器
         self.model_parser = ModelParser(str(self.model_file)) if self.model_file.exists() else None
@@ -122,6 +132,7 @@ class SKIExecutor:
         # 初始化关键字引擎和数据解析器
         self.keyword_engine = KeywordEngine(
             driver,
+            self.data_dir,
             model_parser=self.model_parser,
             data_manager=self.data_manager,
             global_vars=self.global_vars,
@@ -139,9 +150,8 @@ class SKIExecutor:
         # 初始化结果写入器
         self.result_writer = ResultWriter(str(self.result_dir))
 
-        # 确保截图目录存在
-        if self.auto_screenshot:
-            self.screenshot_dir.mkdir(parents=True, exist_ok=True)
+        self.runtime_control: BaseRuntimeControl = runtime_control or BaseRuntimeControl()
+        self._runtime_stopped_graceful = False
 
     def _ensure_driver_alive(self) -> None:
         """确保驱动可用，如果驱动已关闭则重新创建"""
@@ -153,6 +163,7 @@ class SKIExecutor:
 
                 self.keyword_engine = KeywordEngine(
                     self.driver,
+                    self.data_dir,
                     model_parser=self.model_parser,
                     data_manager=self.data_manager,
                     global_vars=self.global_vars,
@@ -175,6 +186,9 @@ class SKIExecutor:
         results = []
         case_count = 0
         total_cases = len(cases)
+
+        # 初始化结果目录（用于步骤截图）
+        self.result_writer._init_run_dir()
 
         for case in cases:
             case_count += 1
@@ -200,7 +214,13 @@ class SKIExecutor:
                 result = self.execute_case(case)
                 results.append(result)
 
-                status = "✅ PASS" if result['status'] == 'PASS' else "❌ FAIL"
+                st = result.get('status', '').upper()
+                if st == 'PASS':
+                    status = "✅ PASS"
+                elif st == 'SKIP':
+                    status = "⏹️ SKIP"
+                else:
+                    status = "❌ FAIL"
                 print(f"   {status} ({result['execution_time']}s)")
                 if result.get('error'):
                     print(f"   错误: {result['error']}")
@@ -229,87 +249,185 @@ class SKIExecutor:
         """
         start = time.time()
         screenshot_path = None
+        resources_snapshot = self._snapshot_runtime_resources()
 
-        self._current_case_id = case['case_id']
-        self._step_index = 0
+        # 保存当前 case 的 step_wait 配置（优先级高于全局配置）
+        self._current_case_step_wait = case.get('step_wait')
 
-        err: Optional[Exception] = None
-
-        def _merge_error(e: Exception) -> None:
-            nonlocal err
-            if err is None:
-                err = e
-            else:
-                err = Exception(f"{err}; {e}")
-
-        pre_steps: List[Dict[str, str]] = case.get('pre_process') or []
-        test_steps: List[Dict[str, str]] = case.get('test_case') or []
-        post_steps: List[Dict[str, str]] = case.get('post_process') or []
-
-        # 预处理
         try:
-            self._run_steps(pre_steps, '预处理')
-        except Exception as e:
-            logger.error(f"预处理失败: {e}")
-            print(f"   ❌ 预处理错误: {e}")
-            _merge_error(e)
+            self._current_case_id = case['case_id']
+            self._step_index = 0
+            self._runtime_stopped_graceful = False
 
-        # 用例阶段（仅当预处理未失败时执行）
-        if err is None:
+            err: Optional[Exception] = None
+
+            def _merge_error(e: Exception) -> None:
+                nonlocal err
+                if err is None:
+                    err = e
+                else:
+                    err = Exception(f"{err}; {e}")
+
+            pre_steps: List[Dict[str, str]] = case.get('pre_process') or []
+            test_steps: List[Dict[str, str]] = case.get('test_case') or []
+            post_steps: List[Dict[str, str]] = case.get('post_process') or []
+
+            # 预处理
             try:
-                self._run_steps(test_steps, '用例')
+                self._run_steps(pre_steps, '预处理')
+            except ForceRunTermination as e:
+                return self._case_result_force_terminated(case, start, e)
             except Exception as e:
-                logger.error(f"用例阶段失败: {e}")
-                print(f"   ❌ 用例错误: {e}")
+                logger.error(f"预处理失败: {e}")
+                print(f"   ❌ 预处理错误: {e}")
                 _merge_error(e)
 
-        # 后处理：无论预处理/用例是否失败均执行
-        try:
-            self._run_steps(post_steps, '后处理')
-        except Exception as e:
-            logger.error(f"后处理失败: {e}")
-            print(f"   ❌ 后处理错误: {e}")
-            _merge_error(e)
+            # 用例阶段（仅当预处理未失败且未优雅终止时执行）
+            if err is None and not self._runtime_stopped_graceful:
+                try:
+                    self._run_steps(test_steps, '用例')
+                except ForceRunTermination as e:
+                    return self._case_result_force_terminated(case, start, e)
+                except Exception as e:
+                    logger.error(f"用例阶段失败: {e}")
+                    print(f"   ❌ 用例错误: {e}")
+                    _merge_error(e)
 
-        if err is not None:
-            if self.auto_screenshot and not self._driver_closed:
-                screenshot_path = self._take_failure_screenshot(case['case_id'])
+            # 后处理：无论预处理/用例是否失败均执行（除非强制终止已返回）
+            try:
+                self._run_steps(post_steps, '后处理')
+            except ForceRunTermination as e:
+                return self._case_result_force_terminated(case, start, e)
+            except Exception as e:
+                logger.error(f"后处理失败: {e}")
+                print(f"   ❌ 后处理错误: {e}")
+                _merge_error(e)
+
+            if err is not None:
+                # 只有界面类型的用例失败时才截图
+                component_type = case.get('component_type', '界面')
+                if self.auto_screenshot and not self._driver_closed and component_type == '界面':
+                    screenshot_path = self._take_failure_screenshot(case['case_id'])
+                return {
+                    'case_id': case['case_id'],
+                    'title': case.get('title', ''),
+                    'status': 'FAIL',
+                    'execution_time': round(time.time() - start, 3),
+                    'error': str(err),
+                    'screenshot_path': screenshot_path or '',
+                }
+
+            if self._runtime_stopped_graceful:
+                return {
+                    'case_id': case['case_id'],
+                    'title': case.get('title', ''),
+                    'status': 'SKIP',
+                    'execution_time': round(time.time() - start, 3),
+                    'error': 'runtime terminate (graceful)',
+                    'screenshot_path': '',
+                }
+
             return {
                 'case_id': case['case_id'],
                 'title': case.get('title', ''),
-                'status': 'FAIL',
+                'status': 'PASS',
                 'execution_time': round(time.time() - start, 3),
-                'error': str(err),
-                'screenshot_path': screenshot_path or '',
             }
+        finally:
+            self._restore_runtime_resources(resources_snapshot)
 
+    def _case_result_force_terminated(
+        self, case: Dict[str, Any], start: float, exc: ForceRunTermination
+    ) -> Dict[str, Any]:
+        screenshot_path = None
+        component_type = case.get('component_type', '界面')
+        if self.auto_screenshot and not self._driver_closed and component_type == '界面':
+            screenshot_path = self._take_failure_screenshot(case['case_id'])
         return {
             'case_id': case['case_id'],
             'title': case.get('title', ''),
-            'status': 'PASS',
+            'status': 'FAIL',
             'execution_time': round(time.time() - start, 3),
+            'error': str(exc),
+            'screenshot_path': screenshot_path or '',
         }
 
+    def apply_insert_resources(
+        self,
+        temp_models: Optional[Dict[str, Dict[str, Dict[str, str]]]],
+        temp_tables: Optional[Dict[str, Dict[str, Dict[str, Any]]]],
+    ) -> None:
+        """为 insert 步骤注册临时模型与数据表（与正式资源同一解析结构）。"""
+        if temp_models and self.model_parser:
+            self.model_parser.merge_models(temp_models)
+        if temp_tables:
+            for name, rows in temp_tables.items():
+                self.data_manager.merge_table(name, rows)
+
+    def _drain_runtime_at_boundary(self, dq: Deque[Dict[str, str]]) -> bool:
+        """在步骤边界处理控制队列。若优雅终止返回 True（调用方应结束本阶段）。"""
+        try:
+            self.runtime_control.drain_at_boundary(self, dq)
+        except GracefulRunTermination:
+            self._runtime_stopped_graceful = True
+            return True
+        except ForceRunTermination:
+            raise
+        return False
+
+    def _snapshot_runtime_resources(self) -> Dict[str, Any]:
+        """保存当前 case 执行前资源快照，确保临时资源只在当前 case 生效。"""
+        return {
+            'models': copy.deepcopy(self.model_parser.models) if self.model_parser else None,
+            'tables': copy.deepcopy(self.data_manager.tables),
+        }
+
+    def _restore_runtime_resources(self, snapshot: Dict[str, Any]) -> None:
+        if self.model_parser and snapshot.get('models') is not None:
+            self.model_parser.models = snapshot['models']
+        self.data_manager.tables = snapshot.get('tables', {})
+
     def _run_steps(self, steps: List[Dict[str, str]], phase_label: str) -> None:
-        """顺序执行某阶段内全部 test_step。"""
-        n = len(steps)
-        for i, step in enumerate(steps, 1):
-            if not step.get('action'):
+        """顺序执行某阶段内全部 test_step；支持运行时 insert 扩展队列。"""
+        dq = deque([s for s in steps if s.get('action')])
+        self._phase_runtime_seq = 0
+        while dq:
+            if self._drain_runtime_at_boundary(dq):
+                return
+
+            # 暂停状态下仍需周期性处理控制队列（resume/force_terminate），避免死锁
+            while not self.runtime_control.wait_unpaused(timeout=0.1):
+                if self._drain_runtime_at_boundary(dq):
+                    return
+
+            if self._drain_runtime_at_boundary(dq):
+                return
+            if not dq:
                 continue
-            print(f"   📌 {phase_label} [{i}/{n}]: {step['action']}")
+            step = dq.popleft()
+            self._phase_runtime_seq += 1
+            print(f"   📌 {phase_label} [{self._phase_runtime_seq}]: {step['action']}")
             self.execute_step(step, phase_label)
+            if self._drain_runtime_at_boundary(dq):
+                return
 
     def _take_failure_screenshot(self, case_id: str) -> Optional[str]:
         """在用例失败时自动截图"""
         try:
+            if not self.result_writer.current_run_dir:
+                return None
+
+            screenshot_dir = self.result_writer.current_run_dir / "screenshots"
+            screenshot_dir.mkdir(parents=True, exist_ok=True)
+
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"{case_id}_{timestamp}_failure.png"
-            screenshot_path = self.screenshot_dir / filename
+            screenshot_path = screenshot_dir / filename
 
             success = self.driver.screenshot(str(screenshot_path))
             if success:
                 logger.info(f"失败截图已保存: {screenshot_path}")
-                return str(screenshot_path)
+                return f"screenshots/{filename}"
             else:
                 logger.warning(f"截图失败: {screenshot_path}")
                 return None
@@ -340,21 +458,37 @@ class SKIExecutor:
             self.driver = self.keyword_engine.driver
             self._driver_closed = False
 
-        if not self._driver_closed and action.lower() not in ('close', 'wait', 'DB'):
+        if self.auto_screenshot_on_step and not self._driver_closed and action.lower() not in ('close', 'wait', 'DB'):
             self._auto_screenshot(step_type)
 
-        if self.default_wait_time > 0 and action.lower() not in ('wait', 'close'):
-            logger.debug(f"默认等待 {self.default_wait_time}s")
-            time.sleep(self.default_wait_time)
+        # 步骤等待：优先使用 case 级别的 step_wait，否则使用全局 default_wait_time
+        wait_time = 0.0
+        if hasattr(self, '_current_case_step_wait') and self._current_case_step_wait:
+            try:
+                wait_time = float(self._current_case_step_wait) / 1000.0  # 毫秒转秒
+            except (ValueError, TypeError):
+                wait_time = self.default_wait_time
+        else:
+            wait_time = self.default_wait_time
+
+        if wait_time > 0 and action.lower() not in ('wait', 'close'):
+            logger.debug(f"步骤等待 {wait_time}s")
+            time.sleep(wait_time)
 
     def _auto_screenshot(self, step_type: str) -> None:
         """步骤执行后自动截图"""
         try:
+            if not self.result_writer.current_run_dir:
+                return
+
+            screenshot_dir = self.result_writer.current_run_dir / "screenshots"
+            screenshot_dir.mkdir(parents=True, exist_ok=True)
+
             self._step_index = getattr(self, '_step_index', 0) + 1
             case_id = getattr(self, '_current_case_id', 'unknown')
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"{case_id}_{self._step_index:02d}_{step_type}_{timestamp}.png"
-            path = self.screenshot_dir / filename
+            path = screenshot_dir / filename
             self.driver.screenshot(str(path))
             logger.debug(f"步骤截图: {path}")
         except Exception as e:

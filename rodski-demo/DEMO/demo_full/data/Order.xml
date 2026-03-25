@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datatable name="Order">
+    <row id="O001">
+        <field name="customerName">赵六</field>
+        <field name="customerPhone">13600136000</field>
+        <field name="productName">智能手表</field>
+        <field name="quantity">2</field>
+        <field name="price">1999</field>
+        <field name="orderNote">请尽快发货</field>
+    </row>
+</datatable>
