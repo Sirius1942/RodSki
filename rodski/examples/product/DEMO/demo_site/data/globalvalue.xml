@@ -14,6 +14,6 @@
 
   <group name="demodb">
     <var name="type" value="sqlite"/>
-    <var name="database" value="product/DEMO/demo_site/demo.db"/>
+    <var name="database" value="examples/product/DEMO/demo_site/demo.db"/>
   </group>
 </globalvalue>

@@ -62,7 +62,7 @@ class KeywordEngine:
         self._driver_factory = driver_factory
         self._variables: Dict[str, Any] = {}
         self._return_values: list = []
-        self.data_parser = DataParser(data_dir, self)
+        self.data_parser = DataParser(data_dir, self)  # DEPRECATED: 遗留 Excel 解析，XML 模式使用 data_resolver
         self.model_parser = model_parser
         self.data_manager = data_manager
         self.data_resolver = data_resolver
@@ -838,14 +838,20 @@ class KeywordEngine:
                 reason="run 需要知道测试模块目录以定位 fun/ 目录"
             )
 
-        base_dir = self._module_dir or self._case_file.parent.parent
+        base_dir = self._module_dir or (self._case_file.parent.parent if self._case_file else None)
+        if base_dir is None:
+            raise InvalidParameterError(
+                keyword="run", param_name="context",
+                reason="run 需要知道测试模块目录以定位 fun/ 目录"
+            )
+        base_dir = Path(base_dir).resolve()
         fun_dir = base_dir / "fun"
         if project_name:
-            project_dir = fun_dir / project_name
-            script_path = project_dir / code_path
+            project_dir = (fun_dir / project_name).resolve()
+            script_path = (project_dir / code_path).resolve()
         else:
-            project_dir = fun_dir
-            script_path = fun_dir / code_path
+            project_dir = fun_dir.resolve()
+            script_path = (fun_dir / code_path).resolve()
 
         if not script_path.exists():
             raise InvalidParameterError(
@@ -859,7 +865,7 @@ class KeywordEngine:
             result = subprocess.run(
                 [sys.executable, str(script_path)],
                 capture_output=True, text=True,
-                cwd=str(project_dir),
+                cwd=str(project_dir.resolve()),
                 timeout=300,
             )
         except subprocess.TimeoutExpired:
@@ -987,6 +993,20 @@ class KeywordEngine:
 
     # ── 数据库连接管理 ──────────────────────────────────────────
 
+    def _resolve_db_file_path(self, database: str) -> str:
+        """将 SQLite 的 database 相对路径解析为绝对路径（相对测试模块目录）。"""
+        if not database:
+            return database
+        p = Path(database)
+        if p.is_absolute():
+            return str(p)
+        base = self._module_dir
+        if base is None and self._case_file is not None:
+            base = self._case_file.parent.parent
+        if base is not None:
+            return str((Path(base) / database).resolve())
+        return str(p.resolve())
+
     def _get_db_connection(self, conn_var: str):
         """根据 GlobalValue 中的连接变量名获取/创建数据库连接
         
@@ -1029,6 +1049,9 @@ class KeywordEngine:
         database = config.get('database', '')
         username = config.get('username', '')
         password = config.get('password', '')
+
+        if db_type == 'sqlite' and database:
+            database = self._resolve_db_file_path(database)
 
         logger.info(f"建立数据库连接: {conn_var} ({db_type}://{host}/{database})")
 

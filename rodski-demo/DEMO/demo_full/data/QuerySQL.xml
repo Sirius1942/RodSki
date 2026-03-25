@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datatable name="QuerySQL">
+    <row id="Q001" remark="查询订单列表">
+        <field name="sql">SELECT order_no, customer_name, total_amount FROM orders LIMIT 3</field>
+        <field name="operation">query</field>
+    </row>
+    <row id="Q002" remark="查询单个订单">
+        <field name="sql">SELECT * FROM orders WHERE order_no = 'ORD001'</field>
+        <field name="operation">query</field>
+    </row>
+    <row id="Q003" remark="统计订单数量">
+        <field name="sql">SELECT COUNT(*) as total FROM orders</field>
+        <field name="operation">query</field>
+    </row>
+</datatable>

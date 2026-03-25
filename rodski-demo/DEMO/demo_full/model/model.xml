@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<models>
+<model name="LoginForm" servicename="">
+    <element name="username" type="web">
+        <type>input</type>
+        <location type="id">loginUsername</location>
+    </element>
+    <element name="password" type="web">
+        <type>input</type>
+        <location type="id">loginPassword</location>
+    </element>
+    <element name="loginBtn" type="web">
+        <type>button</type>
+        <location type="id">loginBtn</location>
+    </element>
+</model>
+
+<model name="Dashboard" servicename="">
+    <element name="totalOrders" type="web">
+        <type>text</type>
+        <location type="id">totalOrders</location>
+    </element>
+    <element name="completedOrders" type="web">
+        <type>text</type>
+        <location type="id">completedOrders</location>
+    </element>
+</model>
+
+<model name="NavMenu" servicename="">
+    <element name="testLink" type="web">
+        <type>link</type>
+        <location type="id">navTest</location>
+    </element>
+</model>
+
+<model name="TestForm" servicename="">
+    <element name="username" type="web">
+        <type>input</type>
+        <location type="id">username</location>
+    </element>
+    <element name="role" type="web">
+        <type>select</type>
+        <location type="id">role</location>
+    </element>
+    <element name="submitBtn" type="web">
+        <type>button</type>
+        <location type="id">submitBtn</location>
+    </element>
+    <element name="formResult" type="web">
+        <type>text</type>
+        <location type="id">formResult</location>
+    </element>
+</model>
+
+<model name="LoginAPI" servicename="">
+    <element name="_method" type="interface">
+        <location type="static">POST</location>
+    </element>
+    <element name="_url" type="interface">
+        <location type="static">http://localhost:8000/api/login</location>
+    </element>
+    <element name="username" type="interface">
+        <location type="field">username</location>
+    </element>
+    <element name="password" type="interface">
+        <location type="field">password</location>
+    </element>
+</model>
+
+<model name="OrderAPI" servicename="">
+    <element name="_method" type="interface">
+        <location type="static">GET</location>
+    </element>
+    <element name="_url" type="interface">
+        <location type="static">http://localhost:8000/api/orders</location>
+    </element>
+</model>
+
+<model name="QuerySQL" servicename="">
+    <element name="sql" type="field">
+        <location type="field">sql</location>
+    </element>
+</model>
+
+<model name="UIActions" servicename="">
+    <element name="hoverBtn" type="web">
+        <type>button</type>
+        <location type="id">hoverBtn</location>
+    </element>
+    <element name="doubleClickBtn" type="web">
+        <type>button</type>
+        <location type="id">doubleClickBtn</location>
+    </element>
+    <element name="rightClickBtn" type="web">
+        <type>button</type>
+        <location type="id">rightClickBtn</location>
+    </element>
+    <element name="actionResult" type="web">
+        <type>text</type>
+        <location type="id">actionResult</location>
+    </element>
+    <element name="scrollArea" type="web">
+        <type>div</type>
+        <location type="id">scrollArea</location>
+    </element>
+    <element name="dragSource" type="web">
+        <type>div</type>
+        <location type="id">dragSource</location>
+    </element>
+</model>
+
+<model name="ReturnTest" servicename="">
+    <element name="username" type="web">
+        <type>input</type>
+        <location type="id">username</location>
+    </element>
+    <element name="formResult" type="web">
+        <type>text</type>
+        <location type="id">formResult</location>
+    </element>
+</model>
+</models>

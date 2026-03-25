@@ -149,9 +149,10 @@ def _handle_execute(case_path: Path, module_dir: Path, args) -> int:
 
         total = len(results)
         passed = sum(1 for r in results if r.get('status', '').upper() == 'PASS')
-        failed = total - passed
+        failed = sum(1 for r in results if r.get('status', '').upper() == 'FAIL')
+        skipped = sum(1 for r in results if r.get('status', '').upper() == 'SKIP')
 
-        print(f"执行完成: {passed}/{total} 通过, {failed} 失败")
+        print(f"执行完成: {passed}/{total} 通过, {failed} 失败" + (f", {skipped} 跳过" if skipped else ""))
 
         if failed > 0:
             print(f"\n失败用例:")

@@ -6,8 +6,13 @@
 - 支持多种定位器格式
 - 完善的异常处理
 """
+from __future__ import annotations
+
 import logging
+import os
+import sys
 import time
+from pathlib import Path
 from .base_driver import BaseDriver
 from core.exceptions import (
     DriverError, 
@@ -18,6 +23,25 @@ from core.exceptions import (
 )
 
 logger = logging.getLogger("rodski")
+
+# macOS：Playwright 自带的 Chromium 在 headless=False 时可能 SIGSEGV（与系统/GPU 相关）。
+# 若已安装 Google Chrome，使用 channel="chrome" 可稳定跑有界面自动化。
+_CHROME_MACOS = Path("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
+
+
+def _launch_channel_chromium(headless: bool, browser: str) -> str | None:
+    """返回 chromium.launch(channel=...) 的 channel；无则返回 None。"""
+    if browser != "chromium" or headless:
+        return None
+    env = os.environ.get("RODSKI_PLAYWRIGHT_CHANNEL")
+    if env is not None:
+        env = env.strip()
+        return env if env else None
+    if sys.platform != "darwin":
+        return None
+    if _CHROME_MACOS.is_file():
+        return "chrome"
+    return None
 
 
 class PlaywrightDriver(BaseDriver):
@@ -36,7 +60,16 @@ class PlaywrightDriver(BaseDriver):
         from playwright.sync_api import sync_playwright
         self._pw = sync_playwright().start()
         browser_type = getattr(self._pw, browser, self._pw.chromium)
-        self.browser = browser_type.launch(headless=headless)
+        launch_kw: dict = {"headless": headless}
+        ch = _launch_channel_chromium(headless, browser)
+        if ch:
+            launch_kw["channel"] = ch
+            logger.info(
+                "Playwright 使用 channel=%s（有界面模式在 macOS 上更稳定；"
+                "可设环境变量 RODSKI_PLAYWRIGHT_CHANNEL 覆盖，置空则禁用）",
+                ch,
+            )
+        self.browser = browser_type.launch(**launch_kw)
         self.page = self.browser.new_page()
         self._is_closed = False
         self._timeout = self.DEFAULT_TIMEOUT

@@ -49,3 +49,7 @@ Thumbs.db
 config/local_*.yaml
 data/temp/
 screenshots/
+
+# DEMO 示例运行时生成
+examples/product/DEMO/demo_site/demo.db
+examples/product/DEMO/demo_site/result/

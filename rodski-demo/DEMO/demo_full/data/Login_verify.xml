@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datatable name="Login_verify">
+    <row id="V001">
+        <field name="loginMessage">登录成功</field>
+    </row>
+
+    <row id="V002">
+        <field name="loginMessage">登录失败</field>
+    </row>
+</datatable>

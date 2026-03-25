@@ -44,6 +44,9 @@ class CaseParser:
         root = tree.getroot()
         cases = []
 
+        # 读取根节点的 step_wait 属性（毫秒）
+        step_wait_ms = root.get('step_wait', None)
+
         for case_node in root.findall('case'):
             execute = case_node.get('execute', '否').strip()
             if execute != '是':
@@ -54,6 +57,7 @@ class CaseParser:
                 'title': case_node.get('title', ''),
                 'description': case_node.get('description', ''),
                 'component_type': case_node.get('component_type', ''),
+                'step_wait': step_wait_ms,
                 'pre_process': self._parse_phase_steps(case_node.find('pre_process')),
                 'test_case': self._parse_phase_steps(case_node.find('test_case')),
                 'post_process': self._parse_phase_steps(case_node.find('post_process')),

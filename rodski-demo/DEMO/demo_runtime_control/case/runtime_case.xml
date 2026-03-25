@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+  <!-- 用于演示：固定步骤执行中通过 RuntimeCommandQueue 插入额外 wait -->
+  <case execute="是" id="RT_INSERT" title="运行时插入步骤" component_type="界面">
+    <test_case>
+      <test_step action="navigate" model="" data="about:blank"/>
+      <test_step action="wait" model="" data="1"/>
+    </test_case>
+  </case>
+</cases>

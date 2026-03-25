@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datatable name="Dashboard_verify">
+    <row id="V001">
+        <field name="totalOrders">3</field>
+        <field name="completedOrders">2</field>
+    </row>
+</datatable>
