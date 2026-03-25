@@ -111,7 +111,7 @@ class SKIExecutor:
         # 加载配置
         self.config = config or ConfigManager()
         self.auto_screenshot = self.config.get("auto_screenshot_on_failure", True)
-        self.screenshot_dir = Path(self.config.get("screenshot_dir", "screenshots"))
+        self._screenshot_dir_base = Path(self.config.get("screenshot_dir", "screenshots"))
 
         # 初始化解析器
         self.model_parser = ModelParser(str(self.model_file)) if self.model_file.exists() else None
@@ -151,10 +151,6 @@ class SKIExecutor:
 
         self.runtime_control: BaseRuntimeControl = runtime_control or BaseRuntimeControl()
         self._runtime_stopped_graceful = False
-
-        # 确保截图目录存在
-        if self.auto_screenshot:
-            self.screenshot_dir.mkdir(parents=True, exist_ok=True)
 
     def _ensure_driver_alive(self) -> None:
         """确保驱动可用，如果驱动已关闭则重新创建"""
@@ -408,14 +404,20 @@ class SKIExecutor:
     def _take_failure_screenshot(self, case_id: str) -> Optional[str]:
         """在用例失败时自动截图"""
         try:
+            if not self.result_writer.current_run_dir:
+                return None
+
+            screenshot_dir = self.result_writer.current_run_dir / "screenshots"
+            screenshot_dir.mkdir(parents=True, exist_ok=True)
+
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"{case_id}_{timestamp}_failure.png"
-            screenshot_path = self.screenshot_dir / filename
+            screenshot_path = screenshot_dir / filename
 
             success = self.driver.screenshot(str(screenshot_path))
             if success:
                 logger.info(f"失败截图已保存: {screenshot_path}")
-                return str(screenshot_path)
+                return f"screenshots/{filename}"
             else:
                 logger.warning(f"截图失败: {screenshot_path}")
                 return None
@@ -456,11 +458,17 @@ class SKIExecutor:
     def _auto_screenshot(self, step_type: str) -> None:
         """步骤执行后自动截图"""
         try:
+            if not self.result_writer.current_run_dir:
+                return
+
+            screenshot_dir = self.result_writer.current_run_dir / "screenshots"
+            screenshot_dir.mkdir(parents=True, exist_ok=True)
+
             self._step_index = getattr(self, '_step_index', 0) + 1
             case_id = getattr(self, '_current_case_id', 'unknown')
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"{case_id}_{self._step_index:02d}_{step_type}_{timestamp}.png"
-            path = self.screenshot_dir / filename
+            path = screenshot_dir / filename
             self.driver.screenshot(str(path))
             logger.debug(f"步骤截图: {path}")
         except Exception as e:

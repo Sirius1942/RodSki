@@ -16,20 +16,20 @@ playwright install chromium
 
 ## 2. 运行演示项目
 
-项目自带一个完整的演示测试网站和测试用例，路径 `product/DEMO/demo_site/`。
+项目自带一个完整的演示测试网站和测试用例，路径 `rodski-demo/DEMO/demo_full/`。
 
 **启动测试网站**：
 
 ```bash
-python product/DEMO/demo_site/app.py
+python rodski-demo/DEMO/demo_full/demosite/app.py
 ```
 
-网站地址 http://127.0.0.1:5555，账号 admin / admin123。
+网站地址 http://127.0.0.1:8000，账号 admin / 123456。
 
 **执行测试用例**：
 
 ```bash
-python ski_run.py product/DEMO/demo_site/case/demo_test_case.xlsx
+python ski_run.py rodski-demo/DEMO/demo_full/case/demo_case.xml
 ```
 
 ## 3. 理解用例结构
@@ -40,61 +40,133 @@ RodSki 用例由三部分组成：**关键字 + 模型 + 数据**。
 关键字（做什么） + 模型（对哪些元素） + 数据（用什么值）
 ```
 
-一个 Excel 用例文件包含：
+### 目录结构约束
 
-| Sheet | 作用 |
-|-------|------|
-| Case | 测试步骤（动作 + 模型 + 数据） |
-| GlobalValue | 全局配置（URL、等待时间、数据库连接等） |
-| 数据表 | 测试数据（如 LoginData、ItemData） |
-| TestResult | 执行结果（框架自动回填） |
+测试项目必须遵循以下目录结构：
 
-核心规则：**模型元素名 = 数据表列名**。
+```
+project/
+├── case/       # 测试用例 XML 文件
+├── model/      # 页面元素模型 XML 文件
+├── data/       # 测试数据 XML 文件
+├── fun/        # 自定义函数脚本
+└── result/     # 测试结果输出（自动生成）
+```
+
+### 三阶段容器结构
+
+每个测试用例支持三个执行阶段：
+
+```xml
+<case execute="是" id="TC001" title="测试标题" component_type="界面">
+    <pre_process>
+        <!-- 前置步骤：环境准备、登录等 -->
+    </pre_process>
+    <test_case>
+        <!-- 核心测试步骤 -->
+    </test_case>
+    <post_process>
+        <!-- 后置步骤：清理、恢复等 -->
+    </post_process>
+</case>
+```
+
+核心规则：**模型元素名 = 数据字段名**。
 
 ## 4. 写第一个用例
 
-### model.xml（定义页面元素）
+### model/model.xml（定义页面元素）
 
 ```xml
+<?xml version="1.0" encoding="UTF-8"?>
 <models>
-<model name="Login">
+<model name="LoginForm">
   <element name="username" type="web">
-    <location type="id">username</location>
+    <type>input</type>
+    <location type="id">loginUsername</location>
   </element>
   <element name="password" type="web">
-    <location type="id">password</location>
+    <type>input</type>
+    <location type="id">loginPassword</location>
+  </element>
+  <element name="loginBtn" type="web">
+    <type>button</type>
+    <location type="id">loginBtn</location>
   </element>
 </model>
 </models>
 ```
 
-### 数据表 LoginData（定义输入数据）
+### data/Login.xml（定义输入数据）
 
-| DataID | Remark | username | password |
-|--------|--------|----------|----------|
-| L001 | 管理员 | admin | admin123 |
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<datatable name="Login">
+    <row id="L001">
+        <field name="username">admin</field>
+        <field name="password">123456</field>
+        <field name="loginBtn">click</field>
+    </row>
+</datatable>
+```
 
-### Case Sheet（定义用例步骤）
+### case/demo_case.xml（定义用例步骤）
 
-| 执行控制 | 编号 | 标题 | 描述 | 类型 | 预处理动作 | 预处理模型 | 预处理数据 | 测试动作 | 测试模型 | 测试数据 |
-|---------|------|------|------|------|-----------|-----------|-----------|---------|---------|---------|
-| 是 | c001 | 登录 | 验证登录 | 界面 | navigate | | GlobalValue.DefaultValue.URL/login | type | Login | LoginData.L001 |
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+    <case execute="是" id="TC001" title="登录测试" component_type="界面">
+        <test_case>
+            <test_step action="navigate" model="" data="http://127.0.0.1:8000"/>
+            <test_step action="type" model="LoginForm" data="L001"/>
+        </test_case>
+    </case>
+</cases>
+```
 
-`type Login LoginData.L001` 的含义：遍历 Login 模型的每个元素（username、password），从 LoginData.L001 取同名列的值，逐一输入。
+`type LoginForm L001` 的含义：遍历 LoginForm 模型的每个元素（username、password、loginBtn），从 Login.xml 的 L001 行取同名字段的值，逐一执行。
 
 ## 5. 控制执行节奏
 
-在 GlobalValue Sheet 中设置 `DefaultValue.WaitTime`，每步执行后自动等待：
+在用例 XML 中可以使用 `wait` 步骤控制等待时间：
 
-| GroupName | Key | Value |
-|-----------|-----|-------|
-| DefaultValue | WaitTime | 2 |
+```xml
+<test_step action="wait" model="" data="2"/>
+```
 
-`wait` 和 `close` 关键字不受此影响。
+`close` 关键字用于关闭浏览器或清理资源。
 
-## 6. 查看结果
+## 6. 查看测试结果
 
-执行完成后，结果自动回填到 Excel 的 TestResult Sheet。
+执行完成后，结果自动输出到 `result/` 目录。每次测试执行会创建一个独立的目录。
+
+### 结果目录结构
+
+```
+result/
+└── 20260325_082802_a1b2c3d4/          # 执行日期_时间_唯一ID
+    ├── result.xml                      # 测试结果XML文件
+    └── screenshots/                    # 截图目录
+        ├── TC001_20260325_082645_failure.png    # 失败截图：用例ID_时间戳_failure.png
+        ├── TC002_20260325_082703_failure.png
+        └── TC003_01_click_20260325_082710.png   # 步骤截图：用例ID_步骤序号_动作_时间戳.png
+```
+
+### 结果文件说明
+
+**result.xml** 包含：
+- `<summary>`: 执行统计（总数、通过、失败、通过率、执行时间等）
+- `<results>`: 每个用例的详细结果
+  - `case_id`: 用例ID
+  - `status`: PASS/FAIL/SKIP/ERROR
+  - `execution_time`: 执行时长（秒）
+  - `screenshot_path`: 截图相对路径
+  - `error_message`: 失败原因
+
+### 截图文件命名规则
+
+- **失败截图**: `{用例ID}_{时间戳}_failure.png`
+- **步骤截图**: `{用例ID}_{步骤序号}_{动作类型}_{时间戳}.png`
 
 生成 HTML 报告：
 
@@ -107,7 +179,6 @@ PYTHONPATH=. python cli_main.py report --input logs/latest_results.json
 - **用例编写规范**：[TEST_CASE_WRITING_GUIDE.md](TEST_CASE_WRITING_GUIDE.md)（最重要）
 - **API 测试**：[API_TESTING_GUIDE.md](API_TESTING_GUIDE.md)
 - **架构说明**：[../design/ARCHITECTURE.md](../design/ARCHITECTURE.md)
-- **GUI 使用**：[GUI_USAGE.md](GUI_USAGE.md)
 - **故障排查**：[TROUBLESHOOTING.md](TROUBLESHOOTING.md)
 
 ---

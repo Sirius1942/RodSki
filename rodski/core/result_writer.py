@@ -91,6 +91,7 @@ class ResultWriter:
         self.result_dir = Path(result_dir)
         self.result_dir.mkdir(parents=True, exist_ok=True)
         self._summary = ExecutionSummary()
+        self.current_run_dir: Optional[Path] = None
 
     def write_result(self, result: Dict[str, Any]) -> None:
         self.write_results([result])
@@ -105,6 +106,16 @@ class ResultWriter:
         for result in results:
             self._summary.add_result(result)
         self._summary.end_time = datetime.now()
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        import uuid
+        run_id = str(uuid.uuid4())[:8]
+        run_dir_name = f"{timestamp}_{run_id}"
+        self.current_run_dir = self.result_dir / run_dir_name
+        self.current_run_dir.mkdir(parents=True, exist_ok=True)
+
+        screenshots_dir = self.current_run_dir / "screenshots"
+        screenshots_dir.mkdir(exist_ok=True)
 
         root = ET.Element("testresult")
 
@@ -140,15 +151,14 @@ class ResultWriter:
             root, RodskiXmlValidator.KIND_RESULT, source_path=self.result_dir / "<result_output>"
         )
 
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        result_file = self.result_dir / f"result_{timestamp}.xml"
+        result_file = self.current_run_dir / "result.xml"
 
         xml_str = minidom.parseString(ET.tostring(root, encoding='unicode')).toprettyxml(indent="  ")
         lines = [line for line in xml_str.split('\n') if line.strip()]
         result_file.write_text('\n'.join(lines), encoding='utf-8')
 
         logger.info(
-            f"结果已写入 {result_file.name}: "
+            f"结果已写入 {run_dir_name}/result.xml: "
             f"总计 {summary['total']} 条, "
             f"通过 {summary['passed']} 条, "
             f"失败 {summary['failed']} 条, "
