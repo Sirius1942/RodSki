@@ -21,12 +21,15 @@ async def login(username: str, password: str):
 
 @app.get("/api/orders")
 async def get_orders():
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    cursor.execute("SELECT order_no, customer_name, total_amount, status FROM orders LIMIT 10")
-    orders = [{"order_id": r[0], "customer": r[1], "amount": r[2], "status": r[3]} for r in cursor.fetchall()]
-    conn.close()
-    return {"success": True, "data": orders}
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT order_no, customer_name, total_amount, status FROM orders LIMIT 10")
+        orders = [{"order_id": r[0], "customer": r[1], "amount": r[2], "status": r[3]} for r in cursor.fetchall()]
+        conn.close()
+        return {"success": True, "data": orders}
+    except Exception as e:
+        return {"success": False, "data": [], "error": str(e)}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

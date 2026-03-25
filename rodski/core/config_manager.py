@@ -15,6 +15,7 @@ DEFAULTS = {
     "log_dir": "logs",
     "report_format": "html",
     "auto_screenshot_on_failure": True,
+    "auto_screenshot_on_step": True,
     "screenshot_dir": "screenshots",
 }
 

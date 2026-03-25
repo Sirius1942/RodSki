@@ -26,57 +26,63 @@ appium driver install xcuitest      # iOS
 appium
 ```
 
-## 驱动使用
+## 用例示例
 
-### Android
+### Android 登录测试
 
-```python
-from drivers import AndroidDriver
-
-driver = AndroidDriver(
-    device_name="Android Emulator",
-    app_package="com.example.app",
-    app_activity=".MainActivity"
-)
-
-driver.click("id=button")
-driver.type("id=input", "text")
-driver.swipe(500, 1500, 500, 500)
-driver.screenshot("test.png")
-driver.close()
+```xml
+<case name="android_login" driver="android">
+  <step name="点击登录按钮">
+    <field name="loginBtn">click</field>
+  </step>
+  <step name="输入用户名">
+    <field name="username">type</field>
+    <data>testuser</data>
+  </step>
+  <step name="向上滑动">
+    <field name="screen">swipe</field>
+    <data>500,1500,500,500</data>
+  </step>
+  <step name="截图">
+    <field name="result">screenshot</field>
+    <data>login.png</data>
+  </step>
+</case>
 ```
 
-### iOS
+### iOS 表单测试
 
-```python
-from drivers import IOSDriver
-
-driver = IOSDriver(
-    device_name="iPhone 14",
-    bundle_id="com.example.app"
-)
-
-driver.click("accessibility_id=button")
-driver.type("accessibility_id=input", "text")
-driver.swipe(200, 800, 200, 200)
-driver.screenshot("test.png")
-driver.close()
+```xml
+<case name="ios_form" driver="ios">
+  <step name="长按提交按钮">
+    <field name="submitBtn">long_press</field>
+  </step>
+  <step name="点击坐标">
+    <field name="screen">tap</field>
+    <data>200,400</data>
+  </step>
+  <step name="滚动列表">
+    <field name="list">scroll</field>
+    <data>down</data>
+  </step>
+</case>
 ```
 
-## 支持的关键字
+## 数据表字段值
+
+在 XML 用例中，`<field>` 标签的文本内容描述对该字段的操作类型：
 
 ### 基础操作
 - `click` - 点击元素
-- `type` - 输入文本
+- `type` - 输入文本（需配合 `<data>` 提供内容）
 - `check` - 检查元素存在
-- `wait` - 等待
-- `screenshot` - 截图
+- `screenshot` - 截图（可选 `<data>` 指定文件名）
 
-### 移动端特有
-- `swipe` - 滑动屏幕
-- `tap` - 点击坐标
+### 移动端特有操作
+- `swipe` - 滑动屏幕（需 `<data>` 提供坐标：`x1,y1,x2,y2`）
+- `tap` - 点击坐标（需 `<data>` 提供坐标：`x,y`）
 - `long_press` - 长按元素
-- `scroll` - 滚动
+- `scroll` - 滚动（需 `<data>` 提供方向：`up`/`down`/`left`/`right`）
 - `hide_keyboard` - 隐藏键盘
 
 ## 定位符格式

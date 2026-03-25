@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datatable name="UIActions">
+    <row id="A001" remark="UI动作测试">
+        <field name="hoverBtn">hover</field>
+        <field name="doubleClickBtn">double_click</field>
+        <field name="rightClickBtn">right_click</field>
+        <field name="scrollArea">scroll【0,300】</field>
+        <field name="dragSource">drag【#dropZone】</field>
+    </row>
+</datatable>

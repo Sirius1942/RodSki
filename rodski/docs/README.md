@@ -19,12 +19,14 @@
 | 文档 | 说明 |
 |------|------|
 | [ARCHITECTURE.md](design/ARCHITECTURE.md) | 总体架构与执行流程 |
+| [核心设计约束.md](design/核心设计约束.md) | 框架设计约束（权威） |
 | [AGENT_AUTOMATION_DESIGN.md](design/AGENT_AUTOMATION_DESIGN.md) | Agent 自动化设计 |
 | [CI_CD_GUIDE.md](design/CI_CD_GUIDE.md) | CI/CD 与流水线集成 |
 | [json_support_design.md](design/json_support_design.md) | API JSON 数据支持设计 |
-| [核心设计约束.md](design/核心设计约束.md) | 框架设计约束（权威） |
-| [RPA_GAP_ANALYSIS.md](design/RPA_GAP_ANALYSIS.md) | RPA 能力差距分析（规划） |
-| [PC_AUTOMATION_ENHANCEMENT.md](design/PC_AUTOMATION_ENHANCEMENT.md) | PC 端自动化增强（规划） |
+| **[RPA_ROADMAP_SUMMARY.md](../../doc/design/RPA_ROADMAP_SUMMARY.md)** | **RPA 能力提升路线图总结（新）** |
+| [RPA_GAP_ANALYSIS.md](../../doc/design/RPA_GAP_ANALYSIS.md) | RPA 与主流系统差距分析（新） |
+| [PC_AUTOMATION_ENHANCEMENT.md](../../doc/design/PC_AUTOMATION_ENHANCEMENT.md) | Windows/macOS 桌面自动化增强方案（新） |
+| [LLM_VISION_LOCATOR_DESIGN.md](../../doc/design/LLM_VISION_LOCATOR_DESIGN.md) | LLM 视觉定位接口设计（新） |
 | [人工提出问题的笔记.md](design/人工提出问题的笔记.md) | 设计讨论与问题记录 |
 | [README.md](design/README.md) | 本目录说明 |
 

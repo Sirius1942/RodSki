@@ -1,9 +1,0 @@
-<?xml version="1.0" ?>
-<testresult>
-  <summary total="3" passed="3" failed="0" skipped="0" errors="0" pass_rate="100.0%" total_time="4.18s" average_time="1.39s" start_time="2026-03-24 08:50:44" end_time="2026-03-24 08:50:44"/>
-  <results>
-    <result case_id="TC001" title="Web登录测试" status="PASS" execution_time="1.311" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-03-24 08:50:44"/>
-    <result case_id="TC002" title="看板数据验证" status="PASS" execution_time="0.912" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-03-24 08:50:44"/>
-    <result case_id="TC003" title="功能测试页操作" status="PASS" execution_time="1.961" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-03-24 08:50:44"/>
-  </results>
-</testresult>

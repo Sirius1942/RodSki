@@ -1,4 +1,7 @@
 """Excel 解析器 - 读取用例、解析步骤、数据验证"""
+# DEPRECATED: 遗留 Excel 解析代码，新代码应使用 data/data_resolver.py
+# 保留此模块仅为向后兼容，XML 模式不使用此解析器
+# 注意：此模块使用 ${Return[-1]} 格式，而当前标准格式为 Return[-1]（不带 ${}）
 import openpyxl
 from typing import List, Dict, Any, Optional
 from pathlib import Path

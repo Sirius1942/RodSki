@@ -111,6 +111,7 @@ class SKIExecutor:
         # 加载配置
         self.config = config or ConfigManager()
         self.auto_screenshot = self.config.get("auto_screenshot_on_failure", True)
+        self.auto_screenshot_on_step = self.config.get("auto_screenshot_on_step", True)
         self._screenshot_dir_base = Path(self.config.get("screenshot_dir", "screenshots"))
 
         # 初始化解析器
@@ -186,6 +187,9 @@ class SKIExecutor:
         case_count = 0
         total_cases = len(cases)
 
+        # 初始化结果目录（用于步骤截图）
+        self.result_writer._init_run_dir()
+
         for case in cases:
             case_count += 1
             if self._driver_closed:
@@ -247,6 +251,9 @@ class SKIExecutor:
         screenshot_path = None
         resources_snapshot = self._snapshot_runtime_resources()
 
+        # 保存当前 case 的 step_wait 配置（优先级高于全局配置）
+        self._current_case_step_wait = case.get('step_wait')
+
         try:
             self._current_case_id = case['case_id']
             self._step_index = 0
@@ -297,7 +304,9 @@ class SKIExecutor:
                 _merge_error(e)
 
             if err is not None:
-                if self.auto_screenshot and not self._driver_closed:
+                # 只有界面类型的用例失败时才截图
+                component_type = case.get('component_type', '界面')
+                if self.auto_screenshot and not self._driver_closed and component_type == '界面':
                     screenshot_path = self._take_failure_screenshot(case['case_id'])
                 return {
                     'case_id': case['case_id'],
@@ -331,7 +340,8 @@ class SKIExecutor:
         self, case: Dict[str, Any], start: float, exc: ForceRunTermination
     ) -> Dict[str, Any]:
         screenshot_path = None
-        if self.auto_screenshot and not self._driver_closed:
+        component_type = case.get('component_type', '界面')
+        if self.auto_screenshot and not self._driver_closed and component_type == '界面':
             screenshot_path = self._take_failure_screenshot(case['case_id'])
         return {
             'case_id': case['case_id'],
@@ -448,12 +458,22 @@ class SKIExecutor:
             self.driver = self.keyword_engine.driver
             self._driver_closed = False
 
-        if not self._driver_closed and action.lower() not in ('close', 'wait', 'DB'):
+        if self.auto_screenshot_on_step and not self._driver_closed and action.lower() not in ('close', 'wait', 'DB'):
             self._auto_screenshot(step_type)
 
-        if self.default_wait_time > 0 and action.lower() not in ('wait', 'close'):
-            logger.debug(f"默认等待 {self.default_wait_time}s")
-            time.sleep(self.default_wait_time)
+        # 步骤等待：优先使用 case 级别的 step_wait，否则使用全局 default_wait_time
+        wait_time = 0.0
+        if hasattr(self, '_current_case_step_wait') and self._current_case_step_wait:
+            try:
+                wait_time = float(self._current_case_step_wait) / 1000.0  # 毫秒转秒
+            except (ValueError, TypeError):
+                wait_time = self.default_wait_time
+        else:
+            wait_time = self.default_wait_time
+
+        if wait_time > 0 and action.lower() not in ('wait', 'close'):
+            logger.debug(f"步骤等待 {wait_time}s")
+            time.sleep(wait_time)
 
     def _auto_screenshot(self, step_type: str) -> None:
         """步骤执行后自动截图"""

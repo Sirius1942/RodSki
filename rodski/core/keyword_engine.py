@@ -62,7 +62,7 @@ class KeywordEngine:
         self._driver_factory = driver_factory
         self._variables: Dict[str, Any] = {}
         self._return_values: list = []
-        self.data_parser = DataParser(data_dir, self)
+        self.data_parser = DataParser(data_dir, self)  # DEPRECATED: 遗留 Excel 解析，XML 模式使用 data_resolver
         self.model_parser = model_parser
         self.data_manager = data_manager
         self.data_resolver = data_resolver

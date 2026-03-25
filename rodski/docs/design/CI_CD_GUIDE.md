@@ -26,7 +26,6 @@
 2. **配置仓库密钥（可选）**
 
    在 GitHub 仓库设置中添加以下密钥：
-   - `CODECOV_TOKEN`: Codecov 集成令牌
    - `DOCKER_USERNAME`: Docker Hub 用户名
    - `DOCKER_PASSWORD`: Docker Hub 密码
 
@@ -41,10 +40,9 @@
 #### 1. ski-test.yml - 测试执行
 
 **功能**:
-- 多 Python 版本测试 (3.8-3.12)
+- 多 Python 版本测试 (3.9-3.13)
 - 自动安装 Playwright 浏览器
-- 运行单元测试和 SKI 测试用例
-- 生成覆盖率报告
+- 运行 SKI 测试用例
 - 上传测试结果和截图
 
 **配置**:
@@ -53,7 +51,7 @@
 workflow_dispatch:
   inputs:
     test_file:
-      default: 'product/TEST/v1R1C01/case/baidu_search_case.xlsx'
+      default: 'product/TEST/v1R1C01/case/baidu_search_case.xml'
 ```
 
 #### 2. ski-lint.yml - 代码质量
@@ -64,7 +62,6 @@ workflow_dispatch:
 - Pylint (代码质量)
 - MyPy (类型检查)
 - Bandit (安全检查)
-- Safety (依赖安全)
 
 #### 3. ski-release.yml - 自动发布
 
@@ -98,7 +95,7 @@ docker run --rm \
   -v $(pwd)/product:/app/product \
   -v $(pwd)/reports:/app/reports \
   rodski:latest \
-  python ski_run.py product/TEST/v1R1C01/case/baidu_search_case.xlsx --headless
+  python ski_run.py product/TEST/v1R1C01/case/baidu_search_case.xml --headless
 
 # 使用 docker-compose
 docker-compose up ski-runner
@@ -140,7 +137,7 @@ pipeline {
     agent any
     
     environment {
-        PYTHON_VERSION = '3.12'
+        PYTHON_VERSION = '3.9-3.13'
     }
     
     stages {
@@ -176,35 +173,34 @@ pipeline {
             steps {
                 sh '''
                     . venv/bin/activate
-                    python run_tests.py
+                    python selftest.py
                 '''
             }
             post {
                 always {
-                    junit 'test-results/*.xml'
                     archiveArtifacts artifacts: 'screenshots/*.png', allowEmptyArchive: true
                 }
             }
         }
-        
+
         stage('Run SKI Tests') {
             steps {
                 sh '''
                     . venv/bin/activate
-                    python ski_run.py product/TEST/v1R1C01/case/*.xlsx --headless
+                    python ski_run.py product/TEST/v1R1C01/case/*.xml --headless
                 '''
             }
         }
-        
+
         stage('Report') {
             steps {
                 publishHTML([
                     allowMissing: false,
                     alwaysLinkToLastBuild: true,
                     keepAll: true,
-                    reportDir: 'htmlcov',
+                    reportDir: 'reports',
                     reportFiles: 'index.html',
-                    reportName: 'Coverage Report'
+                    reportName: 'Test Report'
                 ])
             }
         }
@@ -232,7 +228,7 @@ pipeline {
     stages {
         stage('Test') {
             steps {
-                sh 'python run_tests.py'
+                sh 'python selftest.py'
             }
         }
     }
@@ -252,7 +248,7 @@ stages:
   - report
 
 variables:
-  PYTHON_VERSION: "3.12"
+  PYTHON_VERSION: "3.9-3.13"
 
 lint:
   stage: lint
@@ -270,11 +266,10 @@ test:
     - pip install -r requirements.txt
     - playwright install chromium
     - playwright install-deps chromium
-    - python run_tests.py
+    - python selftest.py
   artifacts:
     when: always
     paths:
-      - htmlcov/
       - screenshots/
       - logs/
     expire_in: 30 days
@@ -283,7 +278,7 @@ ski-test:
   stage: test
   image: rodski:latest
   script:
-    - python ski_run.py product/TEST/v1R1C01/case/*.xlsx --headless
+    - python ski_run.py product/TEST/v1R1C01/case/*.xml --headless
   artifacts:
     when: always
     paths:
@@ -295,13 +290,10 @@ coverage:
   stage: report
   image: python:${PYTHON_VERSION}
   script:
-    - pip install coverage
-    - coverage report
-    - coverage html
-  coverage: '/TOTAL.+ ([0-9]{1,3}%)/'
+    - echo "Test reports available in artifacts"
   artifacts:
     paths:
-      - htmlcov/
+      - reports/
     expire_in: 30 days
 ```
 
@@ -316,9 +308,9 @@ product/
 ├── TEST/
 │   ├── v1R1C01/
 │   │   ├── case/
-│   │   │   ├── smoke_test.xlsx        # 冒烟测试
-│   │   │   ├── regression_test.xlsx   # 回归测试
-│   │   │   └── integration_test.xlsx  # 集成测试
+│   │   │   ├── smoke_test.xml        # 冒烟测试
+│   │   │   ├── regression_test.xml   # 回归测试
+│   │   │   └── integration_test.xml  # 集成测试
 │   │   └── model/
 │   │       └── model.xml
 │   └── v1R1C02/
@@ -348,7 +340,7 @@ product/
 **并行执行**:
 ```bash
 # 多个测试文件并行
-python ski_run.py case1.xlsx case2.xlsx case3.xlsx --parallel 3
+python ski_run.py case1.xml case2.xml case3.xml --parallel 3
 ```
 
 **缓存依赖**:
@@ -454,10 +446,10 @@ playwright install-deps
 **解决方案**:
 ```bash
 # 使用 headless 模式
-python ski_run.py case.xlsx --headless
+python ski_run.py case.xml --headless
 
 # 或使用 Xvfb
-xvfb-run python ski_run.py case.xlsx
+xvfb-run python ski_run.py case.xml
 ```
 
 ### Q3: 测试超时

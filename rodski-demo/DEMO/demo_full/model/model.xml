@@ -81,4 +81,42 @@
         <location type="field">sql</location>
     </element>
 </model>
+
+<model name="UIActions" servicename="">
+    <element name="hoverBtn" type="web">
+        <type>button</type>
+        <location type="id">hoverBtn</location>
+    </element>
+    <element name="doubleClickBtn" type="web">
+        <type>button</type>
+        <location type="id">doubleClickBtn</location>
+    </element>
+    <element name="rightClickBtn" type="web">
+        <type>button</type>
+        <location type="id">rightClickBtn</location>
+    </element>
+    <element name="actionResult" type="web">
+        <type>text</type>
+        <location type="id">actionResult</location>
+    </element>
+    <element name="scrollArea" type="web">
+        <type>div</type>
+        <location type="id">scrollArea</location>
+    </element>
+    <element name="dragSource" type="web">
+        <type>div</type>
+        <location type="id">dragSource</location>
+    </element>
+</model>
+
+<model name="ReturnTest" servicename="">
+    <element name="username" type="web">
+        <type>input</type>
+        <location type="id">username</location>
+    </element>
+    <element name="formResult" type="web">
+        <type>text</type>
+        <location type="id">formResult</location>
+    </element>
+</model>
 </models>

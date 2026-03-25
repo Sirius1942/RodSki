@@ -17,16 +17,15 @@ cases = [
     {
         "name": "登录测试",
         "steps": [
-            {"keyword": "navigate", "params": {"url": "https://example.com"}},
-            {"keyword": "type", "params": {"locator": "#username", "text": "admin"}},
-            {"keyword": "click", "params": {"locator": "#login"}},
+            {"action": "navigate", "model": "", "data": "https://example.com"},
+            {"action": "type", "model": "#username", "data": "admin"},
         ]
     },
     {
         "name": "搜索测试",
         "steps": [
-            {"keyword": "navigate", "params": {"url": "https://example.com"}},
-            {"keyword": "type", "params": {"locator": "#search", "text": "test"}},
+            {"action": "navigate", "model": "", "data": "https://example.com"},
+            {"action": "type", "model": "#search", "data": "test"},
         ]
     }
 ]

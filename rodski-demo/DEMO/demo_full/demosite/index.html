@@ -134,6 +134,24 @@
                     <button onclick="clearText()">清空</button>
                     <div id="textResult" class="result"></div>
                 </div>
+                <div class="section">
+                    <h2>4. UI动作测试</h2>
+                    <button id="hoverBtn" onmouseover="showHoverMsg()" onmouseout="hideHoverMsg()">悬停测试</button>
+                    <span id="hoverMsg" style="display:none;color:#667eea;margin-left:10px;">✓ 悬停成功</span>
+                    <button id="doubleClickBtn" ondblclick="handleDoubleClick()">双击测试</button>
+                    <button id="rightClickBtn" oncontextmenu="handleRightClick(event)">右键测试</button>
+                    <div id="actionResult" class="result"></div>
+                    <div id="scrollArea" style="height:200px;overflow-y:scroll;border:2px solid #e0e0e0;border-radius:8px;padding:15px;margin-top:10px;">
+                        <div style="height:500px;">
+                            <p>滚动测试区域 - 顶部</p>
+                            <p style="margin-top:400px;" id="scrollTarget">滚动测试区域 - 底部目标</p>
+                        </div>
+                    </div>
+                    <div id="dragArea" style="margin-top:15px;display:flex;gap:20px;">
+                        <div id="dragSource" draggable="true" ondragstart="drag(event)" style="width:100px;height:100px;background:#667eea;color:white;display:flex;align-items:center;justify-content:center;border-radius:8px;cursor:move;">拖拽我</div>
+                        <div id="dropZone" ondrop="drop(event)" ondragover="allowDrop(event)" style="width:200px;height:100px;border:2px dashed #667eea;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#999;">放置区域</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -210,6 +228,30 @@
         function clearText() {
             document.getElementById('textArea').value = '';
             document.getElementById('textResult').innerHTML = '文本已清空';
+        }
+        function showHoverMsg() {
+            document.getElementById('hoverMsg').style.display = 'inline';
+        }
+        function hideHoverMsg() {
+            document.getElementById('hoverMsg').style.display = 'none';
+        }
+        function handleDoubleClick() {
+            document.getElementById('actionResult').innerHTML = '✓ 双击成功';
+        }
+        function handleRightClick(e) {
+            e.preventDefault();
+            document.getElementById('actionResult').innerHTML = '✓ 右键点击成功';
+        }
+        function drag(ev) {
+            ev.dataTransfer.setData("text", ev.target.id);
+        }
+        function allowDrop(ev) {
+            ev.preventDefault();
+        }
+        function drop(ev) {
+            ev.preventDefault();
+            document.getElementById('dropZone').innerHTML = '✓ 拖拽成功';
+            document.getElementById('dropZone').style.background = '#d4edda';
         }
     </script>
 </body>

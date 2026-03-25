@@ -1,4 +1,4 @@
-"""数据引用解析 - 支持 ${var}、表名.DataID.字段名、Return[-1] 等引用格式"""
+"""数据引用解析 - 支持 ${var}、表名.DataID.字段名、${Return[-1]} 等引用格式"""
 import re
 from typing import Any, Callable, Dict, Optional
 from pathlib import Path
@@ -13,7 +13,7 @@ class DataResolver:
         """
         Args:
             return_provider: 回调函数，接收 index 参数，返回对应步骤的返回值。
-                            用于解析 Return[-1]、Return[0] 等引用。
+                            用于解析 ${Return[-1]}、${Return[0]} 等引用。
                             典型实现: keyword_engine.get_return
         """
         self.data_source = data_source or {}
@@ -43,16 +43,16 @@ class DataResolver:
         return text
 
     def _resolve_returns(self, text: str) -> str:
-        """解析 Return[index] 引用
-        
+        """解析 ${Return[index]} 引用
+
         支持格式:
-        - Return[-1]  → 上一个步骤的返回值
-        - Return[-2]  → 上上个步骤的返回值
-        - Return[0]   → 第一个步骤的返回值
+        - ${Return[-1]}  → 上一个步骤的返回值
+        - ${Return[-2]}  → 上上个步骤的返回值
+        - ${Return[0]}   → 第一个步骤的返回值
         """
         if not self.return_provider:
             return text
-        pattern = r'Return\[(-?\d+)\]'
+        pattern = r'\$\{Return\[(-?\d+)\]\}'
         def replacer(match):
             index = int(match.group(1))
             value = self.return_provider(index)

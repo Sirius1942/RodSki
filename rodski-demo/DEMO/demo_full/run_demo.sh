@@ -15,7 +15,7 @@ echo ""
 # 初始化数据库
 echo "1️⃣  初始化数据库..."
 cd "$SCRIPT_DIR"
-python init_db.py
+python3 init_db.py
 
 if [ $? -eq 0 ]; then
     echo "✅ 数据库初始化成功"
@@ -27,7 +27,7 @@ fi
 echo ""
 echo "2️⃣  运行测试用例..."
 cd "$PROJECT_ROOT"
-python -m rodski.cli_main run product/DEMO/demo_full/case/demo_case.xml --verbose
+python3 rodski/ski_run.py rodski-demo/DEMO/demo_full/case/demo_case.xml
 
 echo ""
 echo "3️⃣  测试完成！"

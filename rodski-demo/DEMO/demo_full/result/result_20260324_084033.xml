@@ -1,7 +1,0 @@
-<?xml version="1.0" ?>
-<testresult>
-  <summary total="1" passed="1" failed="0" skipped="0" errors="0" pass_rate="100.0%" total_time="3.30s" average_time="3.30s" start_time="2026-03-24 08:40:33" end_time="2026-03-24 08:40:33"/>
-  <results>
-    <result case_id="TC001" title="Web登录测试" status="PASS" execution_time="3.299" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-03-24 08:40:33"/>
-  </results>
-</testresult>

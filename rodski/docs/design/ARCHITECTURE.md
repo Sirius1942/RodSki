@@ -6,7 +6,7 @@
 rodski/
 ├── cli_main.py              # CLI 入口点
 ├── ski_run.py               # 简化运行入口
-├── setup.py                 # 安装配置
+├── pyproject.toml           # 安装配置
 │
 ├── rodski_cli/                 # CLI 子命令模块
 │   ├── __init__.py
@@ -47,24 +47,12 @@ rodski/
 ├── data/                    # 数据处理层
 │   ├── __init__.py
 │   ├── excel_parser.py      # Excel 解析器
-│   └── data_resolver.py     # 数据解析器 - 引用解析
+│   ├── data_resolver.py     # 数据解析器 - 引用解析
+│   └── model_manager.py     # 模型管理器
 │
 ├── api/                     # API 测试支持
 │   ├── __init__.py
 │   └── rest_helper.py       # RESTful API 辅助工具
-│
-├── ui/                      # GUI 界面 (可选)
-│   ├── __init__.py
-│   └── main_window.py
-│
-├── utils/                   # 工具函数
-│   ├── __init__.py
-│   └── helpers.py
-│
-├── tests/                   # 测试套件
-│   ├── unit/                # 单元测试
-│   ├── integration/         # 集成测试
-│   └── functional/          # 功能测试
 │
 ├── examples/                # 示例用例
 │   ├── baidu_test/
@@ -172,7 +160,9 @@ rodski/
     ┌───────────────────────────────────────┐
     │         rodski_cli/run.py                │
     │   handle(args)                        │
-    │   ├── ExcelParser.parse()             │
+    │   ├── CaseParser.parse()              │
+    │   ├── ModelParser.parse()             │
+    │   ├── DataTableParser.parse()         │
     │   ├── PlaywrightDriver()              │
     │   ├── KeywordEngine(driver)           │
     │   └── TaskExecutor(engine)            │
@@ -182,12 +172,13 @@ rodski/
           │                           │
           ▼                           ▼
 ┌─────────────────────┐    ┌─────────────────────┐
-│    ExcelParser      │    │   TaskExecutor      │
+│   XML 解析器组       │    │   TaskExecutor      │
 │ ┌─────────────────┐ │    │ ┌─────────────────┐ │
-│ │ parse()         │ │    │ │ execute_steps() │ │
-│ │ validate()      │ │    │ │ _execute_retry()│ │
-│ └─────────────────┘ │    │ └────────┬────────┘ │
-└─────────────────────┘    └──────────┼──────────┘
+│ │ CaseParser      │ │    │ │ execute_steps() │ │
+│ │ ModelParser     │ │    │ │ _execute_retry()│ │
+│ │ DataTableParser │ │    │ └────────┬────────┘ │
+│ └─────────────────┘ │    └──────────┼──────────┘
+└─────────────────────┘              │
                                       │
                                       ▼
                          ┌─────────────────────────┐
@@ -435,10 +426,6 @@ rodski/
 ├── scroll(x, y) → bool
 ├── assert_element(locator, expected) → bool
 ├── close() → None
-├── http_get(url, headers) → Response
-├── http_post(url, body, headers) → Response
-├── http_put(url, body, headers) → Response
-└── http_delete(url, headers) → Response
 
 实现类:
 ├── PlaywrightDriver  (Web自动化)
@@ -499,12 +486,12 @@ rodski/
 │                              数据流向                                        │
 └─────────────────────────────────────────────────────────────────────────────┘
 
-Excel 用例文件
+XML 用例文件
       │
       │ parse
       ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│  CaseParser ─────────► [{case_id, pre_process, test_step, ...}]            │
+│  CaseParser ─────────► [{case_id, pre_process, test_case, ...}]            │
 │  DataTableParser ────► {TableName: {DataID: {field: value}}}               │
 │  ModelParser ────────► {ModelName: {ElementName: {type, value}}}           │
 │  GlobalValueParser ──► {VarName: Value}                                     │
