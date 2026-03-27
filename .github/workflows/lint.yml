@@ -1,0 +1,48 @@
+name: Lint
+
+on:
+  push:
+    branches: [ main, feature/*, iteration-* ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.8'
+
+    - name: Install tools
+      run: |
+        pip install black flake8 mypy bandit
+
+    - name: Run Black
+      run: |
+        cd rodski
+        black --check .
+
+    - name: Run Flake8
+      run: |
+        cd rodski
+        flake8 .
+
+    - name: Run MyPy
+      run: |
+        cd rodski
+        mypy . || true
+
+    - name: Run Bandit
+      run: |
+        cd rodski
+        bandit -r . -c bandit.yaml
+
+    - name: Validate XML
+      run: |
+        cd rodski
+        python3 scripts/validate_xml.py

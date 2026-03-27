@@ -1,0 +1,2 @@
+skips: ['B101', 'B601']
+exclude_dirs: ['/tests/', '/demo_full/']
