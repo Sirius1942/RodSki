@@ -259,9 +259,11 @@ xmllint --noout --schema rodski/schemas/case.xsd product/DEMO/demo_site/case/dem
 
 > **运行时**：除 XSD 外，实际执行仍需要可用的定位信息——**完整格式**建议写 `type="web|interface|other"` + `<location>`；**简化格式**写 `type`（定位类型）+ `value`。
 
-### 4.3 定位类型
+### 4.3 定位器类型（完整）
 
-`model.xsd` 中 `<location>` 的 `type` 属性，以及简化格式下 `element` 的 `type`（当取定位类型时），均受 **`LocatorType`** 枚举约束：
+RodSki 支持 11 种定位器类型，分为传统定位器和视觉定位器两大类。
+
+#### 4.3.1 传统定位器
 
 | type 值 | 转换规则 | 示例 |
 |---------|---------|------|
@@ -275,6 +277,19 @@ xmllint --noout --schema rodski/schemas/case.xsd product/DEMO/demo_site/case/dem
 | `static` | 静态字面量 | 常用于接口 `_method`、固定 URL 等 |
 | `field` | 接口字段映射 | 常用于接口 body / query 字段名 |
 
+#### 4.3.2 视觉定位器
+
+| type 值 | 格式 | 说明 | 示例 |
+|---------|------|------|------|
+| `vision` | `vision:描述` | OmniParser + LLM 语义匹配 | `locator="vision:登录按钮"` |
+| `vision_bbox` | `vision_bbox:x1,y1,x2,y2` | 直接使用坐标 | `locator="vision_bbox:100,200,150,250"` |
+
+**视觉定位器使用场景**：
+- 动态页面：元素属性频繁变化
+- 无障碍性差：缺少语义化属性
+- 桌面应用：Windows/macOS 原生应用
+- 坐标固定：`vision_bbox` 无需 AI 调用，性能更高
+
 ### 4.4 简化格式
 
 对于简单场景，也支持单行格式：
@@ -285,7 +300,29 @@ xmllint --noout --schema rodski/schemas/case.xsd product/DEMO/demo_site/case/dem
 
 此格式下 **属性** `type` 为 **`LocatorType` 定位类型**（不是 `web`），`value` 为定位值；驱动语义由框架按场景处理（一般为 Web）。
 
-### 4.5 核心约束：元素名 = 数据表字段名
+### 4.5 多定位器格式（自动切换）
+
+每个元素可定义多个定位器，失败时自动切换：
+
+```xml
+<element name="loginBtn">
+    <locator type="id" priority="1">loginBtn</locator>
+    <locator type="xpath" priority="2">//button[@class='login']</locator>
+    <locator type="vision" priority="3">登录按钮</locator>
+</element>
+```
+
+**切换规则**：
+1. 按 `priority` 从小到大依次尝试
+2. 当前定位器定位失败时，自动切换到下一个
+3. 所有定位器都失败时，抛出 `ElementNotFoundError`
+
+**使用场景**：
+- 传统定位器作为首选，视觉定位作为兜底
+- 动态页面优先使用视觉定位
+- 提高测试用例的健壮性
+
+### 4.6 核心约束：元素名 = 数据表字段名
 
 ```
 model.xml 元素 name  ===  数据表 XML 的 field name
