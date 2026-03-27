@@ -104,19 +104,29 @@ class LLMAnalyzer:
 
 ## 关键决策
 
-### 1. 定位器格式统一
-- 使用 `locator` 属性，不新增关键字
-- 格式：`vision:描述` 和 `vision_bbox:x1,y1,x2,y2`
+### 1. 定位器类型定义
 
-### 2. 桌面操作通过 run
+RodSki 支持三种视觉定位器：
+
+| 类型 | 格式 | 实现方式 |
+|------|------|---------|
+| `vision` | `vision:img/xxx.png` | OpenCV 模板匹配 |
+| `ocr` | `ocr:文字` | OmniParser OCR 识别 |
+| `vision_bbox` | `vision_bbox:x1,y1,x2,y2` | 直接坐标计算 |
+
+### 2. 定位器格式统一
+- 使用 `locator` 属性，不新增关键字
+- 格式：`类型:值`
+
+### 3. 桌面操作通过 run
 - 不为桌面操作新增关键字
 - 脚本放在 `fun/desktop/` 目录
 
-### 3. launch 关键字
+### 4. launch 关键字
 - 与 navigate 功能相同，场景不同
 - 算作一个关键字（场景化变体）
 
-### 4. 配置优先级
+### 5. 配置优先级
 - 全局变量 > 环境变量 > yaml > 默认值
 - 支持多种 LLM 自动切换
 

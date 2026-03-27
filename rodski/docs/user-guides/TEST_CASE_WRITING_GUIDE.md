@@ -281,14 +281,47 @@ RodSki 支持 11 种定位器类型，分为传统定位器和视觉定位器两
 
 | type 值 | 格式 | 说明 | 示例 |
 |---------|------|------|------|
-| `vision` | `vision:描述` | OmniParser + LLM 语义匹配 | `locator="vision:登录按钮"` |
-| `vision_bbox` | `vision_bbox:x1,y1,x2,y2` | 直接使用坐标 | `locator="vision_bbox:100,200,150,250"` |
+| `vision` | 图片匹配 | 通过截图/图片模板匹配定位 | `locator="vision:img/login_btn.png"` |
+| `ocr` | 文字识别 | 通过 OCR 识别文字定位 | `locator="ocr:登录"` |
+| `vision_bbox` | 坐标定位 | 直接使用坐标 `x1,y1,x2,y2` | `locator="vision_bbox:100,200,150,250"` |
 
-**视觉定位器使用场景**：
+**视觉定位器说明**：
+
+- **`vision` 图片定位器**：
+  - 值为图片路径（相对于 `images/` 目录）
+  - 通过图像匹配算法定位
+  - 适用于：按钮图标、Logo、固定 UI 元素
+
+- **`ocr` 文字定位器**：
+  - 值为要识别的文字内容
+  - 通过 OmniParser OCR 能力识别文字位置
+  - 适用于：按钮文字、标签、链接文字
+
+- **`vision_bbox` 坐标定位器**：
+  - 值为坐标 `x1,y1,x2,y2`
+  - 无需 AI 调用，性能最高
+  - 适用于：坐标固定的元素
+
+**示例对比**：
+```xml
+<!-- 同一个登录按钮，三种定位方式 -->
+
+<!-- 方式1: 图片匹配 - 使用按钮截图 -->
+<element name="loginBtn" locator="vision:img/login_btn.png"/>
+
+<!-- 方式2: OCR文字识别 - 识别"登录"二字 -->
+<element name="loginBtn" locator="ocr:登录"/>
+
+<!-- 方式3: 坐标定位 - Agent探索后生成 -->
+<element name="loginBtn" locator="vision_bbox:100,200,150,250"/>
+```
+
+**使用场景**：
 - 动态页面：元素属性频繁变化
 - 无障碍性差：缺少语义化属性
 - 桌面应用：Windows/macOS 原生应用
-- 坐标固定：`vision_bbox` 无需 AI 调用，性能更高
+- 图片匹配：按钮图标、Logo 等视觉元素
+- 文字识别：按钮文字、标签、链接等
 
 ### 4.4 简化格式
 
