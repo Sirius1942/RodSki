@@ -1,7 +1,49 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <models>
-  <model name="NotepadPage">
+  <!-- 记事本应用模型 - 演示 Desktop 平台视觉定位 -->
+  <model name="NotepadApp" driver_type="windows">
+    <!-- 应用路径（静态数据） -->
+    <element name="appPath" locator="static:notepad.exe"/>
+  </model>
+
+  <model name="NotepadPage" driver_type="windows">
+    <!-- 文本编辑区 - 语义定位 -->
     <element name="textArea" locator="vision:文本编辑区域"/>
-    <element name="menuFile" locator="vision_bbox:0,0,50,25"/>
+
+    <!-- 菜单项 - 坐标定位（备用） -->
+    <element name="menuFile" locator="vision:文件菜单"/>
+    <element name="menuEdit" locator="vision:编辑菜单"/>
+    <element name="menuHelp" locator="vision:帮助菜单"/>
+
+    <!-- 文件菜单子项 -->
+    <element name="menuItemNew" locator="vision:新建菜单项"/>
+    <element name="menuItemSave" locator="vision:保存菜单项"/>
+    <element name="menuItemExit" locator="vision:退出菜单项"/>
+
+    <!-- 状态栏 -->
+    <element name="statusBar" locator="vision:状态栏"/>
+
+    <!-- 精确坐标定位（备用方案） -->
+    <element name="textAreaBbox" locator="vision_bbox:100,100,1200,800"/>
+    <element name="closeBtnBbox" locator="vision_bbox:1850,50,1900,100"/>
+  </model>
+
+  <!-- 计算器应用模型 - 扩展示例 -->
+  <model name="CalculatorApp" driver_type="windows">
+    <element name="appPath" locator="static:calc.exe"/>
+  </model>
+
+  <model name="CalculatorPage" driver_type="windows">
+    <element name="display" locator="vision:计算器显示屏"/>
+    <element name="btnClear" locator="vision:清除按钮"/>
+    <element name="btnEquals" locator="vision:等于按钮"/>
+    <element name="btnAdd" locator="vision:加号按钮"/>
+    <element name="btnSubtract" locator="vision:减号按钮"/>
+    <element name="btnMultiply" locator="vision:乘号按钮"/>
+    <element name="btnDivide" locator="vision:除号按钮"/>
+    <!-- 数字按钮示例 -->
+    <element name="btn1" locator="vision:数字1按钮"/>
+    <element name="btn2" locator="vision:数字2按钮"/>
+    <element name="btn3" locator="vision:数字3按钮"/>
   </model>
 </models>

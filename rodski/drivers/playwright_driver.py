@@ -4,6 +4,8 @@
 - 自动等待元素可见/可点击
 - 智能重试机制
 - 支持多种定位器格式
+- 支持视觉定位器 (vision/ocr/vision_bbox)
+- 坐标点击和输入
 - 完善的异常处理
 """
 from __future__ import annotations
@@ -11,12 +13,14 @@ from __future__ import annotations
 import logging
 import os
 import sys
+import tempfile
 import time
 from pathlib import Path
+from typing import Optional, Tuple
 from .base_driver import BaseDriver
 from core.exceptions import (
-    DriverError, 
-    DriverStoppedError, 
+    DriverError,
+    DriverStoppedError,
     ElementNotFoundError,
     TimeoutError,
     is_critical_error,
@@ -27,6 +31,9 @@ logger = logging.getLogger("rodski")
 # macOS：Playwright 自带的 Chromium 在 headless=False 时可能 SIGSEGV（与系统/GPU 相关）。
 # 若已安装 Google Chrome，使用 channel="chrome" 可稳定跑有界面自动化。
 _CHROME_MACOS = Path("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
+
+# 支持的视觉定位器类型
+VISION_LOCATOR_TYPES = {'vision', 'ocr', 'vision_bbox'}
 
 
 def _launch_channel_chromium(headless: bool, browser: str) -> str | None:
@@ -46,16 +53,20 @@ def _launch_channel_chromium(headless: bool, browser: str) -> str | None:
 
 class PlaywrightDriver(BaseDriver):
     """Playwright 驱动
-    
+
     自动等待策略:
     - click: 等待元素可见、稳定、可点击
     - type: 等待元素可见、可编辑
     - 默认超时: 10秒
+
+    支持的定位器类型:
+    - 传统定位器: id, css, xpath, text 等
+    - 视觉定位器: vision, ocr, vision_bbox
     """
-    
+
     # 默认超时时间（毫秒）
     DEFAULT_TIMEOUT = 10000
-    
+
     def __init__(self, headless: bool = False, browser: str = "chromium"):
         from playwright.sync_api import sync_playwright
         self._pw = sync_playwright().start()
@@ -79,6 +90,8 @@ class PlaywrightDriver(BaseDriver):
             self.page = self.browser.new_page()
         self._is_closed = False
         self._timeout = self.DEFAULT_TIMEOUT
+        # 视觉定位器（延迟加载）
+        self._vision_locator = None
 
     def _check_driver_alive(self):
         """检查驱动是否存活"""

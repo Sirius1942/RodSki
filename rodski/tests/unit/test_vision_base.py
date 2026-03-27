@@ -19,7 +19,8 @@ from unittest.mock import MagicMock, Mock, patch
 from core.test_runner import assert_raises, assert_raises_match
 
 # ── 被测模块 ──────────────────────────────────────────────────
-from vision.omni_client import OmniClient, OmniParserError
+from vision.omni_client import OmniClient
+from vision.exceptions import OmniParserError
 from vision.coordinate_utils import (
     normalized_to_pixel,
     bbox_str_to_coords,
@@ -137,9 +138,204 @@ class TestOmniClientErrors:
         assert result == []
 
 
-# ═══════════════════════════════════════════════════════════════
-# coordinate_utils 测试
-# ═══════════════════════════════════════════════════════════════
+class TestOmniClientInputFormats:
+    """OmniClient.parse 支持多种输入格式。"""
+
+    def test_parse_with_path_object(self, tmp_path):
+        """支持 pathlib.Path 作为输入。"""
+        img = _make_tiny_png(tmp_path / "shot.png")
+        elements = [{"type": "button", "content": "Click", "bbox": [0.1, 0.2, 0.3, 0.4]}]
+        with patch("vision.omni_client.requests.post", return_value=_fake_response(elements)):
+            client = OmniClient()
+            result = client.parse(img)  # Path object directly
+        assert result == elements
+
+    def test_parse_with_bytes_input(self, tmp_path):
+        """支持 bytes 作为输入。"""
+        img = _make_tiny_png(tmp_path / "shot.png")
+        img_bytes = img.read_bytes()
+        elements = [{"type": "text", "content": "Hello", "bbox": [0, 0, 0.5, 0.5]}]
+
+        with patch("vision.omni_client.requests.post", return_value=_fake_response(elements)) as mock_post:
+            client = OmniClient()
+            result = client.parse(img_bytes)
+
+        assert result == elements
+        # Verify the payload contains valid base64
+        payload = mock_post.call_args[1]["json"]
+        decoded = base64.b64decode(payload["base64_image"])
+        assert decoded == img_bytes
+
+    def test_parse_with_pil_image(self, tmp_path):
+        """支持 PIL.Image.Image 作为输入。"""
+        try:
+            from PIL import Image
+            img_path = _make_tiny_png(tmp_path / "shot.png")
+            pil_img = Image.open(img_path)
+            elements = [{"type": "icon", "content": "search", "bbox": [0.2, 0.3, 0.4, 0.5]}]
+
+            with patch("vision.omni_client.requests.post", return_value=_fake_response(elements)):
+                client = OmniClient()
+                result = client.parse(pil_img)
+
+            assert result == elements
+        except ImportError:
+            pass  # Skip if PIL not installed
+
+    def test_parse_with_invalid_type_raises_type_error(self):
+        """不支持的输入类型抛出 TypeError。"""
+        client = OmniClient()
+        assert_raises(TypeError, client.parse, 12345)  # int is not supported
+
+    def test_file_not_found_with_path_object(self, tmp_path):
+        """Path 对象指向不存在的文件抛出 FileNotFoundError。"""
+        client = OmniClient()
+        assert_raises(FileNotFoundError, client.parse, tmp_path / "nonexistent.png")
+
+
+class TestOmniClientRetry:
+    """OmniClient 重试机制测试。"""
+
+    def test_retry_on_connection_error(self, tmp_path):
+        """连接错误时重试。"""
+        import requests as _req
+        img = _make_tiny_png(tmp_path / "shot.png")
+        elements = [{"type": "text", "content": "OK", "bbox": [0, 0, 1, 1]}]
+
+        call_count = [0]
+        def side_effect(*args, **kwargs):
+            call_count[0] += 1
+            if call_count[0] < 3:  # Fail first 2 times
+                raise _req.ConnectionError("Connection failed")
+            return _fake_response(elements)
+
+        with patch("vision.omni_client.requests.post", side_effect=side_effect):
+            client = OmniClient(retry=3)
+            result = client.parse(str(img))
+
+        assert result == elements
+        assert call_count[0] == 3  # 2 failures + 1 success
+
+    def test_retry_exhausted_raises_omni_parser_error(self, tmp_path):
+        """重试次数耗尽后抛出 OmniParserError。"""
+        import requests as _req
+        img = _make_tiny_png(tmp_path / "shot.png")
+
+        with patch("vision.omni_client.requests.post", side_effect=_req.ConnectionError("Connection failed")):
+            client = OmniClient(retry=1)  # 1 retry = 2 total attempts
+            assert_raises(OmniParserError, client.parse, str(img))
+
+    def test_retry_on_timeout(self, tmp_path):
+        """超时时重试。"""
+        import requests as _req
+        img = _make_tiny_png(tmp_path / "shot.png")
+        elements = [{"type": "button", "content": "Submit", "bbox": [0.1, 0.2, 0.3, 0.4]}]
+
+        call_count = [0]
+        def side_effect(*args, **kwargs):
+            call_count[0] += 1
+            if call_count[0] < 2:  # Fail first time
+                raise _req.Timeout("Timed out")
+            return _fake_response(elements)
+
+        with patch("vision.omni_client.requests.post", side_effect=side_effect):
+            client = OmniClient(retry=2)
+            result = client.parse(str(img))
+
+        assert result == elements
+        assert call_count[0] == 2  # 1 timeout + 1 success
+
+    def test_http_error_no_retry(self, tmp_path):
+        """HTTP 错误（非 200）不重试，直接抛出。"""
+        img = _make_tiny_png(tmp_path / "shot.png")
+        bad_resp = Mock()
+        bad_resp.status_code = 500
+        bad_resp.text = "Internal Server Error"
+
+        call_count = [0]
+        def side_effect(*args, **kwargs):
+            call_count[0] += 1
+            return bad_resp
+
+        with patch("vision.omni_client.requests.post", side_effect=side_effect):
+            client = OmniClient(retry=3)
+            assert_raises(OmniParserError, client.parse, str(img))
+
+        assert call_count[0] == 1  # No retry on HTTP error
+
+
+class TestOmniClientHealthCheck:
+    """OmniClient.health_check 测试。"""
+
+    def test_health_check_success_via_health_endpoint(self):
+        """通过 /health 端点健康检查成功。"""
+        mock_resp = Mock()
+        mock_resp.status_code = 200
+
+        with patch("vision.omni_client.requests.get", return_value=mock_resp):
+            client = OmniClient(url="http://localhost:8001")
+            result = client.health_check()
+
+        assert result is True
+
+    def test_health_check_success_via_parse_endpoint(self):
+        """无 /health 端点时通过 parse 端点健康检查成功。"""
+        mock_get_resp = Mock()
+        mock_get_resp.status_code = 404  # /health not found
+
+        mock_post_resp = Mock()
+        mock_post_resp.status_code = 200
+
+        def get_side_effect(*args, **kwargs):
+            raise Exception("Connection refused")
+
+        def post_side_effect(*args, **kwargs):
+            return mock_post_resp
+
+        with patch("vision.omni_client.requests.get", side_effect=get_side_effect):
+            with patch("vision.omni_client.requests.post", side_effect=post_side_effect):
+                client = OmniClient(url="http://localhost:8001")
+                result = client.health_check()
+
+        assert result is True
+
+    def test_health_check_failure(self):
+        """健康检查失败返回 False。"""
+        import requests as _req
+
+        with patch("vision.omni_client.requests.get", side_effect=_req.ConnectionError("No connection")):
+            with patch("vision.omni_client.requests.post", side_effect=_req.ConnectionError("No connection")):
+                client = OmniClient(url="http://localhost:8001")
+                result = client.health_check()
+
+        assert result is False
+
+
+class TestOmniClientDefaults:
+    """OmniClient 默认值和行为测试。"""
+
+    def test_default_url(self):
+        """默认 URL 设置正确。"""
+        client = OmniClient()
+        assert client.url == "http://localhost:8001/parse"
+
+    def test_default_timeout(self):
+        """默认超时设置为 10 秒。"""
+        client = OmniClient()
+        assert client.timeout == 10
+
+    def test_default_retry(self):
+        """默认重试次数为 2。"""
+        client = OmniClient()
+        assert client.retry == 2
+
+    def test_url_trailing_slash_handling(self):
+        """URL 尾部斜杠处理。"""
+        client1 = OmniClient(url="http://localhost:8001/")
+        assert client1.url == "http://localhost:8001"
+
+        client2 = OmniClient(url="http://localhost:8001/parse/")
+        assert client2.url == "http://localhost:8001/parse/"
 
 class TestNormalizedToPixel:
     """normalized_to_pixel 正常路径与边界。"""

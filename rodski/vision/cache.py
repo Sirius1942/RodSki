@@ -1,16 +1,27 @@
 """视觉定位结果缓存模块
 
-缓存 OmniParser 和 LLM 分析结果，避免对同一截图重复调用远程服务。
+缓存视觉定位结果，减少重复 AI 调用。
 
-- 缓存 key 使用截图路径的 MD5 哈希，避免路径含特殊字符时的问题。
-- 每条记录独立计时，TTL 到期后惰性清理（get 时检查，也可主动调用 _cleanup_expired）。
+- 缓存 key 使用截图内容的 MD5 哈希，支持路径、PIL Image 或 bytes。
+- 每条记录独立计时，TTL 到期后惰性清理（get 时检查，也可主动调用 cleanup_expired）。
 - 线程安全：使用 threading.Lock 保护内部字典。
 """
+
+from __future__ import annotations
+
 import hashlib
+import io
 import threading
 import time
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Any, Dict, Optional, Union
 
+# 延迟导入 PIL，避免强制依赖
+try:
+    from PIL import Image
+    HAS_PIL = True
+except ImportError:
+    Image = None  # type: ignore[assignment]
+    HAS_PIL = False
 
 _SENTINEL = object()  # 区分"未命中"和"值为 None"
 
@@ -28,149 +39,215 @@ class _CacheEntry:
         return time.monotonic() < self.expires_at
 
 
+# 截图输入类型
+ScreenshotInput = Union[str, bytes, "Image.Image"]
+
+
 class VisionCache:
-    """缓存 OmniParser 和 LLM 分析结果，避免重复调用
+    """视觉定位结果缓存
+
+    缓存视觉定位结果，避免对同一截图重复调用 AI 服务。
 
     用法示例::
 
-        cache = VisionCache(ttl=30)
+        cache = VisionCache(ttl=30, enabled=True)
 
-        # 存入 OmniParser 结果
-        cache.set_parse_result("/tmp/screen.png", parsed_elements)
+        # 存入结果
+        cache.set(screenshot, {"x": 100, "y": 200, "confidence": 0.95})
 
         # 读取（未命中或已过期返回 None）
-        result = cache.get_parse_result("/tmp/screen.png")
+        result = cache.get(screenshot)
+        if result:
+            print(f"缓存命中: {result}")
 
         # 清空全部缓存
         cache.clear()
+
+        # 清理过期缓存
+        removed_count = cache.cleanup_expired()
     """
 
-    def __init__(self, ttl: int = 30):
+    def __init__(self, ttl: int = 30, enabled: bool = True):
         """初始化缓存。
 
         Args:
-            ttl: 缓存存活秒数，默认 30 秒。
+            ttl: 缓存过期时间（秒），默认 30 秒。
+            enabled: 是否启用缓存，默认 True。设为 False 时，get 始终返回 None。
         """
         self._ttl: int = ttl
-        self._parse_store: Dict[str, _CacheEntry] = {}
-        self._analyze_store: Dict[str, _CacheEntry] = {}
+        self._enabled: bool = enabled
+        self._cache: Dict[str, _CacheEntry] = {}
         self._lock = threading.Lock()
+
+    @property
+    def enabled(self) -> bool:
+        """返回缓存是否启用"""
+        return self._enabled
+
+    @enabled.setter
+    def enabled(self, value: bool) -> None:
+        """设置缓存是否启用"""
+        self._enabled = value
+
+    @property
+    def ttl(self) -> int:
+        """返回当前缓存 TTL（秒）"""
+        return self._ttl
 
     # ── 内部工具 ──────────────────────────────────────────────────
 
-    @staticmethod
-    def _make_key(screenshot_path: str) -> str:
-        """将截图路径转为 MD5 哈希字符串作为缓存 key。"""
-        return hashlib.md5(screenshot_path.encode("utf-8")).hexdigest()
+    def _get_screenshot_hash(self, screenshot: ScreenshotInput) -> str:
+        """计算截图的 hash 值作为缓存 key
 
-    def _get(self, store: Dict[str, _CacheEntry], key: str) -> Any:
-        """从指定 store 中读取，过期则删除并返回哨兵值。"""
-        entry = store.get(key)
-        if entry is None:
-            return _SENTINEL
-        if not entry.is_alive():
-            del store[key]
-            return _SENTINEL
-        return entry.value
+        Args:
+            screenshot: 截图（路径、PIL Image 或 bytes）
 
-    def _set(self, store: Dict[str, _CacheEntry], key: str, value: Any) -> None:
-        """向指定 store 写入一条带 TTL 的记录。"""
+        Returns:
+            MD5 hash 字符串
+        """
+        if isinstance(screenshot, str):
+            # 路径：读取文件内容计算 hash
+            with open(screenshot, "rb") as f:
+                content = f.read()
+            return hashlib.md5(content).hexdigest()
+
+        elif isinstance(screenshot, bytes):
+            # bytes：直接计算 hash
+            return hashlib.md5(screenshot).hexdigest()
+
+        elif HAS_PIL and isinstance(screenshot, Image.Image):
+            # PIL Image：转为 bytes 后计算 hash
+            buffer = io.BytesIO()
+            screenshot.save(buffer, format="PNG")
+            return hashlib.md5(buffer.getvalue()).hexdigest()
+
+        else:
+            raise TypeError(
+                f"不支持的截图类型: {type(screenshot).__name__}。"
+                "支持类型: str (路径), bytes, PIL.Image.Image"
+            )
+
+    # ── 公共 API ──────────────────────────────────────────────────
+
+    def get(self, screenshot: ScreenshotInput) -> Optional[Dict]:
+        """获取缓存结果
+
+        Args:
+            screenshot: 截图（路径、PIL Image 或 bytes）
+
+        Returns:
+            缓存的结果字典，不存在或已过期返回 None。
+            若缓存未启用（enabled=False），也返回 None。
+        """
+        if not self._enabled:
+            return None
+
+        try:
+            key = self._get_screenshot_hash(screenshot)
+        except (FileNotFoundError, OSError):
+            # 文件不存在或读取失败，返回未命中
+            return None
+
+        with self._lock:
+            entry = self._cache.get(key)
+            if entry is None:
+                return None
+            if not entry.is_alive():
+                del self._cache[key]
+                return None
+            return entry.value
+
+    def set(self, screenshot: ScreenshotInput, result: Dict) -> None:
+        """设置缓存
+
+        Args:
+            screenshot: 截图（路径、PIL Image 或 bytes）
+            result: 要缓存的结果字典
+        """
+        if not self._enabled:
+            return
+
+        try:
+            key = self._get_screenshot_hash(screenshot)
+        except (FileNotFoundError, OSError):
+            # 文件不存在或读取失败，不缓存
+            return
+
         expires_at = time.monotonic() + self._ttl
-        store[key] = _CacheEntry(value=value, expires_at=expires_at)
-
-    # ── OmniParser 结果缓存 ───────────────────────────────────────
-
-    def get_parse_result(self, screenshot_path: str) -> Optional[List]:
-        """读取截图对应的 OmniParser 解析结果。
-
-        Args:
-            screenshot_path: 截图文件路径（用于生成缓存 key）。
-
-        Returns:
-            缓存的解析结果列表；未命中或已过期时返回 None。
-        """
-        key = self._make_key(screenshot_path)
         with self._lock:
-            result = self._get(self._parse_store, key)
-        return None if result is _SENTINEL else result
-
-    def set_parse_result(self, screenshot_path: str, result: List) -> None:
-        """存入截图对应的 OmniParser 解析结果。
-
-        Args:
-            screenshot_path: 截图文件路径。
-            result: OmniParser 返回的元素列表。
-        """
-        key = self._make_key(screenshot_path)
-        with self._lock:
-            self._set(self._parse_store, key, result)
-
-    # ── LLM 分析结果缓存 ─────────────────────────────────────────
-
-    def get_analyze_result(self, screenshot_path: str) -> Optional[List]:
-        """读取截图对应的 LLM 分析结果。
-
-        Args:
-            screenshot_path: 截图文件路径。
-
-        Returns:
-            缓存的分析结果列表；未命中或已过期时返回 None。
-        """
-        key = self._make_key(screenshot_path)
-        with self._lock:
-            result = self._get(self._analyze_store, key)
-        return None if result is _SENTINEL else result
-
-    def set_analyze_result(self, screenshot_path: str, result: List) -> None:
-        """存入截图对应的 LLM 分析结果。
-
-        Args:
-            screenshot_path: 截图文件路径。
-            result: LLM 返回的坐标/元素列表。
-        """
-        key = self._make_key(screenshot_path)
-        with self._lock:
-            self._set(self._analyze_store, key, result)
-
-    # ── 维护操作 ─────────────────────────────────────────────────
+            self._cache[key] = _CacheEntry(value=result, expires_at=expires_at)
 
     def clear(self) -> None:
-        """清空全部缓存（parse 和 analyze）。"""
+        """清空缓存"""
         with self._lock:
-            self._parse_store.clear()
-            self._analyze_store.clear()
+            self._cache.clear()
 
-    def _cleanup_expired(self) -> Tuple[int, int]:
-        """主动清除全部已过期的缓存条目。
+    def cleanup_expired(self) -> int:
+        """清理过期缓存
 
         Returns:
-            (parse_removed, analyze_removed) 分别清除的条目数。
+            清理的条目数
         """
         now = time.monotonic()
+        removed = 0
         with self._lock:
-            parse_keys = [k for k, e in self._parse_store.items() if now >= e.expires_at]
-            for k in parse_keys:
-                del self._parse_store[k]
+            expired_keys = [k for k, e in self._cache.items() if now >= e.expires_at]
+            for k in expired_keys:
+                del self._cache[k]
+                removed += 1
+        return removed
 
-            analyze_keys = [k for k, e in self._analyze_store.items() if now >= e.expires_at]
-            for k in analyze_keys:
-                del self._analyze_store[k]
+    # ── 兼容旧 API ──────────────────────────────────────────────────
 
-        return len(parse_keys), len(analyze_keys)
+    def get_parse_result(self, screenshot_path: str) -> Optional[Any]:
+        """读取截图对应的解析结果（兼容旧 API）
+
+        Args:
+            screenshot_path: 截图文件路径
+
+        Returns:
+            缓存的解析结果；未命中或已过期时返回 None
+        """
+        return self.get(screenshot_path)
+
+    def set_parse_result(self, screenshot_path: str, result: Any) -> None:
+        """存入截图对应的解析结果（兼容旧 API）
+
+        Args:
+            screenshot_path: 截图文件路径
+            result: 解析结果
+        """
+        self.set(screenshot_path, result if isinstance(result, dict) else {"data": result})
+
+    def get_analyze_result(self, screenshot_path: str) -> Optional[Any]:
+        """读取截图对应的分析结果（兼容旧 API）
+
+        Args:
+            screenshot_path: 截图文件路径
+
+        Returns:
+            缓存的分析结果；未命中或已过期时返回 None
+        """
+        return self.get(screenshot_path)
+
+    def set_analyze_result(self, screenshot_path: str, result: Any) -> None:
+        """存入截图对应的分析结果（兼容旧 API）
+
+        Args:
+            screenshot_path: 截图文件路径
+            result: 分析结果
+        """
+        self.set(screenshot_path, result if isinstance(result, dict) else {"data": result})
 
     # ── 只读统计属性 ─────────────────────────────────────────────
 
     @property
-    def size(self) -> Tuple[int, int]:
-        """返回 (parse_store条目数, analyze_store条目数)，含已过期但未清理的条目。"""
+    def size(self) -> int:
+        """返回缓存条目数（含已过期但未清理的条目）"""
         with self._lock:
-            return len(self._parse_store), len(self._analyze_store)
-
-    @property
-    def ttl(self) -> int:
-        """当前缓存 TTL（秒）。"""
-        return self._ttl
+            return len(self._cache)
 
     def __repr__(self) -> str:
-        p, a = self.size
-        return f"VisionCache(ttl={self._ttl}s, parse_entries={p}, analyze_entries={a})"
+        return (
+            f"VisionCache(ttl={self._ttl}s, enabled={self._enabled}, entries={self.size})"
+        )

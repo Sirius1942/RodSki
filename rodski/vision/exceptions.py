@@ -225,3 +225,43 @@ class VisionTimeoutError(VisionError):
             parts.append(f"target='{self.target}'")
         parts.append("| 建议：增大 timeout 参数，确认页面已完全加载，检查系统性能。")
         return ": ".join([parts[0], ", ".join(parts[1:])])
+
+
+class InvalidBBoxError(VisionError):
+    """边界框格式无效
+
+    当坐标字符串格式不正确或坐标值不合法时抛出。
+
+    建议：
+    1. 确认坐标字符串格式为 "x1,y1,x2,y2"
+    2. 检查坐标值是否为有效数字
+    3. 确保坐标值满足 x2 > x1 且 y2 > y1
+    """
+
+    error_code = "SKI506"
+
+    def __init__(
+        self,
+        bbox_str: Optional[str] = None,
+        reason: Optional[str] = None,
+        message: Optional[str] = None,
+        **kwargs,
+    ):
+        self.bbox_str = bbox_str
+        self.reason = reason
+        msg = message or (
+            "无效的边界框格式"
+            + (f"：'{bbox_str}'" if bbox_str else "")
+            + (f"，原因：{reason}" if reason else "")
+            + "。建议：确认格式为 'x1,y1,x2,y2'，坐标值为有效数字且 x2 > x1, y2 > y1。"
+        )
+        super().__init__(msg, **kwargs)
+
+    def __str__(self) -> str:
+        parts = ["[SKI506] InvalidBBoxError"]
+        if self.bbox_str:
+            parts.append(f"bbox='{self.bbox_str}'")
+        if self.reason:
+            parts.append(f"reason={self.reason}")
+        parts.append("| 建议：确认格式为 'x1,y1,x2,y2'，坐标值有效且顺序正确。")
+        return ": ".join([parts[0], ", ".join(parts[1:])])

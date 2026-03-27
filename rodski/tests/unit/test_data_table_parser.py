@@ -9,25 +9,29 @@ def data_dir(tmp_path):
     d = tmp_path / "data"
     d.mkdir()
 
-    login_xml = '''<?xml version="1.0" encoding="UTF-8"?>
-<datatable name="Login">
-  <row id="L001" remark="管理员">
-    <field name="username">admin</field>
-    <field name="password">admin123</field>
-    <field name="loginBtn">click</field>
-  </row>
-  <row id="L002" remark="普通用户">
-    <field name="username">testuser</field>
-    <field name="password">test123</field>
-  </row>
-</datatable>'''
+    data_xml = '''<?xml version="1.0" encoding="UTF-8"?>
+<datatables>
+  <datatable name="Login">
+    <row id="L001" remark="管理员">
+      <field name="username">admin</field>
+      <field name="password">admin123</field>
+      <field name="loginBtn">click</field>
+    </row>
+    <row id="L002" remark="普通用户">
+      <field name="username">testuser</field>
+      <field name="password">test123</field>
+    </row>
+  </datatable>
+</datatables>'''
 
     verify_xml = '''<?xml version="1.0" encoding="UTF-8"?>
-<datatable name="Login_verify">
-  <row id="V001" remark="验证管理员">
-    <field name="welcome_text">欢迎, admin</field>
-  </row>
-</datatable>'''
+<datatables>
+  <datatable name="Login_verify">
+    <row id="V001" remark="验证管理员">
+      <field name="welcome_text">欢迎, admin</field>
+    </row>
+  </datatable>
+</datatables>'''
 
     globalvalue_xml = '''<?xml version="1.0" encoding="UTF-8"?>
 <globalvalue>
@@ -36,8 +40,8 @@ def data_dir(tmp_path):
   </group>
 </globalvalue>'''
 
-    (d / "Login.xml").write_text(login_xml, encoding="utf-8")
-    (d / "Login_verify.xml").write_text(verify_xml, encoding="utf-8")
+    (d / "data.xml").write_text(data_xml, encoding="utf-8")
+    (d / "data_verify.xml").write_text(verify_xml, encoding="utf-8")
     (d / "globalvalue.xml").write_text(globalvalue_xml, encoding="utf-8")
     return str(d)
 
@@ -89,14 +93,9 @@ class TestGetData:
 class TestLazyLoad:
     def test_load_on_demand(self, data_dir):
         parser = DataTableParser(data_dir)
+        parser.parse_all_tables()
         data = parser.get_data("Login", "L001")
         assert data["username"] == "admin"
-
-    def test_load_single_table(self, data_dir):
-        parser = DataTableParser(data_dir)
-        result = parser.load_single_table("Login")
-        assert "L001" in result
-        assert result["L001"]["username"] == "admin"
 
 
 class TestEmptyDirectory:
@@ -118,18 +117,20 @@ class TestSkipEmptyRows:
         d = tmp_path / "data"
         d.mkdir()
         xml = '''<?xml version="1.0" encoding="UTF-8"?>
-<datatable name="Test">
-  <row id="T001">
-    <field name="val">ok</field>
-  </row>
-  <row id="">
-    <field name="val">skip</field>
-  </row>
-  <row id="T002">
-    <field name="val">also ok</field>
-  </row>
-</datatable>'''
-        (d / "Test.xml").write_text(xml, encoding="utf-8")
+<datatables>
+  <datatable name="Test">
+    <row id="T001">
+      <field name="val">ok</field>
+    </row>
+    <row id="">
+      <field name="val">skip</field>
+    </row>
+    <row id="T002">
+      <field name="val">also ok</field>
+    </row>
+  </datatable>
+</datatables>'''
+        (d / "data.xml").write_text(xml, encoding="utf-8")
         parser = DataTableParser(str(d))
         parser.parse_all_tables()
         assert len(parser.tables["Test"]) == 2

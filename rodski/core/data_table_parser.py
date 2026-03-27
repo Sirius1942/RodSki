@@ -1,7 +1,8 @@
-"""数据表 XML 解析器 - 从 data/data.xml 加载所有数据表
+"""数据表 XML 解析器 - 从 data/data.xml 和 data/data_verify.xml 加载所有数据表
 
 规则：
 - 所有数据表合并到 data/data.xml
+- 所有 verify 数据表合并到 data/data_verify.xml
 - 全局变量独立在 data/globalvalue.xml
 
 XML 格式参见 schemas/data.xsd。
@@ -20,19 +21,25 @@ class DataTableParser:
         """
         self.data_dir = Path(data_dir)
         self.data_file = self.data_dir / "data.xml"
+        self.verify_file = self.data_dir / "data_verify.xml"
         self.tables: Dict[str, Dict[str, Dict[str, Any]]] = {}
 
     def parse_all_tables(self) -> Dict[str, Dict[str, Dict[str, Any]]]:
-        """解析 data.xml 中的所有数据表"""
+        """解析 data.xml 和 data_verify.xml 中的所有数据表"""
         self.tables = {}
+        self._parse_file(self.data_file)
+        self._parse_file(self.verify_file)
+        return self.tables
 
-        if not self.data_file.exists():
-            return self.tables
+    def _parse_file(self, file_path: Path) -> None:
+        """解析单个数据文件"""
+        if not file_path.exists():
+            return
 
         try:
-            tree = ET.parse(self.data_file)
+            tree = ET.parse(file_path)
         except ET.ParseError:
-            return self.tables
+            return
 
         root = tree.getroot()
 
@@ -42,7 +49,7 @@ class DataTableParser:
         elif root.tag == 'datatable':
             datatable_nodes = [root]
         else:
-            return self.tables
+            return
 
         for datatable_node in datatable_nodes:
             table_name = datatable_node.get('name', '').strip()
@@ -67,8 +74,6 @@ class DataTableParser:
 
             if table_data:
                 self.tables[table_name] = table_data
-
-        return self.tables
 
     def get(self, table_name: str, data_id: str = None) -> Any:
         """获取数据表或指定行数据"""
