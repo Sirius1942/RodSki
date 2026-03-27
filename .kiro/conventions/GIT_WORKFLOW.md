@@ -101,8 +101,17 @@ pytest rodski/tests/
 git tag -a v2.1.0 -m "release: v2.1.0 - 功能描述"
 git push origin v2.1.0
 
-# 4. 生成 CHANGELOG
+# 4. CI/CD 自动触发发布流程
 ```
+
+## CI/CD 集成
+
+参考: #[[file:CI_CD_GUIDE.md]]
+
+- GitHub Actions 自动运行测试
+- 代码质量检查（Black, Flake8, Pylint）
+- 自动发布到 PyPI（tag触发）
+- Docker 镜像构建
 
 ## 注意事项
 
