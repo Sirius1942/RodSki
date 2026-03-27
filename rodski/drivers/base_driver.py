@@ -128,11 +128,11 @@ class BaseDriver(ABC):
         pass
 
     @abstractmethod
-    def take_screenshot(self) -> str:
-        """截图，返回截图路径
+    def take_screenshot(self, path: str) -> None:
+        """截图到指定路径
 
-        Returns:
-            截图文件的绝对路径
+        Args:
+            path: 截图保存路径
 
         Raises:
             DriverError: 截图失败时抛出
