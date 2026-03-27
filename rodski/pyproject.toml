@@ -5,3 +5,28 @@ description = "RodSki 关键字驱动自动化测试框架"
 
 # RodSki 不依赖 pytest 等外部测试框架
 # 自检使用自有执行器: python selftest.py
+
+[tool.black]
+line-length = 120
+target-version = ['py38']
+exclude = '''
+/(
+    \.git
+  | \.venv
+  | venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 120
+
+[tool.coverage.run]
+source = ["rodski"]
+omit = ["*/tests/*", "*/demo_*/*"]
+
+[tool.coverage.report]
+fail_under = 80
+precision = 2
