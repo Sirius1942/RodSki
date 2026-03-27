@@ -5,7 +5,6 @@
 支持三种定位器格式：
 
 * ``vision:<描述>``    — 截图 → OmniParser → LLM 语义分析 → 匹配 → 边界框
-* ``vision:<模板图片路径>`` — 图片模板匹配 → 边界框（延迟加载 ImageMatcher）
 * ``ocr:<文字内容>`` — OCR 文字识别定位 → 边界框（延迟加载 OCRLocator）
 * ``vision_bbox:x1,y1,x2,y2`` — 直接解析坐标字符串
 
@@ -122,25 +121,13 @@ class VisionLocator:
         self._llm_analyzer = llm_analyzer
         self._matcher = matcher
 
-        # 延迟加载的定位器（新 API）
-        self._image_matcher = None
+        # 延迟加载的定位器
         self._ocr_locator = None
         self._bbox_locator = None
 
     # ------------------------------------------------------------------
     # 延迟加载属性
     # ------------------------------------------------------------------
-
-    @property
-    def image_matcher(self):
-        """延迟加载 ImageMatcher（图片模板匹配）。"""
-        if self._image_matcher is None:
-            from .image_matcher import ImageMatcher
-            self._image_matcher = ImageMatcher(
-                images_dir=self._cfg.get("locator", {}).get("images_dir", "images"),
-                threshold=self._cfg.get("locator", {}).get("match_threshold", 0.8)
-            )
-        return self._image_matcher
 
     @property
     def ocr_locator(self):
@@ -219,44 +206,16 @@ class VisionLocator:
         locator_value: str,
         screenshot
     ) -> Optional[Tuple[int, int, int, int]]:
-        """图片匹配定位。
-
-        优先尝试模板图片匹配，若失败则尝试语义匹配（OmniParser + LLM）。
+        """语义匹配定位（OmniParser + LLM）。
 
         Args:
-            locator_value: 模板图片路径或语义描述
+            locator_value: 语义描述
             screenshot: 截图
 
         Returns:
             (x1, y1, x2, y2) 边界框坐标，未找到返回 None。
         """
-        # 判断是否为图片路径（存在文件或以路径特征开头）
-        is_image_path = self._is_image_path(locator_value)
-
-        if is_image_path:
-            # 模板图片匹配
-            try:
-                return self.image_matcher.match(locator_value, screenshot)
-            except Exception as exc:  # noqa: BLE001
-                logger.debug("Template matching failed: %s, falling back to semantic", exc)
-
-        # 语义匹配（OmniParser + LLM）
         return self._locate_by_semantic(locator_value, screenshot)
-
-    def _is_image_path(self, value: str) -> bool:
-        """判断值是否为图片路径。"""
-        # 检查是否为绝对路径或相对路径
-        if os.path.isabs(value) or value.startswith(("./", "../")):
-            return True
-        # 检查是否为图片文件名（带扩展名）
-        image_extensions = {".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp"}
-        ext = os.path.splitext(value)[1].lower()
-        if ext in image_extensions:
-            return True
-        # 检查文件是否存在
-        if os.path.exists(value):
-            return True
-        return False
 
     def _locate_by_semantic(
         self,

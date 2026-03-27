@@ -294,66 +294,6 @@ class KeywordEngine:
         """判断是否是视觉定位器类型"""
         return ModelParser.is_vision_locator(locator_type)
 
-    def _execute_at_element(
-        self,
-        element_info: Dict[str, Any],
-        action: str,
-        value: str = None
-    ) -> bool:
-        """在元素位置执行操作（支持多定位器自动切换）
-
-        Args:
-            element_info: 元素信息，包含 locations 列表
-            action: 操作类型 ('click', 'type', 'get_text', 'double_click', 'right_click', 'hover')
-            value: 输入值（仅 action='type' 时使用）
-
-        Returns:
-            操作是否成功
-
-        Raises:
-            ElementNotFoundError: 所有定位器都失败时抛出
-        """
-        bbox = self._try_locators(element_info)
-
-        if not bbox:
-            raise ElementNotFoundError(
-                f"无法定位元素，所有定位器均失败",
-                locator=str(element_info.get("locations", []))
-            )
-
-        x1, y1, x2, y2 = bbox
-        cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
-
-        if action == "click":
-            self.driver.click(cx, cy)
-            return True
-        elif action == "double_click":
-            self.driver.double_click(cx, cy)
-            return True
-        elif action == "right_click":
-            self.driver.right_click(cx, cy)
-            return True
-        elif action == "hover":
-            self.driver.hover(cx, cy)
-            return True
-        elif action == "type":
-            if value is None:
-                raise InvalidParameterError(
-                    keyword="type",
-                    param_name="value",
-                    reason="type 操作需要提供 value 参数"
-                )
-            self.driver.type_text(cx, cy, value)
-            return True
-        elif action == "get_text":
-            return self.driver.get_text(x1, y1, x2, y2)
-        else:
-            raise InvalidParameterError(
-                keyword="action",
-                param_name="action",
-                reason=f"不支持的操作类型: {action}"
-            )
-
     # ── UI 操作关键字 ─────────────────────────────────────────────
 
     def _ensure_driver(self) -> None:
