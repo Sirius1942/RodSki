@@ -176,11 +176,21 @@ class PlaywrightDriver(BaseDriver):
             pass
         return None
 
-    def type_text(self, x: int, y: int, text: str) -> None:
-        """在指定坐标输入文字（BaseDriver 接口）"""
+    def click_at(self, x: int, y: int) -> None:
+        """点击指定坐标（BaseDriver 接口 - 视觉定位专用）"""
+        self._check_driver_alive()
+        self.page.mouse.click(x, y)
+
+    def type_text_at(self, x: int, y: int, text: str) -> None:
+        """在指定坐标输入文字（BaseDriver 接口 - 视觉定位专用）"""
         self._check_driver_alive()
         self.page.mouse.click(x, y)
         self.page.keyboard.type(text)
+
+    def get_text_in_bbox(self, x1: int, y1: int, x2: int, y2: int) -> str:
+        """获取指定区域的文字（BaseDriver 接口 - 视觉定位专用）"""
+        self._check_driver_alive()
+        raise NotImplementedError("get_text_in_bbox 需要 OCR 支持")
 
     def take_screenshot(self, path: str) -> None:
         """截图（BaseDriver 接口）"""

@@ -37,14 +37,14 @@ class ConcreteDriver(BaseDriver):
             return None
         return (10, 20, 110, 50)
 
-    def click(self, x: int, y: int) -> None:
-        self.actions.append(("click", x, y))
+    def click_at(self, x: int, y: int) -> None:
+        self.actions.append(("click_at", x, y))
 
-    def type_text(self, x: int, y: int, text: str) -> None:
-        self.actions.append(("type_text", x, y, text))
+    def type_text_at(self, x: int, y: int, text: str) -> None:
+        self.actions.append(("type_text_at", x, y, text))
 
-    def get_text(self, x1: int, y1: int, x2: int, y2: int) -> str:
-        self.actions.append(("get_text", x1, y1, x2, y2))
+    def get_text_in_bbox(self, x1: int, y1: int, x2: int, y2: int) -> str:
+        self.actions.append(("get_text_in_bbox", x1, y1, x2, y2))
         return "sample text"
 
     def take_screenshot(self) -> str:
@@ -77,18 +77,18 @@ class TestBaseDriver:
         result = driver.locate_element("css", "not_found")
         assert result is None
 
-    def test_click(self, driver):
-        driver.click(100, 200)
-        assert ("click", 100, 200) in driver.actions
+    def test_click_at(self, driver):
+        driver.click_at(100, 200)
+        assert ("click_at", 100, 200) in driver.actions
 
-    def test_type_text(self, driver):
-        driver.type_text(100, 200, "hello")
-        assert ("type_text", 100, 200, "hello") in driver.actions
+    def test_type_text_at(self, driver):
+        driver.type_text_at(100, 200, "hello")
+        assert ("type_text_at", 100, 200, "hello") in driver.actions
 
-    def test_get_text(self, driver):
-        result = driver.get_text(10, 20, 110, 50)
+    def test_get_text_in_bbox(self, driver):
+        result = driver.get_text_in_bbox(10, 20, 110, 50)
         assert result == "sample text"
-        assert ("get_text", 10, 20, 110, 50) in driver.actions
+        assert ("get_text_in_bbox", 10, 20, 110, 50) in driver.actions
 
     def test_take_screenshot(self, driver):
         result = driver.take_screenshot()
@@ -100,7 +100,7 @@ class TestBaseDriver:
         result = driver.click_element("css", "#button")
         assert result is True
         # 应该点击元素中心点 (60, 35)
-        assert ("click", 60, 35) in driver.actions
+        assert ("click_at", 60, 35) in driver.actions
 
     def test_click_element_not_found(self, driver):
         """测试元素未找到时 click_element 返回 False"""
@@ -112,7 +112,7 @@ class TestBaseDriver:
         result = driver.type_at_element("css", "#input", "test")
         assert result is True
         # 应该在元素中心点输入
-        assert ("type_text", 60, 35, "test") in driver.actions
+        assert ("type_text_at", 60, 35, "test") in driver.actions
 
     def test_get_element_text(self, driver):
         """测试便捷方法 get_element_text"""
