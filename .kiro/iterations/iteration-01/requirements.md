@@ -57,6 +57,28 @@ RodSki 当前仅支持传统定位器（XPath、CSS、ID等），在以下场景
 | Vision | `locator="vision:"` | `locator="vision:登录按钮"` |
 | VisionBBox | `locator="vision_bbox:"` | `locator="vision_bbox:100,200,150,250"` |
 
+#### 1.3 多定位器自动切换
+
+每个元素可定义多个定位器，按优先级依次尝试，失败自动切换：
+
+```xml
+<element name="loginBtn">
+    <locator type="id" priority="1">loginBtn</locator>
+    <locator type="xpath" priority="2">//button[@class='login']</locator>
+    <locator type="vision" priority="3">登录按钮</locator>
+</element>
+```
+
+**切换规则**：
+1. 按 `priority` 从小到大依次尝试
+2. 当前定位器定位失败时，自动切换到下一个
+3. 所有定位器都失败时，抛出元素未找到异常
+
+**使用场景**：
+- 传统定位器作为首选，视觉定位作为兜底
+- 动态页面优先使用视觉定位
+- 提高测试用例的健壮性
+
 ### 2. 平台支持
 
 #### 2.1 Web 平台
