@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datatable name="NotepadPage">
+  <row id="D001" remark="输入文本">
+    <field name="textArea">Hello RodSki Vision!</field>
+  </row>
+</datatable>

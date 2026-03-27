@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<data_table name="Login">
+    <!-- 维修厂用户 -->
+    <data id="WXC">
+        <field name="accountLoginTab">click</field>
+        <field name="phoneInput">15521344075</field>
+        <field name="passwordInput">Cass2025</field>
+        <field name="agreeCheckbox">click</field>
+        <field name="loginBtn">click</field>
+    </data>
+
+    <!-- 严选专营店B用户 -->
+    <data id="YXBH">
+        <field name="accountLoginTab">click</field>
+        <field name="phoneInput">13400055184</field>
+        <field name="passwordInput">Cass2025</field>
+        <field name="agreeCheckbox">click</field>
+        <field name="loginBtn">click</field>
+    </data>
+
+    <!-- 聚汽链B用户 -->
+    <data id="JQL">
+        <field name="accountLoginTab">click</field>
+        <field name="phoneInput">13395432251</field>
+        <field name="passwordInput">Cass2025</field>
+        <field name="agreeCheckbox">click</field>
+        <field name="loginBtn">click</field>
+    </data>
+</data_table>

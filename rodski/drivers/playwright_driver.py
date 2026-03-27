@@ -61,6 +61,8 @@ class PlaywrightDriver(BaseDriver):
         self._pw = sync_playwright().start()
         browser_type = getattr(self._pw, browser, self._pw.chromium)
         launch_kw: dict = {"headless": headless}
+        if not headless:
+            launch_kw["args"] = ["--start-maximized"]
         ch = _launch_channel_chromium(headless, browser)
         if ch:
             launch_kw["channel"] = ch
@@ -70,7 +72,11 @@ class PlaywrightDriver(BaseDriver):
                 ch,
             )
         self.browser = browser_type.launch(**launch_kw)
-        self.page = self.browser.new_page()
+        # 非 headless 模式使用最大化窗口；headless 使用固定分辨率
+        if not headless:
+            self.page = self.browser.new_page(no_viewport=True)
+        else:
+            self.page = self.browser.new_page()
         self._is_closed = False
         self._timeout = self.DEFAULT_TIMEOUT
 

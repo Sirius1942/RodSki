@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<models>
+  <model name="NotepadPage">
+    <element name="textArea" locator="vision:文本编辑区域"/>
+    <element name="menuFile" locator="vision_bbox:0,0,50,25"/>
+  </model>
+</models>
