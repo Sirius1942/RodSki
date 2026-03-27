@@ -11,12 +11,10 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from PIL import Image
-
 logger = logging.getLogger(__name__)
 
 # Type alias for screenshot input
-ScreenshotInput = Union[str, Path, bytes, Image.Image, Any]
+ScreenshotInput = Union[str, Path, bytes]
 
 
 class OCRLocator:
@@ -71,7 +69,6 @@ class OCRLocator:
             screenshot: 截图输入，支持以下格式：
                 - 文件路径 (str 或 Path)
                 - bytes (原始图像数据)
-                - PIL.Image.Image 对象
             exact: 是否精确匹配（默认 False 为模糊/包含匹配）。
 
         Returns:
@@ -233,31 +230,14 @@ class OCRLocator:
                 raise FileNotFoundError(f"Screenshot file not found: {screenshot}")
             return str(path), False
 
-        # PIL Image
-        if isinstance(screenshot, Image.Image):
-            return self._save_image_to_temp(screenshot), True
-
         # bytes
         if isinstance(screenshot, bytes):
             return self._save_bytes_to_temp(screenshot), True
 
-        # 其他类型尝试当作有 save 方法的对象
-        if hasattr(screenshot, "save"):
-            return self._save_image_to_temp(screenshot), True
-
         raise TypeError(
             f"Unsupported screenshot type: {type(screenshot).__name__}. "
-            "Expected str, Path, bytes, or PIL.Image.Image."
+            "Expected str, Path, or bytes."
         )
-
-    def _save_image_to_temp(self, image) -> str:
-        """将图像对象保存到临时文件。"""
-        tmp_dir = tempfile.gettempdir()
-        filename = f"rodski_ocr_{int(time.time() * 1000)}.png"
-        output_path = str(Path(tmp_dir) / filename)
-        image.save(output_path, format="PNG")
-        logger.debug("Saved image to temp file: %s", output_path)
-        return output_path
 
     def _save_bytes_to_temp(self, data: bytes) -> str:
         """将字节数据保存到临时文件。"""
