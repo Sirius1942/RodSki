@@ -28,39 +28,42 @@ RodSki 当前仅支持传统定位器（XPath、CSS、ID等），在以下场景
 
 ### 1. 视觉定位器支持
 
-#### 1.1 模型定义格式
+#### 1.1 定位器格式
 
-视觉定位器使用 `locator` 属性，支持三种类型：
+视觉定位器使用 `<location type="...">` 格式，与传统定位器保持一致：
 
-**图片定位 (vision:)**：
+**图片定位 (vision)**：
 ```xml
-<element name="loginBtn" locator="vision:img/login_btn.png"/>
+<element name="loginBtn" type="web">
+    <type>button</type>
+    <location type="vision">img/login_btn.png</location>
+</element>
 ```
 - 通过图片模板匹配定位
 - 图片存放在 `images/` 目录
 - 适用于按钮图标、Logo 等视觉元素
 
-**文字定位 (ocr:)**：
+**文字定位 (ocr)**：
 ```xml
-<element name="loginBtn" locator="ocr:登录"/>
+<element name="loginBtn" type="web">
+    <type>button</type>
+    <location type="ocr">登录</location>
+</element>
 ```
 - 通过 OCR 识别文字定位
 - 支持中英文文字识别
 - 适用于按钮文字、标签、链接
 
-**坐标定位 (vision_bbox:)**：
+**坐标定位 (vision_bbox)**：
 ```xml
-<element name="submitBtn" locator="vision_bbox:100,200,150,250"/>
+<element name="submitBtn" type="web">
+    <type>button</type>
+    <location type="vision_bbox">100,200,150,250</location>
+</element>
 ```
 - 直接使用坐标定位（x1,y1,x2,y2）
 - 无需 AI 调用，性能最高
 - 适用于坐标固定的场景
-
-**格式约束**：
-- `locator` 属性格式：`类型:值`
-- `vision:` 后接图片路径（相对于 images/ 目录）
-- `ocr:` 后接要识别的文字
-- `vision_bbox:` 后接坐标 `x1,y1,x2,y2`
 
 #### 1.2 三种定位方式对比
 
@@ -68,13 +71,22 @@ RodSki 当前仅支持传统定位器（XPath、CSS、ID等），在以下场景
 
 ```xml
 <!-- 方式1: 图片匹配 - 使用按钮截图 -->
-<element name="loginBtn" locator="vision:img/login_btn.png"/>
+<element name="loginBtn" type="web">
+    <type>button</type>
+    <location type="vision">img/login_btn.png</location>
+</element>
 
 <!-- 方式2: OCR文字识别 - 识别"登录"二字 -->
-<element name="loginBtn" locator="ocr:登录"/>
+<element name="loginBtn" type="web">
+    <type>button</type>
+    <location type="ocr">登录</location>
+</element>
 
 <!-- 方式3: 坐标定位 - Agent探索后生成 -->
-<element name="loginBtn" locator="vision_bbox:100,200,150,250"/>
+<element name="loginBtn" type="web">
+    <type>button</type>
+    <location type="vision_bbox">100,200,150,250</location>
+</element>
 ```
 
 #### 1.3 与传统定位器对比
