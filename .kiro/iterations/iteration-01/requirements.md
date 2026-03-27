@@ -20,7 +20,7 @@ RodSki 当前仅支持传统定位器（XPath、CSS、ID等），在以下场景
 实现基于 **OmniParser + 多模态 LLM** 的视觉定位能力，支持 Web 和 Desktop 平台。
 
 **核心原则**：
-- 不新增关键字，通过 `locator` 属性扩展
+- 不新增关键字，通过 `location type` 扩展定位器类型
 - 桌面操作使用 `run` 关键字调用脚本
 - 保持向后兼容，不影响现有功能
 
@@ -95,18 +95,45 @@ RodSki 当前仅支持传统定位器（XPath、CSS、ID等），在以下场景
 |---------|------|------|
 | ID | `<location type="id">` | `<location type="id">loginBtn</location>` |
 | XPath | `<location type="xpath">` | `<location type="xpath">//button[@id='login']</location>` |
-| Vision | `locator="vision:"` | `locator="vision:登录按钮"` |
-| VisionBBox | `locator="vision_bbox:"` | `locator="vision_bbox:100,200,150,250"` |
+| Vision | `<location type="vision">` | `<location type="vision">img/login_btn.png</location>` |
+| OCR | `<location type="ocr">` | `<location type="ocr">登录</location>` |
+| VisionBBox | `<location type="vision_bbox">` | `<location type="vision_bbox">100,200,150,250</location>` |
 
-#### 1.3 多定位器自动切换
+#### 1.4 定位器格式约束
+
+**格式规范**：
+1. 所有定位器使用 `<location type="类型">值</location>` 格式
+2. `type` 属性必须为 LocatorType 枚举值之一
+3. 值写在 location 标签内容中
+
+**正确示例**：
+```xml
+<!-- ✅ 正确：完整格式 -->
+<element name="loginBtn" type="web">
+    <type>button</type>
+    <location type="id">loginBtn</location>
+</element>
+
+<!-- ✅ 正确：简化格式 -->
+<element name="loginBtn" type="id" value="loginBtn"/>
+```
+
+**错误示例**：
+```xml
+<!-- ❌ 错误：不要使用 locator 属性 -->
+<element name="loginBtn" locator="vision:登录按钮"/>
+```
+
+#### 1.5 多定位器自动切换
 
 每个元素可定义多个定位器，按优先级依次尝试，失败自动切换：
 
 ```xml
-<element name="loginBtn">
-    <locator type="id" priority="1">loginBtn</locator>
-    <locator type="xpath" priority="2">//button[@class='login']</locator>
-    <locator type="vision" priority="3">登录按钮</locator>
+<element name="loginBtn" type="web">
+    <type>button</type>
+    <location type="id" priority="1">loginBtn</location>
+    <location type="xpath" priority="2">//button[@class='login']</location>
+    <location type="ocr" priority="3">登录</location>
 </element>
 ```
 
@@ -188,10 +215,11 @@ RodSki 当前仅支持传统定位器（XPath、CSS、ID等），在以下场景
 参考: #[[file:../../conventions/PROJECT_CONSTRAINTS.md]]
 
 ### 核心约束
-1. **不新增关键字**：视觉定位通过 `locator` 属性实现
-2. **桌面操作用 run**：不为桌面操作新增独立关键字
-3. **launch 与 navigate 算一个**：场景化变体，非独立关键字
-4. **保持向后兼容**：不影响现有测试用例
+1. **不新增关键字**：视觉定位通过 `location type` 属性实现
+2. **格式统一**：使用 `<location type="...">` 格式，与传统定位器一致
+3. **桌面操作用 run**：不为桌面操作新增独立关键字
+4. **launch 与 navigate 算一个**：场景化变体，非独立关键字
+5. **保持向后兼容**：不影响现有测试用例
 
 ---
 
