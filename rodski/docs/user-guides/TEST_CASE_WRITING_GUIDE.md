@@ -261,7 +261,7 @@ xmllint --noout --schema rodski/schemas/case.xsd product/DEMO/demo_site/case/dem
 
 ### 4.3 定位器类型（完整）
 
-RodSki 支持 11 种定位器类型，分为传统定位器和视觉定位器两大类。
+RodSki 支持 12 种定位器类型，分为传统定位器和视觉定位器两大类。
 
 #### 4.3.1 传统定位器
 
@@ -298,9 +298,35 @@ RodSki 支持 11 种定位器类型，分为传统定位器和视觉定位器两
   - 适用于：按钮文字、标签、链接文字
 
 - **`vision_bbox` 坐标定位器**：
-  - 值为坐标 `x1,y1,x2,y2`
+  - 值为坐标 `x1,y1,x2,y2`（逗号分隔）
   - 无需 AI 调用，性能最高
+  - Web 用页面像素坐标，Desktop 用屏幕绝对坐标
   - 适用于：坐标固定的元素
+
+#### 4.3.3 定位器格式约束
+
+**格式规范**：
+1. 所有定位器使用 `<location type="类型">值</location>` 格式
+2. `type` 属性必须为 LocatorType 枚举值之一
+3. 值写在 location 标签内容中
+
+**正确示例**：
+```xml
+<!-- ✅ 正确：完整格式 -->
+<element name="loginBtn" type="web">
+    <type>button</type>
+    <location type="id">loginBtn</location>
+</element>
+
+<!-- ✅ 正确：简化格式 -->
+<element name="loginBtn" type="id" value="loginBtn"/>
+```
+
+**错误示例**：
+```xml
+<!-- ❌ 错误：不要使用 locator 属性 -->
+<element name="loginBtn" locator="vision:登录按钮"/>
+```
 
 **示例对比**：
 ```xml
@@ -324,13 +350,6 @@ RodSki 支持 11 种定位器类型，分为传统定位器和视觉定位器两
     <location type="vision_bbox">100,200,150,250</location>
 </element>
 ```
-
-**使用场景**：
-- 动态页面：元素属性频繁变化
-- 无障碍性差：缺少语义化属性
-- 桌面应用：Windows/macOS 原生应用
-- 图片匹配：按钮图标、Logo 等视觉元素
-- 文字识别：按钮文字、标签、链接等
 
 ### 4.4 简化格式
 
