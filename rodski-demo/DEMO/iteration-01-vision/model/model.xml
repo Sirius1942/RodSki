@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<models>
+    <model name="LoginPage">
+        <element name="username" type="web">
+            <type>input</type>
+            <location type="id">username</location>
+        </element>
+        <element name="password" type="web">
+            <type>input</type>
+            <location type="id">password</location>
+        </element>
+        <element name="loginBtn" type="web">
+            <type>button</type>
+            <location type="id">loginBtn</location>
+        </element>
+        <element name="welcomeMsg" type="web">
+            <type>text</type>
+            <location type="css">.welcome-message</location>
+        </element>
+    </model>
+</models>

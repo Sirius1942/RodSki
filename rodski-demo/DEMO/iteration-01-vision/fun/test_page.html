@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>RodSki 视觉定位测试页面</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 50px; }
+        .login-form { max-width: 400px; margin: 0 auto; }
+        input { width: 100%; padding: 10px; margin: 10px 0; }
+        button { width: 100%; padding: 10px; background: #007bff; color: white; border: none; cursor: pointer; }
+        .welcome-message { color: green; margin-top: 20px; display: none; }
+    </style>
+</head>
+<body>
+    <div class="login-form">
+        <h2>登录测试</h2>
+        <label>用户名</label>
+        <input type="text" id="username" placeholder="请输入用户名">
+        <label>密码</label>
+        <input type="password" id="password" placeholder="请输入密码">
+        <button id="loginBtn" onclick="login()">登录</button>
+        <div class="welcome-message">欢迎登录成功！</div>
+    </div>
+    <script>
+        function login() {
+            document.querySelector('.welcome-message').style.display = 'block';
+        }
+    </script>
+</body>
+</html>

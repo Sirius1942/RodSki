@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<models>
+    <!-- Web 登录页面模型 -->
+    <model name="LoginPage">
+        <element name="username" type="web">
+            <type>input</type>
+            <location type="id" priority="1">username</location>
+            <location type="ocr" priority="2">用户名</location>
+        </element>
+
+        <element name="password" type="web">
+            <type>input</type>
+            <location type="id" priority="1">password</location>
+            <location type="ocr" priority="2">密码</location>
+        </element>
+
+        <element name="loginBtn" type="web">
+            <type>button</type>
+            <location type="id" priority="1">loginBtn</location>
+            <location type="vision" priority="2">登录按钮</location>
+            <location type="ocr" priority="3">登录</location>
+        </element>
+
+        <element name="welcomeMsg" type="web">
+            <type>text</type>
+            <location type="css">.welcome-message</location>
+        </element>
+    </model>
+
+    <!-- 坐标定位测试模型 -->
+    <model name="BBoxTest">
+        <element name="targetBtn" type="web">
+            <type>button</type>
+            <location type="vision_bbox">100,200,200,250</location>
+        </element>
+    </model>
+</models>

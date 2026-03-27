@@ -160,6 +160,32 @@ class PlaywrightDriver(BaseDriver):
         except Exception:
             return False
 
+    def locate_element(self, locator_type: str, locator_value: str) -> Optional[Tuple[int, int, int, int]]:
+        """定位元素，返回边界框坐标（BaseDriver 接口）"""
+        self._check_driver_alive()
+        locator = f"{locator_type}={locator_value}"
+        css_locator = self._convert_locator(locator)
+        try:
+            element = self.page.query_selector(css_locator)
+            if element:
+                box = element.bounding_box()
+                if box:
+                    return (int(box['x']), int(box['y']),
+                           int(box['x'] + box['width']), int(box['y'] + box['height']))
+        except Exception:
+            pass
+        return None
+
+    def type_text(self, x: int, y: int, text: str) -> None:
+        """在指定坐标输入文字（BaseDriver 接口）"""
+        self._check_driver_alive()
+        self.page.mouse.click(x, y)
+        self.page.keyboard.type(text)
+
+    def take_screenshot(self, path: str) -> None:
+        """截图（BaseDriver 接口）"""
+        self.screenshot(path)
+
     def click(self, locator: str, **kwargs) -> bool:
         """点击元素
         
@@ -309,10 +335,16 @@ class PlaywrightDriver(BaseDriver):
         """等待指定秒数"""
         time.sleep(seconds)
 
+    def launch(self, **kwargs) -> None:
+        """启动应用或打开页面（BaseDriver 接口）"""
+        url = kwargs.get('url')
+        if url:
+            self.navigate(url)
+
     def navigate(self, url: str) -> bool:
         """导航到URL，等待页面加载完成"""
         self._check_driver_alive()
-        
+
         try:
             self.page.goto(url, wait_until="networkidle", timeout=30000)
             logger.debug(f"导航成功: {url}")

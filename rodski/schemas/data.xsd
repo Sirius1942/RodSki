@@ -4,31 +4,40 @@
   <xs:annotation>
     <xs:documentation>
       RodSki Data XML Schema - 数据表定义规范
-      每个数据 XML 文件对应原 Excel 中的一个数据表 Sheet。
-      数据文件存放在测试模块的 data/ 目录下。
-      文件名 = 数据表名（如 Login.xml、Login_verify.xml、QuerySQL.xml）。
+
+      支持两种格式：
+      1. 合并文件（推荐）：data.xml 和 data_verify.xml 使用 datatables 根元素包含多个表
+      2. 单表文件：独立的数据表文件使用 datatable 根元素
 
       核心约束：
-      1. datatable 的 name 属性必须与文件名一致（不含 .xml 后缀）
+      1. datatable 的 name 属性必须与模型名一致
       2. 每个 row 必须有唯一的 id（即 DataID）
       3. field 的 name 必须与 model.xml 中的 element name 一致
-      4. verify 数据表文件名格式：{模型名}_verify.xml
+      4. verify 数据表名格式：{模型名}_verify
+      5. 多行：在同一 datatable 中定义多个 row（不同 id）
+      6. 多列：在同一 row 中定义多个 field（不同 name）
     </xs:documentation>
   </xs:annotation>
 
-  <!-- 根元素 -->
-  <xs:element name="datatable">
+  <!-- 根元素：合并文件格式 -->
+  <xs:element name="datatables">
     <xs:complexType>
       <xs:sequence>
-        <xs:element name="row" type="RowType" minOccurs="0" maxOccurs="unbounded"/>
+        <xs:element name="datatable" type="DatatableType" minOccurs="1" maxOccurs="unbounded"/>
       </xs:sequence>
-      <xs:attribute name="name" type="xs:string" use="required"/>
     </xs:complexType>
-    <xs:unique name="uniqueDataID">
-      <xs:selector xpath="row"/>
-      <xs:field xpath="@id"/>
-    </xs:unique>
   </xs:element>
+
+  <!-- 根元素：单表文件格式 -->
+  <xs:element name="datatable" type="DatatableType"/>
+
+  <!-- 数据表类型 -->
+  <xs:complexType name="DatatableType">
+    <xs:sequence>
+      <xs:element name="row" type="RowType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="name" type="xs:string" use="required"/>
+  </xs:complexType>
 
   <!-- 数据行类型 -->
   <xs:complexType name="RowType">
