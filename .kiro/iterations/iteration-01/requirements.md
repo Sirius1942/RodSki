@@ -28,21 +28,34 @@ RodSki 当前仅支持传统定位器（XPath、CSS、ID等），在以下场景
 
 ### 1. 视觉定位器支持
 
-#### 1.1 语义定位 (vision:)
+#### 1.1 模型定义格式
+
+视觉定位器使用 `locator` 属性，支持两种格式：
+
+**语义定位 (vision:)**：
 ```xml
 <element name="loginBtn" locator="vision:登录按钮"/>
 ```
-- 通过自然语言描述定位元素
-- 支持中英文描述
-- 自动调用 OmniParser + LLM 进行语义匹配
 
-#### 1.2 坐标定位 (vision_bbox:)
+**坐标定位 (vision_bbox:)**：
 ```xml
 <element name="submitBtn" locator="vision_bbox:100,200,150,250"/>
 ```
-- 直接使用坐标定位（x1,y1,x2,y2）
-- 无需 AI 调用，性能更高
-- 适用于坐标固定的场景
+
+**格式约束**：
+- `locator` 属性格式：`前缀:值`
+- `vision:` 后接自然语言描述（支持中英文）
+- `vision_bbox:` 后接坐标 `x1,y1,x2,y2`
+- 简化格式，无需 `type` 和 `location` 子节点
+
+#### 1.2 与传统定位器对比
+
+| 定位类型 | 格式 | 示例 |
+|---------|------|------|
+| ID | `<location type="id">` | `<location type="id">loginBtn</location>` |
+| XPath | `<location type="xpath">` | `<location type="xpath">//button[@id='login']</location>` |
+| Vision | `locator="vision:"` | `locator="vision:登录按钮"` |
+| VisionBBox | `locator="vision_bbox:"` | `locator="vision_bbox:100,200,150,250"` |
 
 ### 2. 平台支持
 

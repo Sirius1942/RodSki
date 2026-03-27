@@ -88,6 +88,9 @@
       <xs:enumeration value="name"/>
       <xs:enumeration value="static"/>
       <xs:enumeration value="field"/>
+      <!-- 视觉定位类型（用于 location type 属性） -->
+      <xs:enumeration value="vision"/>
+      <xs:enumeration value="vision_bbox"/>
     </xs:restriction>
   </xs:simpleType>
 
