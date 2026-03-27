@@ -1,59 +1,55 @@
 """BaseDriver 单元测试"""
 import pytest
+from typing import Optional, Tuple
 from drivers.base_driver import BaseDriver
 
 
 class ConcreteDriver(BaseDriver):
-    """具体实现类用于测试"""
+    """具体实现类用于测试
+
+    实现新的 BaseDriver 接口：
+    - launch: 启动应用
+    - close: 关闭应用
+    - locate_element: 定位元素返回坐标
+    - click: 点击坐标
+    - type_text: 在坐标输入文字
+    - get_text: 获取区域文字
+    - take_screenshot: 截图
+    """
 
     def __init__(self):
         self.actions = []
 
-    def click(self, locator: str, **kwargs) -> bool:
-        self.actions.append(("click", locator))
-        return True
-
-    def type(self, locator: str, text: str, **kwargs) -> bool:
-        self.actions.append(("type", locator, text))
-        return True
-
-    def check(self, locator: str, **kwargs) -> bool:
-        self.actions.append(("check", locator))
-        return True
-
-    def wait(self, seconds: float) -> None:
-        self.actions.append(("wait", seconds))
-
-    def navigate(self, url: str) -> bool:
-        self.actions.append(("navigate", url))
-        return True
-
-    def screenshot(self, path: str) -> bool:
-        self.actions.append(("screenshot", path))
-        return True
-
-    def select(self, locator: str, value: str) -> bool:
-        self.actions.append(("select", locator, value))
-        return True
-
-    def hover(self, locator: str) -> bool:
-        self.actions.append(("hover", locator))
-        return True
-
-    def drag(self, from_loc: str, to_loc: str) -> bool:
-        self.actions.append(("drag", from_loc, to_loc))
-        return True
-
-    def scroll(self, x: int = 0, y: int = 300) -> bool:
-        self.actions.append(("scroll", x, y))
-        return True
-
-    def assert_element(self, locator: str, expected: str) -> bool:
-        self.actions.append(("assert_element", locator, expected))
-        return True
+    def launch(self, **kwargs) -> None:
+        self.actions.append(("launch", kwargs))
 
     def close(self) -> None:
         self.actions.append(("close",))
+
+    def locate_element(
+        self,
+        locator_type: str,
+        locator_value: str
+    ) -> Optional[Tuple[int, int, int, int]]:
+        self.actions.append(("locate_element", locator_type, locator_value))
+        # 返回模拟的边界框
+        if locator_value == "not_found":
+            return None
+        return (10, 20, 110, 50)
+
+    def click(self, x: int, y: int) -> None:
+        self.actions.append(("click", x, y))
+
+    def type_text(self, x: int, y: int, text: str) -> None:
+        self.actions.append(("type_text", x, y, text))
+
+    def get_text(self, x1: int, y1: int, x2: int, y2: int) -> str:
+        self.actions.append(("get_text", x1, y1, x2, y2))
+        return "sample text"
+
+    def take_screenshot(self) -> str:
+        self.actions.append(("take_screenshot",))
+        return "/tmp/screenshot.png"
 
 
 @pytest.fixture
@@ -64,92 +60,83 @@ def driver():
 class TestBaseDriver:
     """测试 BaseDriver 基类"""
 
-    def test_click(self, driver):
-        result = driver.click("#button")
-        assert result is True
-        assert ("click", "#button") in driver.actions
-
-    def test_type(self, driver):
-        result = driver.type("#input", "test text")
-        assert result is True
-        assert ("type", "#input", "test text") in driver.actions
-
-    def test_check(self, driver):
-        result = driver.check("#checkbox")
-        assert result is True
-        assert ("check", "#checkbox") in driver.actions
-
-    def test_wait(self, driver):
-        driver.wait(2.5)
-        assert ("wait", 2.5) in driver.actions
-
-    def test_navigate(self, driver):
-        result = driver.navigate("https://example.com")
-        assert result is True
-        assert ("navigate", "https://example.com") in driver.actions
-
-    def test_screenshot(self, driver):
-        result = driver.screenshot("/tmp/test.png")
-        assert result is True
-        assert ("screenshot", "/tmp/test.png") in driver.actions
-
-    def test_select(self, driver):
-        result = driver.select("#dropdown", "option1")
-        assert result is True
-        assert ("select", "#dropdown", "option1") in driver.actions
-
-    def test_hover(self, driver):
-        result = driver.hover("#menu")
-        assert result is True
-        assert ("hover", "#menu") in driver.actions
-
-    def test_drag(self, driver):
-        result = driver.drag("#source", "#target")
-        assert result is True
-        assert ("drag", "#source", "#target") in driver.actions
-
-    def test_scroll(self, driver):
-        result = driver.scroll(100, 500)
-        assert result is True
-        assert ("scroll", 100, 500) in driver.actions
-
-    def test_scroll_default_params(self, driver):
-        result = driver.scroll()
-        assert result is True
-        assert ("scroll", 0, 300) in driver.actions
-
-    def test_assert_element(self, driver):
-        result = driver.assert_element("#title", "Welcome")
-        assert result is True
-        assert ("assert_element", "#title", "Welcome") in driver.actions
+    def test_launch(self, driver):
+        driver.launch(url="https://example.com")
+        assert ("launch", {"url": "https://example.com"}) in driver.actions
 
     def test_close(self, driver):
         driver.close()
         assert ("close",) in driver.actions
 
-    def test_upload_file(self, driver):
-        result = driver.upload_file("#file-input", "/tmp/file.pdf")
-        assert result is True
+    def test_locate_element(self, driver):
+        result = driver.locate_element("css", "#button")
+        assert result == (10, 20, 110, 50)
+        assert ("locate_element", "css", "#button") in driver.actions
 
-    def test_clear(self, driver):
-        result = driver.clear("#input")
-        assert result is True
+    def test_locate_element_not_found(self, driver):
+        result = driver.locate_element("css", "not_found")
+        assert result is None
 
-    def test_double_click(self, driver):
-        result = driver.double_click("#item")
-        assert result is True
+    def test_click(self, driver):
+        driver.click(100, 200)
+        assert ("click", 100, 200) in driver.actions
 
-    def test_right_click(self, driver):
-        result = driver.right_click("#context-menu")
-        assert result is True
-
-    def test_key_press(self, driver):
-        result = driver.key_press("Enter")
-        assert result is True
+    def test_type_text(self, driver):
+        driver.type_text(100, 200, "hello")
+        assert ("type_text", 100, 200, "hello") in driver.actions
 
     def test_get_text(self, driver):
-        result = driver.get_text("#title")
-        assert result == ""
+        result = driver.get_text(10, 20, 110, 50)
+        assert result == "sample text"
+        assert ("get_text", 10, 20, 110, 50) in driver.actions
+
+    def test_take_screenshot(self, driver):
+        result = driver.take_screenshot()
+        assert result == "/tmp/screenshot.png"
+        assert ("take_screenshot",) in driver.actions
+
+    def test_click_element(self, driver):
+        """测试便捷方法 click_element"""
+        result = driver.click_element("css", "#button")
+        assert result is True
+        # 应该点击元素中心点 (60, 35)
+        assert ("click", 60, 35) in driver.actions
+
+    def test_click_element_not_found(self, driver):
+        """测试元素未找到时 click_element 返回 False"""
+        result = driver.click_element("css", "not_found")
+        assert result is False
+
+    def test_type_at_element(self, driver):
+        """测试便捷方法 type_at_element"""
+        result = driver.type_at_element("css", "#input", "test")
+        assert result is True
+        # 应该在元素中心点输入
+        assert ("type_text", 60, 35, "test") in driver.actions
+
+    def test_get_element_text(self, driver):
+        """测试便捷方法 get_element_text"""
+        result = driver.get_element_text("css", "#title")
+        assert result == "sample text"
+
+    def test_get_element_text_not_found(self, driver):
+        """测试元素未找到时 get_element_text 返回 None"""
+        result = driver.get_element_text("css", "not_found")
+        assert result is None
+
+    def test_wait(self, driver):
+        driver.wait(2.5)
+        # wait 是 BaseDriver 提供的默认实现
+
+    def test_get_element_center(self, driver):
+        """测试获取元素中心坐标"""
+        result = driver.get_element_center("css", "#button")
+        assert result == (60, 35)
+
+    def test_get_element_center_not_found(self, driver):
+        """测试元素未找到时返回 None"""
+        result = driver.get_element_center("css", "not_found")
+        assert result is None
 
     def test_is_abstract(self):
         """验证 BaseDriver 不能直接实例化"""

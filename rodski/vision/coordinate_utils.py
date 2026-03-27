@@ -12,6 +12,9 @@ from __future__ import annotations
 
 import logging
 import platform
+from typing import List, Tuple
+
+from .exceptions import InvalidBBoxError
 
 logger = logging.getLogger(__name__)
 
@@ -132,3 +135,181 @@ def get_screen_size() -> tuple[int, int]:
     raise RuntimeError(
         "Cannot determine screen size: install pyautogui (pip install pyautogui)"
     )
+
+
+# ---------------------------------------------------------------------------
+# Task 1.4: 核心坐标工具函数
+# ---------------------------------------------------------------------------
+
+def parse_bbox(bbox_str: str) -> Tuple[int, int, int, int]:
+    """解析坐标字符串。
+
+    Args:
+        bbox_str: "x1,y1,x2,y2" 格式的字符串
+
+    Returns:
+        (x1, y1, x2, y2) 整数坐标元组
+
+    Raises:
+        InvalidBBoxError: 格式无效
+
+    Examples:
+        >>> parse_bbox("100,200,150,250")
+        (100, 200, 150, 250)
+    """
+    if not bbox_str or not isinstance(bbox_str, str):
+        raise InvalidBBoxError(
+            bbox_str=str(bbox_str),
+            reason="输入必须是非空字符串"
+        )
+
+    parts = bbox_str.strip().split(",")
+    if len(parts) != 4:
+        raise InvalidBBoxError(
+            bbox_str=bbox_str,
+            reason=f"需要 4 个坐标值，实际得到 {len(parts)} 个"
+        )
+
+    try:
+        coords = [float(p.strip()) for p in parts]
+    except ValueError as exc:
+        raise InvalidBBoxError(
+            bbox_str=bbox_str,
+            reason="坐标值包含非数字字符"
+        ) from exc
+
+    x1, y1, x2, y2 = coords
+
+    # 验证坐标顺序
+    if x2 <= x1:
+        raise InvalidBBoxError(
+            bbox_str=bbox_str,
+            reason=f"x2 ({x2}) 必须大于 x1 ({x1})"
+        )
+    if y2 <= y1:
+        raise InvalidBBoxError(
+            bbox_str=bbox_str,
+            reason=f"y2 ({y2}) 必须大于 y1 ({y1})"
+        )
+
+    return (int(x1), int(y1), int(x2), int(y2))
+
+
+def calculate_center(x1: int, y1: int, x2: int, y2: int) -> Tuple[int, int]:
+    """计算边界框中心点。
+
+    Args:
+        x1: 左上角 x 坐标
+        y1: 左上角 y 坐标
+        x2: 右下角 x 坐标
+        y2: 右下角 y 坐标
+
+    Returns:
+        (cx, cy) 中心点坐标
+
+    Examples:
+        >>> calculate_center(100, 200, 200, 300)
+        (150, 250)
+    """
+    cx = (x1 + x2) // 2
+    cy = (y1 + y2) // 2
+    return (cx, cy)
+
+
+def normalize_to_pixel(
+    bbox: List[float],
+    width: int,
+    height: int
+) -> Tuple[int, int, int, int]:
+    """归一化坐标转像素坐标。
+
+    Args:
+        bbox: [x1, y1, x2, y2] 归一化坐标 (0-1)
+        width: 图像宽度
+        height: 图像高度
+
+    Returns:
+        (x1, y1, x2, y2) 像素坐标
+
+    Raises:
+        InvalidBBoxError: bbox 格式无效或坐标值超出范围
+
+    Examples:
+        >>> normalize_to_pixel([0.1, 0.2, 0.3, 0.4], 1000, 800)
+        (100, 160, 300, 320)
+    """
+    if not isinstance(bbox, (list, tuple)) or len(bbox) != 4:
+        raise InvalidBBoxError(
+            bbox_str=str(bbox),
+            reason=f"bbox 必须是包含 4 个元素的列表或元组，实际得到 {type(bbox).__name__}，长度 {len(bbox) if hasattr(bbox, '__len__') else 'N/A'}"
+        )
+
+    try:
+        x1n, y1n, x2n, y2n = bbox
+    except (ValueError, TypeError) as exc:
+        raise InvalidBBoxError(
+            bbox_str=str(bbox),
+            reason="无法解析坐标值"
+        ) from exc
+
+    # 验证归一化范围
+    for name, val in [('x1', x1n), ('y1', y1n), ('x2', x2n), ('y2', y2n)]:
+        if not isinstance(val, (int, float)):
+            raise InvalidBBoxError(
+                bbox_str=str(bbox),
+                reason=f"{name} 不是有效数字: {val!r}"
+            )
+        if not (0 <= val <= 1):
+            raise InvalidBBoxError(
+                bbox_str=str(bbox),
+                reason=f"{name}={val} 超出归一化范围 [0, 1]"
+            )
+
+    x1 = int(x1n * width)
+    y1 = int(y1n * height)
+    x2 = int(x2n * width)
+    y2 = int(y2n * height)
+
+    return (x1, y1, x2, y2)
+
+
+def pixel_to_normalize(
+    x1: int,
+    y1: int,
+    x2: int,
+    y2: int,
+    width: int,
+    height: int
+) -> Tuple[float, float, float, float]:
+    """像素坐标转归一化坐标。
+
+    Args:
+        x1: 左上角 x 像素坐标
+        y1: 左上角 y 像素坐标
+        x2: 右下角 x 像素坐标
+        y2: 右下角 y 像素坐标
+        width: 图像宽度
+        height: 图像高度
+
+    Returns:
+        (x1, y1, x2, y2) 归一化坐标 (0-1)
+
+    Raises:
+        InvalidBBoxError: 宽度或高度无效
+
+    Examples:
+        >>> pixel_to_normalize(100, 160, 300, 320, 1000, 800)
+        (0.1, 0.2, 0.3, 0.4)
+    """
+    if width <= 0 or height <= 0:
+        raise InvalidBBoxError(
+            bbox_str=f"({x1},{y1},{x2},{y2})",
+            reason=f"图像尺寸必须为正数，实际 width={width}, height={height}"
+        )
+
+    nx1 = x1 / width
+    ny1 = y1 / height
+    nx2 = x2 / width
+    ny2 = y2 / height
+
+    return (nx1, ny1, nx2, ny2)

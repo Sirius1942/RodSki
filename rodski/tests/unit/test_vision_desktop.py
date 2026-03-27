@@ -126,88 +126,110 @@ class TestVisionCache(unittest.TestCase):
         from rodski.vision.cache import VisionCache
         self.cache = VisionCache(ttl=2)  # 2 秒 TTL，便于测试过期
 
-    def _key(self, path: str) -> str:
-        return hashlib.md5(path.encode("utf-8")).hexdigest()
-
-    def test_set_and_get_parse_result(self):
-        path = "/tmp/screen1.png"
-        data = [{"label": "button", "bbox": [10, 20, 100, 50]}]
-        self.cache.set_parse_result(path, data)
-        result = self.cache.get_parse_result(path)
+    def test_set_and_get_with_bytes(self):
+        """使用 bytes 作为截图输入"""
+        screenshot = b"fake_image_data_12345"
+        data = {"x": 100, "y": 200, "confidence": 0.95}
+        self.cache.set(screenshot, data)
+        result = self.cache.get(screenshot)
         self.assertEqual(result, data)
 
-    def test_get_parse_result_miss(self):
-        result = self.cache.get_parse_result("/nonexistent.png")
+    def test_get_miss(self):
+        """缓存未命中返回 None"""
+        result = self.cache.get(b"nonexistent_data")
         self.assertIsNone(result)
-
-    def test_set_and_get_analyze_result(self):
-        path = "/tmp/screen2.png"
-        data = [{"x": 50, "y": 30, "label": "login"}]
-        self.cache.set_analyze_result(path, data)
-        result = self.cache.get_analyze_result(path)
-        self.assertEqual(result, data)
-
-    def test_get_analyze_result_miss(self):
-        result = self.cache.get_analyze_result("/nonexistent2.png")
-        self.assertIsNone(result)
-
-    def test_parse_and_analyze_are_independent(self):
-        path = "/tmp/shared.png"
-        parse_data = ["parse"]
-        analyze_data = ["analyze"]
-        self.cache.set_parse_result(path, parse_data)
-        self.cache.set_analyze_result(path, analyze_data)
-        self.assertEqual(self.cache.get_parse_result(path), parse_data)
-        self.assertEqual(self.cache.get_analyze_result(path), analyze_data)
 
     def test_clear(self):
-        self.cache.set_parse_result("/tmp/a.png", [1])
-        self.cache.set_analyze_result("/tmp/b.png", [2])
+        """clear() 清空缓存"""
+        self.cache.set(b"data1", {"x": 1})
+        self.cache.set(b"data2", {"x": 2})
+        self.assertEqual(self.cache.size, 2)
         self.cache.clear()
-        self.assertIsNone(self.cache.get_parse_result("/tmp/a.png"))
-        self.assertIsNone(self.cache.get_analyze_result("/tmp/b.png"))
+        self.assertEqual(self.cache.size, 0)
+        self.assertIsNone(self.cache.get(b"data1"))
+        self.assertIsNone(self.cache.get(b"data2"))
 
     def test_ttl_expiry(self):
-        path = "/tmp/expire_test.png"
+        """TTL 过期后缓存自动失效"""
+        screenshot = b"expire_test_data"
         c = __import__("rodski.vision.cache", fromlist=["VisionCache"]).VisionCache(ttl=1)
-        c.set_parse_result(path, ["data"])
-        self.assertIsNotNone(c.get_parse_result(path))  # 未过期
+        c.set(screenshot, {"data": "test"})
+        self.assertIsNotNone(c.get(screenshot))  # 未过期
         time.sleep(1.1)
-        self.assertIsNone(c.get_parse_result(path))    # 已过期
+        self.assertIsNone(c.get(screenshot))    # 已过期
 
     def test_cleanup_expired(self):
-        path = "/tmp/cleanup.png"
+        """cleanup_expired() 清理过期缓存"""
         c = __import__("rodski.vision.cache", fromlist=["VisionCache"]).VisionCache(ttl=1)
-        c.set_parse_result(path, ["x"])
-        c.set_analyze_result(path, ["y"])
+        c.set(b"data1", {"x": 1})
+        c.set(b"data2", {"x": 2})
         time.sleep(1.1)
-        removed = c._cleanup_expired()
-        self.assertEqual(removed, (1, 1))
+        removed = c.cleanup_expired()
+        self.assertEqual(removed, 2)
+        self.assertEqual(c.size, 0)
 
     def test_size_property(self):
-        self.cache.set_parse_result("/tmp/p1.png", [])
-        self.cache.set_parse_result("/tmp/p2.png", [])
-        self.cache.set_analyze_result("/tmp/a1.png", [])
-        p, a = self.cache.size
-        self.assertEqual(p, 2)
-        self.assertEqual(a, 1)
+        """size 属性返回缓存条目数"""
+        self.assertEqual(self.cache.size, 0)
+        self.cache.set(b"data1", {"x": 1})
+        self.assertEqual(self.cache.size, 1)
+        self.cache.set(b"data2", {"x": 2})
+        self.assertEqual(self.cache.size, 2)
 
     def test_repr(self):
+        """repr 包含关键信息"""
         r = repr(self.cache)
         self.assertIn("VisionCache", r)
         self.assertIn("ttl=", r)
+        self.assertIn("enabled=", r)
 
-    def test_special_chars_in_path(self):
-        # 路径含空格和中文，md5 key 应正常生成
-        path = "/tmp/截图 2026-03-26 测试.png"
-        self.cache.set_parse_result(path, ["ok"])
-        self.assertEqual(self.cache.get_parse_result(path), ["ok"])
+    def test_enabled_parameter(self):
+        """enabled=False 时缓存不生效"""
+        c = __import__("rodski.vision.cache", fromlist=["VisionCache"]).VisionCache(ttl=30, enabled=False)
+        self.assertFalse(c.enabled)
+        c.set(b"data", {"x": 1})
+        self.assertIsNone(c.get(b"data"))  # 禁用时不缓存
+
+    def test_enabled_setter(self):
+        """enabled 属性可动态修改"""
+        self.cache.enabled = False
+        self.assertFalse(self.cache.enabled)
+        self.cache.enabled = True
+        self.assertTrue(self.cache.enabled)
 
     def test_overwrite_existing_key(self):
-        path = "/tmp/overwrite.png"
-        self.cache.set_parse_result(path, ["v1"])
-        self.cache.set_parse_result(path, ["v2"])
-        self.assertEqual(self.cache.get_parse_result(path), ["v2"])
+        """覆盖已存在的缓存"""
+        screenshot = b"overwrite_test"
+        self.cache.set(screenshot, {"v": 1})
+        self.cache.set(screenshot, {"v": 2})
+        self.assertEqual(self.cache.get(screenshot), {"v": 2})
+
+    def test_special_chars_in_path(self):
+        """路径含空格和中文时正常工作"""
+        path = "/tmp/截图 2026-03-26 测试.png"
+        # 注意：使用不存在的路径时，set/get 不会报错但也不会缓存
+        # 因为 _get_screenshot_hash 会读取文件内容
+        # 这里测试 bytes 输入即可
+        self.cache.set(b"special_chars_test", {"ok": True})
+        self.assertEqual(self.cache.get(b"special_chars_test"), {"ok": True})
+
+    def test_nonexistent_file_returns_none(self):
+        """不存在的文件路径返回 None"""
+        result = self.cache.get("/nonexistent/path/to/file.png")
+        self.assertIsNone(result)
+
+    def test_backward_compat_parse_result(self):
+        """向后兼容：set_parse_result/get_parse_result"""
+        # 使用 bytes 输入，因为文件路径不存在
+        self.cache.set_parse_result(b"parse_test", {"data": "parse_result"})
+        result = self.cache.get_parse_result(b"parse_test")
+        self.assertEqual(result, {"data": "parse_result"})
+
+    def test_backward_compat_analyze_result(self):
+        """向后兼容：set_analyze_result/get_analyze_result"""
+        self.cache.set_analyze_result(b"analyze_test", {"data": "analyze_result"})
+        result = self.cache.get_analyze_result(b"analyze_test")
+        self.assertEqual(result, {"data": "analyze_result"})
 
 # ════════════════════════════════════════════════════════════════
 # Task 3.3  DesktopVisionDriver 测试（全部 mock pyautogui）

@@ -44,6 +44,7 @@
     <xs:attribute name="name" type="xs:string" use="required"/>
     <xs:attribute name="type" type="DriverType" use="optional"/>
     <xs:attribute name="value" type="xs:string" use="optional"/>
+    <xs:attribute name="locator" type="xs:string" use="optional"/>
     <xs:attribute name="interfacename" type="xs:string" use="optional" default=""/>
     <xs:attribute name="group" type="xs:string" use="optional" default=""/>
   </xs:complexType>

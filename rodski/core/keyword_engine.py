@@ -4,12 +4,12 @@ import logging
 import subprocess
 import sys
 import time
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Tuple
 from pathlib import Path
 from drivers.base_driver import BaseDriver
 from core.performance import monitor_performance
 from core.exceptions import (
-    UnknownKeywordError, 
+    UnknownKeywordError,
     InvalidParameterError,
     RetryExhaustedError,
     ElementNotFoundError,
@@ -20,6 +20,7 @@ from core.exceptions import (
     is_retryable_error,
     is_critical_error,
 )
+from core.model_parser import ModelParser
 
 logger = logging.getLogger("rodski")
 
@@ -235,6 +236,123 @@ class KeywordEngine:
             return self._return_values[index]
         except IndexError:
             return None
+
+    # ── 多定位器支持 ─────────────────────────────────────────────
+
+    def _try_locators(
+        self,
+        element_info: Dict[str, Any]
+    ) -> Optional[Tuple[int, int, int, int]]:
+        """尝试多个定位器，按 priority 依次尝试
+
+        Args:
+            element_info: 元素信息，包含 locations 列表
+                {
+                    'type': 主定位器类型,
+                    'value': 主定位器值,
+                    'locations': [
+                        {'type': 'id', 'value': 'username', 'priority': 1},
+                        {'type': 'ocr', 'value': '用户名', 'priority': 2}
+                    ]
+                }
+
+        Returns:
+            边界框坐标 (x1, y1, x2, y2)，所有定位器都失败返回 None
+        """
+        locations = element_info.get("locations", [])
+
+        if not locations:
+            # 兼容旧格式：使用主定位器
+            loc_type = element_info.get("type")
+            loc_value = element_info.get("value")
+            if loc_type and loc_value:
+                locations = [{"type": loc_type, "value": loc_value, "priority": 1}]
+
+        # 按 priority 排序
+        sorted_locations = sorted(locations, key=lambda x: x.get("priority", 1))
+
+        for loc in sorted_locations:
+            locator_type = loc["type"]
+            locator_value = loc["value"]
+
+            try:
+                bbox = self.driver.locate_element(locator_type, locator_value)
+                if bbox:
+                    logger.info(f"定位成功: {locator_type}={locator_value}")
+                    return bbox
+            except NotImplementedError:
+                # 驱动不支持该定位器类型，跳过
+                logger.debug(f"驱动不支持定位器类型: {locator_type}")
+                continue
+            except Exception as e:
+                logger.warning(f"定位器 {locator_type}={locator_value} 失败: {e}")
+                continue
+
+        return None
+
+    def _is_vision_locator(self, locator_type: str) -> bool:
+        """判断是否是视觉定位器类型"""
+        return ModelParser.is_vision_locator(locator_type)
+
+    def _execute_at_element(
+        self,
+        element_info: Dict[str, Any],
+        action: str,
+        value: str = None
+    ) -> bool:
+        """在元素位置执行操作（支持多定位器自动切换）
+
+        Args:
+            element_info: 元素信息，包含 locations 列表
+            action: 操作类型 ('click', 'type', 'get_text', 'double_click', 'right_click', 'hover')
+            value: 输入值（仅 action='type' 时使用）
+
+        Returns:
+            操作是否成功
+
+        Raises:
+            ElementNotFoundError: 所有定位器都失败时抛出
+        """
+        bbox = self._try_locators(element_info)
+
+        if not bbox:
+            raise ElementNotFoundError(
+                f"无法定位元素，所有定位器均失败",
+                locator=str(element_info.get("locations", []))
+            )
+
+        x1, y1, x2, y2 = bbox
+        cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+
+        if action == "click":
+            self.driver.click(cx, cy)
+            return True
+        elif action == "double_click":
+            self.driver.double_click(cx, cy)
+            return True
+        elif action == "right_click":
+            self.driver.right_click(cx, cy)
+            return True
+        elif action == "hover":
+            self.driver.hover(cx, cy)
+            return True
+        elif action == "type":
+            if value is None:
+                raise InvalidParameterError(
+                    keyword="type",
+                    param_name="value",
+                    reason="type 操作需要提供 value 参数"
+                )
+            self.driver.type_text(cx, cy, value)
+            return True
+        elif action == "get_text":
+            return self.driver.get_text(x1, y1, x2, y2)
+        else:
+            raise InvalidParameterError(
+                keyword="action",
+                param_name="action",
+                reason=f"不支持的操作类型: {action}"
+            )
 
     # ── UI 操作关键字 ─────────────────────────────────────────────
 
@@ -614,19 +732,60 @@ class KeywordEngine:
         return result
 
     def _kw_launch(self, params: Dict) -> bool:
-        """启动桌面应用（Desktop平台）"""
-        app_path = params.get("app_path", "") or params.get("data", "")
-        if not app_path:
+        """启动应用或打开页面
+
+        Web 模型: 等同于 navigate，打开 URL
+        Desktop 模型: 启动桌面应用
+        """
+        model_name = params.get("model", "")
+        data_ref = params.get("data", "")
+
+        # 批量模式: launch ModelName DataID
+        if model_name and data_ref and self.model_parser:
+            driver_type = self.model_parser.get_model_driver_type(model_name)
+            if driver_type == "web":
+                return self._execute_navigate(model_name, data_ref)
+            else:
+                return self._execute_desktop_launch(model_name, data_ref)
+
+        # 单参数模式: launch app_path 或 launch url
+        target = params.get("app_path") or params.get("url") or data_ref
+        if not target:
             raise InvalidParameterError(
                 keyword="launch",
-                param_name="app_path",
-                reason="缺少必需参数 'app_path'"
+                param_name="app_path/url",
+                reason="缺少必需参数"
             )
+
+        # 判断是 URL 还是应用路径
+        if target.startswith(("http://", "https://")):
+            logger.info(f"打开页面: {target}")
+            return self.driver.navigate(target)
+        else:
+            logger.info(f"启动应用: {target}")
+            return self.driver.launch(app_path=target)
+
+    def _execute_navigate(self, model_name: str, data_ref: str) -> bool:
+        """执行 Web 导航"""
+        if not self.data_manager:
+            raise DriverError("data_manager 未初始化")
+        data = self.data_manager.get_data(model_name, data_ref)
+        url = data.get("url", "")
+        if not url:
+            raise InvalidParameterError("launch", "url", "数据中缺少 url 字段")
+        logger.info(f"导航: {url}")
+        return self.driver.navigate(url)
+
+    def _execute_desktop_launch(self, model_name: str, data_ref: str) -> bool:
+        """执行 Desktop 应用启动"""
+        if not self.data_manager:
+            raise DriverError("data_manager 未初始化")
+        data = self.data_manager.get_data(model_name, data_ref)
+        app_path = data.get("app_path", "")
+        if not app_path:
+            raise InvalidParameterError("launch", "app_path", "数据中缺少 app_path 字段")
         logger.info(f"启动应用: {app_path}")
-        result = self.driver.launch(app_path)
-        if not result:
-            raise DriverError(f"启动应用失败: {app_path}")
-        return result
+        return self.driver.launch(app_path=app_path)
 
     def _kw_screenshot(self, params: Dict) -> bool:
         """截图"""

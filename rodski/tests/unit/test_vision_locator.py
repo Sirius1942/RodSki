@@ -2,8 +2,8 @@
 
 覆盖:
   - VisionLocator.is_vision_locator
-  - VisionLocator.locate: vision_bbox 分支（无网络调用）
-  - VisionLocator.locate: vision 分支（全链路 mock）
+  - VisionLocator.locate: 新 API（vision/ocr/vision_bbox）
+  - VisionLocator.locate_legacy: 旧 API 向后兼容
   - 异常路径：空字符串、未知前缀、无匹配、无效 bbox
 
 全部外部调用（OmniClient、LLMAnalyzer、screenshot）通过 unittest.mock 隔离。
@@ -15,8 +15,8 @@ import base64
 import pathlib
 from unittest.mock import MagicMock, patch, PropertyMock
 
-from core.test_runner import assert_raises, assert_raises_match
-from vision.locator import VisionLocator
+from rodski.core.test_runner import assert_raises, assert_raises_match
+from rodski.vision.locator import VisionLocator
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -68,6 +68,9 @@ class TestIsVisionLocator:
     def test_vision_prefix(self):
         assert self.loc.is_vision_locator("vision:登录按钮") is True
 
+    def test_ocr_prefix(self):
+        assert self.loc.is_vision_locator("ocr:登录") is True
+
     def test_vision_bbox_prefix(self):
         assert self.loc.is_vision_locator("vision_bbox:100,200,300,400") is True
 
@@ -86,11 +89,53 @@ class TestIsVisionLocator:
 
 
 # ═══════════════════════════════════════════════════════════════
-# TestLocateBbox
+# TestLocateNewAPI - 新 API 测试
+# ═══════════════════════════════════════════════════════════════
+
+class TestLocateNewAPI:
+    """新 API: locate(locator_type, locator_value, screenshot) -> (x1, y1, x2, y2)"""
+
+    def setup_method(self):
+        self.loc = VisionLocator(
+            omni_client=MagicMock(),
+            llm_analyzer=MagicMock(),
+            matcher=MagicMock(),
+        )
+
+    def test_vision_bbox_returns_bbox(self):
+        """vision_bbox 类型返回边界框坐标。"""
+        bbox = self.loc.locate("vision_bbox", "100,200,300,400", None)
+        assert bbox == (100, 200, 300, 400)
+
+    def test_vision_bbox_with_spaces(self):
+        """支持带空格的坐标字符串。"""
+        bbox = self.loc.locate("vision_bbox", "100, 200, 300, 400", None)
+        assert bbox == (100, 200, 300, 400)
+
+    def test_invalid_locator_type_raises(self):
+        """不支持的定位器类型抛出 ValueError。"""
+        assert_raises(ValueError, self.loc.locate, "invalid", "value", None)
+
+    def test_empty_locator_type_raises(self):
+        """空的定位器类型抛出 ValueError。"""
+        assert_raises(ValueError, self.loc.locate, "", "value", None)
+
+    def test_empty_locator_value_raises(self):
+        """空的定位器值抛出 ValueError。"""
+        assert_raises(ValueError, self.loc.locate, "vision_bbox", "", None)
+
+    def test_locator_type_case_insensitive(self):
+        """定位器类型不区分大小写。"""
+        bbox = self.loc.locate("VISION_BBOX", "100,200,300,400", None)
+        assert bbox == (100, 200, 300, 400)
+
+
+# ═══════════════════════════════════════════════════════════════
+# TestLocateBbox - 旧 API 向后兼容
 # ═══════════════════════════════════════════════════════════════
 
 class TestLocateBbox:
-    """vision_bbox 分支：无网络调用，直接计算中心坐标。"""
+    """vision_bbox 分支：无网络调用，直接计算中心坐标（旧 API）。"""
 
     def setup_method(self):
         self.loc = VisionLocator(
@@ -100,25 +145,25 @@ class TestLocateBbox:
         )
 
     def test_center_calculation(self):
-        cx, cy = self.loc.locate("vision_bbox:100,200,300,400")
+        cx, cy = self.loc.locate_legacy("vision_bbox:100,200,300,400")
         assert cx == 200
         assert cy == 300
 
     def test_small_bbox(self):
-        cx, cy = self.loc.locate("vision_bbox:1850,50,1900,100")
+        cx, cy = self.loc.locate_legacy("vision_bbox:1850,50,1900,100")
         assert cx == 1875
         assert cy == 75
 
     def test_float_coords(self):
-        cx, cy = self.loc.locate("vision_bbox:0,0,100,100")
+        cx, cy = self.loc.locate_legacy("vision_bbox:0,0,100,100")
         assert cx == 50
         assert cy == 50
 
     def test_invalid_bbox_raises(self):
-        assert_raises(ValueError, self.loc.locate, "vision_bbox:100,200,300")
+        assert_raises(ValueError, self.loc.locate_legacy, "vision_bbox:100,200,300")
 
     def test_non_numeric_raises(self):
-        assert_raises(ValueError, self.loc.locate, "vision_bbox:a,b,c,d")
+        assert_raises(ValueError, self.loc.locate_legacy, "vision_bbox:a,b,c,d")
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -155,7 +200,7 @@ class TestLocateVision:
         png = _make_tmp_png(tmp_path)
         elements = _elements_with_labels("登录按钮")
         loc = self._make_locator(elements, png)
-        cx, cy = loc.locate("vision:登录按钮")
+        cx, cy = loc.locate_legacy("vision:登录按钮")
         # bbox=[0.1,0.2,0.3,0.4], size=1920x1080
         # x1=192,y1=216,x2=576,y2=432 -> cx=384, cy=324
         assert cx == 384
@@ -165,7 +210,7 @@ class TestLocateVision:
         png = _make_tmp_png(tmp_path)
         elements = _elements_with_labels("用户登录按钮")
         loc = self._make_locator(elements, png)
-        cx, cy = loc.locate("vision:登录")
+        cx, cy = loc.locate_legacy("vision:登录")
         assert isinstance(cx, int)
         assert isinstance(cy, int)
 
@@ -173,40 +218,40 @@ class TestLocateVision:
         png = _make_tmp_png(tmp_path)
         elements = _elements_with_labels("关闭")
         loc = self._make_locator(elements, png)
-        assert_raises(RuntimeError, loc.locate, "vision:确认支付按钮")
+        assert_raises(RuntimeError, loc.locate_legacy, "vision:确认支付按钮")
 
     def test_empty_elements_raises(self, tmp_path):
         png = _make_tmp_png(tmp_path)
         loc = self._make_locator([], png)
-        assert_raises(RuntimeError, loc.locate, "vision:任意元素")
+        assert_raises(RuntimeError, loc.locate_legacy, "vision:任意元素")
 
     def test_screenshot_called_with_driver(self, tmp_path):
         png = _make_tmp_png(tmp_path)
         elements = _elements_with_labels("Submit")
         loc = self._make_locator(elements, png)
         fake_driver = MagicMock()
-        loc.locate("vision:Submit", driver=fake_driver)
+        loc.locate_legacy("vision:Submit", driver=fake_driver)
         loc._take_screenshot.assert_called_once_with(fake_driver)
 
     def test_omni_parse_called_once(self, tmp_path):
         png = _make_tmp_png(tmp_path)
         elements = _elements_with_labels("登录")
         loc = self._make_locator(elements, png)
-        loc.locate("vision:登录")
+        loc.locate_legacy("vision:登录")
         loc._omni_client.parse.assert_called_once()
 
     def test_llm_analyze_called_once(self, tmp_path):
         png = _make_tmp_png(tmp_path)
         elements = _elements_with_labels("登录")
         loc = self._make_locator(elements, png)
-        loc.locate("vision:登录")
+        loc.locate_legacy("vision:登录")
         loc._llm_analyzer.analyze.assert_called_once()
 
     def test_cleanup_called_after_locate(self, tmp_path):
         png = _make_tmp_png(tmp_path)
         elements = _elements_with_labels("登录")
         loc = self._make_locator(elements, png)
-        loc.locate("vision:登录")
+        loc.locate_legacy("vision:登录")
         loc._cleanup_tmp.assert_called_once()
 
 
@@ -225,19 +270,19 @@ class TestLocateEdgeCases:
         )
 
     def test_empty_locator_raises(self):
-        assert_raises(ValueError, self.loc.locate, "")
+        assert_raises(ValueError, self.loc.locate_legacy, "")
 
     def test_unknown_prefix_raises(self):
-        assert_raises(ValueError, self.loc.locate, "xpath://button")
+        assert_raises(ValueError, self.loc.locate_legacy, "xpath://button")
 
     def test_vision_empty_description_raises(self):
         # "vision:" 后面空描述
         self.loc._take_screenshot = MagicMock(return_value="/tmp/fake.png")
-        assert_raises(ValueError, self.loc.locate, "vision:")
+        assert_raises(RuntimeError, self.loc.locate_legacy, "vision:")
 
     def test_vision_whitespace_description_raises(self):
         self.loc._take_screenshot = MagicMock(return_value="/tmp/fake.png")
-        assert_raises(ValueError, self.loc.locate, "vision:   ")
+        assert_raises(RuntimeError, self.loc.locate_legacy, "vision:   ")
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -264,4 +309,27 @@ class TestVisionLocatorLazyInit:
         sentinel = object()
         loc = VisionLocator(cache=sentinel)
         assert loc._cache is sentinel
+
+    def test_image_matcher_lazy_load(self):
+        """ImageMatcher 延迟加载。"""
+        loc = VisionLocator()
+        assert loc._image_matcher is None
+        # 访问属性时才创建
+        _ = loc.image_matcher
+        assert loc._image_matcher is not None
+
+    def test_bbox_locator_lazy_load(self):
+        """BBoxLocator 延迟加载。"""
+        loc = VisionLocator()
+        assert loc._bbox_locator is None
+        _ = loc.bbox_locator
+        assert loc._bbox_locator is not None
+
+    def test_ocr_locator_lazy_load(self):
+        """OCRLocator 延迟加载（需要 omni_client）。"""
+        loc = VisionLocator()
+        assert loc._ocr_locator is None
+        # 注意：访问 ocr_locator 会触发 omni_client 创建
+        _ = loc.ocr_locator
+        assert loc._ocr_locator is not None
 

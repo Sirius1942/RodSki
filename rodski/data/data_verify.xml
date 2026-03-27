@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  RodSki 统一验证数据表
+  所有 verify 数据表集中在此文件
+  每个 <datatable name="ModelName_verify"> 对应一个模型的验证数据
+-->
+<datatables>
+    <!-- 示例：Login 模型的验证数据 -->
+    <datatable name="Login_verify">
+        <row id="V001">
+            <field name="loginMessage">登录成功</field>
+        </row>
+    </datatable>
+</datatables>
