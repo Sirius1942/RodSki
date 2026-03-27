@@ -4,8 +4,18 @@
 
 | 迭代 | 周期 | 主题 | 状态 | 分支 |
 |------|------|------|------|------|
-| [Iteration 02](iteration-02/) | 2026-03-27 ~ 2026-04-10 | Agent 集成增强 | 🚧 进行中 | feature/agent-integration |
+| [Iteration 00](iteration-00/) | 2026-03-27 | 工程基础设施验证 | 📋 规划中 | iteration-00-infra |
 | [Iteration 01](iteration-01/) | 2026-03-20 ~ 2026-03-27 | 视觉定位功能 | ✅ 已完成 | feature/vision-location |
+| [Iteration 02](iteration-02/) | 2026-03-27 ~ 2026-04-10 | Agent 集成增强 | 🚧 进行中 | feature/agent-integration |
+| [Iteration 03](iteration-03/) | TBD | CI/CD 能力重构 | 📋 规划中 | feature/cicd-refactor |
+
+## 迭代类型说明
+
+| 类型 | 说明 | 示例 |
+|------|------|------|
+| 基础设施 | 工程化准备、质量体系 | Iteration 00 |
+| 功能开发 | 新功能实现 | Iteration 01, 02 |
+| 重构优化 | 技术债务清理 | Iteration 03 |
 
 ## 迭代流程
 
