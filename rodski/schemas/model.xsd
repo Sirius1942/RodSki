@@ -12,6 +12,7 @@
       2. model 的 name 属性 = 数据表文件名（强制一致）
       3. 接口模型中 _method/_url/_header_* 为保留元素名
       4. 支持完整格式（带 location 子节点）和简化格式（type+value 属性）
+      5. 支持多定位器格式，按 priority 依次尝试，失败自动切换
     </xs:documentation>
   </xs:annotation>
 
@@ -33,11 +34,12 @@
     <xs:attribute name="servicename" type="xs:string" use="optional" default=""/>
   </xs:complexType>
 
-  <!-- 元素类型 - 支持两种格式 -->
+  <!-- 元素类型 - 支持三种格式 -->
   <xs:complexType name="ElementType">
     <xs:sequence>
       <xs:element name="type" type="xs:string" minOccurs="0" maxOccurs="1"/>
       <xs:element name="location" type="LocationType" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="locator" type="LocatorElementType" minOccurs="0" maxOccurs="unbounded"/>
       <xs:element name="desc" type="xs:string" minOccurs="0" maxOccurs="1"/>
     </xs:sequence>
     <xs:attribute name="name" type="xs:string" use="required"/>
@@ -48,10 +50,16 @@
     <xs:attribute name="group" type="xs:string" use="optional" default=""/>
   </xs:complexType>
 
-  <!-- 定位信息类型 -->
+  <!-- 定位信息类型（单定位器） -->
   <xs:complexType name="LocationType" mixed="true">
     <xs:attribute name="type" type="LocatorType" use="required"/>
     <xs:attribute name="item" type="xs:string" use="optional" default=""/>
+  </xs:complexType>
+
+  <!-- 多定位器元素类型 -->
+  <xs:complexType name="LocatorElementType" mixed="true">
+    <xs:attribute name="type" type="LocatorType" use="required"/>
+    <xs:attribute name="priority" type="xs:positiveInteger" use="optional" default="1"/>
   </xs:complexType>
 
   <!-- 驱动类型枚举 -->
