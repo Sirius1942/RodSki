@@ -14,7 +14,6 @@ from .screenshot import capture_web, capture_desktop, auto_cleanup
 from .llm_analyzer import LLMAnalyzer
 from .matcher import VisionMatcher
 from .locator import VisionLocator
-from .image_matcher import ImageMatcher
 from .bbox_locator import BBoxLocator
 from .ocr_locator import OCRLocator
 from .cache import VisionCache
@@ -43,7 +42,6 @@ __all__ = [
     "LLMAnalyzer",
     "VisionMatcher",
     "VisionLocator",
-    "ImageMatcher",
     "BBoxLocator",
     "OCRLocator",
     "VisionCache",

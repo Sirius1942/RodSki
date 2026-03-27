@@ -17,13 +17,18 @@ RodSki 当前仅支持传统定位器（XPath、CSS、ID等），在以下场景
 
 ## 目标
 
-实现基于 **OpenCV + OmniParser** 的视觉定位能力，支持 Web 和 Desktop 平台。
+实现基于 **OmniParser+多模态大模型** 的视觉定位能力，支持 Web 和 Desktop 平台。
 
 **核心原则**：
 - 关键字层统一，不区分平台
 - 驱动层分离，Web/Desktop 各自实现
 - 模型定义驱动类型，定位器决定定位方式
 - 视觉定位器与传统定位器格式统一
+
+**技术约束**：
+- ⚠️ **零图像处理库依赖**：不使用 numpy、opencv、PIL 等图像处理库
+- ✅ **仅依赖两个外部服务**：OmniParser API（屏幕解析）+ LLM API（语义匹配）
+- ✅ **轻量级实现**：所有图像处理由 OmniParser 完成，框架只做 HTTP 调用和坐标计算
 
 ---
 
@@ -84,13 +89,13 @@ RodSki 当前仅支持传统定位器（XPath、CSS、ID等），在以下场景
 ```xml
 <element name="loginBtn" type="web">
     <type>button</type>
-    <location type="vision">img/login_btn.png</location>
+    <location type="vision">登录按钮</location>
 </element>
 ```
-- 通过图片模板匹配定位
-- 图片存放在 `images/` 目录
+- **实现方式**：截图 → OmniParser 解析 → LLM 语义匹配描述 → 返回坐标
+- **不使用**：图片模板匹配、OpenCV、numpy
 - Web 用页面坐标，Desktop 用屏幕坐标
-- 适用于按钮图标、Logo 等视觉元素
+- 适用于按钮、图标、Logo 等视觉元素
 
 **文字定位 (ocr)**：
 ```xml
@@ -99,7 +104,8 @@ RodSki 当前仅支持传统定位器（XPath、CSS、ID等），在以下场景
     <location type="ocr">登录</location>
 </element>
 ```
-- 通过 OCR 识别文字定位
+- **实现方式**：截图 → OmniParser 解析 → 文字匹配 → 返回坐标
+- **不使用**：本地 OCR 库、tesseract、paddleocr
 - 支持中英文文字识别
 - 适用于按钮文字、标签、链接
 
@@ -108,6 +114,11 @@ RodSki 当前仅支持传统定位器（XPath、CSS、ID等），在以下场景
 <element name="submitBtn" type="web">
     <type>button</type>
     <location type="vision_bbox">100,200,150,250</location>
+</element>
+```
+- **实现方式**：直接解析坐标字符串，无需外部服务
+- 格式：`x1,y1,x2,y2`（左上角和右下角坐标）
+- 适用于固定位置的元素或调试场景
 </element>
 ```
 - 直接使用坐标定位（x1,y1,x2,y2）

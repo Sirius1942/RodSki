@@ -96,7 +96,22 @@ rodski/
     └── model.xsd              # 模型 Schema（已更新定位器类型）
 ```
 
-### 2. 驱动基类设计
+### 2. 技术约束
+
+**核心原则：零图像处理库依赖**
+
+视觉定位器只依赖两个外部服务：
+- **OmniParser API** - 屏幕解析（OCR + 元素检测）
+- **LLM API** - 语义匹配（Claude/GPT）
+
+**禁止使用**：numpy、opencv、PIL、tesseract、paddleocr
+
+**三种定位器实现**：
+- `vision` - 截图 → OmniParser → LLM 语义匹配 → 坐标
+- `ocr` - 截图 → OmniParser → 文字匹配 → 坐标
+- `vision_bbox` - 直接解析坐标字符串
+
+### 3. 驱动基类设计
 
 ```python
 # rodski/drivers/base_driver.py
