@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<globalvalue>
+  <group name="VisionConfig">
+    <!-- Claude 配置 -->
+    <var name="ANTHROPIC_API_KEY" value="your_anthropic_key_here"/>
+
+    <!-- OpenAI 配置（可选，配置后自动切换到 OpenAI） -->
+    <var name="OPENAI_API_KEY" value="sk-SvVkWX26RdugqcYlA1Bc1f8452D9465cA7Af7754Ad173628"/>
+    <var name="OPENAI_BASE_URL" value="http://116.63.86.12:3000/v1/"/>
+    <var name="OPENAI_MODEL" value="qwen3-coder-plus"/>
+
+    <!-- OmniParser 服务地址 -->
+    <var name="OMNIPARSER_URL" value="http://14.103.175.167:7862/parse/"/>
+  </group>
+</globalvalue>

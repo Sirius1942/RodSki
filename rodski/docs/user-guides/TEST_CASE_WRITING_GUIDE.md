@@ -18,8 +18,10 @@
 8. [关键字手册](#8-关键字手册)
 9. [完整示例](#9-完整示例)
 10. [固定与动态测试步骤（规划）](#10-固定与动态测试步骤规划)
-11. [附录：常见问题](#附录常见问题)
-12. [附录：测试结果 XML（result.xsd）](#附录测试结果-xmlresultxsd)
+11. [视觉定位器（vision / vision_bbox）](#11-视觉定位器vision--vision_bbox)
+12. [桌面端自动化（Desktop）](#12-桌面端自动化desktop)
+13. [附录：常见问题](#附录常见问题)
+14. [附录：测试结果 XML（result.xsd）](#附录测试结果-xmlresultxsd)
 
 ---
 
@@ -961,6 +963,181 @@ python ski_run.py product/DEMO/demo_site/
 
 ---
 
+
+---
+
+## 11. 视觉定位器（vision / vision_bbox）
+
+### 11.1 概念
+
+视觉定位器通过 **OmniParser 服务** + **多模态 LLM** 实现语义定位，无需编写 xpath/css 选择器。
+
+**RodSki 职责**：执行 XML 定义的操作，支持视觉定位器  
+**Agent 职责**：探索页面，生成包含视觉定位器的 XML
+
+### 11.2 定位器格式
+
+在 `model.xml` 中使用 `locator` 属性：
+
+```xml
+<!-- 语义定位 -->
+<element name="loginBtn" locator="vision:登录按钮"/>
+
+<!-- 坐标定位（Agent 探索后生成） -->
+<element name="submitBtn" locator="vision_bbox:100,200,150,250"/>
+```
+
+**格式约束**：
+- `vision:描述` — 语义描述，由 LLM 匹配
+- `vision_bbox:x1,y1,x2,y2` — 像素坐标（Web）或屏幕绝对坐标（Desktop）
+
+### 11.3 Web 平台完整示例
+
+**model.xml**：
+```xml
+<models>
+  <model name="LoginPage">
+    <element name="username" locator="vision:用户名输入框"/>
+    <element name="password" locator="vision:密码输入框"/>
+    <element name="loginBtn" locator="vision:登录按钮"/>
+  </model>
+</models>
+```
+
+**case.xml**：
+```xml
+<test_step action="navigate" model="" data="https://example.com/login"/>
+<test_step action="type" model="LoginPage" data="L001"/>
+```
+
+**data/LoginPage.xml**：
+```xml
+<row id="L001">
+  <field name="username">admin</field>
+  <field name="password">admin123</field>
+  <field name="loginBtn">click</field>
+</row>
+```
+
+### 11.4 配置要求
+
+**vision_config.yaml**（`rodski/config/vision_config.yaml`）：
+```yaml
+omniparser:
+  url: http://14.103.175.167:7862/parse/
+  timeout: 5
+
+llm:
+  provider: claude
+  model: claude-opus-4-6
+  api_key_env: ANTHROPIC_API_KEY
+  timeout: 10
+```
+
+**环境变量**：
+```bash
+export ANTHROPIC_API_KEY=your_api_key
+```
+
+### 11.5 适用场景
+
+| 场景 | 推荐定位器 |
+|------|-----------|
+| 动态 ID/class | vision:描述 |
+| 无明显属性的元素 | vision:描述 |
+| 跨语言测试 | vision:描述（描述用目标语言） |
+| 已知坐标（Agent探索后） | vision_bbox:x,y,w,h |
+| 传统 Web 元素 | xpath/css（更快） |
+
+
+---
+
+## 12. 桌面端自动化（Desktop）
+
+### 12.1 平台标识
+
+桌面平台使用操作系统类型作为 `driver_type`：
+
+```xml
+<model name="NotepadPage" driver_type="windows">
+  <element name="textArea" locator="vision:文本编辑区域"/>
+</model>
+
+<model name="TextEditPage" driver_type="macos">
+  <element name="textArea" locator="vision:文本编辑区域"/>
+</model>
+```
+
+### 12.2 launch 关键字
+
+启动桌面应用（与 `navigate` 功能相同，场景不同）：
+
+```xml
+<!-- Windows -->
+<test_step action="launch" model="" data="notepad.exe"/>
+
+<!-- macOS -->
+<test_step action="launch" model="" data="TextEdit.app"/>
+```
+
+### 12.3 vision_bbox 坐标约定
+
+桌面场景下 `vision_bbox` 使用**屏幕绝对坐标**：
+
+```xml
+<element name="closeBtn" locator="vision_bbox:1850,50,1900,100"/>
+```
+
+**约束**：
+- 坐标为屏幕绝对像素坐标（左上角为 0,0）
+- 桌面应用执行时**默认全屏**，避免窗口位置变化导致坐标偏移
+
+### 12.4 桌面操作脚本（run 关键字）
+
+桌面特有操作（剪贴板、组合键、窗口管理）通过 `run` 调用脚本：
+
+```xml
+<!-- 组合键 -->
+<test_step action="run" model="" data="fun/desktop/key_combo.py Ctrl+V"/>
+
+<!-- 剪贴板 -->
+<test_step action="run" model="" data="fun/desktop/clipboard_copy.py"/>
+
+<!-- 窗口切换 -->
+<test_step action="run" model="" data="fun/desktop/switch_window.py 记事本"/>
+```
+
+脚本返回 JSON 格式：
+```json
+{"status": "success", "result": "..."}
+```
+
+### 12.5 完整示例
+
+**case/desktop_demo.xml**：
+```xml
+<case execute="是" id="d001" title="桌面演示">
+  <pre_process>
+    <test_step action="launch" model="" data="notepad.exe"/>
+    <test_step action="wait" model="" data="2"/>
+  </pre_process>
+  <test_case>
+    <test_step action="type" model="NotepadPage" data="D001"/>
+    <test_step action="run" model="" data="fun/desktop/key_combo.py Ctrl+A"/>
+  </test_case>
+  <post_process>
+    <test_step action="run" model="" data="fun/desktop/key_combo.py Alt+F4"/>
+  </post_process>
+</case>
+```
+
+### 12.6 约束
+
+- ❌ 桌面端不支持接口测试（无 `send` 关键字）
+- ❌ 不新增 `clipboard`、`key_combination`、`window` 等独立关键字
+- ✅ 桌面操作通过 `run` 调用脚本实现
+- ✅ 视觉定位为主，辅以命令行工具
+
 ## 附录：常见问题
 
 ### Q1: 用例没有执行？
@@ -1055,5 +1232,5 @@ Return 引用只应写在**数据表 XML 的 field 值中**，不要直接写在
 
 ---
 
-**文档版本**: v3.1  
-**最后更新**: 2026-03-21
+**文档版本**: v3.3
+**最后更新**: 2026-03-26

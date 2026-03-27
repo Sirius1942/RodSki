@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datatable name="SearchPage_verify">
+  <row id="V001" remark="验证搜索结果">
+    <field name="firstResult">RodSki</field>
+  </row>
+</datatable>

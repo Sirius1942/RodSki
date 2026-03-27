@@ -1,16 +1,14 @@
-"""数据表 XML 解析器 - 从 data/ 目录加载多个 XML 数据文件
+"""数据表 XML 解析器 - 从 data/data.xml 加载所有数据表
 
-每个 XML 文件对应原 Excel 中的一个数据表 Sheet。
+规则：
+- 所有数据表合并到 data/data.xml
+- 全局变量独立在 data/globalvalue.xml
+
 XML 格式参见 schemas/data.xsd。
 """
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Dict, Any, Optional
-
-from core.xml_schema_validator import RodskiXmlValidator
-
-
-SKIP_FILES = {'globalvalue.xml'}
+from typing import Dict, Any
 
 
 class DataTableParser:
@@ -18,78 +16,72 @@ class DataTableParser:
         """初始化数据表解析器
 
         Args:
-            data_dir: data/ 目录路径，包含所有数据 XML 文件
+            data_dir: data/ 目录路径，必须包含 data.xml
         """
         self.data_dir = Path(data_dir)
+        self.data_file = self.data_dir / "data.xml"
         self.tables: Dict[str, Dict[str, Dict[str, Any]]] = {}
 
     def parse_all_tables(self) -> Dict[str, Dict[str, Dict[str, Any]]]:
-        """解析 data/ 目录下所有 XML 数据文件（跳过 globalvalue.xml）"""
+        """解析 data.xml 中的所有数据表"""
         self.tables = {}
 
-        if not self.data_dir.is_dir():
+        if not self.data_file.exists():
             return self.tables
 
-        for xml_file in sorted(self.data_dir.glob("*.xml")):
-            if xml_file.name.lower() in SKIP_FILES:
+        try:
+            tree = ET.parse(self.data_file)
+        except ET.ParseError:
+            return self.tables
+
+        root = tree.getroot()
+
+        # 支持 <datatables> 或 <datatable> 作为根元素
+        if root.tag == 'datatables':
+            datatable_nodes = root.findall('datatable')
+        elif root.tag == 'datatable':
+            datatable_nodes = [root]
+        else:
+            return self.tables
+
+        for datatable_node in datatable_nodes:
+            table_name = datatable_node.get('name', '').strip()
+            if not table_name:
                 continue
-            table_name, table_data = self._parse_file(xml_file)
-            if table_name and table_data:
+
+            table_data = {}
+            for row_node in datatable_node.findall('row'):
+                data_id = (row_node.get('id') or '').strip()
+                if not data_id:
+                    continue
+
+                row_data = {}
+                for field_node in row_node.findall('field'):
+                    field_name = field_node.get('name', '').strip()
+                    field_value = (field_node.text or '').strip()
+                    if field_name and field_value:
+                        row_data[field_name] = field_value
+
+                if row_data:
+                    table_data[data_id] = row_data
+
+            if table_data:
                 self.tables[table_name] = table_data
 
         return self.tables
 
-    def _parse_file(self, xml_path: Path) -> tuple:
-        """解析单个数据 XML 文件，返回 (表名, {data_id: {field: value}})"""
-        try:
-            RodskiXmlValidator.validate_file(xml_path, RodskiXmlValidator.KIND_DATA)
-            tree = ET.parse(xml_path)
-        except ET.ParseError:
-            return (None, None)
-
-        root = tree.getroot()
-        table_name = root.get('name', xml_path.stem)
-        table_data = {}
-
-        for row_node in root.findall('row'):
-            data_id = (row_node.get('id') or '').strip()
-            if not data_id:
-                continue
-
-            row_data = {}
-            for field_node in row_node.findall('field'):
-                field_name = field_node.get('name', '').strip()
-                field_value = (field_node.text or '').strip()
-                if field_name and field_value:
-                    row_data[field_name] = field_value
-
-            if row_data:
-                table_data[data_id] = row_data
-
-        return (table_name, table_data)
-
-    def load_single_table(self, table_name: str) -> Dict[str, Dict[str, Any]]:
-        """按需加载单个数据表（在 data/ 目录中查找 {table_name}.xml）"""
-        xml_path = self.data_dir / f"{table_name}.xml"
-        if not xml_path.exists():
-            return {}
-        name, data = self._parse_file(xml_path)
-        if name and data:
-            self.tables[name] = data
-            return data
-        return {}
+    def get(self, table_name: str, data_id: str = None) -> Any:
+        """获取数据表或指定行数据"""
+        if table_name not in self.tables:
+            return None
+        if data_id is None:
+            return self.tables[table_name]
+        return self.tables[table_name].get(data_id)
 
     def get_data(self, table_name: str, data_id: str) -> Dict[str, Any]:
-        """获取指定数据行，如果表未加载则尝试按需加载"""
-        if table_name not in self.tables:
-            self.load_single_table(table_name)
-        return self.tables.get(table_name, {}).get(data_id, {})
-
-    def merge_table(self, table_name: str, rows: Dict[str, Dict[str, Any]]) -> None:
-        """合并或覆盖整张数据表（如 insert 附带的临时 datatable）。"""
-        if table_name not in self.tables:
-            self.tables[table_name] = {}
-        self.tables[table_name].update(rows)
+        """获取指定数据行（兼容旧接口）"""
+        return self.get(table_name, data_id) or {}
 
     def close(self):
-        pass
+        """清理资源"""
+        self.tables.clear()

@@ -76,3 +76,13 @@ class BaseDriver(ABC):
 
     def get_text(self, locator: str) -> Optional[str]:
         return ""
+
+    # ── 桌面平台扩展（非抽象，子类可选覆盖）────────────────────
+
+    def launch(self, app_path: str) -> bool:
+        """启动桌面应用（Desktop 平台实现，Web/Mobile 返回 False）。"""
+        return False
+
+    def click_at(self, x: int, y: int) -> bool:
+        """通过坐标点击（视觉定位后调用）。"""
+        return False

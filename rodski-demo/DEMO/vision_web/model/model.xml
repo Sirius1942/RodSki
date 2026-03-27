@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<models>
+  <model name="SearchPage">
+    <element name="searchInput" locator="vision:搜索输入框"/>
+    <element name="searchBtn" locator="vision:搜索按钮"/>
+    <element name="firstResult" locator="vision:第一个搜索结果"/>
+  </model>
+</models>
