@@ -4,6 +4,7 @@
 
 | 迭代 | 周期 | 主题 | 状态 | 分支 |
 |------|------|------|------|------|
+| [Iteration 02](iteration-02/) | 2026-03-27 ~ 2026-04-10 | Agent 集成增强 | 🚧 进行中 | feature/agent-integration |
 | [Iteration 01](iteration-01/) | 2026-03-20 ~ 2026-03-27 | 视觉定位功能 | ✅ 已完成 | feature/vision-location |
 
 ## 迭代流程
