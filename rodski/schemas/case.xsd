@@ -78,6 +78,7 @@
       <xs:enumeration value="verify"/>
       <xs:enumeration value="wait"/>
       <xs:enumeration value="navigate"/>
+      <xs:enumeration value="launch"/>
       <xs:enumeration value="assert"/>
       <xs:enumeration value="upload_file"/>
       <xs:enumeration value="clear"/>
