@@ -8,7 +8,6 @@ from typing import Dict, Any, Optional, List
 from pathlib import Path
 from drivers.base_driver import BaseDriver
 from core.performance import monitor_performance
-from core.data_parser import DataParser
 from core.exceptions import (
     UnknownKeywordError, 
     InvalidParameterError,
@@ -37,7 +36,7 @@ class KeywordEngine:
     """
     
     SUPPORTED = [
-        "close", "type", "verify", "wait", "navigate",
+        "close", "type", "verify", "wait", "navigate", "launch",
         "assert",
         "upload_file", "clear", "get_text", "get",
         "send", "set", "DB", "run",
@@ -62,7 +61,6 @@ class KeywordEngine:
         self._driver_factory = driver_factory
         self._variables: Dict[str, Any] = {}
         self._return_values: list = []
-        self.data_parser = DataParser(data_dir, self)  # DEPRECATED: 遗留 Excel 解析，XML 模式使用 data_resolver
         self.model_parser = model_parser
         self.data_manager = data_manager
         self.data_resolver = data_resolver
@@ -100,8 +98,8 @@ class KeywordEngine:
                 reason="关键字不能为空"
             )
 
-        # 解析参数中的数据引用
-        resolved_params = self.data_parser.resolve_params(params or {})
+        # 参数解析由 data_resolver 在更早阶段完成
+        resolved_params = params or {}
 
         method = getattr(self, f"_kw_{keyword.lower()}", None)
         if not method:
@@ -613,6 +611,21 @@ class KeywordEngine:
         result = self.driver.navigate(url)
         if not result:
             raise DriverError(f"导航失败: {url}")
+        return result
+
+    def _kw_launch(self, params: Dict) -> bool:
+        """启动桌面应用（Desktop平台）"""
+        app_path = params.get("app_path", "") or params.get("data", "")
+        if not app_path:
+            raise InvalidParameterError(
+                keyword="launch",
+                param_name="app_path",
+                reason="缺少必需参数 'app_path'"
+            )
+        logger.info(f"启动应用: {app_path}")
+        result = self.driver.launch(app_path)
+        if not result:
+            raise DriverError(f"启动应用失败: {app_path}")
         return result
 
     def _kw_screenshot(self, params: Dict) -> bool:
