@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<data>
+    <table name="TextEditApp">
+        <row id="L001">
+            <field name="app_name">TextEdit</field>
+        </row>
+    </table>
+
+    <table name="TextEditor">
+        <row id="T001">
+            <field name="editor_area">Hello RodSki Vision!</field>
+        </row>
+
+        <row id="V001">
+            <field name="editor_area">Hello RodSki Vision!</field>
+        </row>
+    </table>
+</data>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<models>
+    <!-- TextEdit 应用模型 -->
+    <model name="TextEditApp">
+        <element name="app_name" type="static"/>
+    </model>
+
+    <model name="TextEditor">
+        <element name="editor_area" type="macos">
+            <type>text</type>
+            <location type="ocr" priority="1">Untitled</location>
+            <location type="vision_bbox" priority="2">50,100,700,500</location>
+        </element>
+    </model>
+</models>

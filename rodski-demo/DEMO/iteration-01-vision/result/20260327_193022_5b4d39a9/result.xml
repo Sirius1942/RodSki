@@ -1,0 +1,8 @@
+<?xml version="1.0" ?>
+<testresult>
+  <summary total="1" passed="0" failed="1" skipped="0" errors="0" pass_rate="0.0%" total_time="1.74s" average_time="1.74s" start_time="2026-03-27 19:30:24" end_time="2026-03-27 19:30:24"/>
+  <results>
+    <result case_id="TC01" title="Web视觉定位登录测试" status="FAIL" execution_time="1.737" retries="0" start_time="" end_time="" error_type="" error_message="[SKI312] 关键字 'verify' 参数错误: data - 数据不存在: 表 'LoginPage_verify' 中找不到 DataID='V001'
+  keyword: verify" screenshot_path="screenshots/TC01_20260327_193024_failure.png" updated_at="2026-03-27 19:30:24"/>
+  </results>
+</testresult>
