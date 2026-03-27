@@ -38,9 +38,8 @@ class KeywordEngine:
     
     SUPPORTED = [
         "close", "type", "verify", "wait", "navigate", "launch",
-        "assert",
-        "upload_file", "clear", "get_text", "get",
-        "send", "set", "DB", "run",
+        "assert", "upload_file", "clear", "get_text", "get",
+        "send", "set", "DB", "run", "click", "screenshot",
     ]
 
     # 默认重试配置

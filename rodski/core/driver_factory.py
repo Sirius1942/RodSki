@@ -78,6 +78,13 @@ class DriverFactory:
 
         # 检查缓存
         if driver_type in cls._drivers:
+            cached_config = cls._driver_configs.get(driver_type, {})
+            if cached_config != kwargs:
+                logger.warning(
+                    f"驱动 '{driver_type}' 配置冲突: "
+                    f"缓存配置={cached_config}, 请求配置={kwargs}。"
+                    f"返回缓存实例（配置={cached_config}）"
+                )
             logger.debug(f"从缓存获取驱动: {driver_type}")
             return cls._drivers[driver_type]
 
