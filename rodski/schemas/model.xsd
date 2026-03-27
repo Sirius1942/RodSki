@@ -34,31 +34,24 @@
     <xs:attribute name="servicename" type="xs:string" use="optional" default=""/>
   </xs:complexType>
 
-  <!-- 元素类型 - 支持三种格式 -->
+  <!-- 元素类型 - 支持完整格式和简化格式 -->
   <xs:complexType name="ElementType">
     <xs:sequence>
       <xs:element name="type" type="xs:string" minOccurs="0" maxOccurs="1"/>
-      <xs:element name="location" type="LocationType" minOccurs="0" maxOccurs="1"/>
-      <xs:element name="locator" type="LocatorElementType" minOccurs="0" maxOccurs="unbounded"/>
+      <xs:element name="location" type="LocationType" minOccurs="0" maxOccurs="unbounded"/>
       <xs:element name="desc" type="xs:string" minOccurs="0" maxOccurs="1"/>
     </xs:sequence>
     <xs:attribute name="name" type="xs:string" use="required"/>
     <xs:attribute name="type" type="DriverType" use="optional"/>
     <xs:attribute name="value" type="xs:string" use="optional"/>
-    <xs:attribute name="locator" type="xs:string" use="optional"/>
     <xs:attribute name="interfacename" type="xs:string" use="optional" default=""/>
     <xs:attribute name="group" type="xs:string" use="optional" default=""/>
   </xs:complexType>
 
-  <!-- 定位信息类型（单定位器） -->
+  <!-- 定位信息类型（支持 priority 属性用于多定位器） -->
   <xs:complexType name="LocationType" mixed="true">
     <xs:attribute name="type" type="LocatorType" use="required"/>
     <xs:attribute name="item" type="xs:string" use="optional" default=""/>
-  </xs:complexType>
-
-  <!-- 多定位器元素类型 -->
-  <xs:complexType name="LocatorElementType" mixed="true">
-    <xs:attribute name="type" type="LocatorType" use="required"/>
     <xs:attribute name="priority" type="xs:positiveInteger" use="optional" default="1"/>
   </xs:complexType>
 
