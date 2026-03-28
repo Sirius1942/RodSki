@@ -1,12 +1,22 @@
 openpyxl>=3.1.0
 xmlschema>=2.5.0
 playwright>=1.40.0
-# 注意: RodSki 不依赖 pytest 等外部测试框架
-# 自检使用自有执行器: python selftest.py
+# 注意: 端到端测试使用自有执行器 python selftest.py
+# 单元测试可使用 pytest
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-mock>=3.12.0
 Appium-Python-Client>=3.0.0
 PyQt6>=6.6.0
 tqdm>=4.65.0
 psutil>=5.9.0
+
+# Vision 模块依赖
+requests>=2.31.0
+pillow>=10.0.0
+pyyaml>=6.0.0
+anthropic>=0.18.0
+openai>=1.12.0
 
 # 数据库驱动 (按需安装)
 # pymysql>=1.1.0       # MySQL / MariaDB
