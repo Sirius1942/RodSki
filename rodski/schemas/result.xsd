@@ -42,6 +42,10 @@
 
   <!-- 单条结果类型 -->
   <xs:complexType name="ResultType">
+    <xs:sequence>
+      <xs:element name="steps" type="StepsType" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="variables" type="VariablesType" minOccurs="0" maxOccurs="1"/>
+    </xs:sequence>
     <xs:attribute name="case_id" type="xs:string" use="required"/>
     <xs:attribute name="title" type="xs:string" use="optional"/>
     <xs:attribute name="status" type="StatusType" use="required"/>
@@ -53,6 +57,38 @@
     <xs:attribute name="error_message" type="xs:string" use="optional"/>
     <xs:attribute name="screenshot_path" type="xs:string" use="optional"/>
     <xs:attribute name="updated_at" type="xs:string" use="optional"/>
+  </xs:complexType>
+
+  <!-- 步骤集合类型 -->
+  <xs:complexType name="StepsType">
+    <xs:sequence>
+      <xs:element name="step" type="StepType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- 单步执行信息 -->
+  <xs:complexType name="StepType">
+    <xs:attribute name="phase" type="xs:string" use="optional"/>
+    <xs:attribute name="index" type="xs:nonNegativeInteger" use="required"/>
+    <xs:attribute name="action" type="xs:string" use="required"/>
+    <xs:attribute name="model" type="xs:string" use="optional"/>
+    <xs:attribute name="data" type="xs:string" use="optional"/>
+    <xs:attribute name="status" type="StatusType" use="required"/>
+    <xs:attribute name="execution_time" type="xs:string" use="optional"/>
+    <xs:attribute name="error_message" type="xs:string" use="optional"/>
+  </xs:complexType>
+
+  <!-- 变量集合类型 -->
+  <xs:complexType name="VariablesType">
+    <xs:sequence>
+      <xs:element name="variable" type="VariableType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- 单个变量 -->
+  <xs:complexType name="VariableType">
+    <xs:attribute name="name" type="xs:string" use="required"/>
+    <xs:attribute name="value" type="xs:string" use="required"/>
   </xs:complexType>
 
   <!-- 状态枚举 -->

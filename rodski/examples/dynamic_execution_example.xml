@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+  <!-- 条件执行示例 -->
+  <case execute="是" id="TC_COND_001" title="条件执行测试" description="演示 if 条件执行">
+    <test_case>
+      <test_step action="set" model="status" data="success"/>
+
+      <!-- 条件判断：如果 status == success 则执行 -->
+      <if condition="$status==success">
+        <test_step action="log" data="状态检查通过"/>
+        <test_step action="navigate" data="https://example.com"/>
+      </if>
+
+      <!-- 条件判断：如果 status != failed 则执行 -->
+      <if condition="$status!=failed">
+        <test_step action="log" data="状态正常"/>
+      </if>
+    </test_case>
+  </case>
+
+  <!-- 循环执行示例 -->
+  <case execute="是" id="TC_LOOP_001" title="循环执行测试" description="演示 loop 循环执行">
+    <test_case>
+      <!-- 循环范围：1-3 -->
+      <loop range="1-3" var="i">
+        <test_step action="log" data="循环第 $i 次"/>
+        <test_step action="wait" data="1"/>
+      </loop>
+
+      <!-- 循环列表：a,b,c -->
+      <loop range="a,b,c" var="item">
+        <test_step action="log" data="处理项目: $item"/>
+      </loop>
+    </test_case>
+  </case>
+
+  <!-- 混合使用示例 -->
+  <case execute="是" id="TC_MIX_001" title="混合执行测试" description="条件和循环混合使用">
+    <test_case>
+      <loop range="1-2" var="round">
+        <test_step action="log" data="第 $round 轮测试"/>
+
+        <if condition="$round==1">
+          <test_step action="log" data="执行第一轮特殊操作"/>
+        </if>
+
+        <if condition="$round==2">
+          <test_step action="log" data="执行第二轮特殊操作"/>
+        </if>
+      </loop>
+    </test_case>
+  </case>
+</cases>
