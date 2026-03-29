@@ -3,7 +3,7 @@
 import sys
 import argparse
 import traceback
-from rodski_cli import run, model, config, log, report, profile
+from rodski_cli import run, model, config, log, report, profile, explain
 
 VERSION = "2.0.1"
 
@@ -47,6 +47,7 @@ def main():
                "  ski run case.xlsx --pause-on-error        错误时暂停\n"
                "  ski run case.xlsx --interactive           交互模式\n"
                "  ski config list                           查看配置\n"
+               "  ski explain case/demo_case_basic.xml      生成人类可读测试步骤说明\n"
     )
     parser.add_argument("--version", action="version", version=f"RodSki {VERSION}")
     parser.add_argument("--verbose", action="store_true", help="详细输出模式")
@@ -71,6 +72,9 @@ def main():
     # profile 子命令
     profile.setup_parser(subparsers)
 
+    # explain 子命令
+    explain.setup_parser(subparsers)
+
     args = parser.parse_args()
 
     if not args.command:
@@ -84,7 +88,8 @@ def main():
         "config": config.handle,
         "log": log.handle,
         "report": report.handle,
-        "profile": profile.handle
+        "profile": profile.handle,
+        "explain": explain.handle,
     }
 
     verbose = getattr(args, "verbose", False)
