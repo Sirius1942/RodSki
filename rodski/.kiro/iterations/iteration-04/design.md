@@ -52,20 +52,33 @@ print(explainer.explain_case("path/to/case.xml"))
 
 ## 4. 异常处理与智能恢复架构
 
-### 4.1 异常捕获层次
+### 4.1 异常类型体系（复用现网 exceptions.py）
 
 ```
 SKIExecutor.execute()
   └── KeywordEngine.execute_step(step)
         └── Driver method (PlaywrightDriver.click etc.)
               └── try/except
-                    └── StepExecutionError
-                          ├── ElementNotFoundError
-                          ├── NetworkError
-                          ├── AssertionFailedError
-                          ├── StepTimeoutError
-                          └── PageCrashError
+                    └── StepExecutionError  ← 新增：步骤执行失败包装器
+                          ├── ElementNotFoundError  (复用 SKI321)
+                          ├── NetworkError          (复用 SKI400/SKI402)
+                          ├── AssertionFailedError  (复用 SKI331)
+                          ├── StepTimeoutError      (复用 SKI322)
+                          └── PageCrashError        (复用 SKI324 DriverStoppedError)
 ```
+
+#### 复用关系说明
+
+| design.md 中的类型名 | 复用自现网 exceptions.py | error_code | 说明 |
+|---|---|---|---|
+| `StepExecutionError` | **新增**，继承 `ExecutionError` | SKI300+ | 步骤执行失败包装器，捕获后触发诊断 |
+| `ElementNotFoundError` | `core.exceptions.ElementNotFoundError` | SKI321 | 元素未找到，is_retryable=True |
+| `NetworkError` | `core.exceptions.ConnectionError` | SKI400 | 网络/连接错误，复用 ConnectionError 体系 |
+| `AssertionFailedError` | `core.exceptions.AssertionFailedError` | SKI331 | 断言失败 |
+| `StepTimeoutError` | `core.exceptions.TimeoutError` | SKI322 | 超时错误，is_retryable=True |
+| `PageCrashError` | `core.exceptions.DriverStoppedError` | SKI324 | 页面崩溃/浏览器关闭，属于 CRITICAL 级别 |
+
+> **注意**：不要新增与现网冲突的异常类型名。所有异常均继承自 `SKIError`，统一通过 `core.exceptions` 导入。
 
 ### 4.2 异常处理流程
 
@@ -117,10 +130,10 @@ class DiagnosisEngine:
         Returns:
             DiagnosisReport: 包含 failure_reason, visual_analysis, suggestion, recovery_action
         """
-        # 1. 调用视觉分析
-        visual_result = self.screenshot_verifier.verify(
+        # 1. 调用视觉分析（语义：分析截图内容，而非验证匹配）
+        visual_result = self.screenshot_verifier.analyze(
             screenshot_path,
-            f"页面状态：{context.get('url', '')}，异常：{error.message}"
+            context=f"页面状态：{context.get('url', '')}，异常：{error.message}"
         )
 
         # 2. 结合上下文和视觉分析生成报告
@@ -146,14 +159,15 @@ class RecoveryEngine:
     """动态恢复引擎"""
 
     RECOVERY_ACTIONS = {
-        "ElementNotFound": ["wait:data=3", "screenshot", "refresh"],
-        "AssertionFailed": ["screenshot", "wait:data=2"],
-        "StepTimeout": ["wait:data=5", "refresh"],
-        "PageCrash": ["restart_browser", "navigate:data={last_url}"],
+        "ElementNotFound": [{"action": "wait", "data": "3"}, {"action": "screenshot"}, {"action": "refresh"}],
+        "AssertionFailed": [{"action": "screenshot"}, {"action": "wait", "data": "2"}],
+        "StepTimeout": [{"action": "wait", "data": "5"}, {"action": "refresh"}],
+        "PageCrash": [{"action": "restart_browser"}, {"action": "navigate", "data": "{last_url}"}],
     }
 
-    def __init__(self, keyword_engine: KeywordEngine):
+    def __init__(self, keyword_engine: KeywordEngine, logger: Optional[Logger] = None):
         self.keyword_engine = keyword_engine
+        self.logger = logger or logging.getLogger(__name__)
 
     def try_recover(
         self,
@@ -165,26 +179,44 @@ class RecoveryEngine:
         尝试恢复执行
 
         Returns:
-            RecoveryResult: (success: bool, steps_inserted: list)
+            RecoveryResult: (success: bool, steps_inserted: list, attempt_count: int)
         """
         actions = self.RECOVERY_ACTIONS.get(
             diagnosis.failure_reason,
-            ["wait:data=3", "screenshot"]
+            [{"action": "wait", "data": "3"}, {"action": "screenshot"}]
         )
 
+        attempt_count = 0
         for action in actions[:max_attempts]:
+            attempt_count += 1
+            self.logger.info(
+                f"[RecoveryEngine] Attempt {attempt_count}/{max_attempts} - "
+                f"action={action.get('action')}, failure_reason={diagnosis.failure_reason}"
+            )
             try:
                 # 解析并执行动态步骤
                 step = self._parse_dynamic_action(action)
                 self.keyword_engine.execute_step(step)
                 # 重试原步骤
                 self.keyword_engine.execute_step(context['failed_step'])
-                return RecoveryResult(success=True, steps_inserted=actions)
-            except Exception:
+                self.logger.info(
+                    f"[RecoveryEngine] ✅ Recovery succeeded at attempt {attempt_count}"
+                )
+                return RecoveryResult(success=True, steps_inserted=actions, attempt_count=attempt_count)
+            except Exception as e:
+                self.logger.warning(
+                    f"[RecoveryEngine] ❌ Attempt {attempt_count} failed: {e}"
+                )
                 continue
 
-        return RecoveryResult(success=False, steps_inserted=actions)
+        self.logger.error(
+            f"[RecoveryEngine] ❌ Recovery exhausted after {attempt_count} attempts "
+            f"(failure_reason={diagnosis.failure_reason})"
+        )
+        return RecoveryResult(success=False, steps_inserted=actions, attempt_count=attempt_count)
 ```
+
+> **日志规范**：`RecoveryEngine` 每次重试必须记录 INFO 级别日志，包含 `attempt_count`、`action`、`failure_reason`；恢复成功记录 `✅ Recovery succeeded`；恢复失败记录 `❌ Recovery exhausted`。所有日志附加 `attempt_count` 字段供后续分析。
 
 ### 4.5 AIScreenshotVerifier
 
@@ -192,18 +224,32 @@ class RecoveryEngine:
 class AIScreenshotVerifier:
     """AI 截图验证器"""
 
-    def verify(self, screenshot_path: str, question: str) -> VerificationResult:
+    def analyze(self, screenshot_path: str, context: str) -> VisualAnalysisResult:
         """
-        用视觉大模型分析截图
+        分析截图内容（语义：理解页面在做什么）
 
         Args:
             screenshot_path: 截图文件路径
-            question: 分析问题，如 "页面上显示什么？有没有错误提示？"
+            context: 上下文信息，如 "页面状态：https://example.com，异常：元素未找到"
+
+        Returns:
+            VisualAnalysisResult: 包含 page_description, anomaly_detected, anomaly_reason
+        """
+
+    def verify(self, screenshot_path: str, expected: str) -> VerificationResult:
+        """
+        验证截图是否与预期匹配（语义：断言性校验）
+
+        Args:
+            screenshot_path: 截图文件路径
+            expected: 期望的页面内容描述，如 "页面上应显示'登录成功'"
 
         Returns:
             VerificationResult: (is_pass, reason)
         """
 ```
+
+> **设计原则**：`verify()` 语义为"验证是否匹配"，用于断言场景；`analyze()` 语义为"分析页面内容"，用于诊断场景。两者职责分离。
 
 ### 4.6 配置项
 
@@ -251,7 +297,7 @@ screen_record:
 
 ### 4.8 动态步骤语法
 
-在配置或外部指令中可以指定动态插入的步骤：
+在配置或外部指令中可以指定动态插入的步骤，语法与 XML test_step 对齐：
 
 ```yaml
 recovery:
@@ -261,13 +307,15 @@ recovery:
       trigger: "ElementNotFound"
       condition: "visual:contains('加载中')"
       actions:
-        - wait:data=5
-        - wait_for_selector:timeout=10000
+        - {"action": "wait", "data": "5"}
+        - {"action": "wait_for_selector", "timeout": "10000"}
 ```
 
 在执行时也可以通过 API 动态插入步骤：
 
 ```python
-executor.dynamic_insert("wait", data="3")
-executor.dynamic_insert("click", locator="css=.modal-close")
+executor.dynamic_insert(action="wait", data="3")
+executor.dynamic_insert(action="click", locator="css=.modal-close")
 ```
+
+> **格式规范**：动态步骤统一使用对象格式 `{"action": "...", "data": "..."}` 或关键字参数形式，与 XML `<test_step action="..." data="..."/>` 结构完全对齐。旧语法 `wait:data=3` 不再使用。
