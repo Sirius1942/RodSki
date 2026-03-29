@@ -17,6 +17,7 @@ def setup_parser(subparsers):
     parser.add_argument("--dry-run", action="store_true", dest="dry_run",
                         help="验证用例但不实际执行")
     parser.add_argument("--output", help="报告输出路径")
+    parser.add_argument("--output-format", choices=["json"], help="输出格式 (json)")
 
 
 def _resolve_case_path(input_path: Path) -> Path:
@@ -125,9 +126,11 @@ def _handle_execute(case_path: Path, module_dir: Path, args) -> int:
     """实际执行测试用例"""
     from core.ski_executor import SKIExecutor
     from drivers.playwright_driver import PlaywrightDriver
+    from core.json_formatter import JsonFormatter
 
     headless = getattr(args, "headless", False)
     browser = getattr(args, "browser", "chromium")
+    output_format = getattr(args, "output_format", None)
 
     def create_driver():
         return PlaywrightDriver(headless=headless, browser=browser)
@@ -143,40 +146,74 @@ def _handle_execute(case_path: Path, module_dir: Path, args) -> int:
             module_dir=str(module_dir),
         )
 
-        print("-" * 60)
+        if not output_format:
+            print("-" * 60)
         results = executor.execute_all_cases()
-        print("-" * 60)
+        if not output_format:
+            print("-" * 60)
 
         total = len(results)
         passed = sum(1 for r in results if r.get('status', '').upper() == 'PASS')
         failed = sum(1 for r in results if r.get('status', '').upper() == 'FAIL')
         skipped = sum(1 for r in results if r.get('status', '').upper() == 'SKIP')
 
-        print(f"执行完成: {passed}/{total} 通过, {failed} 失败" + (f", {skipped} 跳过" if skipped else ""))
+        summary = {
+            "total": total,
+            "passed": passed,
+            "failed": failed,
+            "skipped": skipped,
+        }
 
-        if failed > 0:
-            print(f"\n失败用例:")
-            for r in results:
-                if r.get('status', '').upper() == 'FAIL':
-                    print(f"  - {r.get('case_id')}: {r.get('error', '未知错误')}")
+        if output_format == "json":
+            if failed > 0:
+                first_failed = next((r for r in results if r.get('status', '').upper() == 'FAIL'), None)
+                print(JsonFormatter.format_failure(
+                    error_type="ExecutionError",
+                    error_message=first_failed.get('error', '未知错误') if first_failed else '未知错误',
+                    failed_case_id=first_failed.get('case_id', '') if first_failed else '',
+                    failed_index=0
+                ))
+            else:
+                print(JsonFormatter.format_success(results, summary))
+        else:
+            print(f"执行完成: {passed}/{total} 通过, {failed} 失败" + (f", {skipped} 跳过" if skipped else ""))
+
+            if failed > 0:
+                print(f"\n失败用例:")
+                for r in results:
+                    if r.get('status', '').upper() == 'FAIL':
+                        print(f"  - {r.get('case_id')}: {r.get('error', '未知错误')}")
 
         if args.output:
             import json
             output_path = Path(args.output)
             output_path.parent.mkdir(parents=True, exist_ok=True)
             output_path.write_text(json.dumps({
-                "summary": {"total": total, "passed": passed, "failed": failed},
+                "summary": summary,
                 "results": results,
             }, indent=2, ensure_ascii=False))
-            print(f"报告已保存: {args.output}")
+            if not output_format:
+                print(f"报告已保存: {args.output}")
 
         return 0 if failed == 0 else 1
 
+    except KeyboardInterrupt:
+        if output_format == "json":
+            print(JsonFormatter.format_interrupt())
+        else:
+            print("\n执行已中断", file=sys.stderr)
+        return 130
     except Exception as e:
-        print(f"执行错误: {e}", file=sys.stderr)
-        if getattr(args, "verbose", False):
-            import traceback
-            traceback.print_exc()
+        if output_format == "json":
+            print(JsonFormatter.format_failure(
+                error_type=type(e).__name__,
+                error_message=str(e)
+            ))
+        else:
+            print(f"执行错误: {e}", file=sys.stderr)
+            if getattr(args, "verbose", False):
+                import traceback
+                traceback.print_exc()
         return 1
     finally:
         if executor:
