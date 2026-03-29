@@ -169,6 +169,18 @@ class SKIExecutor:
         self.runtime_control: BaseRuntimeControl = runtime_control or BaseRuntimeControl()
         self._runtime_stopped_graceful = False
 
+        # Long-running stability
+        self._step_count = 0
+        self._browser_restart_interval = self.config.get("browser_restart_interval", 50)
+        self._memory_check_interval = 10
+        self._memory_threshold_mb = 100
+        try:
+            import tracemalloc
+            tracemalloc.start()
+            self._tracemalloc = tracemalloc
+        except ImportError:
+            self._tracemalloc = None
+
     def _ensure_driver_alive(self) -> None:
         """确保驱动可用，如果驱动已关闭则重新创建"""
         if self._driver_closed:
@@ -448,6 +460,44 @@ class SKIExecutor:
             self.model_parser.models = snapshot['models']
         self.data_manager.tables = snapshot.get('tables', {})
 
+    def _recycle_browser_if_needed(self) -> None:
+        """定期回收浏览器实例，避免内存泄漏"""
+        try:
+            current_url = ""
+            try:
+                if hasattr(self.driver, 'current_url'):
+                    current_url = self.driver.current_url() or ""
+            except Exception:
+                pass
+            logger.info(f"[BrowserRecycler] 开始回收浏览器，step={self._step_count}, url={current_url}")
+            self.driver.restart()
+            if current_url:
+                time.sleep(1)
+                try:
+                    self.driver.navigate(current_url)
+                    logger.info(f"[BrowserRecycler] 浏览器已恢复，url={current_url}")
+                except Exception as e:
+                    logger.warning(f"[BrowserRecycler] 恢复URL失败: {e}")
+        except Exception as e:
+            logger.warning(f"[BrowserRecycler] 浏览器回收失败: {e}")
+
+    def _check_memory_and_gc(self) -> None:
+        """监控内存使用，超标时触发GC"""
+        if self._tracemalloc is None:
+            return
+        try:
+            current = self._tracemalloc.get_traced_memory()[0] / (1024 * 1024)
+            delta = current - getattr(self, '_last_memory_mb', current)
+            if delta > self._memory_threshold_mb:
+                import gc
+                gc.collect()
+                logger.info(f"[MemoryMonitor] step={self._step_count}, current={current:.1f}MB, delta=+{delta:.1f}MB, GC triggered")
+            else:
+                logger.debug(f"[MemoryMonitor] step={self._step_count}, current={current:.1f}MB, delta=+{delta:.1f}MB")
+            self._last_memory_mb = current
+        except Exception as e:
+            logger.debug(f"[MemoryMonitor] 内存监控失败: {e}")
+
     def _run_steps(self, steps: List[Dict[str, str]], phase_label: str) -> None:
         """顺序执行某阶段内全部 test_step；支持运行时 insert 扩展队列。"""
         dq = deque([s for s in steps if s.get('action')])
@@ -469,6 +519,15 @@ class SKIExecutor:
             self._phase_runtime_seq += 1
             print(f"   📌 {phase_label} [{self._phase_runtime_seq}]: {step['action']}")
             self.execute_step(step, phase_label)
+
+            self._step_count += 1
+            # 浏览器定期回收
+            if self._browser_restart_interval > 0 and self._step_count % self._browser_restart_interval == 0:
+                self._recycle_browser_if_needed()
+            # 内存监控
+            if self._step_count % self._memory_check_interval == 0:
+                self._check_memory_and_gc()
+
             if self._drain_runtime_at_boundary(dq):
                 return
 
