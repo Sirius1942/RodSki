@@ -152,6 +152,12 @@ class ResultWriter:
             result_elem.set("screenshot_path", str(result.get("screenshot_path", "")))
             result_elem.set("updated_at", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
+            # Add diagnosis section for failed results
+            status = str(result.get("status", "FAIL")).upper()
+            if status in ("FAIL", "ERROR") and result.get("error"):
+                diagnosis_elem = ET.SubElement(result_elem, "diagnosis")
+                diagnosis_elem.text = str(result.get("error", ""))
+
         RodskiXmlValidator.validate_element(
             root, RodskiXmlValidator.KIND_RESULT, source_path=self.result_dir / "<result_output>"
         )
