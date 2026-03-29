@@ -83,10 +83,12 @@ class DriverFactory:
                 logger.warning(
                     f"驱动 '{driver_type}' 配置冲突: "
                     f"缓存配置={cached_config}, 请求配置={kwargs}。"
-                    f"返回缓存实例（配置={cached_config}）"
+                    f"释放旧驱动并重新创建"
                 )
-            logger.debug(f"从缓存获取驱动: {driver_type}")
-            return cls._drivers[driver_type]
+                cls.release_driver(driver_type)
+            else:
+                logger.debug(f"从缓存获取驱动: {driver_type}")
+                return cls._drivers[driver_type]
 
         # 创建新驱动
         logger.info(f"创建新驱动: {driver_type}")
