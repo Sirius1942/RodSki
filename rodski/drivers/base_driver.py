@@ -139,6 +139,58 @@ class BaseDriver(ABC):
         """
         pass
 
+    @abstractmethod
+    def double_click(self, x: int, y: int) -> None:
+        """双击指定坐标
+
+        Args:
+            x: x 坐标
+            y: y 坐标
+
+        Raises:
+            DriverError: 双击失败时抛出
+        """
+        pass
+
+    @abstractmethod
+    def right_click(self, x: int, y: int) -> None:
+        """右键点击指定坐标
+
+        Args:
+            x: x 坐标
+            y: y 坐标
+
+        Raises:
+            DriverError: 右键点击失败时抛出
+        """
+        pass
+
+    @abstractmethod
+    def hover(self, x: int, y: int) -> None:
+        """悬停在指定坐标
+
+        Args:
+            x: x 坐标
+            y: y 坐标
+
+        Raises:
+            DriverError: 悬停失败时抛出
+        """
+        pass
+
+    @abstractmethod
+    def scroll(self, x: int, y: int) -> None:
+        """滚动指定距离
+
+        Args:
+            x: 水平滚动距离（正值向右，负值向左）
+            y: 垂直滚动距离（正值向下，负值向上）
+
+        Raises:
+            DriverError: 滚动失败时抛出
+        """
+        pass
+
     # ── 扩展方法（非抽象，子类可选覆盖）───────────────────────────────
 
     def click_element(self, locator_type: str, locator_value: str) -> bool:
