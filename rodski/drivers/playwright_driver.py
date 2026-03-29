@@ -113,6 +113,8 @@ class PlaywrightDriver(BaseDriver):
             return locator
         elif locator.startswith('text='):
             return locator
+        elif locator.startswith('name='):
+            return f'[name="{locator[5:]}"]'
         elif locator.startswith('#') or locator.startswith('.'):
             return locator
         else:
@@ -176,19 +178,55 @@ class PlaywrightDriver(BaseDriver):
             pass
         return None
 
+    def click(self, x: int, y: int) -> None:
+        """点击指定坐标（BaseDriver 接口）"""
+        self._check_driver_alive()
+        self.page.mouse.click(x, y)
+
     def type_text(self, x: int, y: int, text: str) -> None:
         """在指定坐标输入文字（BaseDriver 接口）"""
         self._check_driver_alive()
         self.page.mouse.click(x, y)
         self.page.keyboard.type(text)
 
-    def take_screenshot(self, path: str) -> None:
-        """截图（BaseDriver 接口）"""
-        self.screenshot(path)
+    def get_text(self, x1: int, y1: int, x2: int, y2: int) -> str:
+        """获取指定区域的文字（BaseDriver 接口）"""
+        self._check_driver_alive()
+        # Playwright 不直接支持坐标区域文本提取，返回空字符串
+        logger.warning("PlaywrightDriver.get_text 坐标接口暂不支持")
+        return ""
 
-    def click(self, locator: str, **kwargs) -> bool:
-        """点击元素
-        
+    def double_click(self, x: int, y: int) -> None:
+        """双击指定坐标（BaseDriver 接口）"""
+        self._check_driver_alive()
+        self.page.mouse.dblclick(x, y)
+
+    def right_click(self, x: int, y: int) -> None:
+        """右键点击指定坐标（BaseDriver 接口）"""
+        self._check_driver_alive()
+        self.page.mouse.click(x, y, button="right")
+
+    def hover(self, x: int, y: int) -> None:
+        """悬停在指定坐标（BaseDriver 接口）"""
+        self._check_driver_alive()
+        self.page.mouse.move(x, y)
+
+    def scroll(self, x: int, y: int) -> None:
+        """滚动指定距离（BaseDriver 接口）"""
+        self._check_driver_alive()
+        self.page.mouse.wheel(x, y)
+
+    def take_screenshot(self) -> str:
+        """截图（BaseDriver 接口）"""
+        import tempfile
+        import time
+        path = tempfile.mktemp(suffix='.png', prefix=f'screenshot_{int(time.time())}_')
+        self.page.screenshot(path=path)
+        return path
+
+    def click_locator(self, locator: str, **kwargs) -> bool:
+        """点击元素（通过定位器）
+
         自动等待元素可见、稳定、可点击后执行点击
         """
         self._check_driver_alive()
@@ -236,21 +274,21 @@ class PlaywrightDriver(BaseDriver):
                     if clicked:
                         return True
                     raise DriverError(f"点击失败: 元素未找到 {locator}", locator=locator)
-                
+
                 # 其他错误
                 raise DriverError(f"点击失败: {locator}", locator=locator, cause=e)
-                
+
         except DriverStoppedError:
             raise
         except DriverError:
             raise
         except Exception as e:
-            self._handle_error("click", locator, e)
+            self._handle_error("click_locator", locator, e)
             raise DriverError(f"点击失败: {locator}", locator=locator, cause=e)
 
-    def type(self, locator: str, text: str, **kwargs) -> bool:
-        """输入文本
-        
+    def type_locator(self, locator: str, text: str, **kwargs) -> bool:
+        """输入文本（通过定位器）
+
         自动等待元素可见、可编辑后执行输入
         """
         self._check_driver_alive()
@@ -382,16 +420,16 @@ class PlaywrightDriver(BaseDriver):
             self._handle_error("select", locator, e)
             raise DriverError(f"选择失败: {locator}", locator=locator, cause=e)
 
-    def hover(self, locator: str) -> bool:
-        """悬停"""
+    def hover_locator(self, locator: str) -> bool:
+        """悬停（通过定位器）"""
         self._check_driver_alive()
-        
+
         try:
             self.page.hover(locator)
             logger.debug(f"悬停成功: {locator}")
             return True
         except Exception as e:
-            self._handle_error("hover", locator, e)
+            self._handle_error("hover_locator", locator, e)
             raise DriverError(f"悬停失败: {locator}", locator=locator, cause=e)
 
     def drag(self, from_loc: str, to_loc: str) -> bool:
@@ -406,16 +444,16 @@ class PlaywrightDriver(BaseDriver):
             self._handle_error("drag", f"{from_loc} -> {to_loc}", e)
             raise DriverError(f"拖拽失败: {from_loc} -> {to_loc}", cause=e)
 
-    def scroll(self, x: int = 0, y: int = 300) -> bool:
-        """滚动"""
+    def scroll_page(self, x: int = 0, y: int = 300) -> bool:
+        """滚动页面（通过像素距离）"""
         self._check_driver_alive()
-        
+
         try:
             self.page.evaluate(f"window.scrollBy({x}, {y})")
             logger.debug(f"滚动成功: ({x}, {y})")
             return True
         except Exception as e:
-            self._handle_error("scroll", f"({x}, {y})", e)
+            self._handle_error("scroll_page", f"({x}, {y})", e)
             raise DriverError(f"滚动失败", cause=e)
 
     def assert_element(self, locator: str, expected: str) -> bool:
@@ -446,26 +484,26 @@ class PlaywrightDriver(BaseDriver):
             self._handle_error("clear", locator, e)
             raise DriverError(f"清空失败: {locator}", locator=locator, cause=e)
 
-    def double_click(self, locator: str) -> bool:
-        """双击"""
+    def double_click_locator(self, locator: str) -> bool:
+        """双击（通过定位器）"""
         self._check_driver_alive()
-        
+
         try:
             self.page.dblclick(locator)
             return True
         except Exception as e:
-            self._handle_error("double_click", locator, e)
+            self._handle_error("double_click_locator", locator, e)
             raise DriverError(f"双击失败: {locator}", locator=locator, cause=e)
 
-    def right_click(self, locator: str) -> bool:
-        """右键点击"""
+    def right_click_locator(self, locator: str) -> bool:
+        """右键点击（通过定位器）"""
         self._check_driver_alive()
-        
+
         try:
             self.page.click(locator, button="right")
             return True
         except Exception as e:
-            self._handle_error("right_click", locator, e)
+            self._handle_error("right_click_locator", locator, e)
             raise DriverError(f"右键点击失败: {locator}", locator=locator, cause=e)
 
     def key_press(self, key: str) -> bool:
@@ -479,14 +517,14 @@ class PlaywrightDriver(BaseDriver):
             self._handle_error("key_press", key, e)
             raise DriverError(f"按键失败: {key}", cause=e)
 
-    def get_text(self, locator: str) -> str:
-        """获取元素文本"""
+    def get_text_locator(self, locator: str) -> str:
+        """获取元素文本（通过定位器）"""
         self._check_driver_alive()
-        
+
         try:
             return self.page.text_content(locator)
         except Exception as e:
-            self._handle_error("get_text", locator, e)
+            self._handle_error("get_text_locator", locator, e)
             return None
 
     def upload_file(self, locator: str, file_path: str) -> bool:

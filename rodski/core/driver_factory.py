@@ -76,10 +76,15 @@ class DriverFactory:
                 f"支持的类型: {cls.SUPPORTED_DRIVER_TYPES}"
             )
 
-        # 检查缓存
+        # 检查缓存和配置
         if driver_type in cls._drivers:
-            logger.debug(f"从缓存获取驱动: {driver_type}")
-            return cls._drivers[driver_type]
+            cached_config = cls._driver_configs.get(driver_type, {})
+            if cached_config == kwargs:
+                logger.debug(f"从缓存获取驱动: {driver_type}")
+                return cls._drivers[driver_type]
+            else:
+                logger.info(f"驱动配置已变更，释放旧驱动: {driver_type}")
+                cls.release_driver(driver_type)
 
         # 创建新驱动
         logger.info(f"创建新驱动: {driver_type}")
@@ -385,6 +390,22 @@ class MockInterfaceDriver(BaseDriver):
         logger.warning("InterfaceDriver 不支持截图")
         return ""
 
+    def double_click(self, x: int, y: int) -> None:
+        """接口驱动不支持双击"""
+        logger.warning("InterfaceDriver 不支持 double_click")
+
+    def right_click(self, x: int, y: int) -> None:
+        """接口驱动不支持右键点击"""
+        logger.warning("InterfaceDriver 不支持 right_click")
+
+    def hover(self, x: int, y: int) -> None:
+        """接口驱动不支持悬停"""
+        logger.warning("InterfaceDriver 不支持 hover")
+
+    def scroll(self, x: int, y: int) -> None:
+        """接口驱动不支持滚动"""
+        logger.warning("InterfaceDriver 不支持 scroll")
+
 
 class MockMacOSDriver(BaseDriver):
     """Mock macOS 驱动 - 用于开发测试
@@ -431,3 +452,19 @@ class MockMacOSDriver(BaseDriver):
         """截图"""
         logger.warning("MockMacOSDriver.take_screenshot 尚未实现")
         return ""
+
+    def double_click(self, x: int, y: int) -> None:
+        """双击坐标"""
+        logger.warning("MockMacOSDriver.double_click 尚未实现")
+
+    def right_click(self, x: int, y: int) -> None:
+        """右键点击坐标"""
+        logger.warning("MockMacOSDriver.right_click 尚未实现")
+
+    def hover(self, x: int, y: int) -> None:
+        """悬停坐标"""
+        logger.warning("MockMacOSDriver.hover 尚未实现")
+
+    def scroll(self, x: int, y: int) -> None:
+        """滚动"""
+        logger.warning("MockMacOSDriver.scroll 尚未实现")
