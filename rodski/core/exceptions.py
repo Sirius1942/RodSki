@@ -16,7 +16,7 @@
   │   │   ├── ElementNotFoundError (元素未找到)
   │   │   ├── TimeoutError (超时)
   │   │   └── StaleElementError (元素失效)
-  │   └── AssertionError (断言失败)
+  │   └── AssertionFailedError (断言失败)
   └── ConnectionError (连接错误)
       ├── DatabaseConnectionError (数据库连接错误)
       └── APIConnectionError (API连接错误)
