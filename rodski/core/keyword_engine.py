@@ -37,7 +37,7 @@ class KeywordEngine:
     """
     
     SUPPORTED = [
-        "close", "type", "verify", "wait", "navigate", "launch",
+        "close", "type", "verify", "verify_image", "wait", "navigate", "launch",
         "assert",
         "upload_file", "clear", "get_text", "get",
         "send", "set", "DB", "run", "screenshot",
@@ -732,6 +732,62 @@ class KeywordEngine:
         path = params.get("path", "") or params.get("data", "") or "screenshot.png"
         logger.info(f"截图: {path}")
         return self.driver.screenshot(path)
+
+    def _kw_verify_image(self, params: Dict) -> bool:
+        """AI 截图验证 - 使用视觉大模型验证截图内容
+
+        公式: verify_image | screenshot_path | expected_description
+
+        Args:
+            params: 包含 screenshot_path 和 expected 描述
+
+        Returns:
+            验证通过返回 True，失败返回 False
+        """
+        screenshot_path = params.get("screenshot_path", "") or params.get("data", "")
+        expected = params.get("expected", "") or params.get("model", "")
+
+        if not screenshot_path:
+            raise InvalidParameterError(
+                keyword="verify_image",
+                param_name="screenshot_path",
+                reason="缺少截图路径参数"
+            )
+        if not expected:
+            raise InvalidParameterError(
+                keyword="verify_image",
+                param_name="expected",
+                reason="缺少预期描述参数"
+            )
+
+        # 解析截图路径（支持相对路径）
+        if self._module_dir:
+            screenshot_path = str((Path(self._module_dir) / screenshot_path).resolve())
+        else:
+            screenshot_path = str(Path(screenshot_path).resolve())
+
+        logger.info(f"AI 截图验证: {screenshot_path}")
+        logger.debug(f"预期描述: {expected}")
+
+        try:
+            from rodski.vision.ai_verifier import AIScreenshotVerifier
+            verifier = AIScreenshotVerifier()
+            is_pass, reason = verifier.verify(screenshot_path, expected)
+
+            self.store_return({"match": is_pass, "reason": reason})
+
+            if is_pass:
+                logger.info(f"AI 截图验证通过: {reason}")
+            else:
+                logger.warning(f"AI 截图验证失败: {reason}")
+
+            return is_pass
+
+        except ImportError as e:
+            raise DriverError(f"AI 验证器依赖缺失: {e}")
+        except Exception as e:
+            logger.error(f"AI 截图验证异常: {e}")
+            raise DriverError(f"AI 截图验证失败: {e}")
 
     def _kw_assert(self, params: Dict) -> bool:
         """断言（保留兼容）"""

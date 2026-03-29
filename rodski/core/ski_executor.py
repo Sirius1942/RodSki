@@ -32,6 +32,11 @@ from data.data_resolver import DataResolver
 from core.keyword_engine import KeywordEngine
 from drivers.base_driver import BaseDriver
 
+try:
+    from rodski.vision.screen_recorder import ScreenRecorder
+except ImportError:
+    ScreenRecorder = None  # 未安装录屏依赖时优雅降级
+
 from core.exceptions import DriverStoppedError, is_critical_error
 from core.runtime_control import (
     BaseRuntimeControl,
@@ -113,6 +118,17 @@ class SKIExecutor:
         self.auto_screenshot = self.config.get("auto_screenshot_on_failure", True)
         self.auto_screenshot_on_step = self.config.get("auto_screenshot_on_step", True)
         self._screenshot_dir_base = Path(self.config.get("screenshot_dir", "screenshots"))
+
+        # 录屏配置
+        screen_record_cfg = self.config.get("screen_record", {}) or {}
+        self._record_enabled = screen_record_cfg.get("enabled", False)
+        self._record_fps = screen_record_cfg.get("fps", 10)
+        self._record_max_duration = screen_record_cfg.get("max_duration", 600)
+        self._record_output_dir = screen_record_cfg.get(
+            "output_dir", "screenshots"
+        )
+        self._recorder: Optional["ScreenRecorder"] = None
+        self._current_recording_path: Optional[str] = None
 
         # 初始化解析器
         self.model_parser = ModelParser(str(self.model_file)) if self.model_file.exists() else None
@@ -254,8 +270,36 @@ class SKIExecutor:
         # 保存当前 case 的 step_wait 配置（优先级高于全局配置）
         self._current_case_step_wait = case.get('step_wait')
 
+        # 自动录屏：如果配置开启且 ScreenRecorder 可用
+        case_id = case['case_id']
+        recording_path = None
+        if self._record_enabled and ScreenRecorder is not None:
+            try:
+                self._recorder = ScreenRecorder(
+                    output_dir=str(self.module_dir / self._record_output_dir),
+                    fps=self._record_fps,
+                    max_duration=self._record_max_duration,
+                )
+                recording_path = self._recorder.start(session_id=case_id)
+                self._current_recording_path = recording_path
+                logger.info(f"用例录屏已启动: {recording_path}")
+            except Exception as e:
+                logger.warning(f"启动录屏失败: {e}")
+                self._recorder = None
+
+        # 用于最终返回的结果字典（方便 finally 块统一处理）
+        result: Dict[str, Any] = {
+            'case_id': case_id,
+            'title': case.get('title', ''),
+            'status': 'PASS',
+            'execution_time': 0.0,
+            'error': '',
+            'screenshot_path': '',
+            'recording_path': '',
+        }
+
         try:
-            self._current_case_id = case['case_id']
+            self._current_case_id = case_id
             self._step_index = 0
             self._runtime_stopped_graceful = False
 
@@ -276,7 +320,10 @@ class SKIExecutor:
             try:
                 self._run_steps(pre_steps, '预处理')
             except ForceRunTermination as e:
-                return self._case_result_force_terminated(case, start, e)
+                result = self._case_result_dict(
+                    case, start, 'FAIL', str(e), screenshot_path, recording_path
+                )
+                return result
             except Exception as e:
                 logger.error(f"预处理失败: {e}")
                 print(f"   ❌ 预处理错误: {e}")
@@ -287,7 +334,10 @@ class SKIExecutor:
                 try:
                     self._run_steps(test_steps, '用例')
                 except ForceRunTermination as e:
-                    return self._case_result_force_terminated(case, start, e)
+                    result = self._case_result_dict(
+                        case, start, 'FAIL', str(e), screenshot_path, recording_path
+                    )
+                    return result
                 except Exception as e:
                     logger.error(f"用例阶段失败: {e}")
                     print(f"   ❌ 用例错误: {e}")
@@ -297,7 +347,10 @@ class SKIExecutor:
             try:
                 self._run_steps(post_steps, '后处理')
             except ForceRunTermination as e:
-                return self._case_result_force_terminated(case, start, e)
+                result = self._case_result_dict(
+                    case, start, 'FAIL', str(e), screenshot_path, recording_path
+                )
+                return result
             except Exception as e:
                 logger.error(f"后处理失败: {e}")
                 print(f"   ❌ 后处理错误: {e}")
@@ -307,49 +360,57 @@ class SKIExecutor:
                 # 只有界面类型的用例失败时才截图
                 component_type = case.get('component_type', '界面')
                 if self.auto_screenshot and not self._driver_closed and component_type == '界面':
-                    screenshot_path = self._take_failure_screenshot(case['case_id'])
-                return {
-                    'case_id': case['case_id'],
-                    'title': case.get('title', ''),
-                    'status': 'FAIL',
-                    'execution_time': round(time.time() - start, 3),
-                    'error': str(err),
-                    'screenshot_path': screenshot_path or '',
-                }
+                    screenshot_path = self._take_failure_screenshot(case_id)
+                result = self._case_result_dict(
+                    case, start, 'FAIL', str(err), screenshot_path, recording_path
+                )
+                return result
 
             if self._runtime_stopped_graceful:
-                return {
-                    'case_id': case['case_id'],
-                    'title': case.get('title', ''),
-                    'status': 'SKIP',
-                    'execution_time': round(time.time() - start, 3),
-                    'error': 'runtime terminate (graceful)',
-                    'screenshot_path': '',
-                }
+                result = self._case_result_dict(
+                    case, start, 'SKIP', 'runtime terminate (graceful)',
+                    screenshot_path, recording_path
+                )
+                return result
 
-            return {
-                'case_id': case['case_id'],
-                'title': case.get('title', ''),
-                'status': 'PASS',
-                'execution_time': round(time.time() - start, 3),
-            }
+            # 正常通过
+            result = self._case_result_dict(
+                case, start, 'PASS', '', None, recording_path
+            )
+            return result
+
         finally:
+            # 停止录屏
+            if self._recorder is not None:
+                try:
+                    final_recording_path = self._recorder.stop()
+                    if final_recording_path:
+                        result['recording_path'] = final_recording_path
+                    logger.info(f"用例录屏已保存: {final_recording_path}")
+                except Exception as e:
+                    logger.warning(f"停止录屏失败: {e}")
+                self._recorder = None
+
             self._restore_runtime_resources(resources_snapshot)
 
-    def _case_result_force_terminated(
-        self, case: Dict[str, Any], start: float, exc: ForceRunTermination
+    def _case_result_dict(
+        self,
+        case: Dict[str, Any],
+        start: float,
+        status: str,
+        error: str,
+        screenshot_path: Optional[str],
+        recording_path: Optional[str],
     ) -> Dict[str, Any]:
-        screenshot_path = None
-        component_type = case.get('component_type', '界面')
-        if self.auto_screenshot and not self._driver_closed and component_type == '界面':
-            screenshot_path = self._take_failure_screenshot(case['case_id'])
+        """构建用例结果字典"""
         return {
             'case_id': case['case_id'],
             'title': case.get('title', ''),
-            'status': 'FAIL',
+            'status': status,
             'execution_time': round(time.time() - start, 3),
-            'error': str(exc),
+            'error': error,
             'screenshot_path': screenshot_path or '',
+            'recording_path': recording_path or '',
         }
 
     def apply_insert_resources(

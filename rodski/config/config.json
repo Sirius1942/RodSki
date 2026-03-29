@@ -15,5 +15,11 @@
   "report_format": "html",
   "auto_screenshot_on_failure": true,
   "auto_screenshot_on_step": true,
-  "screenshot_dir": "screenshots"
+  "screenshot_dir": "screenshots",
+  "screen_record": {
+    "enabled": false,
+    "fps": 10,
+    "output_dir": "screenshots",
+    "max_duration": 600
+  }
 }

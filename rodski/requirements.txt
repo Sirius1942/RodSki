@@ -15,6 +15,10 @@ openai>=1.12.0
 pillow>=10.0.0
 pyyaml>=6.0
 
+# 屏幕录制模块依赖
+mss>=9.0.1
+opencv-python>=4.8.0
+
 # 数据库驱动 (按需安装)
 # pymysql>=1.1.0       # MySQL / MariaDB
 # psycopg2>=2.9.0      # PostgreSQL
