@@ -26,6 +26,8 @@ from .exceptions import (
     VisionTimeoutError,
     InvalidBBoxError,
 )
+from .screen_recorder import ScreenRecorder
+from .ai_verifier import AIScreenshotVerifier, analyze_recording
 
 __all__ = [
     "OmniClient",
@@ -52,4 +54,7 @@ __all__ = [
     "CoordinateError",
     "VisionTimeoutError",
     "InvalidBBoxError",
+    "ScreenRecorder",
+    "AIScreenshotVerifier",
+    "analyze_recording",
 ]
