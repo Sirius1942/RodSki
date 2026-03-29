@@ -58,8 +58,18 @@
 
 ### T4-015: 长时间执行稳定性保障
 - 实现浏览器定期回收机制（每 N 步重启）
+  - 在 `SKIExecutor` 中维护步数计数器 `self._step_count`
+  - 配置项 `browser_restart_interval`（默认 50 步）触发 `driver.restart()`
+  - 重启前自动保存当前 URL，重启后通过 `navigate` 恢复页面
+  - 重启后重新绑定元素引用，避免 StaleElementError
 - 实现执行快照保存（每 N 步）
+  - 快照内容：当前步骤索引、变量上下文、页面 URL、DOM 状态摘要（可选）
+  - 快照格式：`{case_id}_snapshot_{step_index}.json`，存入 `output/snapshots/`
+  - 异常时自动加载最近快照，支持从快照点恢复执行（可选 feature）
 - 添加内存泄漏监控和 GC 触发
+  - 每 10 步记录 `tracemalloc.get_traced_memory()`
+  - 内存增长超过阈值（默认 100MB）时主动触发 `gc.collect()`
+  - 日志记录内存状态：`[MemoryMonitor] step=50, current=85MB, delta=+12MB`
 **预计**: 8h
 
 ### T4-016: 集成测试
