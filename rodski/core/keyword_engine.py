@@ -770,7 +770,7 @@ class KeywordEngine:
         logger.debug(f"预期描述: {expected}")
 
         try:
-            from rodski.vision.ai_verifier import AIScreenshotVerifier
+            from vision.ai_verifier import AIScreenshotVerifier
             verifier = AIScreenshotVerifier()
             is_pass, reason = verifier.verify(screenshot_path, expected)
 

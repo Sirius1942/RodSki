@@ -33,7 +33,7 @@ from core.keyword_engine import KeywordEngine
 from drivers.base_driver import BaseDriver
 
 try:
-    from rodski.vision.screen_recorder import ScreenRecorder
+    from vision.screen_recorder import ScreenRecorder
 except ImportError:
     ScreenRecorder = None  # 未安装录屏依赖时优雅降级
 
