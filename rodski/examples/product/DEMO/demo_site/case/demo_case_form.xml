@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+  <case id="demo_form_001" title="表单填写与提交" execute="是" description="测试表单填写和批量数据驱动">
+    <test_case>
+      <test_step action="navigate" data="https://httpbin.org/forms/post"/>
+      <test_step action="type" model="DemoForm" data="demo_form_001"/>
+      <test_step action="wait" data="2"/>
+      <test_step action="screenshot" data="demo_form_result.png"/>
+    </test_case>
+  </case>
+</cases>
