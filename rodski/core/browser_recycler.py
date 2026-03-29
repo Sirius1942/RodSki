@@ -246,5 +246,6 @@ class BrowserRecycler:
                 logger.info("[BrowserRecycler] 新浏览器实例已创建")
             except Exception as e:
                 logger.error(f"[BrowserRecycler] 创建新浏览器失败: {e}")
+                raise
 
         return new_driver
