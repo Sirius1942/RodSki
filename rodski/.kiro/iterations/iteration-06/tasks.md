@@ -1,169 +1,216 @@
-# Iteration 06 任务清单
+# Iteration 06: 动态执行能力 — 任务清单
 
-## Phase 1: 表达式引擎与变量存储 (3天)
+## 阶段一: 动态步骤注入
 
-### T6-001: ExpressionEngine 表达式解析器
-- 新建 `core/expression_engine.py`
-- 实现 `parse()` 方法，将条件字符串解析为 AST
-- 支持操作符: `==`, `!=`, `>`, `<`, `>=`, `<=`, `&&`, `||`, `!`
-- 支持括号嵌套
-- 实现 `evaluate()` 方法，用 context 变量求值 AST
-**预计**: 6h
+### T6-001: DynamicStep 类型定义
+**文件**: `core/dynamic_steps.py` (新)
 
-### T6-002: VariableStore 变量存储
-- 新建 `core/variable_store.py`
-- 实现 `get(name)` / `set(name, value)` / `all()` 方法
-- 实现 `resolve(text)` 方法替换 `${name}` 为实际值
-- 注册内置变量（_case_id, _step_index, _timestamp, _last_result）
-- 实现 `_update_from_step_result()` 从执行结果更新变量
-**预计**: 4h
+- 实现 `DynamicStep` dataclass: id / keyword / params / condition / position / target_step_index / timeout / retry_on_fail / metadata
+- 实现 `DynamicStep.to_dict()` 和 `from_dict()` 方法
+- 实现 `StepResult` 中与动态步骤相关的字段扩展
+- 定义 `TriggerPoint` 枚举: pre_step / post_step / on_error
+**预计**: 4h | **Owner**: 待分配
 
-### T6-003: ExpressionEngine + VariableStore 单元测试
-- 测试所有操作符组合
-- 测试变量不存在时的处理（返回 false）
-- 测试嵌套括号表达式
-- 测试 resolve() 替换多个变量
-**预计**: 4h
+### T6-002: DynamicStepParser 解析器
+**文件**: `core/dynamic_steps.py` (新)
 
-## Phase 2: CaseParser 动态节点解析 (3天)
+- 实现 `DynamicStepParser.parse_from_xml(xml_root)` → List[DynamicStep]
+- 支持从 case.xml 的 `<dynamic_steps>` 节点解析
+- 支持 `trigger` + `trigger_locator` 定位目标步骤
+- 支持直接 `target_step_index` 定位
+- 解析失败时记录 warning 但不中断执行
+**预计**: 4h | **Owner**: 待分配
 
-### T6-004: XML Schema 动态节点定义
-- 新建 `schemas/dynamic_nodes.xsd`
-- 定义 IfNodeType / LoopNodeType / DynamicInsertType / CatchNodeType
-- 允许动态节点内嵌 test_step
-**预计**: 2h
+### T6-003: ExecutionContext 数据类
+**文件**: `core/dynamic_steps.py` (新)
 
-### T6-005: CaseParser 解析 `<if>` 节点
-- 修改 `core/case_parser.py` 的 `_parse_test_case()`
-- 新增 `_parse_if_node()` 方法
-- 支持 `<else>` 子节点
-- CaseDefinition 支持返回混合节点列表（Step + IfNode + LoopNode + DynamicInsertNode）
-**预计**: 4h
+- 实现 `ExecutionContext` dataclass
+- 实现 `last_result` 属性（返回最近步骤结果，供条件引用）
+- 实现 `get_driver_state()` 方法（获取浏览器当前 URL/标题/screenshot_path）
+**预计**: 2h | **Owner**: 待分配
 
-### T6-006: CaseParser 解析 `<loop>` 节点
-- 新增 `_parse_loop_node()` 方法
-- 支持 `times` 属性（次数或变量引用）
-- 支持 `while` 属性（条件表达式）
-- 支持 `<catch>` 子节点
-**预计**: 4h
+### T6-004: SKIExecutor 注入钩子集成
+**文件**: `core/ski_executor.py`
 
-### T6-007: CaseParser 解析 `<dynamic_insert>` 节点
-- 新增 `_parse_dynamic_insert_node()` 方法
-- 支持 `source` 属性（variable / ai / file）
-- 支持 `variable` / `path` 属性
-**预计**: 2h
+- 在 `_execute_step()` 中插入 pre-step / post-step / on-error 注入钩子
+- 实现 `_inject_steps(trigger_point, context) → List[DynamicStep]`
+- 实现 `_execute_dynamic_step(step) → StepResult`
+- 动态步骤结果写入 Result XML（标记 `is_dynamic=true`）
+- 配置项: `dynamic_step.enabled: true/false`
+**预计**: 8h | **Owner**: 待分配
 
-### T6-008: CaseParser 动态节点解析测试
-- 编写单元测试覆盖: if / else / loop / dynamic_insert
-- 测试嵌套场景
-- 测试缺失属性时的默认值
-**预计**: 2h
+### T6-005: Case XSD dynamic_steps 扩展
+**文件**: `schemas/case.xsd`
 
-## Phase 3: DynamicExecutor 动态执行 (4天)
+- 新增 `<xs:element name="dynamic_steps">` 复杂类型
+- 定义 `step` 子元素: id / keyword / position / trigger / trigger_locator / target_step_index / condition / timeout / retry_on_fail
+- 编写 Schema 单元测试，验证解析正确性
+**预计**: 2h | **Owner**: 待分配
 
-### T6-009: DynamicExecutor 执行器核心
-- 新建 `core/dynamic_executor.py`
-- 实现 `__init__()` 初始化（注入 keyword_engine / variable_store / result_writer）
-- 实现 `execute_if()` 方法
-- 实现 `execute_loop()` 方法
-- 实现 `execute_dynamic_insert()` 方法
-**预计**: 8h
+---
 
-### T6-010: 条件分支执行
-- `execute_if()` 解析条件表达式
-- 根据条件结果选择执行 then 或 else 分支
-- 写入 IfResult（包含 branch、steps）
-- 在 KeywordEngine 中集成条件分支处理
-**预计**: 4h
+## 阶段二: 条件执行
 
-### T6-011: 循环执行
-- `execute_loop()` 支持 times 和 while 两种模式
-- 每次迭代前检查 while 条件
-- 执行 `<catch>` 块捕获异常
-- 支持 max_attempts 防止死循环
-- 写入 LoopResult（包含 iterations[]）
-**预计**: 6h
+### T6-006: ConditionEvaluator 核心
+**文件**: `core/condition_evaluator.py` (新)
 
-### T6-012: 动态步骤插入
-- `execute_dynamic_insert()` 从 variable / file / ai 加载步骤 JSON
-- JSON 格式: `{"steps": [{"action":..., "model":..., "data":...}]}`
-- 执行插入的步骤并收集结果
-- 写入 InsertResult
-**预计**: 4h
+- 实现 `ConditionEvaluator` 类
+- 使用 `ast.parse()` + `_safe_eval()` 安全求值
+- 实现所有运算符: `== / != / > / < / >= / <= / in / not in / and / or / not`
+- 实现属性访问: `${obj.attr}` 语法
+- 实现内置函数: len / str / int / float / bool / any / all / sum / abs / min / max
+- 变量从 `self._variables` 字典中查找
+- 未知变量默认返回 `None`，不抛异常
+**预计**: 8h | **Owner**: 待分配
 
-### T6-013: `set` 关键字支持
-- 在 KeywordEngine 添加 "set" 关键字处理
-- data 格式: `variable_name=value`
-- 调用 VariableStore.set() 设置变量
-- 不生成 result XML 节点（set 是副作用操作）
-**预计**: 2h
+### T6-007: TestStep.condition 字段解析
+**文件**: `core/case_parser.py`
 
-## Phase 4: ResultWriter 增强 (2天)
+- 在 `TestStep` dataclass 中新增 `condition: Optional[str]` 字段
+- 在 `CaseParser._parse_step()` 中解析 `condition` 属性
+- 在 `CaseParser._parse_test_steps()` 中处理 `condition` 属性
+**预计**: 2h | **Owner**: 待分配
 
-### T6-014: ResultWriter 动态节点结果写入
-- 修改 `core/result_writer.py`
-- 新增 `write_if_result()` 方法
-- 新增 `write_loop_result()` 方法（含迭代详情）
-- 新增 `write_dynamic_insert_result()` 方法
-- 在 ResultWriter 写入循环中识别动态节点并调用对应方法
-**预计**: 6h
+### T6-008: 条件执行集成 SKIExecutor
+**文件**: `core/ski_executor.py`
 
-### T6-015: Result XML Schema 更新
-- 在 result.xsd 中新增 `<if>` / `<loop>` / `<dynamic_insert>` 节点类型
-- 定义 iteration 嵌套结构
-- 更新 result_writer.py 的 XML 生成逻辑
-**预计**: 4h
+- 在 `_execute_step()` 开始时检查 `step.condition`
+- 使用 `ConditionEvaluator` 求值条件
+- 条件不满足时返回 `StepResult(status="skipped", reason="...")`
+- 在 Result XML 中标记 `<step status="skipped" skip_reason="...">`
+- 条件求值失败时视为 `false`（不阻断执行）
+**预计**: 4h | **Owner**: 待分配
 
-## Phase 5: 测试与文档 (2天)
+### T6-009: last_result 上下文变量
+**文件**: `core/ski_executor.py`
 
-### T6-016: 单元测试
-- `tests/unit/test_expression_engine.py` — 表达式解析求值测试
-- `tests/unit/test_variable_store.py` — 变量存储测试
-- `tests/unit/test_dynamic_executor.py` — 动态执行器测试
-**预计**: 6h
+- 在 `_variables` 中维护 `last_result` 变量
+- 每次步骤执行后更新: `self._variables["last_result"] = result.to_dict()`
+- 支持 `${last_result.status}` / `${last_result.message}` 等引用
+- 清空规则: 用例开始时重置为 `None`
+**预计**: 2h | **Owner**: 待分配
 
-### T6-017: 集成测试
-- `tests/integration/test_dynamic_execution.py`
-- 测试条件分支（true 分支 / false 分支）
-- 测试循环（固定次数 / while 条件 / 嵌套循环）
-- 测试动态插入（variable / file 两种 source）
-- 测试 set 关键字
-**预计**: 8h
+---
 
-### T6-018: 文档更新
-- 更新 `docs/user-guides/QUICKSTART.md` 新增动态执行说明
-- 新增 `docs/user-guides/DYNAMIC_EXECUTION.md` 详细指南
-- 包含 if / loop / dynamic_insert 的完整示例
-**预计**: 4h
+## 阶段三: 循环能力
 
-## 任务依赖关系
+### T6-010: LoopConfiguration 数据类
+**文件**: `core/loop_executor.py` (新)
 
-```
-T6-001 → T6-002 → T6-003
-                         ↓
-T6-004 → T6-005 → T6-006 → T6-007 → T6-008
-                                               ↓
-T6-009 → T6-010 → T6-011 → T6-012 → T6-013
-                                               ↓
-T6-014 → T6-015 → T6-016 → T6-017 → T6-018
-```
+- 实现 `LoopConfiguration` dataclass: loop_type / count / items / item_var / index_var / condition / max_iterations / break_on_fail
+- 实现 `LoopParser.parse(loop_str) → LoopConfiguration`
+- 支持语法: `5` / `for item in ${list}` / `until condition max=N` / `while condition max=N`
+- 解析失败时抛出 `ValueError`
+**预计**: 4h | **Owner**: 待分配
 
-## 估计工时
+### T6-011: LoopExecutor 执行器
+**文件**: `core/loop_executor.py` (新)
 
-- Phase 1: 14h
-- Phase 2: 14h
-- Phase 3: 20h
-- Phase 4: 10h
-- Phase 5: 18h
-- **总计: ~76h（2人周+2天）**
+- 实现 `LoopExecutor.__init__(ski_executor)`
+- 实现 `execute_loop(step, loop_config) → List[LoopIterationResult]`
+- 实现 `_execute_single_iteration()` 单次迭代
+- 实现 `_should_break()` 终止判断
+- 固定次数 / for_each / until / while 四种循环类型
+- `break_on_fail=True` 时，迭代失败自动终止
+- 循环最大次数硬限制 1000
+**预计**: 8h | **Owner**: 待分配
 
-## 成功标准检查
+### T6-012: TestStep.loop 字段解析
+**文件**: `core/case_parser.py`
 
-- [ ] `<if condition="...">` 条件分支正确执行
-- [ ] `<loop times="N">` 按次数循环正确执行
-- [ ] `<loop while="...">` 条件循环正确执行
-- [ ] `<dynamic_insert>` 动态步骤插入正确执行
-- [ ] `<test_step action="set">` 变量设置正确工作
-- [ ] result XML 正确标记 if/loop/dynamic_insert 执行结果
-- [ ] 所有新增代码有单元测试覆盖
-- [ ] 集成测试通过
+- 在 `TestStep` dataclass 中新增 `loop: Optional[str]` 字段
+- 在 `CaseParser._parse_step()` 中解析 `loop` 属性
+- 同时解析内联循环参数（如 `max_iterations`）
+**预计**: 2h | **Owner**: 待分配
+
+### T6-013: 循环执行集成 SKIExecutor
+**文件**: `core/ski_executor.py`
+
+- 在 `_execute_step()` 中检测 `step.loop`
+- 存在 loop 时调用 `LoopExecutor.execute_loop()`
+- 每次迭代调用 `_do_execute_step()` 并记录独立结果
+- 循环变量 (`item` / `index`) 注入 `_variables`
+- 循环结果（所有迭代）汇总返回
+**预计**: 4h | **Owner**: 待分配
+
+### T6-014: 循环结果写入 Result XML
+**文件**: `core/result_writer.py`
+
+- 每次循环迭代生成独立 `<step>` 节点
+- 节点属性: `loop_id` / `loop_type` / `loop_iteration` / `loop_item`
+- 循环汇总信息写入 `<loop_summary>` 子元素（总次数/通过/失败/平均耗时）
+**预计**: 4h | **Owner**: 待分配
+
+---
+
+## 阶段四: 集成与文档
+
+### T6-015: 配置项集成
+**文件**: `config/default_config.yaml`
+
+- 新增 `execution.allow_conditions: true`
+- 新增 `execution.allow_loops: true`
+- 新增 `execution.allow_dynamic_steps: true`
+- 新增 `execution.loop_max_iterations: 1000`
+- 新增 `execution.dynamic_step.max_per_trigger: 10`
+**预计**: 2h | **Owner**: 待分配
+
+### T6-016: 集成测试
+**文件**: `tests/integration/test_dynamic_execution.py` (新)
+
+- 测试 DynamicStep 解析和注入（pre/post/on-error）
+- 测试 ConditionEvaluator 求值（所有操作符和函数）
+- 测试条件执行（满足/不满足/组合条件）
+- 测试固定次数循环
+- 测试 for_each 循环（列表引用）
+- 测试 until/while 循环（条件终止）
+- 测试循环 `break_on_fail` 行为
+- 测试动态步骤注入 on-error 恢复
+**预计**: 8h | **Owner**: 待分配
+
+### T6-017: 示例用例
+**文件**: `examples/dynamic/` 目录 (新)
+
+- `conditional_case.xml` - 条件执行示例
+- `loop_case.xml` - 循环执行示例
+- `dynamic_injection_case.xml` - 动态步骤注入示例
+- 每个示例配合 README.md 说明
+**预计**: 4h | **Owner**: 待分配
+
+### T6-018: 文档
+**文件**: `docs/user-guides/DYNAMIC_EXECUTION.md` (新)
+
+- 条件执行语法说明（所有操作符和示例）
+- 循环执行语法说明（固定次数/for_each/until/while）
+- 动态步骤注入配置说明
+- `last_result` 上下文变量使用指南
+- 常见错误和调试方法
+- 更新 QUICKSTART.md 添加动态执行章节
+**预计**: 4h | **Owner**: 待分配
+
+---
+
+## 任务汇总
+
+| 任务 | 名称 | 预计 | 阶段 |
+|------|------|------|------|
+| T6-001 | DynamicStep 类型定义 | 4h | 1 |
+| T6-002 | DynamicStepParser 解析器 | 4h | 1 |
+| T6-003 | ExecutionContext 数据类 | 2h | 1 |
+| T6-004 | SKIExecutor 注入钩子集成 | 8h | 1 |
+| T6-005 | Case XSD dynamic_steps 扩展 | 2h | 1 |
+| T6-006 | ConditionEvaluator 核心 | 8h | 2 |
+| T6-007 | TestStep.condition 字段解析 | 2h | 2 |
+| T6-008 | 条件执行集成 SKIExecutor | 4h | 2 |
+| T6-009 | last_result 上下文变量 | 2h | 2 |
+| T6-010 | LoopConfiguration 数据类 | 4h | 3 |
+| T6-011 | LoopExecutor 执行器 | 8h | 3 |
+| T6-012 | TestStep.loop 字段解析 | 2h | 3 |
+| T6-013 | 循环执行集成 SKIExecutor | 4h | 3 |
+| T6-014 | 循环结果写入 Result XML | 4h | 3 |
+| T6-015 | 配置项集成 | 2h | 4 |
+| T6-016 | 集成测试 | 8h | 4 |
+| T6-017 | 示例用例 | 4h | 4 |
+| T6-018 | 文档 | 4h | 4 |
+
+**总预计**: 72h

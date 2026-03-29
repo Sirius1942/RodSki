@@ -1,163 +1,203 @@
-# Iteration 07 任务清单
+# Iteration 07: 文档体系重构 — 任务清单
 
-## Phase 1: 文档目录重构 (2天)
+## 阶段一: 目录结构重构
 
 ### T7-001: 创建文档目录结构
-- 创建 `docs/developer-guides/` 目录
-- 创建 `docs/agent-guides/` 目录（已有，部分整理）
-- 创建 `docs/requirements/` 目录（已有部分内容）
-- 删除重复和过时的文档
-**预计**: 2h
+**文件**: `docs/` 目录重组
 
-### T7-002: 迁移并合并 docs/README.md
-- 读取现有 `docs/README.md`
-- 创建 `docs/index.md` 作为文档首页
-- 将 `docs/README.md` 内容合并到相关子文档
-- 删除原 `docs/README.md`
-**预计**: 2h
+- 创建 `docs/getting-started/` 目录
+- 创建 `docs/agent-integration/` 目录
+- 创建 `docs/reference/` 目录
+- 创建 `docs/best-practices/` 目录
+- 移动 `QUICKSTART.md` → `getting-started/`
+- 移动/合并 `agent-integration.md` 和 `skill-integration.md` → `agent-integration/`
+**预计**: 2h | **Owner**: 待分配
 
-### T7-003: 迁移 agent-integration.md
-- 读取 `docs/agent-integration.md`
-- 合并到 `docs/agent-guides/README.md`（Agent 集成总览）
-- 添加导航目录
-**预计**: 2h
+### T7-002: 重构文档首页
+**文件**: `docs/README.md` (新)
 
-### T7-004: 迁移 skill-integration.md
-- 读取 `docs/skill-integration.md`
-- 合并到 `docs/agent-guides/SKILL_REFERENCE.md`
-- 扩展为完整的 Skill 定义参考
-**预计**: 2h
+- 设计文档导航首页
+- 按用户任务组织链接（快速开始/编写用例/集成/参考/最佳实践）
+- 每个章节配 1-2 句话说明
+- 底部包含贡献指南链接
+**预计**: 2h | **Owner**: 待分配
 
-## Phase 2: Agent 集成指南完善 (2天)
+### T7-003: Getting Started 文档完善
+**文件**: `docs/getting-started/`
 
-### T7-005: 编写 OpenClaw 集成指南
-- 新建 `docs/agent-guides/OPENCLAW_INTEGRATION.md`
-- 包含 Skill 定义 YAML 示例
-- 包含 openclaw 配置示例
-- 包含执行示例和输出解析
-- 包含错误处理集成说明
-**预计**: 4h
+- `INSTALL.md` - 从源码/pip/Docker 安装
+- `QUICKSTART.md` - 5 分钟快速入门（已有，移入目录）
+- `FIRST_TEST.md` - 编写第一个测试用例（从 `TEST_CASE_WRITING_GUIDE.md` 精简）
+**预计**: 4h | **Owner**: 待分配
 
-### T7-006: 编写 Claude Code 集成指南
-- 新建 `docs/agent-guides/CLAUDE_CODE_INTEGRATION.md`
-- 包含 Claude Code --mcp 配置
-- 包含 Python API 调用示例
-- 包含完整的对话集成示例
-**预计**: 3h
+---
 
-### T7-007: 编写 DIRECT_API.md
-- 新建 `docs/agent-guides/DIRECT_API.md`
-- 包含 Python API 导入示例
-- 包含 SKIExecutor 直接调用示例
-- 包含结果解析代码
-**预计**: 2h
+## 阶段二: Agent 集成文档
 
-### T7-008: 编写 PROTOCOL.md
-- 新建 `docs/agent-guides/PROTOCOL.md`
-- 定义 JSON 请求/响应格式
-- 定义错误码体系
-- 定义事件流（start/progress/complete/error）
-**预计**: 3h
+### T7-004: 重构 Agent 集成指南
+**文件**: `docs/agent-integration/AGENT_INTEGRATION.md` (重构)
 
-## Phase 3: Skill 参考文档 (1天)
+- 重新组织结构：工具调用 / 编程接口 / 多 Agent 协作
+- 增加完整交互协议说明
+- 增加错误处理和重试策略
+- 增加实际集成案例（Claude Code / OpenCode）
+**预计**: 6h | **Owner**: 待分配
 
-### T7-009: 编写完整 SKILL_REFERENCE.md
-- 新建 `docs/agent-guides/SKILL_REFERENCE.md`
-- 完整的 Skill 定义 YAML 模板
-- 所有参数类型详解
-- 输出格式规范
-- 至少 3 个完整示例
-**预计**: 4h
+### T7-005: OpenClaw Skill 集成文档
+**文件**: `docs/agent-integration/OPENCLAW_SKILL.md` (新)
 
-### T7-010: 编写 AGENT_EXAMPLES.md
-- 新建 `docs/agent-guides/EXAMPLES.md`
-- OpenClaw Skill 完整示例
-- Claude Code 对话示例
-- Python API 完整示例
-- 错误处理完整示例
-**预计**: 4h
+- Skill 定义文件格式说明
+- 命令注册和参数映射
+- 与 OpenClaw Gateway 的集成方式
+- 示例 Skill 配置
+**预计**: 4h | **Owner**: 待分配
 
-## Phase 4: MkDocs 文档站点 (1天)
+### T7-006: Agent 集成示例代码
+**文件**: `examples/agent/` 目录 (新)
 
-### T7-011: 配置 mkdocs.yml
-- 新建 `docs/mkdocs.yml`
-- 配置站点基本信息（名称、URL、描述）
-- 配置导航结构（nav）
-- 配置 Material 主题
-- 配置搜索功能
-**预计**: 3h
+- `claude_code_integration.py` - Claude Code 集成完整示例
+- `opencode_integration.py` - OpenCode 集成完整示例
+- `multi_agent_example.py` - 多 Agent 协作示例
+- 每个文件附带 README 说明
+**预计**: 6h | **Owner**: 待分配
 
-### T7-012: 创建 GitHub Actions 部署配置
-- 新建 `.github/workflows/docs.yml`
-- 配置 push 到 main 分支自动部署
-- 配置 MkDocs gh-deploy
-**预计**: 2h
+---
 
-### T7-013: 验证 MkDocs 构建
-- 本地运行 `mkdocs build`
-- 验证无构建错误
-- 验证本地预览 `mkdocs serve`
-**预计**: 2h
+## 阶段三: 参考文档
 
-## Phase 5: 错误处理文档增强 (1天)
+### T7-007: 关键字参考文档
+**文件**: `docs/reference/KEYWORD_REFERENCE.md` (新)
 
-### T7-014: 增强 EXCEPTION_HANDLING.md
-- 新增错误恢复策略模式章节
-- 新增 AI 辅助诊断集成章节
-- 新增自定义异常类型扩展章节
-- 新增生产环境最佳实践章节
-**预计**: 4h
+- 17 个关键字的完整参考
+- 每个关键字: 描述 / 参数表 / XML 示例 / 错误处理 / 可组合关键字
+- 使用 `scripts/generate_docs.py` 从代码注释自动生成初稿
+- 人工审核和补充
+**预计**: 8h | **Owner**: 待分配
 
-## Phase 6: 开发者文档 (0.5天)
+### T7-008: 配置项参考文档
+**文件**: `docs/reference/CONFIG_REFERENCE.md` (新)
 
-### T7-015: 编写 CONTRIBUTING.md
-- 新建 `docs/developer-guides/CONTRIBUTING.md`
-- 代码审查流程
-- Commit message 规范
-- Pull Request 模板
-**预计**: 2h
+- 从 `config/default_config.yaml` 自动生成配置项表格
+- 按模块分组（execution / recovery / result / vision / metadata / statistics）
+- 每个配置项: 名称 / 类型 / 默认值 / 说明 / 示例
+- 配置优先级说明
+**预计**: 4h | **Owner**: 待分配
 
-## Phase 7: 质量检查 (0.5天)
+### T7-009: CLI 命令参考文档
+**文件**: `docs/reference/CLI_REFERENCE.md` (新)
 
-### T7-016: 文档质量审核
-- 检查所有文档链接完整性
-- 验证示例代码可执行
-- 术语一致性检查
-- 修复发现的问题
-**预计**: 4h
+- 从 `core/cli.py` 的 Click 装饰器自动生成
+- 每个子命令: 用法 / 参数 / 选项 / 示例 / 退出码
+- `rodski run / explain / validate / stats / replay / compare`
+**预计**: 4h | **Owner**: 待分配
 
-## 任务依赖关系
+---
 
-```
-T7-001 → T7-002 → T7-003 → T7-004
-                                  ↓
-T7-005 → T7-006 → T7-007 → T7-008
-                                           ↓
-T7-009 → T7-010 → T7-011 → T7-012 → T7-013
-                                                  ↓
-T7-014 → T7-015 → T7-016
-```
+## 阶段四: 最佳实践文档
 
-## 估计工时
+### T7-010: 重构错误处理最佳实践
+**文件**: `docs/best-practices/ERROR_HANDLING.md` (重构)
 
-- Phase 1: 8h
-- Phase 2: 12h
-- Phase 3: 8h
-- Phase 4: 7h
-- Phase 5: 4h
-- Phase 6: 2h
-- Phase 7: 4h
-- **总计: ~45h（1人周）**
+- 扩展现有 `EXCEPTION_HANDLING.md`
+- 增加分层错误处理策略（步骤级 / 用例级 / 套件级）
+- 增加错误场景与解决方案对照表
+- 增加 RecoveryEngine 配置最佳实践
+- 增加 AI 诊断集成最佳实践
+**预计**: 6h | **Owner**: 待分配
 
-## 成功标准检查
+### T7-011: 性能优化指南
+**文件**: `docs/best-practices/PERFORMANCE.md` (新)
 
-- [ ] docs/ 目录按四层结构分类完成
-- [ ] `docs/mkdocs.yml` 配置完成，`mkdocs build` 无错误
-- [ ] `docs/agent-guides/OPENCLAW_INTEGRATION.md` 完整可操作
-- [ ] `docs/agent-guides/CLAUDE_CODE_INTEGRATION.md` 完整可操作
-- [ ] `docs/agent-guides/SKILL_REFERENCE.md` 包含完整 Skill 定义模板
-- [ ] `docs/agent-guides/EXAMPLES.md` 包含 3+ 完整示例
-- [ ] `docs/agent-guides/PROTOCOL.md` 定义完整的通信协议
-- [ ] `docs/user-guides/EXCEPTION_HANDLING.md` 增强章节完整
-- [ ] `.github/workflows/docs.yml` 配置完成并测试通过
-- [ ] 所有文档链接完整，无死链
+- 浏览器复用策略（共享 vs 独立模式）
+- 元素定位优化建议
+- 等待策略最佳实践
+- 并行执行配置
+- 内存管理（快照频率、GC 配置）
+**预计**: 4h | **Owner**: 待分配
+
+---
+
+## 阶段五: 工具与验证
+
+### T7-012: MkDocs 站点配置
+**文件**: `mkdocs.yml` (新)
+
+- 配置 MkDocs Material 主题
+- 配置导航结构（与文档目录对应）
+- 配置 Markdown 扩展（highlight / admonition / toc）
+- 配置代码高亮（Python / XML / YAML / Bash）
+**预计**: 2h | **Owner**: 待分配
+
+### T7-013: 文档生成脚本
+**文件**: `scripts/generate_docs.py` (新)
+
+- `generate_keyword_reference()` - 从 keyword_engine.py 生成关键字参考初稿
+- `generate_config_reference()` - 从 default_config.yaml 生成配置参考初稿
+- `generate_cli_reference()` - 从 cli.py 生成 CLI 参考初稿
+- 脚本可独立运行，定期更新参考文档
+**预计**: 4h | **Owner**: 待分配
+
+### T7-014: 链接验证
+**文件**: `scripts/validate_docs.py` (新)
+
+- 验证所有 Markdown 文件内的相对链接
+- 检查外部 URL 可访问性
+- 检查图片引用路径
+- 作为 CI 检查项
+**预计**: 2h | **Owner**: 待分配
+
+### T7-015: 示例代码验证
+**文件**: `examples/` 目录
+
+- 确保所有示例代码无语法错误
+- 运行 `python -m py_compile` 检查
+- 关键示例（如集成）标记为 CI 集成测试
+**预计**: 2h | **Owner**: 待分配
+
+---
+
+## 阶段六: 审查与发布
+
+### T7-016: 文档整体审查
+**文件**: 全部文档
+
+- 通读所有新增/修改的文档
+- 检查语言准确性（英文语法、中文错别字）
+- 检查代码示例可运行性
+- 检查交叉引用链接
+- 确保文档风格一致
+**预计**: 4h | **Owner**: 待分配
+
+### T7-017: 更新根目录文档索引
+**文件**: `docs/README.md` (已有)
+
+- 确认所有新文档已在首页正确链接
+- 检查导航结构完整性
+- 确认贡献指南链接有效
+**预计**: 1h | **Owner**: 待分配
+
+---
+
+## 任务汇总
+
+| 任务 | 名称 | 预计 | 阶段 |
+|------|------|------|------|
+| T7-001 | 创建文档目录结构 | 2h | 1 |
+| T7-002 | 重构文档首页 | 2h | 1 |
+| T7-003 | Getting Started 文档完善 | 4h | 1 |
+| T7-004 | 重构 Agent 集成指南 | 6h | 2 |
+| T7-005 | OpenClaw Skill 集成文档 | 4h | 2 |
+| T7-006 | Agent 集成示例代码 | 6h | 2 |
+| T7-007 | 关键字参考文档 | 8h | 3 |
+| T7-008 | 配置项参考文档 | 4h | 3 |
+| T7-009 | CLI 命令参考文档 | 4h | 3 |
+| T7-010 | 重构错误处理最佳实践 | 6h | 4 |
+| T7-011 | 性能优化指南 | 4h | 4 |
+| T7-012 | MkDocs 站点配置 | 2h | 5 |
+| T7-013 | 文档生成脚本 | 4h | 5 |
+| T7-014 | 链接验证脚本 | 2h | 5 |
+| T7-015 | 示例代码验证 | 2h | 5 |
+| T7-016 | 文档整体审查 | 4h | 6 |
+| T7-017 | 更新根目录文档索引 | 1h | 6 |
+
+**总预计**: 65h
