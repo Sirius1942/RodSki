@@ -6,7 +6,7 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from rodski.vision.exceptions import VisionError
+from .exceptions import VisionError
 
 logger = logging.getLogger("rodski")
 
