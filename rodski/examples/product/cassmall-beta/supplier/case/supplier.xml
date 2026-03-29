@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+  <!-- 小辉登录 - 供应商 -->
+  <case id="cassmall_beta_login_xiaohui" title="小辉登录（供应商）" execute="是" description="小辉账号（13395432251）登录，角色：供应商">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="3"/>
+    </pre_process>
+    <test_case>
+      <test_step action="js" model="LoginPage" data="changeLoginWay(document.querySelector('span[type=PASSWORD]'))"/>
+      <test_step action="wait" data="1"/>
+      <test_step action="fill" model="LoginPage" data="xiaohui_username"/>
+      <test_step action="fill" model="LoginPage" data="xiaohui_password"/>
+      <test_step action="click" model="LoginPage" data="agreeCheckbox"/>
+      <test_step action="click" model="LoginPage" data="loginBtn"/>
+      <test_step action="wait" data="8"/>
+      <test_step action="screenshot" data="cassmall_beta_xiaohui_login.png"/>
+    </test_case>
+  </case>
+
+  <!-- 小辉 - 查看询价单列表 -->
+  <case id="cassmall_beta_supplier_view_inquiries" title="供应商查看询价单" execute="否" description="小辉查看来自维修厂的询价单">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/supplier/inquiryList"/>
+      <test_step action="wait" data="3"/>
+    </pre_process>
+    <test_case>
+      <test_step action="screenshot" data="supplier_inquiry_list.png"/>
+    </test_case>
+  </case>
+
+  <!-- 小辉 - 对询价单报价 -->
+  <case id="cassmall_beta_supplier_quote" title="供应商报价" execute="否" description="小辉对询价单进行报价">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/supplier/inquiryList"/>
+      <test_step action="wait" data="3"/>
+    </pre_process>
+    <test_case>
+      <test_step action="click" model="SupplierInquiryPage" data="quoteNow"/>
+      <test_step action="wait" data="2"/>
+      <test_step action="fill" model="QuotePage" data="quotePrice"/>
+      <test_step action="click" model="QuotePage" data="submitQuote"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="screenshot" data="supplier_quote_done.png"/>
+    </test_case>
+  </case>
+
+  <!-- 小辉 - 商品管理 -->
+  <case id="cassmall_beta_supplier_product_manage" title="供应商商品管理" execute="否" description="小辉维护商品信息和库存">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/supplier/productList"/>
+      <test_step action="wait" data="3"/>
+    </pre_process>
+    <test_case>
+      <test_step action="click" model="ProductManagePage" data="addProduct"/>
+      <test_step action="wait" data="2"/>
+      <test_step action="fill" model="ProductManagePage" data="productName"/>
+      <test_step action="fill" model="ProductManagePage" data="stockQty"/>
+      <test_step action="fill" model="ProductManagePage" data="price"/>
+      <test_step action="click" model="ProductManagePage" data="saveBtn"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="screenshot" data="supplier_product_saved.png"/>
+    </test_case>
+  </case>
+</cases>
