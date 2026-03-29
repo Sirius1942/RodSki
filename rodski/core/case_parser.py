@@ -58,6 +58,7 @@ class CaseParser:
                 'description': case_node.get('description', ''),
                 'component_type': case_node.get('component_type', ''),
                 'step_wait': step_wait_ms,
+                'metadata': self._parse_metadata(case_node.find('metadata')),
                 'pre_process': self._parse_phase_steps(case_node.find('pre_process')),
                 'test_case': self._parse_phase_steps(case_node.find('test_case')),
                 'post_process': self._parse_phase_steps(case_node.find('post_process')),
@@ -67,15 +68,34 @@ class CaseParser:
         return cases
 
     @staticmethod
+    def _parse_metadata(metadata_node: Optional[ET.Element]) -> Dict[str, str]:
+        """解析元数据节点"""
+        if metadata_node is None:
+            return {}
+        return {
+            'created_by': metadata_node.get('created_by', ''),
+            'created_at': metadata_node.get('created_at', ''),
+            'updated_by': metadata_node.get('updated_by', ''),
+            'updated_at': metadata_node.get('updated_at', ''),
+            'success_rate': metadata_node.get('success_rate', ''),
+            'last_run': metadata_node.get('last_run', ''),
+        }
+
+    @staticmethod
     def _parse_phase_steps(phase_node: Optional[ET.Element]) -> List[Dict[str, str]]:
-        """解析一个阶段容器内的全部 test_step"""
+        """解析一个阶段容器内的全部 test_step，支持 if 和 loop"""
         if phase_node is None:
             return []
         steps = []
-        for el in phase_node.findall('test_step'):
-            step = CaseParser._parse_step_element(el)
-            if step.get('action'):
-                steps.append(step)
+        for el in phase_node:
+            if el.tag == 'test_step':
+                step = CaseParser._parse_step_element(el)
+                if step.get('action'):
+                    steps.append(step)
+            elif el.tag == 'if':
+                steps.append(CaseParser._parse_if_element(el))
+            elif el.tag == 'loop':
+                steps.append(CaseParser._parse_loop_element(el))
         return steps
 
     @staticmethod
@@ -84,6 +104,29 @@ class CaseParser:
             'action': str(el.get('action', '') or '').strip(),
             'model': str(el.get('model', '') or '').strip(),
             'data': str(el.get('data', '') or '').strip(),
+        }
+
+    @staticmethod
+    def _parse_if_element(el: ET.Element) -> Dict[str, Any]:
+        """解析 if 条件元素"""
+        return {
+            'type': 'if',
+            'condition': str(el.get('condition', '') or '').strip(),
+            'steps': [CaseParser._parse_step_element(step)
+                     for step in el.findall('test_step')
+                     if step.get('action')],
+        }
+
+    @staticmethod
+    def _parse_loop_element(el: ET.Element) -> Dict[str, Any]:
+        """解析 loop 循环元素"""
+        return {
+            'type': 'loop',
+            'range': str(el.get('range', '') or '').strip(),
+            'var': str(el.get('var', 'item') or '').strip(),
+            'steps': [CaseParser._parse_step_element(step)
+                     for step in el.findall('test_step')
+                     if step.get('action')],
         }
 
     def close(self):

@@ -30,6 +30,7 @@ from core.result_writer import ResultWriter
 from core.config_manager import ConfigManager
 from data.data_resolver import DataResolver
 from core.keyword_engine import KeywordEngine
+from core.dynamic_executor import DynamicExecutor
 from drivers.base_driver import BaseDriver
 
 from core.exceptions import DriverStoppedError, is_critical_error
@@ -146,6 +147,12 @@ class SKIExecutor:
             return_provider=self.keyword_engine.get_return
         )
         self.keyword_engine.data_resolver = self.data_resolver
+
+        # 初始化动态执行器
+        self.dynamic_executor = DynamicExecutor(self.data_resolver)
+
+        # 连接关键字引擎的变量存储到动态执行器
+        self.keyword_engine._dynamic_executor = self.dynamic_executor
 
         # 初始化结果写入器
         self.result_writer = ResultWriter(str(self.result_dir))
@@ -388,8 +395,8 @@ class SKIExecutor:
         self.data_manager.tables = snapshot.get('tables', {})
 
     def _run_steps(self, steps: List[Dict[str, str]], phase_label: str) -> None:
-        """顺序执行某阶段内全部 test_step；支持运行时 insert 扩展队列。"""
-        dq = deque([s for s in steps if s.get('action')])
+        """顺序执行某阶段内全部 test_step；支持运行时 insert 扩展队列、条件和循环。"""
+        dq = deque([s for s in steps if s.get('action') or s.get('type')])
         self._phase_runtime_seq = 0
         while dq:
             if self._drain_runtime_at_boundary(dq):
@@ -406,8 +413,32 @@ class SKIExecutor:
                 continue
             step = dq.popleft()
             self._phase_runtime_seq += 1
-            print(f"   📌 {phase_label} [{self._phase_runtime_seq}]: {step['action']}")
-            self.execute_step(step, phase_label)
+
+            # 处理条件步骤
+            if step.get('type') == 'if':
+                condition = step.get('condition', '')
+                if self.dynamic_executor.evaluate_condition(condition):
+                    print(f"   📌 {phase_label} [{self._phase_runtime_seq}]: if ({condition}) → True")
+                    for sub_step in step.get('steps', []):
+                        self.execute_step(sub_step, phase_label)
+                else:
+                    print(f"   📌 {phase_label} [{self._phase_runtime_seq}]: if ({condition}) → False (跳过)")
+            # 处理循环步骤
+            elif step.get('type') == 'loop':
+                loop_range = step.get('range', '')
+                var_name = step.get('var', 'item')
+                items = self.dynamic_executor.parse_loop_range(loop_range)
+                print(f"   📌 {phase_label} [{self._phase_runtime_seq}]: loop {var_name} in {loop_range} ({len(items)} 次)")
+                for idx, item in enumerate(items, 1):
+                    self.dynamic_executor.set_variable(var_name, item)
+                    print(f"      循环 [{idx}/{len(items)}]: {var_name}={item}")
+                    for sub_step in step.get('steps', []):
+                        self.execute_step(sub_step, phase_label)
+            # 普通步骤
+            else:
+                print(f"   📌 {phase_label} [{self._phase_runtime_seq}]: {step['action']}")
+                self.execute_step(step, phase_label)
+
             if self._drain_runtime_at_boundary(dq):
                 return
 
@@ -446,9 +477,16 @@ class SKIExecutor:
         if data and resolved_data != data:
             logger.debug(f"数据解析: '{data}' -> '{resolved_data}'")
 
-        params = {'model': model, 'data': resolved_data}
-
-        self.keyword_engine.execute(action, params)
+        # 特殊处理 set 动作：将变量同步到动态执行器
+        if action.lower() == 'set':
+            params = {'var_name': model, 'value': resolved_data}
+            self.keyword_engine.execute(action, params)
+            # 同步到动态执行器
+            if hasattr(self, 'dynamic_executor'):
+                self.dynamic_executor.set_variable(model, resolved_data)
+        else:
+            params = {'model': model, 'data': resolved_data}
+            self.keyword_engine.execute(action, params)
 
         if action.lower() == 'close':
             self._driver_closed = True

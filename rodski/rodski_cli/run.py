@@ -17,6 +17,10 @@ def setup_parser(subparsers):
     parser.add_argument("--dry-run", action="store_true", dest="dry_run",
                         help="验证用例但不实际执行")
     parser.add_argument("--output", help="报告输出路径")
+    parser.add_argument("--output-format", choices=["text", "json"],
+                        default="text", help="输出格式 (默认: text)")
+    parser.add_argument("--insert-step", action="append", dest="insert_steps",
+                        help="插入动态步骤 (格式: action,model,data)")
 
 
 def _resolve_case_path(input_path: Path) -> Path:
@@ -125,15 +129,22 @@ def _handle_execute(case_path: Path, module_dir: Path, args) -> int:
     """实际执行测试用例"""
     from core.ski_executor import SKIExecutor
     from drivers.playwright_driver import PlaywrightDriver
+    from core.json_formatter import JSONFormatter
+    from core.runtime_control import RuntimeCommandQueue
+    import time
 
     headless = getattr(args, "headless", False)
     browser = getattr(args, "browser", "chromium")
+    output_format = getattr(args, "output_format", "text")
+    insert_steps = getattr(args, "insert_steps", None)
 
     def create_driver():
         return PlaywrightDriver(headless=headless, browser=browser)
 
     driver = create_driver()
     executor = None
+    start_time = time.time()
+    runtime_control = RuntimeCommandQueue() if insert_steps else None
 
     try:
         executor = SKIExecutor(
@@ -141,12 +152,37 @@ def _handle_execute(case_path: Path, module_dir: Path, args) -> int:
             driver,
             driver_factory=lambda: create_driver(),
             module_dir=str(module_dir),
+            runtime_control=runtime_control,
         )
 
-        print("-" * 60)
-        results = executor.execute_all_cases()
-        print("-" * 60)
+        # 处理插入步骤
+        if insert_steps and runtime_control:
+            steps = []
+            for step_spec in insert_steps:
+                parts = step_spec.split(',', 2)
+                if len(parts) >= 1:
+                    steps.append({
+                        'action': parts[0].strip(),
+                        'model': parts[1].strip() if len(parts) > 1 else '',
+                        'data': parts[2].strip() if len(parts) > 2 else '',
+                    })
+            if steps:
+                runtime_control.insert(steps)
+                print(f"已插入 {len(steps)} 个动态步骤")
 
+        if output_format == "text":
+            print("-" * 60)
+
+        results = executor.execute_all_cases()
+        duration = time.time() - start_time
+
+        if output_format == "json":
+            output = JSONFormatter.format_success(results, duration)
+            print(JSONFormatter.to_json(output, pretty=True))
+            return output["exit_code"]
+
+        # Text format output
+        print("-" * 60)
         total = len(results)
         passed = sum(1 for r in results if r.get('status', '').upper() == 'PASS')
         failed = sum(1 for r in results if r.get('status', '').upper() == 'FAIL')
@@ -173,6 +209,11 @@ def _handle_execute(case_path: Path, module_dir: Path, args) -> int:
         return 0 if failed == 0 else 1
 
     except Exception as e:
+        if output_format == "json":
+            error_output = JSONFormatter.format_error(e)
+            print(JSONFormatter.to_json(error_output, pretty=True), file=sys.stderr)
+            return error_output["exit_code"]
+
         print(f"执行错误: {e}", file=sys.stderr)
         if getattr(args, "verbose", False):
             import traceback

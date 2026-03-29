@@ -39,6 +39,7 @@
 
   <xs:complexType name="CaseType">
     <xs:sequence>
+      <xs:element name="metadata" type="MetadataType" minOccurs="0" maxOccurs="1"/>
       <xs:element name="pre_process" type="PhaseType" minOccurs="0" maxOccurs="1"/>
       <xs:element name="test_case" type="TestCasePhaseType" minOccurs="1" maxOccurs="1"/>
       <xs:element name="post_process" type="PhaseType" minOccurs="0" maxOccurs="1"/>
@@ -48,6 +49,16 @@
     <xs:attribute name="title" type="xs:string" use="required"/>
     <xs:attribute name="description" type="xs:string" use="optional"/>
     <xs:attribute name="component_type" type="ComponentType" use="optional"/>
+  </xs:complexType>
+
+  <!-- 元数据类型 -->
+  <xs:complexType name="MetadataType">
+    <xs:attribute name="created_by" type="xs:string" use="optional"/>
+    <xs:attribute name="created_at" type="xs:string" use="optional"/>
+    <xs:attribute name="updated_by" type="xs:string" use="optional"/>
+    <xs:attribute name="updated_at" type="xs:string" use="optional"/>
+    <xs:attribute name="success_rate" type="xs:string" use="optional"/>
+    <xs:attribute name="last_run" type="xs:string" use="optional"/>
   </xs:complexType>
 
   <xs:complexType name="StepType">
