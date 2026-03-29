@@ -516,18 +516,32 @@ class DesktopDriver(BaseDriver):
         )
         logger.debug(f"拖拽: ({from_x}, {from_y}) -> ({to_x}, {to_y})")
 
-    def scroll(self, clicks: int, x: int = None, y: int = None) -> None:
-        """滚轮滚动
+    def hover(self, x: int, y: int) -> None:
+        """悬停在指定坐标
 
         Args:
-            clicks: 滚动次数，正数向上，负数向下
-            x: x 坐标（可选，默认当前位置）
-            y: y 坐标（可选，默认当前位置）
+            x: x 坐标
+            y: y 坐标
         """
         self._check_driver_alive()
         pyautogui = self._get_pyautogui()
-        pyautogui.scroll(clicks, x, y)
-        logger.debug(f"滚轮滚动: {clicks} 次")
+        pyautogui.moveTo(x, y)
+        logger.debug(f"悬停坐标: ({x}, {y})")
+
+    def scroll(self, x: int, y: int) -> None:
+        """滚动指定距离
+
+        Args:
+            x: 水平滚动距离（暂不支持）
+            y: 垂直滚动距离（正值向下，负值向上）
+        """
+        self._check_driver_alive()
+        pyautogui = self._get_pyautogui()
+        # pyautogui.scroll 参数为滚动次数，正数向上，负数向下
+        # 将像素距离转换为滚动次数（粗略估算：每次滚动约120像素）
+        clicks = -int(y / 120)
+        pyautogui.scroll(clicks)
+        logger.debug(f"滚动: {clicks} 次")
 
     def press_key(self, key: str) -> None:
         """按下按键
