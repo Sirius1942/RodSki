@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datatables>
+  <datatable name="LoginPage">
+    <!-- 小李账号 - 询价+下单 -->
+    <row id="xiaoli_login">
+      <field name="accountTab">click</field>
+      <field name="username">15521344075</field>
+      <field name="password">Cass2025</field>
+      <field name="agreeCheckbox">click</field>
+      <field name="loginBtn">click</field>
+      <field name="agreeConfirm">click</field>
+    </row>
+    <!-- 小辉账号 - 库存维护 -->
+    <row id="xiaohui_login">
+      <field name="accountTab">click</field>
+      <field name="username">13395432251</field>
+      <field name="password">Cass2025</field>
+      <field name="agreeCheckbox">click</field>
+      <field name="loginBtn">click</field>
+      <field name="agreeConfirm">click</field>
+    </row>
+  </datatable>
+</datatables>

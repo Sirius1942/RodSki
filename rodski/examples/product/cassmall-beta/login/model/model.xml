@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<models>
+  <!-- 登录页模型 -->
+  <model name="LoginPage">
+    <!-- 账号登录 Tab -->
+    <element name="accountTab" type="css" value=".login-tab-account,.account-tab,[class*='tab'][class*='account']" desc="账号登录页签"/>
+    <!-- 用户名输入框 -->
+    <element name="username" type="css" value="input[type='text'],input[placeholder*='账号'],input[placeholder*='手机']" desc="用户名输入框"/>
+    <!-- 密码输入框 -->
+    <element name="password" type="css" value="input[type='password']" desc="密码输入框"/>
+    <!-- 协议复选框 -->
+    <element name="agreeCheckbox" type="css" value="input[type='checkbox'],.agree-checkbox,[class*='checkbox']" desc="同意协议复选框"/>
+    <!-- 登录按钮 -->
+    <element name="loginBtn" type="css" value="button[type='submit'],.login-btn,[class*='login']" desc="登录按钮"/>
+    <!-- 协议提示弹窗 - 同意按钮 -->
+    <element name="agreeConfirm" type="css" value=".dialog-confirm,.modal-confirm,button:has-text('同意'),button:has-text('确定')" desc="弹窗同意按钮"/>
+  </model>
+</models>
