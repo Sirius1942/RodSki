@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+  <!-- 探索页面结构 - 小李登录后探索询价单页面 -->
+  <case id="cassmall_beta_explore_xiaoli" title="小李-探索询价单页面结构" execute="是" description="小李账号登录后探索询价单相关页面结构，截图记录关键页面">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login#/merchant/home"/>
+      <test_step action="wait" data="2"/>
+    </pre_process>
+    <test_case>
+      <!-- 登录 -->
+      <test_step action="type" model="LoginPage" data="xiaoli_login"/>
+      <test_step action="wait" data="5"/>
+      <test_step action="screenshot" data="01_after_login.png"/>
+
+      <!-- 探索页面：点击询价单菜单（用 OCR 文字定位） -->
+      <test_step action="screenshot" data="02_explore_home.png"/>
+      <!-- 等待页面加载完成 -->
+      <test_step action="wait" data="2"/>
+    </test_case>
+    <post_process>
+    </post_process>
+  </case>
+
+  <!-- 小李下询价单 -->
+  <case id="cassmall_beta_inquiry_xiaoli" title="小李-创建询价单" execute="是" description="小李账号登录后，创建询价单并提交">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login#/merchant/home"/>
+      <test_step action="wait" data="2"/>
+    </pre_process>
+    <test_case>
+      <!-- 登录 -->
+      <test_step action="type" model="LoginPage" data="xiaoli_login"/>
+      <test_step action="wait" data="5"/>
+      <test_step action="screenshot" data="inquiry_01_logged_in.png"/>
+      <!-- 导航到询价单页面 -->
+      <test_step action="wait" data="2"/>
+      <test_step action="screenshot" data="inquiry_02_before_click.png"/>
+      <!-- 点击新建询价单 -->
+      <test_step action="screenshot" data="inquiry_03_new_page.png"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="screenshot" data="inquiry_04_form_filled.png"/>
+      <!-- 提交 -->
+      <test_step action="screenshot" data="inquiry_05_result.png"/>
+    </test_case>
+    <post_process>
+      <test_step action="close"/>
+    </post_process>
+  </case>
+</cases>

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datatables>
+  <datatable name="InquiryOrder">
+    <!-- 询价单场景：搜索商品+填数量+提交 -->
+    <row id="inquiry_001">
+      <field name="newInquiryBtn">click</field>
+      <field name="productSearch">click</field>
+      <field name="addProduct">click</field>
+      <field name="quantity">100</field>
+      <field name="submitBtn">click</field>
+    </row>
+  </datatable>
+
+  <datatable name="CommonPage">
+    <row id="confirm">
+      <field name="confirmBtn">click</field>
+    </row>
+  </datatable>
+</datatables>

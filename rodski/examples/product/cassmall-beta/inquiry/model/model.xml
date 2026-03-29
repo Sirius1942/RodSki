@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<models>
+  <!-- 询价单页面模型 - 模板占位，Ratchet 执行时更新 -->
+  <model name="InquiryOrder">
+    <!-- 询价单列表页 - 新建按钮 -->
+    <element name="newInquiryBtn" type="ocr" value="新建询价单" desc="新建询价单按钮"/>
+    <!-- 商品搜索框 -->
+    <element name="productSearch" type="css" value="input[placeholder*='商品'],input[placeholder*='搜索']" desc="商品搜索框"/>
+    <!-- 商品名称（表格列） -->
+    <element name="productName" type="ocr" value="商品名称" desc="商品名称表头"/>
+    <!-- 添加商品按钮 -->
+    <element name="addProduct" type="ocr" value="添加商品" desc="添加商品按钮"/>
+    <!-- 询价数量 -->
+    <element name="quantity" type="css" value="input[type='number'],input[placeholder*='数量']" desc="询价数量输入框"/>
+    <!-- 提交询价按钮 -->
+    <element name="submitBtn" type="ocr" value="提交" desc="提交按钮"/>
+    <!-- 询价单号（结果） -->
+    <element name="inquiryNo" type="ocr" value="询价单号" desc="询价单号标签"/>
+  </model>
+
+  <!-- 通用页面元素 -->
+  <model name="CommonPage">
+    <element name="confirmBtn" type="ocr" value="确定" desc="确定按钮"/>
+    <element name="cancelBtn" type="ocr" value="取消" desc="取消按钮"/>
+    <element name="successMsg" type="ocr" value="成功" desc="成功提示"/>
+    <element name="errorMsg" type="ocr" value="错误" desc="错误提示"/>
+    <element name="loadingMask" type="css" value=".loading-mask,.el-loading-mask" desc="加载遮罩"/>
+  </model>
+</models>
