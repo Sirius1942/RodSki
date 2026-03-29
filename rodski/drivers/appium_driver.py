@@ -3,139 +3,81 @@ from appium import webdriver
 from appium.webdriver.common.appiumby import AppiumBy
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from typing import Optional, Tuple
 from .base_driver import BaseDriver
 import time
 
 
 class AppiumDriver(BaseDriver):
     """Appium 驱动基类，支持 Android 和 iOS"""
-    
+
     def __init__(self, capabilities: dict, server_url: str = "http://localhost:4723"):
         self.driver = webdriver.Remote(server_url, capabilities)
         self.wait = WebDriverWait(self.driver, 10)
-    
-    def click(self, locator: str, **kwargs) -> bool:
-        try:
-            by, value = self._parse_locator(locator)
-            element = self.wait.until(EC.element_to_be_clickable((by, value)))
-            element.click()
-            return True
-        except Exception as e:
-            print(f"Click failed: {e}")
-            return False
-    
-    def type(self, locator: str, text: str, **kwargs) -> bool:
-        try:
-            by, value = self._parse_locator(locator)
-            element = self.wait.until(EC.presence_of_element_located((by, value)))
-            element.clear()
-            element.send_keys(text)
-            return True
-        except Exception as e:
-            print(f"Type failed: {e}")
-            return False
-    
-    def check(self, locator: str, **kwargs) -> bool:
-        try:
-            by, value = self._parse_locator(locator)
-            element = self.wait.until(EC.presence_of_element_located((by, value)))
-            return element.is_displayed()
-        except:
-            return False
-    
-    def wait(self, seconds: float) -> None:
-        time.sleep(seconds)
-    
-    def navigate(self, url: str) -> bool:
-        try:
-            self.driver.get(url)
-            return True
-        except:
-            return False
-    
-    def screenshot(self, path: str) -> bool:
-        try:
-            self.driver.save_screenshot(path)
-            return True
-        except:
-            return False
-    
-    def select(self, locator: str, value: str) -> bool:
-        return self.click(locator)
-    
-    def hover(self, locator: str) -> bool:
-        return self.click(locator)
-    
-    def drag(self, from_loc: str, to_loc: str) -> bool:
-        try:
-            by1, val1 = self._parse_locator(from_loc)
-            by2, val2 = self._parse_locator(to_loc)
-            el1 = self.driver.find_element(by1, val1)
-            el2 = self.driver.find_element(by2, val2)
-            self.driver.drag_and_drop(el1, el2)
-            return True
-        except:
-            return False
-    
-    def scroll(self, x: int = 0, y: int = 300) -> bool:
-        try:
-            size = self.driver.get_window_size()
-            start_x = size['width'] // 2
-            start_y = size['height'] * 0.8
-            end_y = size['height'] * 0.2
-            self.driver.swipe(start_x, start_y, start_x, end_y, 500)
-            return True
-        except:
-            return False
-    
-    def assert_element(self, locator: str, expected: str) -> bool:
-        try:
-            by, value = self._parse_locator(locator)
-            element = self.driver.find_element(by, value)
-            return expected in element.text
-        except:
-            return False
-    
+
+    def launch(self, **kwargs) -> None:
+        """启动应用"""
+        pass
+
     def close(self) -> None:
         if self.driver:
             self.driver.quit()
-    
-    # 移动端特有方法
-    def swipe(self, start_x: int, start_y: int, end_x: int, end_y: int, duration: int = 500) -> bool:
+
+    def locate_element(self, locator_type: str, locator_value: str) -> Optional[Tuple[int, int, int, int]]:
+        """定位元素"""
         try:
-            self.driver.swipe(start_x, start_y, end_x, end_y, duration)
-            return True
-        except:
-            return False
-    
-    def tap(self, x: int, y: int) -> bool:
-        try:
-            self.driver.tap([(x, y)])
-            return True
-        except:
-            return False
-    
-    def long_press(self, locator: str, duration: int = 1000) -> bool:
-        try:
-            by, value = self._parse_locator(locator)
+            by, value = self._parse_locator(f"{locator_type}={locator_value}")
             element = self.driver.find_element(by, value)
-            self.driver.execute_script("mobile: longClickGesture", {"elementId": element.id, "duration": duration})
-            return True
+            rect = element.rect
+            return (rect['x'], rect['y'], rect['x'] + rect['width'], rect['y'] + rect['height'])
         except:
-            return False
-    
-    def hide_keyboard(self) -> bool:
-        try:
-            self.driver.hide_keyboard()
-            return True
-        except:
-            return False
-    
+            return None
+
+    def click(self, x: int, y: int) -> None:
+        """点击坐标"""
+        self.driver.tap([(x, y)])
+
+    def type_text(self, x: int, y: int, text: str) -> None:
+        """输入文字"""
+        self.driver.tap([(x, y)])
+        time.sleep(0.1)
+        self.driver.execute_script("mobile: type", {"text": text})
+
+    def get_text(self, x1: int, y1: int, x2: int, y2: int) -> str:
+        """获取文字"""
+        return ""
+
+    def take_screenshot(self) -> str:
+        """截图"""
+        import tempfile
+        path = tempfile.mktemp(suffix='.png')
+        self.driver.save_screenshot(path)
+        return path
+
+    def double_click(self, x: int, y: int) -> None:
+        """双击"""
+        self.driver.tap([(x, y)], 2)
+
+    def right_click(self, x: int, y: int) -> None:
+        """右键点击（移动端不支持）"""
+        pass
+
+    def hover(self, x: int, y: int) -> None:
+        """悬停（移动端不支持）"""
+        pass
+
+    def scroll(self, x: int, y: int) -> None:
+        """滚动"""
+        size = self.driver.get_window_size()
+        start_x = size['width'] // 2
+        start_y = size['height'] // 2
+        self.driver.swipe(start_x, start_y, start_x + x, start_y + y, 500)
+
     def _parse_locator(self, locator: str) -> tuple:
-        """解析定位符，格式: id=xxx, xpath=xxx, accessibility_id=xxx"""
+        """解析定位符"""
         if "=" not in locator:
             return AppiumBy.ID, locator
-        
+
         strategy, value = locator.split("=", 1)
         mapping = {
             "id": AppiumBy.ID,
@@ -145,6 +87,3 @@ class AppiumDriver(BaseDriver):
             "name": AppiumBy.NAME
         }
         return mapping.get(strategy.lower(), AppiumBy.ID), value
-    
-    def get_supported_keywords(self) -> list:
-        return ["swipe", "tap", "long_press", "hide_keyboard"]
