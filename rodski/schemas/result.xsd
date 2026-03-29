@@ -6,6 +6,8 @@
       RodSki Result XML Schema - 测试结果报告规范
       结果文件对应原 Excel 中的 TestResult + TestSummary Sheet。
       文件存放在测试模块的 result/ 目录下。
+      
+      Iteration-04 新增: diagnosis / recovery 节点用于异常诊断与智能恢复。
     </xs:documentation>
   </xs:annotation>
 
@@ -42,6 +44,10 @@
 
   <!-- 单条结果类型 -->
   <xs:complexType name="ResultType">
+    <xs:sequence>
+      <xs:element name="diagnosis" type="DiagnosisType" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="recovery" type="RecoveryType" minOccurs="0" maxOccurs="1"/>
+    </xs:sequence>
     <xs:attribute name="case_id" type="xs:string" use="required"/>
     <xs:attribute name="title" type="xs:string" use="optional"/>
     <xs:attribute name="status" type="StatusType" use="required"/>
@@ -54,6 +60,46 @@
     <xs:attribute name="screenshot_path" type="xs:string" use="optional"/>
     <xs:attribute name="updated_at" type="xs:string" use="optional"/>
   </xs:complexType>
+
+  <!-- 诊断信息类型 (Iteration-04) -->
+  <xs:complexType name="DiagnosisType">
+    <xs:attribute name="failure_point" type="xs:string" use="optional"/>
+    <xs:attribute name="failure_reason" type="xs:string" use="optional"/>
+    <xs:attribute name="visual_analysis" type="xs:string" use="optional"/>
+    <xs:attribute name="suggestion" type="xs:string" use="optional"/>
+    <xs:attribute name="recovery_action" type="xs:string" use="optional"/>
+    <xs:attribute name="recovery_data" type="xs:string" use="optional"/>
+    <xs:attribute name="ai_model" type="xs:string" use="optional"/>
+    <xs:attribute name="diagnosis_time_ms" type="xs:double" use="optional" default="0"/>
+  </xs:complexType>
+
+  <!-- 恢复信息类型 (Iteration-04) -->
+  <xs:complexType name="RecoveryType">
+    <xs:sequence>
+      <xs:element name="attempt" type="AttemptType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="success" type="xs:boolean" use="required"/>
+    <xs:attribute name="attempt_count" type="xs:nonNegativeInteger" use="optional" default="0"/>
+    <xs:attribute name="final_error" type="xs:string" use="optional"/>
+  </xs:complexType>
+
+  <!-- 单次恢复尝试类型 -->
+  <xs:complexType name="AttemptType">
+    <xs:attribute name="attempt" type="xs:nonNegativeInteger" use="required"/>
+    <xs:attribute name="action" type="xs:string" use="required"/>
+    <xs:attribute name="data" type="xs:string" use="optional"/>
+    <xs:attribute name="status" type="AttemptStatusType" use="required"/>
+    <xs:attribute name="error" type="xs:string" use="optional"/>
+  </xs:complexType>
+
+  <!-- 恢复尝试状态枚举 -->
+  <xs:simpleType name="AttemptStatusType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="success"/>
+      <xs:enumeration value="failed"/>
+      <xs:enumeration value="error"/>
+    </xs:restriction>
+  </xs:simpleType>
 
   <!-- 状态枚举 -->
   <xs:simpleType name="StatusType">

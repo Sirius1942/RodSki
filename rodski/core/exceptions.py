@@ -390,3 +390,96 @@ def is_critical_error(error: Exception) -> bool:
         "session closed",
     ]
     return any(pattern in error_msg for pattern in critical_patterns)
+
+# ── 诊断与恢复错误 (Iteration-04) ─────────────────────────────────
+
+class DiagnosisError(SKIError):
+    """诊断引擎错误"""
+    error_code = "SKI600"
+
+
+class DiagnosisTimeoutError(DiagnosisError):
+    """AI 诊断超时"""
+    error_code = "SKI601"
+
+    def __init__(
+        self,
+        message: str = "AI 诊断分析超时",
+        timeout: Optional[float] = None,
+        **kwargs
+    ):
+        details = kwargs.pop("details", {})
+        if timeout is not None:
+            details["timeout"] = timeout
+        super().__init__(message, details=details, **kwargs)
+
+
+class RecoveryError(SKIError):
+    """恢复引擎错误"""
+    error_code = "SKI610"
+
+
+class RecoveryExhaustedError(RecoveryError):
+    """恢复尝试次数耗尽"""
+    error_code = "SKI611"
+    error_level = "CRITICAL"
+
+    def __init__(
+        self,
+        message: Optional[str] = None,
+        attempts: int = 0,
+        last_action: Optional[str] = None,
+        diagnosis: Optional[Dict[str, Any]] = None,
+        **kwargs
+    ):
+        details = kwargs.pop("details", {})
+        details["attempts"] = attempts
+        if last_action:
+            details["last_action"] = last_action
+        if diagnosis:
+            details["diagnosis"] = diagnosis
+        msg = message or f"恢复失败，已尝试 {attempts} 次"
+        super().__init__(msg, details=details, **kwargs)
+        self.attempts = attempts
+        self.last_action = last_action
+        self.diagnosis = diagnosis
+
+
+class BrowserRecycleError(SKIError):
+    """浏览器回收错误"""
+    error_code = "SKI620"
+
+
+class SnapshotSaveError(BrowserRecycleError):
+    """快照保存失败"""
+    error_code = "SKI621"
+
+    def __init__(self, message: str, snapshot_path: Optional[str] = None, **kwargs):
+        details = kwargs.pop("details", {})
+        if snapshot_path:
+            details["snapshot_path"] = snapshot_path
+        super().__init__(message, details=details, **kwargs)
+
+
+class SnapshotRestoreError(BrowserRecycleError):
+    """快照恢复失败"""
+    error_code = "SKI622"
+
+    def __init__(self, message: str, snapshot_path: Optional[str] = None, **kwargs):
+        details = kwargs.pop("details", {})
+        if snapshot_path:
+            details["snapshot_path"] = snapshot_path
+        super().__init__(message, details=details, **kwargs)
+
+
+# ── 更新 ERROR_CODE_MAP ──────────────────────────────────────────────
+
+ERROR_CODE_MAP.update({
+    "SKI600": DiagnosisError,
+    "SKI601": DiagnosisTimeoutError,
+    "SKI610": RecoveryError,
+    "SKI611": RecoveryExhaustedError,
+    "SKI620": BrowserRecycleError,
+    "SKI621": SnapshotSaveError,
+    "SKI622": SnapshotRestoreError,
+})
