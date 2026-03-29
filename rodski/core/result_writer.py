@@ -152,6 +152,30 @@ class ResultWriter:
             result_elem.set("screenshot_path", str(result.get("screenshot_path", "")))
             result_elem.set("updated_at", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
+            # 添加步骤详情
+            steps_data = result.get("steps", [])
+            if steps_data:
+                steps_elem = ET.SubElement(result_elem, "steps")
+                for step in steps_data:
+                    step_elem = ET.SubElement(steps_elem, "step")
+                    step_elem.set("phase", str(step.get("phase", "")))
+                    step_elem.set("index", str(step.get("index", 0)))
+                    step_elem.set("action", str(step.get("action", "")))
+                    step_elem.set("model", str(step.get("model", "")))
+                    step_elem.set("data", str(step.get("data", "")))
+                    step_elem.set("status", str(step.get("status", "FAIL")).upper())
+                    step_elem.set("execution_time", str(step.get("execution_time", "")))
+                    step_elem.set("error_message", str(step.get("error_message", "")))
+
+            # 添加变量信息
+            variables = result.get("variables", {})
+            if variables:
+                vars_elem = ET.SubElement(result_elem, "variables")
+                for name, value in variables.items():
+                    var_elem = ET.SubElement(vars_elem, "variable")
+                    var_elem.set("name", str(name))
+                    var_elem.set("value", str(value))
+
         RodskiXmlValidator.validate_element(
             root, RodskiXmlValidator.KIND_RESULT, source_path=self.result_dir / "<result_output>"
         )

@@ -11,7 +11,7 @@ import sys
 import time
 from typing import Optional, Tuple
 
-from rodski.vision.exceptions import CoordinateError
+from .exceptions import CoordinateError
 
 
 def _require_pyautogui():
