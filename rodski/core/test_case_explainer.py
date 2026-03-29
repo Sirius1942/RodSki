@@ -2,7 +2,7 @@
 
 支持三阶段（pre_process / test_case / post_process）。
 支持关键字：navigate, launch, type, click, verify, wait, screenshot,
-           get_text, clear, upload_file, assert, DB, run, send 等。
+           get_text, clear, upload_file, assert, DB, run, send, if, loop 等。
 
 使用方式:
     python3 cli_main.py explain examples/product/DEMO/demo_site/case/demo_case_form.xml
@@ -179,6 +179,8 @@ class TestCaseExplainer:
             'close': lambda m, d: "关闭当前浏览器窗口",
             'set': self._explain_set,
             'verify_image': self._explain_verify_image,
+            'if': self._explain_if,
+            'loop': self._explain_loop,
         }.get(action)
 
         if handler:
@@ -361,6 +363,20 @@ class TestCaseExplainer:
         if data:
             return f"AI 截图验证: 截图={data}"
         return "AI 截图验证"
+
+    def _explain_if(self, model: str, data: str) -> str:
+        if model and data:
+            return f"条件判断: {model} = {data}"
+        if model:
+            return f"条件判断: {model}"
+        return "条件判断"
+
+    def _explain_loop(self, model: str, data: str) -> str:
+        if model and data:
+            return f"循环执行 {data} 次，变量为 {model}"
+        if data:
+            return f"循环执行 {data} 次"
+        return "循环执行"
 
     # ── 数据解析 ─────────────────────────────────────────────────
 
