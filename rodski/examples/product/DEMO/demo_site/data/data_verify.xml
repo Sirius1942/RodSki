@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datatables>
+  <datatable name="DemoBasic_verify">
+    <row id="demo_basic_001">
+      <field name="page_title">Example</field>
+    </row>
+  </datatable>
+  <datatable name="DemoForm_verify">
+    <row id="demo_form_001">
+      <field name="custname">张三</field>
+    </row>
+  </datatable>
+</datatables>

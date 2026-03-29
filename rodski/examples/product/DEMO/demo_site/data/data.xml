@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datatables>
+  <datatable name="DemoBasic">
+    <row id="demo_basic_001">
+      <field name="page_title">Example</field>
+    </row>
+  </datatable>
+  <datatable name="DemoForm">
+    <row id="demo_form_001">
+      <field name="custname">张三</field>
+      <field name="custtel">13800138000</field>
+      <field name="custemail">test@example.com</field>
+      <field name="size">large</field>
+      <field name="comments">测试订单备注</field>
+    </row>
+  </datatable>
+</datatables>

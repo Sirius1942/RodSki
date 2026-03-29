@@ -113,6 +113,9 @@ class PlaywrightDriver(BaseDriver):
             return locator
         elif locator.startswith('text='):
             return locator
+        elif locator.startswith('name='):
+            name_value = locator[5:]
+            return f'[name="{name_value}"]'
         elif locator.startswith('#') or locator.startswith('.'):
             return locator
         else:

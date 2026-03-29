@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<models>
+  <model name="DemoBasic">
+    <element name="page_title" type="css" value="h1"/>
+  </model>
+  <model name="DemoForm">
+    <element name="custname" type="name" value="custname"/>
+    <element name="custtel" type="name" value="custtel"/>
+    <element name="custemail" type="name" value="custemail"/>
+    <element name="size" type="name" value="size"/>
+    <element name="comments" type="name" value="comments"/>
+    <element name="submit" type="css" value="button[type=submit]"/>
+  </model>
+</models>
