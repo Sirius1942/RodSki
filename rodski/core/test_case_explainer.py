@@ -16,7 +16,6 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 
-from core.case_parser import CaseParser
 from core.xml_schema_validator import RodskiXmlValidator
 
 
@@ -28,7 +27,11 @@ SENSITIVE_FIELDS = {
 
 
 class TestCaseExplainer:
-    """测试用例静态解释器"""
+    """测试用例静态解释器
+
+    将 XML 测试用例解析为人类可读的步骤说明。
+    支持三阶段（pre_process / test_case / post_process）。
+    """
 
     def __init__(self, model_parser=None, data_manager=None):
         """
@@ -122,8 +125,6 @@ class TestCaseExplainer:
     def _explain_case_struct(self, case: Dict) -> str:
         lines = []
         lines.append(f"用例: {case['case_id']} - {case['title']}")
-        if case.get('description'):
-            lines.append(f"描述: {case['description']}")
 
         for phase_key, phase_label in (
             ('pre_process', 'pre_process（前置）'),
@@ -146,21 +147,62 @@ class TestCaseExplainer:
         model = step.get('model', '')
         data = step.get('data', '')
 
-        lines = []
-        lines.append(f"  步骤 {index}/{total}: {action}")
+        # 获取结构化解释
+        info = self._explain_keyword(action, model, data)
 
-        text = self._explain_keyword(action, model, data)
-        for line in text.split('\n'):
-            lines.append(f"    → {line}")
+        lines = []
+        # 步骤头：带类型标注（如 "type (批量输入)"）
+        action_tag = info.get('action_tag', action)
+        lines.append(f"  步骤 {index}/{total}: {action_tag}")
+
+        # → 操作:
+        op = info.get('操作', '')
+        lines.append(f"    → 操作: {op}")
+
+        # → 定位器: (click 等操作有)
+        locator = info.get('定位器', '(无)')
+        if locator != '(无)':
+            lines.append(f"    → 定位器: {locator}")
+
+        # → 预期: (verify 有)
+        expected = info.get('预期', '')
+        if expected:
+            lines.append(f"    → 预期: {expected}")
+
+        # → 模型:
+        model_disp = info.get('模型', '')
+        lines.append(f"    → 模型: {model_disp if model_disp else '(无)'}")
+
+        # → 数据:
+        data_disp = info.get('数据', '')
+        lines.append(f"    → 数据: {data_disp if data_disp else '(无)'}")
+
+        # → 字段解析: (type 批量有)
+        fields = info.get('字段解析', [])
+        if fields:
+            lines.append("    → 字段解析:")
+            for f in fields:
+                lines.append(f"      - {f}")
 
         return "\n".join(lines)
 
     def _explain_keyword(
         self, action: str, model: str, data: str
-    ) -> str:
-        """根据关键字生成人类可读描述"""
+    ) -> Dict[str, Any]:
+        """根据关键字生成结构化解释
+
+        Returns:
+            Dict with keys:
+              - action_tag: str, 步骤标签，如 "type (批量输入)" 或 "click"
+              - 操作: str, 人类可读操作描述
+              - 模型: str, 模型名称
+              - 数据: str, 数据值或 DataID
+              - 定位器: str, 定位器信息
+              - 预期: str, verify 预期值
+              - 字段解析: list[str], 字段级解析列表
+        """
         action = action.lower()
-        handler = {
+        handler_map = {
             'navigate': self._explain_navigate,
             'launch': self._explain_launch,
             'type': self._explain_type,
@@ -176,13 +218,14 @@ class TestCaseExplainer:
             'db': self._explain_db,
             'run': self._explain_run,
             'send': self._explain_send,
-            'close': lambda m, d: "关闭当前浏览器窗口",
+            'close': self._explain_close,
             'set': self._explain_set,
             'verify_image': self._explain_verify_image,
             'if': self._explain_if,
             'loop': self._explain_loop,
-        }.get(action)
+        }
 
+        handler = handler_map.get(action)
         if handler:
             return handler(model, data)
 
@@ -192,191 +235,380 @@ class TestCaseExplainer:
             parts.append(f"模型={model}")
         if data:
             parts.append(f"数据={data}")
-        if not parts:
-            return "(无参数)"
-        return ", ".join(parts)
+        hint = ", ".join(parts) if parts else "(无参数)"
+        return {
+            'action_tag': action,
+            '操作': hint,
+            '模型': model,
+            '数据': data,
+            '定位器': '',
+            '预期': '',
+            '字段解析': [],
+        }
 
     # ── 各关键字解释 ─────────────────────────────────────────────
 
-    def _explain_navigate(self, model: str, data: str) -> str:
-        if data:
-            return f"导航到网址 {data}"
-        return "导航到网址（URL 未指定）"
+    def _explain_navigate(self, model: str, data: str) -> Dict[str, Any]:
+        url = data or "（URL 未指定）"
+        return {
+            'action_tag': 'navigate',
+            '操作': f"导航到网址 {url}",
+            '模型': '',
+            '数据': data,
+            '定位器': '',
+            '预期': '',
+            '字段解析': [],
+        }
 
-    def _explain_launch(self, model: str, data: str) -> str:
+    def _explain_launch(self, model: str, data: str) -> Dict[str, Any]:
         if model and data:
-            return f"启动应用或打开页面（模型={model}, 数据={data}）"
-        if data:
+            op = f"启动应用或打开页面（模型={model}, 数据={data}）"
+        elif data:
             if data.startswith(('http://', 'https://')):
-                return f"打开网页: {data}"
-            return f"启动应用: {data}"
-        return "启动应用或打开页面（参数不完整）"
+                op = f"打开网页: {data}"
+            else:
+                op = f"启动应用: {data}"
+        else:
+            op = "启动应用或打开页面（参数不完整）"
+        return {
+            'action_tag': 'launch',
+            '操作': op,
+            '模型': model,
+            '数据': data,
+            '定位器': '',
+            '预期': '',
+            '字段解析': [],
+        }
 
-    def _explain_type(self, model: str, data: str) -> str:
+    def _explain_type(self, model: str, data: str) -> Dict[str, Any]:
         """type 关键字解释，支持批量和单字段"""
         if model and data:
-            # 批量模式：从模型 + 数据表解析
             return self._explain_type_batch(model, data)
         return self._explain_type_single(model, data)
 
-    def _explain_type_batch(self, model_name: str, data_id: str) -> str:
+    def _explain_type_batch(self, model_name: str, data_id: str) -> Dict[str, Any]:
         """批量输入解释"""
-        lines = [f"使用模型 {model_name} 从数据 {data_id} 批量输入"]
-
         resolved = self._resolve_fields(model_name, data_id)
-        if not resolved:
-            lines.append(f"  ⚠️  未找到模型 '{model_name}' 或数据 '{data_id}'")
-            return "\n".join(lines)
 
-        model = self.model_parser.get_model(model_name) if self.model_parser else {}
-        lines.append(f"  模型: {model_name} (定位器列表)")
-        lines.append(f"  数据: DataID={data_id}")
-        lines.append("  字段解析:")
+        fields = []
+        if resolved:
+            for field_name, (locator, value) in resolved.items():
+                display = self._mask_sensitive_display(field_name, value)
+                is_masked = self._is_sensitive(field_name)
+                suffix = " (已脱敏)" if is_masked else ""
+                fields.append(f'{field_name}: {display} → 输入到 [{locator}]{suffix}')
+        else:
+            fields.append(f"  ⚠️  未找到模型 '{model_name}' 或数据 '{data_id}'")
 
-        for field_name, (locator, value) in resolved.items():
-            display = self._mask_sensitive(field_name, value)
-            lines.append(f"    - {field_name}: {display} → 输入到 [{locator}]")
+        return {
+            'action_tag': 'type (批量输入)',
+            '操作': f"使用模型 {model_name} 从数据 {data_id} 批量输入",
+            '模型': f"{model_name} (定位器列表)",
+            '数据': f"DataID={data_id}",
+            '定位器': '',
+            '预期': '',
+            '字段解析': fields,
+        }
 
-        return "\n".join(lines)
-
-    def _explain_type_single(self, model: str, data: str) -> str:
+    def _explain_type_single(self, model: str, data: str) -> Dict[str, Any]:
         if model:
-            return f"向 {model} 输入 '{self._mask_or_value(data)}'"
-        return f"向定位器输入 '{self._mask_or_value(data)}'"
+            op = f"向 {model} 输入 '{self._mask_or_value(data)}'"
+        else:
+            op = f"向定位器输入 '{self._mask_or_value(data)}'"
+        return {
+            'action_tag': 'type',
+            '操作': op,
+            '模型': model,
+            '数据': data,
+            '定位器': '',
+            '预期': '',
+            '字段解析': [],
+        }
 
-    def _explain_click(self, model: str, data: str) -> str:
-        if model:
-            return f"点击元素: {model}"
-        if data:
-            return f"点击定位器: {data}"
-        return "点击元素（定位器未指定）"
+    def _explain_click(self, model: str, data: str) -> Dict[str, Any]:
+        locator = model or data or "（定位器未指定）"
+        op = f"点击元素"
+        return {
+            'action_tag': 'click',
+            '操作': op,
+            '模型': '',
+            '数据': '',
+            '定位器': locator,
+            '预期': '',
+            '字段解析': [],
+        }
 
-    def _explain_verify(self, model: str, data: str) -> str:
+    def _explain_verify(self, model: str, data: str) -> Dict[str, Any]:
         if model and data:
             return self._explain_verify_batch(model, data)
         if data:
-            return f"验证页面包含文本: '{self._mask_or_value(data)}'"
-        return "验证页面内容（参数不完整）"
+            return {
+                'action_tag': 'verify',
+                '操作': f"验证页面包含文本 '{self._mask_or_value(data)}'",
+                '模型': '',
+                '数据': '',
+                '定位器': '',
+                '预期': f'"{data}"',
+                '字段解析': [],
+            }
+        return {
+            'action_tag': 'verify',
+            '操作': "验证页面内容（参数不完整）",
+            '模型': '',
+            '数据': '',
+            '定位器': '',
+            '预期': '',
+            '字段解析': [],
+        }
 
-    def _explain_verify_batch(self, model_name: str, data_id: str) -> str:
+    def _explain_verify_batch(self, model_name: str, data_id: str) -> Dict[str, Any]:
         """批量验证解释"""
         verify_table = f"{model_name}_verify"
-        lines = [f"批量验证模型 {model_name}，期望数据={data_id}"]
-        lines.append(f"  验证数据表: {verify_table}")
+        fields = []
 
         if not self.data_manager:
-            lines.append("  ⚠️  未提供 data_manager，跳过字段详情")
-            return "\n".join(lines)
+            fields.append("  ⚠️  未提供 data_manager，跳过字段详情")
+        else:
+            data_row = self.data_manager.get_data(verify_table, data_id)
+            if not data_row:
+                fields.append(f"  ⚠️  未找到数据: 表={verify_table}, DataID={data_id}")
+            else:
+                model = self.model_parser.get_model(model_name) if self.model_parser else {}
+                for field_name, expected in data_row.items():
+                    loc = ""
+                    if model and field_name in model:
+                        elem = model[field_name]
+                        loc = f"[{elem.get('type', '?')}={elem.get('value', '?')}]"
+                    display = self._mask_sensitive_display(field_name, expected)
+                    fields.append(f"    - {field_name} {loc}: 期望 {display}")
 
-        data_row = self.data_manager.get_data(verify_table, data_id)
-        if not data_row:
-            lines.append(f"  ⚠️  未找到数据: 表={verify_table}, DataID={data_id}")
-            return "\n".join(lines)
+        return {
+            'action_tag': 'verify (批量验证)',
+            '操作': f"批量验证模型 {model_name}，期望数据={data_id}",
+            '模型': model_name,
+            '数据': f"DataID={data_id}",
+            '定位器': '',
+            '预期': '',
+            '字段解析': fields,
+        }
 
-        model = self.model_parser.get_model(model_name) if self.model_parser else {}
-        lines.append("  字段验证:")
-        for field_name, expected in data_row.items():
-            loc = ""
-            if model and field_name in model:
-                elem = model[field_name]
-                loc = f"[{elem.get('type', '?')}={elem.get('value', '?')}]"
-            display = self._mask_sensitive(field_name, expected)
-            lines.append(f"    - {field_name} {loc}: 期望 '{display}'")
-
-        return "\n".join(lines)
-
-    def _explain_wait(self, model: str, data: str) -> str:
+    def _explain_wait(self, model: str, data: str) -> Dict[str, Any]:
         secs = data or model or "?"
-        return f"等待 {secs} 秒"
+        return {
+            'action_tag': 'wait',
+            '操作': f"等待 {secs} 秒",
+            '模型': '',
+            '数据': data,
+            '定位器': '',
+            '预期': '',
+            '字段解析': [],
+        }
 
-    def _explain_screenshot(self, model: str, data: str) -> str:
+    def _explain_screenshot(self, model: str, data: str) -> Dict[str, Any]:
+        path = data or "（未指定）"
+        return {
+            'action_tag': 'screenshot',
+            '操作': f"截图保存为: {path}",
+            '模型': '',
+            '数据': data,
+            '定位器': '',
+            '预期': '',
+            '字段解析': [],
+        }
+
+    def _explain_get_text(self, model: str, data: str) -> Dict[str, Any]:
         if data:
-            return f"截图保存为: {data}"
-        return "截图"
+            op = f"获取 {data} 的文本内容"
+        elif model:
+            op = f"获取模型 {model} 的文本内容"
+        else:
+            op = "获取文本内容"
+        return {
+            'action_tag': 'get_text',
+            '操作': op,
+            '模型': model,
+            '数据': data,
+            '定位器': '',
+            '预期': '',
+            '字段解析': [],
+        }
 
-    def _explain_get_text(self, model: str, data: str) -> str:
-        if data:
-            return f"获取 {data} 的文本内容"
-        if model:
-            return f"获取模型 {model} 的文本内容"
-        return "获取文本内容"
-
-    def _explain_get(self, model: str, data: str) -> str:
+    def _explain_get(self, model: str, data: str) -> Dict[str, Any]:
         return self._explain_get_text(model, data)
 
-    def _explain_clear(self, model: str, data: str) -> str:
-        if data:
-            return f"清空输入框: {data}"
-        if model:
-            return f"清空输入框: {model}"
-        return "清空输入框"
+    def _explain_clear(self, model: str, data: str) -> Dict[str, Any]:
+        target = data or model or "（未指定）"
+        return {
+            'action_tag': 'clear',
+            '操作': f"清空输入框: {target}",
+            '模型': model,
+            '数据': data,
+            '定位器': '',
+            '预期': '',
+            '字段解析': [],
+        }
 
-    def _explain_upload_file(self, model: str, data: str) -> str:
+    def _explain_upload_file(self, model: str, data: str) -> Dict[str, Any]:
         if data and model:
-            return f"上传文件: {data} → {model}"
-        if data:
-            return f"上传文件: {data}"
-        return "上传文件"
+            op = f"上传文件: {data} → {model}"
+        elif data:
+            op = f"上传文件: {data}"
+        else:
+            op = "上传文件"
+        return {
+            'action_tag': 'upload_file',
+            '操作': op,
+            '模型': model,
+            '数据': data,
+            '定位器': '',
+            '预期': '',
+            '字段解析': [],
+        }
 
-    def _explain_assert(self, model: str, data: str) -> str:
+    def _explain_assert(self, model: str, data: str) -> Dict[str, Any]:
         parts = []
         if model:
             parts.append(f"定位器={model}")
         if data:
             parts.append(f"预期内容='{self._mask_or_value(data)}'")
-        if parts:
-            return "断言: " + ", ".join(parts)
-        return "执行断言"
+        hint = "断言: " + ", ".join(parts) if parts else "执行断言"
+        return {
+            'action_tag': 'assert',
+            '操作': hint,
+            '模型': model,
+            '数据': data,
+            '定位器': '',
+            '预期': data,
+            '字段解析': [],
+        }
 
-    def _explain_db(self, model: str, data: str) -> str:
+    def _explain_db(self, model: str, data: str) -> Dict[str, Any]:
         parts = []
         if model:
             parts.append(f"连接={model}")
         if data:
             parts.append(f"SQL={data}")
-        if parts:
-            return "数据库操作: " + ", ".join(parts)
-        return "执行数据库操作"
+        hint = "数据库操作: " + ", ".join(parts) if parts else "执行数据库操作"
+        return {
+            'action_tag': 'db',
+            '操作': hint,
+            '模型': model,
+            '数据': data,
+            '定位器': '',
+            '预期': '',
+            '字段解析': [],
+        }
 
-    def _explain_run(self, model: str, data: str) -> str:
+    def _explain_run(self, model: str, data: str) -> Dict[str, Any]:
         if model and data:
-            return f"运行代码模块: 项目={model}, 脚本={data}"
-        if data:
-            return f"运行代码: {data}"
-        return "执行代码"
+            op = f"运行代码模块: 项目={model}, 脚本={data}"
+        elif data:
+            op = f"运行代码: {data}"
+        else:
+            op = "执行代码"
+        return {
+            'action_tag': 'run',
+            '操作': op,
+            '模型': model,
+            '数据': data,
+            '定位器': '',
+            '预期': '',
+            '字段解析': [],
+        }
 
-    def _explain_send(self, model: str, data: str) -> str:
+    def _explain_send(self, model: str, data: str) -> Dict[str, Any]:
         if model and data:
-            return f"发送 HTTP 请求: 模型={model}, DataID={data}"
-        if model:
-            return f"发送 HTTP 请求: 模型={model}"
-        return "发送 HTTP 请求"
+            op = f"发送 HTTP 请求: 模型={model}, DataID={data}"
+        elif model:
+            op = f"发送 HTTP 请求: 模型={model}"
+        else:
+            op = "发送 HTTP 请求"
+        return {
+            'action_tag': 'send',
+            '操作': op,
+            '模型': model,
+            '数据': data,
+            '定位器': '',
+            '预期': '',
+            '字段解析': [],
+        }
 
-    def _explain_set(self, model: str, data: str) -> str:
+    def _explain_close(self, model: str, data: str) -> Dict[str, Any]:
+        return {
+            'action_tag': 'close',
+            '操作': "关闭当前浏览器窗口",
+            '模型': '',
+            '数据': '',
+            '定位器': '',
+            '预期': '',
+            '字段解析': [],
+        }
+
+    def _explain_set(self, model: str, data: str) -> Dict[str, Any]:
         if model and data:
-            return f"设置变量: {model} = '{self._mask_or_value(data)}'"
-        return "设置变量"
+            op = f"设置变量: {model} = '{self._mask_or_value(data)}'"
+        else:
+            op = "设置变量"
+        return {
+            'action_tag': 'set',
+            '操作': op,
+            '模型': model,
+            '数据': data,
+            '定位器': '',
+            '预期': '',
+            '字段解析': [],
+        }
 
-    def _explain_verify_image(self, model: str, data: str) -> str:
+    def _explain_verify_image(self, model: str, data: str) -> Dict[str, Any]:
         if data and model:
-            return f"AI 截图验证: 截图={data}, 预期描述={model}"
-        if data:
-            return f"AI 截图验证: 截图={data}"
-        return "AI 截图验证"
+            op = f"AI 截图验证: 截图={data}, 预期描述={model}"
+        elif data:
+            op = f"AI 截图验证: 截图={data}"
+        else:
+            op = "AI 截图验证"
+        return {
+            'action_tag': 'verify_image',
+            '操作': op,
+            '模型': model,
+            '数据': data,
+            '定位器': '',
+            '预期': '',
+            '字段解析': [],
+        }
 
-    def _explain_if(self, model: str, data: str) -> str:
+    def _explain_if(self, model: str, data: str) -> Dict[str, Any]:
         if model and data:
-            return f"条件判断: {model} = {data}"
-        if model:
-            return f"条件判断: {model}"
-        return "条件判断"
+            op = f"条件判断: {model} = {data}"
+        elif model:
+            op = f"条件判断: {model}"
+        else:
+            op = "条件判断"
+        return {
+            'action_tag': 'if',
+            '操作': op,
+            '模型': model,
+            '数据': data,
+            '定位器': '',
+            '预期': '',
+            '字段解析': [],
+        }
 
-    def _explain_loop(self, model: str, data: str) -> str:
+    def _explain_loop(self, model: str, data: str) -> Dict[str, Any]:
         if model and data:
-            return f"循环执行 {data} 次，变量为 {model}"
-        if data:
-            return f"循环执行 {data} 次"
-        return "循环执行"
+            op = f"循环执行 {data} 次，变量为 {model}"
+        elif data:
+            op = f"循环执行 {data} 次"
+        else:
+            op = "循环执行"
+        return {
+            'action_tag': 'loop',
+            '操作': op,
+            '模型': model,
+            '数据': data,
+            '定位器': '',
+            '预期': '',
+            '字段解析': [],
+        }
 
     # ── 数据解析 ─────────────────────────────────────────────────
 
@@ -408,10 +640,14 @@ class TestCaseExplainer:
 
         return result
 
-    def _mask_sensitive(self, field_name: str, value: str) -> str:
-        """对敏感字段脱敏"""
+    def _is_sensitive(self, field_name: str) -> bool:
+        """判断字段名是否为敏感字段"""
         lower_name = field_name.lower()
-        if any(s in lower_name for s in SENSITIVE_FIELDS):
+        return any(s in lower_name for s in SENSITIVE_FIELDS)
+
+    def _mask_sensitive_display(self, field_name: str, value: str) -> str:
+        """对敏感字段脱敏并返回带引号的显示值"""
+        if self._is_sensitive(field_name):
             return "***"
         return f'"{value}"'
 
@@ -422,7 +658,6 @@ class TestCaseExplainer:
         lower_val = value.lower()
         if any(s in lower_val for s in SENSITIVE_FIELDS):
             return "***"
-        # 检查是否像密码（短字符串，非 URL）
         if len(value) < 30 and not value.startswith(('http', '/', '.')):
             return f'"{value}"'
         return f'"{value}"'
