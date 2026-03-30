@@ -591,7 +591,13 @@ class SKIExecutor:
         # Check loop
         if loop:
             loop_config = LoopParser.parse(loop, self._variables)
-            self.loop_executor.execute_loop(step, loop_config)
+            iteration_results = self.loop_executor.execute_loop(step, loop_config)
+            self.result_writer.write_loop_result(
+                self._current_case_id,
+                self._current_step_index,
+                loop_config,
+                iteration_results
+            )
             self._variables["last_result"] = {"status": "pass", "loop": True}
         else:
             self.keyword_engine.execute(action, params)
