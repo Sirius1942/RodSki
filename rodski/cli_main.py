@@ -3,7 +3,7 @@
 import sys
 import argparse
 import traceback
-from rodski_cli import run, model, config, log, report, profile, explain
+from rodski_cli import run, model, config, log, report, profile, explain, stats
 
 VERSION = "2.0.1"
 
@@ -75,6 +75,9 @@ def main():
     # explain 子命令
     explain.setup_parser(subparsers)
 
+    # stats 子命令
+    stats.setup_parser(subparsers)
+
     args = parser.parse_args()
 
     if not args.command:
@@ -90,6 +93,7 @@ def main():
         "report": report.handle,
         "profile": profile.handle,
         "explain": explain.handle,
+        "stats": stats.handle,
     }
 
     verbose = getattr(args, "verbose", False)
