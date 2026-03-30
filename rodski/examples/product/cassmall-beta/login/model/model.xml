@@ -1,75 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <models>
-  <!-- 登录页模型 -->
   <model name="LoginPage">
-    <!-- 账号登录 Tab - 使用 JS 调用方式切换 -->
-    <element name="accountTab" type="js" value="changeLoginWay(document.querySelector('span[type=PASSWORD]'))" desc="账号登录页签切换"/>
+    <!-- 账号登录 Tab -->
+    <element name="accountTab" type="css" value="span[type=PASSWORD]" desc="账号登录页签"/>
     <!-- 用户名输入框 -->
     <element name="username" type="css" value="#userName" desc="用户名输入框"/>
     <!-- 密码输入框 -->
     <element name="password" type="css" value="#password" desc="密码输入框"/>
-    <!-- 协议复选框 -->
-    <element name="agreeCheckbox" type="css" value="label.br-checkbox input[type=checkbox]" desc="同意协议复选框"/>
+    <!-- 同意协议复选框（label 标签） -->
+    <element name="agreeCheckbox" type="css" value="label.br-checkbox" desc="同意协议复选框"/>
     <!-- 登录按钮 -->
     <element name="loginBtn" type="css" value=".btn-submit" desc="登录按钮"/>
-  </model>
-  
-  <!-- 商城首页模型（维修厂） -->
-  <model name="MallHomePage">
-    <!-- 发布询价入口 -->
-    <element name="publishInquiry" type="xpath" value="//*[contains(text(),'发布询价')]" desc="发布询价菜单"/>
-    <!-- 查看报价入口 -->
-    <element name="viewQuotes" type="xpath" value="//*[contains(text(),'查看报价')]" desc="查看报价菜单"/>
-    <!-- 订单跟踪入口 -->
-    <element name="orderTracking" type="xpath" value="//*[contains(text(),'订单跟踪')]" desc="订单跟踪菜单"/>
-    <!-- 购物车 -->
-    <element name="cart" type="css" value=".cart-icon,.shopping-cart,[class*='cart']" desc="购物车图标"/>
-    <!-- 会员中心 -->
-    <element name="memberCenter" type="xpath" value="//*[contains(text(),'会员中心')]" desc="会员中心"/>
-    <!-- 财务中心 -->
-    <element name="financeCenter" type="xpath" value="//*[contains(text(),'财务中心')]" desc="财务中心"/>
-  </model>
-  
-  <!-- 询价页模型（维修厂-发布询价） -->
-  <model name="InquiryPage">
-    <!-- VIN码输入框 -->
-    <element name="vinInput" type="css" value="#vin" desc="VIN码输入框"/>
-    <!-- 按品类选择按钮 -->
-    <element name="selectByCategory" type="xpath" value="//*[contains(text(),'按品类选择')]" desc="按品类选择"/>
-    <!-- 按常用件选择 -->
-    <element name="selectByFrequent" type="xpath" value="//*[contains(text(),'按常用件选择')]" desc="按常用件选择"/>
-    <!-- 自助查找配件 -->
-    <element name="searchParts" type="xpath" value="//*[contains(text(),'自助查找配件')]" desc="自助查找配件"/>
-    <!-- 原厂零件号输入 -->
-    <element name="partNo" type="css" value="input[placeholder*='原厂零件号']" desc="原厂零件号输入"/>
-    <!-- 标准名称输入 -->
-    <element name="partName" type="css" value="input[placeholder*='标准名称']" desc="标准名称输入"/>
-    <!-- 数量输入 -->
-    <element name="quantity" type="css" value="input[placeholder*='数量']" desc="数量输入"/>
-    <!-- 提交询价按钮 -->
-    <element name="submitInquiry" type="xpath" value="//*[contains(text(),'提交询价')]" desc="提交询价按钮"/>
-    <!-- 保存草稿按钮 -->
-    <element name="saveDraft" type="xpath" value="//*[contains(text(),'保存草稿')]" desc="保存草稿按钮"/>
-    <!-- 收货人姓名 -->
-    <element name="receiverName" type="css" value="#receiverName" desc="收货人姓名"/>
-    <!-- 联系电话 -->
-    <element name="contactPhone" type="css" value="#contactNumber" desc="联系电话"/>
-    <!-- 详细地址 -->
-    <element name="detailAddress" type="css" value="#inquiryDetailAddress" desc="详细地址"/>
-    <!-- 需要发票选项 -->
-    <element name="needInvoice" type="xpath" value="//*[contains(text(),'需要发票')]" desc="需要发票选项"/>
-    <!-- 原厂品质选项 -->
-    <element name="qualityOriginal" type="xpath" value="//*[contains(text(),'原厂')]" desc="原厂品质选项"/>
-    <!-- 品牌品质选项 -->
-    <element name="qualityBrand" type="xpath" value="//*[contains(text(),'品牌')]" desc="品牌品质选项"/>
-  </model>
-  
-  <!-- 通用页面元素 -->
-  <model name="CommonPage">
-    <element name="confirmBtn" type="xpath" value="//*[contains(text(),'确定')]" desc="确定按钮"/>
-    <element name="cancelBtn" type="xpath" value="//*[contains(text(),'取消')]" desc="取消按钮"/>
-    <element name="closeBtn" type="xpath" value="//*[contains(text(),'关闭')]" desc="关闭按钮"/>
-    <element name="successMsg" type="xpath" value="//*[contains(text(),'成功')]" desc="成功提示"/>
-    <element name="errorMsg" type="xpath" value="//*[contains(text(),'错误')]" desc="错误提示"/>
   </model>
 </models>

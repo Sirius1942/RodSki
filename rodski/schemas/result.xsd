@@ -45,6 +45,7 @@
   <!-- 单条结果类型 -->
   <xs:complexType name="ResultType">
     <xs:sequence>
+      <xs:element name="step" type="StepType" minOccurs="0" maxOccurs="unbounded"/>
       <xs:element name="diagnosis" type="DiagnosisType" minOccurs="0" maxOccurs="1"/>
       <xs:element name="recovery" type="RecoveryType" minOccurs="0" maxOccurs="1"/>
     </xs:sequence>
@@ -59,6 +60,35 @@
     <xs:attribute name="error_message" type="xs:string" use="optional"/>
     <xs:attribute name="screenshot_path" type="xs:string" use="optional"/>
     <xs:attribute name="updated_at" type="xs:string" use="optional"/>
+  </xs:complexType>
+
+  <!-- 步骤结果类型 -->
+  <xs:complexType name="StepType">
+    <xs:sequence>
+      <xs:element name="step_metadata" type="StepMetadataType" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="failure_context" type="FailureContextType" minOccurs="0" maxOccurs="1"/>
+    </xs:sequence>
+    <xs:attribute name="action" type="xs:string" use="required"/>
+    <xs:attribute name="start_time" type="xs:string" use="optional"/>
+    <xs:attribute name="end_time" type="xs:string" use="optional"/>
+    <xs:attribute name="duration_ms" type="xs:double" use="optional"/>
+    <xs:attribute name="attempt" type="xs:nonNegativeInteger" use="optional" default="1"/>
+    <xs:attribute name="status" type="StatusType" use="optional"/>
+  </xs:complexType>
+
+  <!-- 步骤元数据类型 -->
+  <xs:complexType name="StepMetadataType">
+    <xs:attribute name="browser" type="xs:string" use="optional"/>
+    <xs:attribute name="viewport" type="xs:string" use="optional"/>
+    <xs:attribute name="url" type="xs:string" use="optional"/>
+  </xs:complexType>
+
+  <!-- 失败上下文类型 -->
+  <xs:complexType name="FailureContextType">
+    <xs:attribute name="page_source_snapshot" type="xs:string" use="optional"/>
+    <xs:attribute name="console_logs" type="xs:string" use="optional"/>
+    <xs:attribute name="network_requests" type="xs:string" use="optional"/>
+    <xs:attribute name="variable_snapshot" type="xs:string" use="optional"/>
   </xs:complexType>
 
   <!-- 诊断信息类型 (Iteration-04) -->
