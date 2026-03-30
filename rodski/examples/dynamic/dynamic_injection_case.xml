@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  动态步骤注入示例 - Dynamic Step Injection Demo
+
+  演示如何使用 <dynamic_steps> 在测试执行过程中动态注入步骤。
+
+  注入类型:
+    1. pre_step  - 在主步骤执行前注入
+    2. post_step - 在主步骤执行后注入
+    3. on_error  - 当发生错误时注入 (用于恢复)
+
+  触发方式:
+    - trigger: 触发条件 (always / on_error / on_condition)
+    - trigger_locator: 定位器触发条件
+    - target_step_index: 注入到指定步骤位置
+
+  运行示例:
+    ski run examples/dynamic/dynamic_injection_case.xml
+
+  注意: 需要在 config/default_config.yaml 中启用:
+    execution:
+      allow_dynamic_steps: true
+      dynamic_step:
+        max_per_trigger: 10
+-->
+<cases>
+  <case id="demo_dynamic_injection"
+        title="动态步骤注入演示"
+        execute="是"
+        description="演示 pre_step / post_step / on_error 三种动态步骤注入"
+        component_type="界面">
+
+    <!--
+      动态步骤定义区域
+      这些步骤会在特定条件下被注入到主执行流程中
+    -->
+    <dynamic_steps>
+      <!--
+        注入类型 1: pre_step (在主步骤前执行)
+        position="pre" 表示在 test_case 的步骤执行前注入
+        id: 动态步骤唯一标识
+        keyword: 要执行的关键字 (对应 ActionType)
+      -->
+      <step id="ds_pre_01"
+            keyword="wait"
+            position="pre"
+            trigger="always"
+            timeout="30"
+            retry_on_fail="false">
+        <data>2</data>
+      </step>
+
+      <!--
+        注入类型 2: post_step (在主步骤后执行)
+        position="post" 表示在 test_case 的步骤执行后注入
+      -->
+      <step id="ds_post_01"
+            keyword="screenshot"
+            position="post"
+            trigger="always"
+            timeout="30">
+        <data>post_execution.png</data>
+      </step>
+
+      <!--
+        注入类型 3: on_error (发生错误时注入，用于恢复)
+        trigger="on_error" 表示仅在执行出错时注入此步骤
+        retry_on_fail="true" 表示如果此步骤失败则重试
+      -->
+      <step id="ds_error_01"
+            keyword="wait"
+            position="on_error"
+            trigger="on_error"
+            timeout="60"
+            retry_on_fail="true">
+        <data>5</data>
+      </step>
+
+      <!--
+        注入类型 4: 带条件的 on_error 恢复步骤
+        condition: 仅当特定条件满足时才注入
+      -->
+      <step id="ds_error_02"
+            keyword="screenshot"
+            position="on_error"
+            trigger="on_error"
+            condition="${error_type} == ElementNotFound">
+        <data>error_recovery_${timestamp}.png</data>
+      </step>
+
+      <!--
+        注入类型 5: 注入到特定步骤索引
+        target_step_index: 指定注入到哪个主步骤之前/之后
+        position 配合 target_step_index 使用
+      -->
+      <step id="ds_inject_at_2"
+            keyword="screenshot"
+            position="pre"
+            target_step_index="2"
+            trigger="always">
+        <data>before_step_2.png</data>
+      </step>
+    </dynamic_steps>
+
+    <test_case>
+      <!-- 步骤1: 导航 -->
+      <test_step action="navigate"
+                 model=""
+                 data="https://example.com/main"/>
+
+      <!-- 步骤2: 等待 -->
+      <test_step action="wait"
+                 model=""
+                 data="3"/>
+
+      <!-- 步骤3: 截图 (注入的 ds_inject_at_2 会在此步骤前执行) -->
+      <test_step action="screenshot"
+                 model=""
+                 data="step_3.png"/>
+
+      <!-- 步骤4: 验证 -->
+      <test_step action="verify"
+                 model=""
+                 data="页面加载成功"/>
+
+      <!-- 步骤5: 再次截图 -->
+      <test_step action="screenshot"
+                 model=""
+                 data="final_state.png"/>
+    </test_case>
+
+  </case>
+
+  <!--
+    演示 on_error 恢复注入的高级用法
+    当 ElementNotFoundError 发生时自动执行恢复步骤
+  -->
+  <case id="demo_error_recovery_injection"
+        title="错误恢复注入演示"
+        execute="是"
+        description="演示 on_error 类型动态步骤的恢复机制"
+        component_type="界面">
+
+    <dynamic_steps>
+      <!--
+        on_error 恢复步骤链:
+        1. 先等待 3 秒
+        2. 刷新页面
+        3. 重新截图确认
+      -->
+      <step id="recovery_wait"
+            keyword="wait"
+            position="on_error"
+            trigger="on_error"
+            timeout="30"
+            retry_on_fail="false">
+        <data>3</data>
+      </step>
+
+      <step id="recovery_refresh"
+            keyword="navigate"
+            position="on_error"
+            trigger="on_error"
+            timeout="30">
+        <!-- 使用 ${current_url} 变量重新导航到当前页面 -->
+        <data>${current_url}</data>
+      </step>
+
+      <step id="recovery_screenshot"
+            keyword="screenshot"
+            position="on_error"
+            trigger="on_error"
+            timeout="20">
+        <data>recovery_attempt_${attempt}.png</data>
+      </step>
+    </dynamic_steps>
+
+    <test_case>
+      <!--
+        这个步骤可能会失败 (元素不存在)
+        当失败时，on_error 动态步骤会被自动注入执行
+      -->
+      <test_step action="navigate"
+                 model=""
+                 data="https://example.com/search"/>
+      <test_step action="wait"
+                 model=""
+                 data="2"/>
+
+      <!--
+        此 verify 步骤可能会因元素不存在而失败
+        失败时将触发 on_error 动态步骤链
+      -->
+      <test_step action="verify"
+                 model=""
+                 data="搜索结果加载完成"/>
+    </test_case>
+
+  </case>
+</cases>

@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  循环执行示例 - Loop Execution Demo
+
+  演示四种循环类型的用法：
+    1. 固定次数循环: loop="5"
+    2. For Each 循环: loop="for item in ${item_list}"
+    3. Until 循环: loop="until ${count} >= 10 max=100"
+    4. While 循环: loop="while ${index} < 5 max=100"
+
+  运行示例:
+    ski run examples/dynamic/loop_case.xml
+-->
+<cases>
+  <!--
+    演示固定次数循环: loop="N"
+    重复执行同一步骤 N 次
+  -->
+  <case id="demo_loop_fixed"
+        title="固定次数循环演示"
+        execute="是"
+        description="loop=5 表示固定重复执行 5 次"
+        component_type="界面">
+
+    <test_case>
+      <!-- 固定重复 5 次点击刷新按钮 -->
+      <test_step action="navigate"
+                 model=""
+                 data="https://example.com/dashboard"/>
+      <test_step action="wait"
+                 model=""
+                 data="2"/>
+
+      <!--
+        loop="5" - 固定重复 5 次
+        每次迭代会将 index 变量注入到变量上下文
+        可通过 ${index} 引用当前迭代索引 (从 0 开始)
+      -->
+      <test_step action="screenshot"
+                 model=""
+                 data="refresh_iteration_${index}.png"
+                 loop="5"/>
+
+      <test_step action="wait"
+                 model=""
+                 data="1"/>
+    </test_case>
+
+  </case>
+
+  <!--
+    演示 For Each 循环: loop="for item in ${list_var}"
+    遍历列表变量中的每个元素
+  -->
+  <case id="demo_loop_for_each"
+        title="For Each 循环演示"
+        execute="是"
+        description="遍历 item_list 中的每个元素"
+        component_type="界面">
+
+    <test_case>
+      <!-- 导航到列表页 -->
+      <test_step action="navigate"
+                 model=""
+                 data="https://example.com/product/list"/>
+      <test_step action="wait"
+                 model=""
+                 data="2"/>
+
+      <!--
+        loop="for item in ${product_ids}"
+        每次迭代将 product_ids 列表中的一个元素赋值给 item 变量
+        可通过 ${item} 引用当前遍历的元素
+        可通过 ${index} 引用当前迭代索引 (从 0 开始)
+      -->
+      <test_step action="type"
+                 model="SearchBox"
+                 data="${item}"
+                 loop="for item in ${product_ids}"/>
+      <test_step action="wait"
+                 model=""
+                 data="1"/>
+      <test_step action="screenshot"
+                 model=""
+                 data="product_${item}_${index}.png"
+                 loop="for item in ${product_ids}"/>
+    </test_case>
+
+  </case>
+
+  <!--
+    演示 Until 循环: loop="until CONDITION max=N"
+    重复执行直到条件满足或达到最大迭代次数
+  -->
+  <case id="demo_loop_until"
+        title="Until 循环演示"
+        execute="是"
+        description="重复直到条件满足或达到最大次数"
+        component_type="界面">
+
+    <test_case>
+      <test_step action="navigate"
+                 model=""
+                 data="https://example.com/loading"/>
+      <test_step action="wait"
+                 model=""
+                 data="1"/>
+
+      <!--
+        loop="until ${load_complete} == true max=20"
+        重复执行直到 load_complete 变量为 true
+        或达到最大 20 次迭代
+        break_on_fail=true 时，迭代失败自动终止
+      -->
+      <test_step action="verify"
+                 model=""
+                 data="加载完成"
+                 loop="until ${load_complete} == true max=20"/>
+    </test_case>
+
+  </case>
+
+  <!--
+    演示 While 循环: loop="while CONDITION max=N"
+    当条件满足时重复执行
+  -->
+  <case id="demo_loop_while"
+        title="While 循环演示"
+        execute="是"
+        description="条件满足时重复执行"
+        component_type="界面">
+
+    <test_case>
+      <test_step action="navigate"
+                 model=""
+                 data="https://example.com/paginated"/>
+      <test_step action="wait"
+                 model=""
+                 data="2"/>
+
+      <!--
+        loop="while ${page_num} < 10 max=50"
+        当 page_num < 10 时重复执行
+        每次迭代后 page_num 应该递增
+        达到 10 页后自动终止
+      -->
+      <test_step action="screenshot"
+                 model=""
+                 data="page_${page_num}.png"
+                 loop="while ${page_num} < 10 max=50"/>
+      <test_step action="wait"
+                 model=""
+                 data="1"/>
+    </test_case>
+
+  </case>
+
+  <!--
+    演示高级循环: break_on_fail 行为
+    迭代失败时是否终止循环
+  -->
+  <case id="demo_loop_break_on_fail"
+        title="循环中断行为演示"
+        execute="是"
+        description="break_on_fail 控制迭代失败时的行为"
+        component_type="界面">
+
+    <test_case>
+      <test_step action="navigate"
+                 model=""
+                 data="https://example.com/form"/>
+      <test_step action="wait"
+                 model=""
+                 data="2"/>
+
+      <!--
+        带 break_on_fail 的循环:
+        默认 break_on_fail=true - 任何迭代失败则终止循环
+        设置 break_on_fail=false - 即使失败也继续执行所有迭代
+      -->
+      <test_step action="verify"
+                 model=""
+                 data="数据正确"
+                 loop="5"/>
+    </test_case>
+
+  </case>
+</cases>
