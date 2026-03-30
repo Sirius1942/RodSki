@@ -178,3 +178,111 @@ class ResultWriter:
 
     def get_summary(self) -> ExecutionSummary:
         return self._summary
+
+    def write_step_result(
+        self,
+        case_id: str,
+        step_index: int,
+        action: str,
+        status: str,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        duration_ms: Optional[float] = None,
+        attempt: int = 1,
+        error: str = ""
+    ) -> None:
+        """Write individual step result with timing"""
+        if not self.current_run_dir:
+            self._init_run_dir()
+
+        step_file = self.current_run_dir / f"{case_id}_steps.xml"
+
+        if step_file.exists():
+            tree = ET.parse(step_file)
+            root = tree.getroot()
+        else:
+            root = ET.Element("steps")
+            root.set("case_id", case_id)
+
+        step_elem = ET.SubElement(root, "step")
+        step_elem.set("index", str(step_index))
+        step_elem.set("action", action)
+        step_elem.set("status", status)
+        step_elem.set("attempt", str(attempt))
+        if start_time:
+            step_elem.set("start_time", start_time.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3])
+        if end_time:
+            step_elem.set("end_time", end_time.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3])
+        if duration_ms is not None:
+            step_elem.set("duration_ms", f"{duration_ms:.2f}")
+        if error:
+            step_elem.set("error", error)
+
+        xml_str = minidom.parseString(ET.tostring(root, encoding='unicode')).toprettyxml(indent="  ")
+        lines = [line for line in xml_str.split('\n') if line.strip()]
+        step_file.write_text('\n'.join(lines), encoding='utf-8')
+
+    def capture_failure_context(
+        self,
+        case_id: str,
+        driver: Any,
+        variables: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Capture failure context including page source, console logs, etc."""
+        context = {}
+
+        try:
+            if hasattr(driver, 'page_source'):
+                context['page_source'] = driver.page_source()[:5000]
+        except Exception:
+            pass
+
+        try:
+            if hasattr(driver, 'get_console_logs'):
+                context['console_logs'] = driver.get_console_logs()
+        except Exception:
+            pass
+
+        context['variable_snapshot'] = {k: str(v)[:200] for k, v in variables.items()}
+
+        if self.current_run_dir:
+            context_file = self.current_run_dir / f"{case_id}_failure_context.xml"
+            root = ET.Element("failure_context")
+            root.set("case_id", case_id)
+            root.set("timestamp", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+            for key, value in context.items():
+                elem = ET.SubElement(root, key)
+                elem.text = str(value)
+
+            xml_str = minidom.parseString(ET.tostring(root, encoding='unicode')).toprettyxml(indent="  ")
+            lines = [line for line in xml_str.split('\n') if line.strip()]
+            context_file.write_text('\n'.join(lines), encoding='utf-8')
+
+        return context
+
+    def write_diagnosis(self, case_id: str, diagnosis: str) -> None:
+        """Write diagnosis information for a case"""
+        if not self.current_run_dir:
+            self._init_run_dir()
+
+        diagnosis_file = self.current_run_dir / f"{case_id}_diagnosis.txt"
+        diagnosis_file.write_text(diagnosis, encoding='utf-8')
+        logger.info(f"Diagnosis written for {case_id}")
+
+    def write_case_metadata(self, case_id: str, metadata: Dict[str, Any]) -> None:
+        """Write case metadata"""
+        if not self.current_run_dir:
+            self._init_run_dir()
+
+        metadata_file = self.current_run_dir / f"{case_id}_metadata.xml"
+        root = ET.Element("metadata")
+        root.set("case_id", case_id)
+
+        for key, value in metadata.items():
+            elem = ET.SubElement(root, key)
+            elem.text = str(value)
+
+        xml_str = minidom.parseString(ET.tostring(root, encoding='unicode')).toprettyxml(indent="  ")
+        lines = [line for line in xml_str.split('\n') if line.strip()]
+        metadata_file.write_text('\n'.join(lines), encoding='utf-8')
