@@ -1,13 +1,45 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <datatables>
-  <datatable name="InquiryOrder">
-    <!-- 询价单场景：搜索商品+填数量+提交 -->
-    <row id="inquiry_001">
-      <field name="newInquiryBtn">click</field>
-      <field name="productSearch">click</field>
-      <field name="addProduct">click</field>
-      <field name="quantity">100</field>
-      <field name="submitBtn">click</field>
+  <!-- 登录数据（复用 login 模块的账号） -->
+  <datatable name="LoginPage">
+    <row id="xiaoli_login" remark="小李账号-维修厂">
+      <field name="accountTab">click</field>
+      <field name="username">15521344075</field>
+      <field name="password">Cass2025</field>
+      <field name="agreeCheckbox">click</field>
+      <field name="loginBtn">click</field>
+    </row>
+    <row id="xiaohui_login" remark="小辉账号-供应商">
+      <field name="accountTab">click</field>
+      <field name="username">13395432251</field>
+      <field name="password">Cass2025</field>
+      <field name="agreeCheckbox">click</field>
+      <field name="loginBtn">click</field>
+    </row>
+  </datatable>
+
+  <!-- 询价单数据 -->
+  <datatable name="InquiryPage">
+    <row id="I001" remark="发布询价单-测试数据">
+      <field name="vin">LGWEE4CA5ME123456</field>
+      <field name="needsName">机油滤清器</field>
+      <field name="needQuantity">5</field>
+      <field name="qualityRemarks">原厂配件</field>
+      <field name="submitInquiry">click</field>
+    </row>
+  </datatable>
+
+  <datatable name="SupplierInquiryPage">
+    <row id="Q001" remark="点击立即报价">
+      <field name="quoteNow">click</field>
+    </row>
+  </datatable>
+
+  <datatable name="QuotePage">
+    <row id="QP001" remark="填写报价并提交">
+      <field name="quotePrice">168.00</field>
+      <field name="quantity">5</field>
+      <field name="submitQuote">click</field>
     </row>
   </datatable>
 

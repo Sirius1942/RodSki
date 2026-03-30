@@ -1,5 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <models>
+  <!-- 登录页模型（来自 login 模块） -->
+  <model name="LoginPage">
+    <!-- 账号登录 Tab -->
+    <element name="accountTab" type="css" value="span[type=PASSWORD]" desc="账号登录页签"/>
+    <!-- 用户名输入框 -->
+    <element name="username" type="css" value="#userName" desc="用户名输入框"/>
+    <!-- 密码输入框 -->
+    <element name="password" type="css" value="#password" desc="密码输入框"/>
+    <!-- 同意协议复选框（label 标签） -->
+    <element name="agreeCheckbox" type="css" value="label.br-checkbox" desc="同意协议复选框"/>
+    <!-- 登录按钮 -->
+    <element name="loginBtn" type="css" value=".btn-submit" desc="登录按钮"/>
+  </model>
+
   <!-- 供应商首页模型 -->
   <model name="SupplierHomePage">
     <!-- 询价单管理入口 -->
@@ -11,7 +25,7 @@
     <!-- 报价管理入口 -->
     <element name="quoteManage" type="xpath" value="//*[contains(text(),'报价管理')]" desc="报价管理"/>
   </model>
-  
+
   <!-- 询价单管理页（供应商-收到维修厂的询价） -->
   <model name="SupplierInquiryPage">
     <!-- 询价单列表 -->
@@ -25,7 +39,7 @@
     <!-- 查看详情 -->
     <element name="viewDetail" type="xpath" value="//*[contains(text(),'查看详情')]" desc="查看详情"/>
   </model>
-  
+
   <!-- 商品管理页（供应商-维护商品和库存） -->
   <model name="ProductManagePage">
     <!-- 商品列表 -->
@@ -45,7 +59,7 @@
     <!-- 保存按钮 -->
     <element name="saveBtn" type="xpath" value="//*[contains(text(),'保存')]" desc="保存按钮"/>
   </model>
-  
+
   <!-- 报价页（供应商-对询价单报价） -->
   <model name="QuotePage">
     <!-- 报价输入框 -->

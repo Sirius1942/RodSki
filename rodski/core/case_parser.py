@@ -84,6 +84,8 @@ class CaseParser:
             'action': str(el.get('action', '') or '').strip(),
             'model': str(el.get('model', '') or '').strip(),
             'data': str(el.get('data', '') or '').strip(),
+            'condition': str(el.get('condition', '') or '').strip(),
+            'loop': str(el.get('loop', '') or '').strip(),
         }
 
     def close(self):

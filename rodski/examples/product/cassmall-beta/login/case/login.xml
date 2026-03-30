@@ -1,58 +1,28 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <cases>
-  <!-- 小李登录 - 维修厂账号 -->
-  <case id="cassmall_beta_login_xiaoli" title="小李账号登录（维修厂）" execute="是" description="使用小李账号（15521344075）登录开思平台，角色：维修厂">
+  <case id="cassmall_beta_login_xiaoli" title="小李账号登录（维修厂）" execute="是" description="使用小李账号（15521344075）登录开思平台，角色：维修厂" component_type="界面">
     <pre_process>
       <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
       <test_step action="wait" data="3"/>
     </pre_process>
     <test_case>
-      <!-- 切换到账号登录（使用JS） -->
-      <test_step action="js" model="LoginPage" data="changeLoginWay(document.querySelector('span[type=PASSWORD]'))"/>
-      <test_step action="wait" data="1"/>
-      <!-- 输入用户名 -->
-      <test_step action="fill" model="LoginPage" data="xiaoli_username"/>
-      <test_step action="wait" data="0.5"/>
-      <!-- 输入密码 -->
-      <test_step action="fill" model="LoginPage" data="xiaoli_password"/>
-      <test_step action="wait" data="0.5"/>
-      <!-- 勾选协议 -->
-      <test_step action="click" model="LoginPage" data="agreeCheckbox"/>
-      <test_step action="wait" data="0.5"/>
-      <!-- 点击登录 -->
-      <test_step action="click" model="LoginPage" data="loginBtn"/>
-      <test_step action="wait" data="8"/>
-      <!-- 截图记录 -->
-      <test_step action="screenshot" data="cassmall_beta_xiaoli_login.png"/>
+      <test_step action="type" model="LoginPage" data="xiaoli_login"/>
+      <test_step action="wait" data="5"/>
+      <test_step action="screenshot" data="cassmall_beta_xiaoli_login_result.png"/>
     </test_case>
     <post_process>
     </post_process>
   </case>
 
-  <!-- 小辉登录 - 供应商账号 -->
-  <case id="cassmall_beta_login_xiaohui" title="小辉账号登录（供应商）" execute="是" description="使用小辉账号（13395432251）登录开思平台，角色：供应商">
+  <case id="cassmall_beta_login_xiaohui" title="小辉账号登录（供应商）" execute="是" description="使用小辉账号（13395432251）登录开思平台，角色：供应商" component_type="界面">
     <pre_process>
       <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
       <test_step action="wait" data="3"/>
     </pre_process>
     <test_case>
-      <!-- 切换到账号登录（使用JS） -->
-      <test_step action="js" model="LoginPage" data="changeLoginWay(document.querySelector('span[type=PASSWORD]'))"/>
-      <test_step action="wait" data="1"/>
-      <!-- 输入用户名 -->
-      <test_step action="fill" model="LoginPage" data="xiaohui_username"/>
-      <test_step action="wait" data="0.5"/>
-      <!-- 输入密码 -->
-      <test_step action="fill" model="LoginPage" data="xiaohui_password"/>
-      <test_step action="wait" data="0.5"/>
-      <!-- 勾选协议 -->
-      <test_step action="click" model="LoginPage" data="agreeCheckbox"/>
-      <test_step action="wait" data="0.5"/>
-      <!-- 点击登录 -->
-      <test_step action="click" model="LoginPage" data="loginBtn"/>
-      <test_step action="wait" data="8"/>
-      <!-- 截图记录 -->
-      <test_step action="screenshot" data="cassmall_beta_xiaohui_login.png"/>
+      <test_step action="type" model="LoginPage" data="xiaohui_login"/>
+      <test_step action="wait" data="5"/>
+      <test_step action="screenshot" data="cassmall_beta_xiaohui_login_result.png"/>
     </test_case>
     <post_process>
     </post_process>

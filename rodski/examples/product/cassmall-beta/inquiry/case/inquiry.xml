@@ -1,49 +1,71 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <cases>
-  <!-- 探索页面结构 - 小李登录后探索询价单页面 -->
-  <case id="cassmall_beta_explore_xiaoli" title="小李-探索询价单页面结构" execute="是" description="小李账号登录后探索询价单相关页面结构，截图记录关键页面">
+  <!-- 小李发布询价 -->
+  <case id="cassmall_inquiry_xiaoli" title="小李发布询价" execute="是" description="小李（维修厂）登录后发布询价单" component_type="界面">
     <pre_process>
-      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login#/merchant/home"/>
-      <test_step action="wait" data="2"/>
-    </pre_process>
-    <test_case>
-      <!-- 登录 -->
+      <!-- 导航到登录页 -->
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="3"/>
+      <!-- 复用已验证的 LoginPage model + xiaoli_login data 完成登录 -->
       <test_step action="type" model="LoginPage" data="xiaoli_login"/>
       <test_step action="wait" data="5"/>
-      <test_step action="screenshot" data="01_after_login.png"/>
-
-      <!-- 探索页面：点击询价单菜单（用 OCR 文字定位） -->
-      <test_step action="screenshot" data="02_explore_home.png"/>
-      <!-- 等待页面加载完成 -->
-      <test_step action="wait" data="2"/>
+    </pre_process>
+    <test_case>
+      <!-- 导航到发布询价页 -->
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/agentBuy/"/>
+      <test_step action="wait" data="3"/>
+      <!-- 填写询价表单（复用 InquiryPage model + I001 data） -->
+      <test_step action="type" model="InquiryPage" data="I001"/>
+      <test_step action="wait" data="5"/>
+      <!-- 截图记录 -->
+      <test_step action="screenshot" data="cassmall_inquiry_result.png"/>
     </test_case>
     <post_process>
+      <test_step action="close" data=""/>
     </post_process>
   </case>
 
-  <!-- 小李下询价单 -->
-  <case id="cassmall_beta_inquiry_xiaoli" title="小李-创建询价单" execute="是" description="小李账号登录后，创建询价单并提交">
+  <!-- 小辉查看询价单列表 -->
+  <case id="cassmall_inquiry_xiaohui_list" title="小辉查看询价单" execute="否" description="小辉（供应商）登录后查看询价单列表" component_type="界面">
     <pre_process>
-      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login#/merchant/home"/>
-      <test_step action="wait" data="2"/>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="3"/>
+      <!-- 复用已验证的 LoginPage model + xiaohui_login data 完成登录 -->
+      <test_step action="type" model="LoginPage" data="xiaohui_login"/>
+      <test_step action="wait" data="5"/>
     </pre_process>
     <test_case>
-      <!-- 登录 -->
-      <test_step action="type" model="LoginPage" data="xiaoli_login"/>
-      <test_step action="wait" data="5"/>
-      <test_step action="screenshot" data="inquiry_01_logged_in.png"/>
-      <!-- 导航到询价单页面 -->
-      <test_step action="wait" data="2"/>
-      <test_step action="screenshot" data="inquiry_02_before_click.png"/>
-      <!-- 点击新建询价单 -->
-      <test_step action="screenshot" data="inquiry_03_new_page.png"/>
+      <!-- 导航到供应商询价单列表页 -->
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/seller/"/>
       <test_step action="wait" data="3"/>
-      <test_step action="screenshot" data="inquiry_04_form_filled.png"/>
-      <!-- 提交 -->
-      <test_step action="screenshot" data="inquiry_05_result.png"/>
+      <test_step action="screenshot" data="supplier_inquiry_list.png"/>
     </test_case>
     <post_process>
-      <test_step action="close"/>
+      <test_step action="close" data=""/>
+    </post_process>
+  </case>
+
+  <!-- 小辉对询价单进行报价 -->
+  <case id="cassmall_inquiry_xiaohui_quote" title="小辉对询价单报价" execute="否" description="小辉（供应商）对询价单进行报价" component_type="界面">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="type" model="LoginPage" data="xiaohui_login"/>
+      <test_step action="wait" data="5"/>
+    </pre_process>
+    <test_case>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/seller/"/>
+      <test_step action="wait" data="3"/>
+      <!-- 点击立即报价 -->
+      <test_step action="type" model="SupplierInquiryPage" data="Q001"/>
+      <test_step action="wait" data="2"/>
+      <!-- 填写报价 -->
+      <test_step action="type" model="QuotePage" data="QP001"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="screenshot" data="supplier_quote_result.png"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" data=""/>
     </post_process>
   </case>
 </cases>

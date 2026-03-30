@@ -39,6 +39,8 @@
 
   <xs:complexType name="CaseType">
     <xs:sequence>
+      <xs:element name="metadata" type="MetadataType" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="dynamic_steps" type="DynamicStepsType" minOccurs="0" maxOccurs="1"/>
       <xs:element name="pre_process" type="PhaseType" minOccurs="0" maxOccurs="1"/>
       <xs:element name="test_case" type="TestCasePhaseType" minOccurs="1" maxOccurs="1"/>
       <xs:element name="post_process" type="PhaseType" minOccurs="0" maxOccurs="1"/>
@@ -48,12 +50,46 @@
     <xs:attribute name="title" type="xs:string" use="required"/>
     <xs:attribute name="description" type="xs:string" use="optional"/>
     <xs:attribute name="component_type" type="ComponentType" use="optional"/>
+    <xs:attribute name="priority" type="xs:string" use="optional"/>
+    <xs:attribute name="component" type="xs:string" use="optional"/>
+  </xs:complexType>
+
+  <xs:complexType name="MetadataType">
+    <xs:sequence>
+      <xs:element name="tag" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="author" type="xs:string" use="optional"/>
+    <xs:attribute name="create_time" type="xs:string" use="optional"/>
+    <xs:attribute name="modify_time" type="xs:string" use="optional"/>
+    <xs:attribute name="estimated_duration" type="xs:string" use="optional"/>
+    <xs:attribute name="requirement_id" type="xs:string" use="optional"/>
+    <xs:attribute name="test_type" type="xs:string" use="optional"/>
+  </xs:complexType>
+
+  <xs:complexType name="DynamicStepsType">
+    <xs:sequence>
+      <xs:element name="step" type="DynamicStepType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="DynamicStepType">
+    <xs:attribute name="id" type="xs:string" use="required"/>
+    <xs:attribute name="keyword" type="xs:string" use="required"/>
+    <xs:attribute name="position" type="xs:string" use="optional"/>
+    <xs:attribute name="trigger" type="xs:string" use="optional"/>
+    <xs:attribute name="trigger_locator" type="xs:string" use="optional"/>
+    <xs:attribute name="target_step_index" type="xs:nonNegativeInteger" use="optional"/>
+    <xs:attribute name="condition" type="xs:string" use="optional"/>
+    <xs:attribute name="timeout" type="xs:nonNegativeInteger" use="optional"/>
+    <xs:attribute name="retry_on_fail" type="xs:boolean" use="optional" default="false"/>
   </xs:complexType>
 
   <xs:complexType name="StepType">
     <xs:attribute name="action" type="ActionType" use="required"/>
     <xs:attribute name="model" type="xs:string" use="optional" default=""/>
     <xs:attribute name="data" type="xs:string" use="optional" default=""/>
+    <xs:attribute name="condition" type="xs:string" use="optional"/>
+    <xs:attribute name="loop" type="xs:string" use="optional"/>
   </xs:complexType>
 
   <xs:simpleType name="ExecuteType">
