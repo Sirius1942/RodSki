@@ -286,3 +286,50 @@ class ResultWriter:
         xml_str = minidom.parseString(ET.tostring(root, encoding='unicode')).toprettyxml(indent="  ")
         lines = [line for line in xml_str.split('\n') if line.strip()]
         metadata_file.write_text('\n'.join(lines), encoding='utf-8')
+
+    def write_loop_result(
+        self,
+        case_id: str,
+        step_index: int,
+        loop_config: Any,
+        iteration_results: List[Dict[str, Any]]
+    ) -> None:
+        """Write loop execution results"""
+        if not self.current_run_dir:
+            self._init_run_dir()
+
+        step_file = self.current_run_dir / f"{case_id}_steps.xml"
+
+        if step_file.exists():
+            tree = ET.parse(step_file)
+            root = tree.getroot()
+        else:
+            root = ET.Element("steps")
+            root.set("case_id", case_id)
+
+        total = len(iteration_results)
+        passed = sum(1 for r in iteration_results if r.get("status") == "pass")
+        failed = total - passed
+        avg_duration = 0.0
+
+        for i, result in enumerate(iteration_results):
+            step_elem = ET.SubElement(root, "step")
+            step_elem.set("index", str(step_index))
+            step_elem.set("loop_id", str(loop_config.loop_type.value))
+            step_elem.set("loop_type", str(loop_config.loop_type.value))
+            step_elem.set("loop_iteration", str(i))
+            step_elem.set("status", result.get("status", "fail"))
+            if result.get("error"):
+                step_elem.set("error", result["error"])
+
+        summary_elem = ET.SubElement(root, "loop_summary")
+        summary_elem.set("step_index", str(step_index))
+        summary_elem.set("loop_type", str(loop_config.loop_type.value))
+        summary_elem.set("total", str(total))
+        summary_elem.set("passed", str(passed))
+        summary_elem.set("failed", str(failed))
+        summary_elem.set("avg_duration", f"{avg_duration:.2f}")
+
+        xml_str = minidom.parseString(ET.tostring(root, encoding='unicode')).toprettyxml(indent="  ")
+        lines = [line for line in xml_str.split('\n') if line.strip()]
+        step_file.write_text('\n'.join(lines), encoding='utf-8')
