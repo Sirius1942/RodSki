@@ -31,6 +31,9 @@ from core.config_manager import ConfigManager
 from data.data_resolver import DataResolver
 from core.keyword_engine import KeywordEngine
 from drivers.base_driver import BaseDriver
+from core.condition_evaluator import ConditionEvaluator
+from core.loop_executor import LoopParser, LoopExecutor
+from core.dynamic_steps import DynamicStep, TriggerPoint, ExecutionContext
 
 try:
     from vision.screen_recorder import ScreenRecorder
@@ -168,6 +171,12 @@ class SKIExecutor:
 
         self.runtime_control: BaseRuntimeControl = runtime_control or BaseRuntimeControl()
         self._runtime_stopped_graceful = False
+
+        # 初始化条件评估器和循环执行器
+        self.condition_evaluator = ConditionEvaluator()
+        self.loop_executor = LoopExecutor(self)
+        self._variables: Dict[str, Any] = {}
+        self._dynamic_steps: List[DynamicStep] = []
 
         # Long-running stability
         self._step_count = 0
@@ -560,6 +569,17 @@ class SKIExecutor:
         action = step['action']
         model = step['model']
         data = step['data']
+        condition = step.get('condition', '')
+        loop = step.get('loop', '')
+
+        # Check condition
+        if condition:
+            if not self.condition_evaluator.evaluate(condition, self._variables):
+                logger.info(f"步骤跳过 (条件不满足): {action}")
+                return
+
+        # Execute dynamic steps (pre_step)
+        self._inject_steps(TriggerPoint.PRE_STEP, None)
 
         resolved_data = self.data_resolver.resolve(data)
 
@@ -568,7 +588,14 @@ class SKIExecutor:
 
         params = {'model': model, 'data': resolved_data}
 
-        self.keyword_engine.execute(action, params)
+        # Check loop
+        if loop:
+            loop_config = LoopParser.parse(loop, self._variables)
+            self.loop_executor.execute_loop(step, loop_config)
+            self._variables["last_result"] = {"status": "pass", "loop": True}
+        else:
+            self.keyword_engine.execute(action, params)
+            self._variables["last_result"] = {"status": "pass", "action": action}
 
         if action.lower() == 'close':
             self._driver_closed = True
@@ -594,6 +621,24 @@ class SKIExecutor:
         if wait_time > 0 and action.lower() not in ('wait', 'close'):
             logger.debug(f"步骤等待 {wait_time}s")
             time.sleep(wait_time)
+
+        # Execute dynamic steps (post_step)
+        self._inject_steps(TriggerPoint.POST_STEP, None)
+
+    def _inject_steps(self, trigger_point: TriggerPoint, context: Optional[ExecutionContext]) -> None:
+        """Inject and execute dynamic steps at trigger point"""
+        steps_to_execute = [s for s in self._dynamic_steps if s.position == trigger_point]
+        for dynamic_step in steps_to_execute:
+            if dynamic_step.condition:
+                if not self.condition_evaluator.evaluate(dynamic_step.condition, self._variables):
+                    continue
+            try:
+                params = dynamic_step.params.copy()
+                self.keyword_engine.execute(dynamic_step.keyword, params)
+            except Exception as e:
+                logger.warning(f"Dynamic step failed: {e}")
+                if not dynamic_step.retry_on_fail:
+                    raise
 
     def _auto_screenshot(self, step_type: str) -> None:
         """步骤执行后自动截图"""
