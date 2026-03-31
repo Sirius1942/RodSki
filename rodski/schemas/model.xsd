@@ -28,9 +28,11 @@
   <!-- 模型类型 -->
   <xs:complexType name="ModelType">
     <xs:sequence>
-      <xs:element name="element" type="ElementType" minOccurs="0" maxOccurs="unbounded"/>
+      <!-- assertion 类型的模型使用 AssertionElementType -->
+      <xs:element name="element" type="AssertionElementType" minOccurs="0" maxOccurs="unbounded"/>
     </xs:sequence>
     <xs:attribute name="name" type="xs:string" use="required"/>
+    <xs:attribute name="type" type="xs:string" use="optional" default=""/>
     <xs:attribute name="servicename" type="xs:string" use="optional" default=""/>
   </xs:complexType>
 
@@ -97,5 +99,67 @@
       <xs:enumeration value="vision_bbox"/>
     </xs:restriction>
   </xs:simpleType>
+
+  <!-- ═══════════════════════════════════════════════════════
+       assertion 类型模型（视觉断言）
+       用于 define type="assertion" 的模型，支持图片断言和视频断言。
+       ═══════════════════════════════════════════════════════ -->
+
+  <!-- 断言类型枚举 -->
+  <xs:simpleType name="AssertionType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="image"/>
+      <xs:enumeration value="video"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- 断言范围枚举（仅 image 生效） -->
+  <xs:simpleType name="AssertionScope">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="full"/>
+      <xs:enumeration value="element"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- 视频来源枚举 -->
+  <xs:simpleType name="AssertionVideoSource">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="recording"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- 帧位置枚举（仅 video 生效） -->
+  <xs:simpleType name="AssertionPosition">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="any"/>
+      <xs:enumeration value="start"/>
+      <xs:enumeration value="end"/>
+      <xs:enumeration value="middle"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- assertion 类型的模型 -->
+  <xs:complexType name="AssertionElementType">
+    <xs:sequence>
+      <xs:element name="assertion" type="AssertionDetailType" minOccurs="1" maxOccurs="1"/>
+    </xs:sequence>
+    <xs:attribute name="name" type="xs:string" use="required"/>
+    <xs:attribute name="desc" type="xs:string" use="optional"/>
+  </xs:complexType>
+
+  <!-- 断言详情类型 -->
+  <xs:complexType name="AssertionDetailType">
+    <xs:all>
+      <xs:element name="type" type="AssertionType" minOccurs="1" maxOccurs="1"/>
+      <xs:element name="reference" type="xs:string" minOccurs="1" maxOccurs="1"/>
+      <xs:element name="threshold" type="xs:decimal" minOccurs="0" maxOccurs="1" default="0.8"/>
+      <xs:element name="scope" type="AssertionScope" minOccurs="0" maxOccurs="1" default="full"/>
+      <xs:element name="wait" type="xs:nonNegativeInteger" minOccurs="0" maxOccurs="1" default="0"/>
+      <!-- video 专用参数 -->
+      <xs:element name="video_source" type="AssertionVideoSource" minOccurs="0" maxOccurs="1" default="recording"/>
+      <xs:element name="time_range" type="xs:string" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="position" type="AssertionPosition" minOccurs="0" maxOccurs="1" default="any"/>
+    </xs:all>
+  </xs:complexType>
 
 </xs:schema>
