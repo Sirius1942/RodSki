@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+  <!-- 小李发布询价 - 修正版 -->
+  <case id="cassmall_inquiry_xiaoli_fixed" title="小李发布询价" execute="是" description="小李（维修厂）登录后发布询价单" component_type="界面">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="type" model="LoginPage" data="xiaoli_login"/>
+      <test_step action="wait" data="5"/>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/market/portal"/>
+      <test_step action="wait" data="2"/>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/agentBuy/"/>
+      <test_step action="wait" data="3"/>
+    </pre_process>
+    <test_case>
+      <!-- 步骤1：填写VIN -->
+      <test_step action="type" model="InquiryPage" data="I001_fill"/>
+      <test_step action="wait" data="2"/>
+      <!-- 步骤2：点击配件名称触发弹窗 -->
+      <test_step action="type" model="InquiryPage" data="I001_trigger"/>
+      <test_step action="wait" data="3"/>
+      <!-- 步骤3：处理弹窗-点击追加 -->
+      <test_step action="type" model="InquiryPage" data="I001_add"/>
+      <test_step action="wait" data="2"/>
+      <!-- 步骤4：填写其他字段 -->
+      <test_step action="type" model="InquiryPage" data="I001_extra"/>
+      <test_step action="wait" data="2"/>
+      <!-- 步骤5：发布 -->
+      <test_step action="type" model="InquiryPage" data="I001_submit"/>
+      <test_step action="wait" data="5"/>
+      <!-- 步骤6：截图记录 -->
+      <test_step action="screenshot" data="cassmall_inquiry_result.png"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" data=""/>
+    </post_process>
+  </case>
+</cases>

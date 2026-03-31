@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+  <case id="cassmall_login_xiaohui" title="小辉账号登录（供应商）" execute="是" description="使用小辉账号（13395432251）登录开思平台，角色：供应商" component_type="界面">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="3"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="LoginPage" data="xiaohui_login"/>
+      <test_step action="wait" data="5"/>
+      <test_step action="screenshot" data="login_xiaohui_result.png"/>
+    </test_case>
+    <post_process>
+    </post_process>
+  </case>
+</cases>
