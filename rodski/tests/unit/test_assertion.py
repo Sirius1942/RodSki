@@ -449,6 +449,50 @@ class TestImageMatcher:
         assert cropped.shape == (10, 10, 3)
 
 
+class TestKeywordEngineAssertIntegration:
+
+    """_kw_assert 与 keyword_engine 的集成测试（不依赖 driver）"""
+
+    def test_parse_kv_args_basic(self):
+        """基本 key=value 解析"""
+        from core.keyword_engine import KeywordEngine
+        result = KeywordEngine._parse_kv_args("type=image,reference=img/foo.png,threshold=0.85")
+        assert result == {
+            "type": "image",
+            "reference": "img/foo.png",
+            "threshold": "0.85",
+        }
+
+    def test_parse_kv_args_with_brackets_in_value(self):
+        """value 中含中文方括号时应正确处理"""
+        from core.keyword_engine import KeywordEngine
+        # value 中可以有【】
+        result = KeywordEngine._parse_kv_args("type=image,reference=img/弹窗.png")
+        assert result["reference"] == "img/弹窗.png"
+
+    def test_parse_kv_args_empty_string(self):
+        """空字符串返回空字典"""
+        from core.keyword_engine import KeywordEngine
+        result = KeywordEngine._parse_kv_args("")
+        assert result == {}
+
+    def test_parse_kv_args_with_spaces(self):
+        """带空格的参数"""
+        from core.keyword_engine import KeywordEngine
+        result = KeywordEngine._parse_kv_args("type=image, reference=img/foo.png , threshold=0.85")
+        assert result == {
+            "type": "image",
+            "reference": "img/foo.png",
+            "threshold": "0.85",
+        }
+
+    def test_parse_kv_args_element_bbox(self):
+        """element_bbox 格式 x,y,w,h"""
+        from core.keyword_engine import KeywordEngine
+        result = KeywordEngine._parse_kv_args("type=image,reference=img/foo.png,element_bbox=100,200,50,50")
+        assert result["element_bbox"] == "100,200,50,50"
+
+
 class TestBaseAssertion:
 
     def test_resolve_reference_path_absolute(self):

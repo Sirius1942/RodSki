@@ -20,6 +20,7 @@ from core.exceptions import (
     is_retryable_error,
     is_critical_error,
 )
+from core.assertion.image_matcher import ImageMatcher
 from core.model_parser import ModelParser
 
 logger = logging.getLogger("rodski")
@@ -417,6 +418,78 @@ class KeywordEngine:
             return value[start + 1:end]
         return ''
 
+    @staticmethod
+    def _parse_kv_args(kv_string: str) -> Dict[str, str]:
+        """解析 key=value,key=value 格式的参数字符串
+
+        Args:
+            kv_string: 参数字符串，如 "type=image,reference=img/foo.png,threshold=0.85"
+
+        Returns:
+            {key: value, ...} 字典
+
+        注意:
+            value 中可以包含逗号（但不能包含等号），解析时以第一个 = 为界拆分 key 和 value。
+            element_bbox 的值格式为 x,y,w,h（4个整数），需特殊处理以保留逗号。
+        """
+        result = {}
+        if not kv_string.strip():
+            return result
+
+        # 用逗号分割，注意 value 中可能含有逗号
+        parts = []
+        current = ""
+        in_bracket = False
+        i = 0
+        while i < len(kv_string):
+            c = kv_string[i]
+            if c == '[':
+                in_bracket = True
+                current += c
+            elif c == ']':
+                in_bracket = False
+                current += c
+            elif c == ',' and not in_bracket:
+                parts.append(current.strip())
+                current = ""
+            else:
+                current += c
+            i += 1
+        if current.strip():
+            parts.append(current.strip())
+
+        # 二次合并：element_bbox=x,y,w,h 格式，4个整数用逗号分隔
+        # 合并策略：如果某个 part 只有数字（含负号），且前一个 part 是 element_bbox，
+        # 则将其视为 bbox 的一部分合并回来
+        merged_parts = []
+        skip_count = 0
+        for idx, part in enumerate(parts):
+            if skip_count > 0:
+                skip_count -= 1
+                continue
+            # 检查是否是 element_bbox 且后面跟数字（x,y,w,h 格式）
+            if part.startswith("element_bbox=") and idx + 3 < len(parts):
+                # 检查后续3个部分是否都是数字（bbox 的 y, w, h）
+                following = parts[idx + 1:idx + 4]
+                if all(p.strip().lstrip('-').isdigit() for p in following):
+                    # 合并为 element_bbox=x,y,w,h
+                    merged = ",".join([part] + following)
+                    merged_parts.append(merged)
+                    skip_count = 3
+                    continue
+            merged_parts.append(part)
+
+        for part in merged_parts:
+            if '=' not in part:
+                continue
+            # 找第一个 = 的位置（value 中不应有 =）
+            eq_idx = part.index('=')
+            key = part[:eq_idx].strip()
+            value = part[eq_idx + 1:].strip()
+            result[key] = value
+
+        return result
+
     def _execute_element_action(self, value: str, locator: str, element_name: str):
         """检查数据表值是否为 UI 动作关键字，是则执行对应操作。
 
@@ -794,15 +867,128 @@ class KeywordEngine:
         return self.driver.screenshot(path)
 
     def _kw_assert(self, params: Dict) -> bool:
-        """断言（保留兼容）"""
-        locator = params.get("locator", "") or params.get("data", "")
-        expected = params.get("expected", "")
-        logger.info(f"断言: {locator} 包含 '{expected}'")
-        result = self.driver.assert_element(locator, expected)
+        """图片/视频视觉断言
+
+        支持两种数据格式：
+        1. 直接格式（assert 关键字直接携带参数）:
+           assert[type=image,reference=img/expected_modal.png,threshold=0.85]
+
+        2. 数据引用格式（通过数据表间接引用）:
+           assert[type=image,reference=img/expected_modal.png,threshold=0.85,scope=full,wait=5]
+
+        参数说明（type=image）:
+        - type: 断言类型，固定为 image（未来支持 video）
+        - reference: 预期图片路径（相对于 images/assert/ 或绝对路径）
+        - threshold: 匹配度阈值，默认 0.8
+        - scope: 断言范围，full（全屏）或 element（元素区域），默认 full
+        - wait: 等待秒数，0=立即断言，>0=轮询等待，默认 0
+        - element_bbox: 元素区域，scope=element 时格式 x,y,w,h
+        """
+        # 1. 获取断言参数字符串
+        raw_data = params.get("data", "") or params.get("assert_params", "")
+        if not raw_data:
+            raise InvalidParameterError(
+                keyword="assert",
+                param_name="data",
+                reason="assert 缺少参数，格式: assert[type=image,reference=...,threshold=...]"
+            )
+
+        # 2. 解析参数字符串
+        inner = raw_data.strip()
+        if inner.startswith("assert[") and inner.endswith("]"):
+            inner = inner[7:-1]  # 去掉 assert[...] 包装
+
+        parsed = self._parse_kv_args(inner)
+
+        # 3. 提取参数
+        assert_type = parsed.get("type", "image")
+        if assert_type != "image":
+            raise InvalidParameterError(
+                keyword="assert",
+                param_name="type",
+                reason=f"暂不支持的断言类型: {assert_type}，目前仅支持 type=image"
+            )
+
+        reference = parsed.get("reference", "")
+        if not reference:
+            raise InvalidParameterError(
+                keyword="assert",
+                param_name="reference",
+                reason="assert[type=image] 缺少必需参数: reference"
+            )
+
+        threshold = float(parsed.get("threshold", "0.8"))
+        scope = parsed.get("scope", "full")
+        wait = int(parsed.get("wait", "0"))
+        element_bbox_str = parsed.get("element_bbox", "")
+
+        # 解析 element_bbox
+        element_bbox = None
+        if scope == "element" and element_bbox_str:
+            parts = element_bbox_str.split(",")
+            if len(parts) == 4:
+                element_bbox = {
+                    "x": int(parts[0].strip()),
+                    "y": int(parts[1].strip()),
+                    "w": int(parts[2].strip()),
+                    "h": int(parts[3].strip()),
+                }
+
+        # 4. 解析 reference 路径
+        module_dir = self._module_dir or (
+            self._case_file.parent.parent if self._case_file else None
+        )
+        if module_dir is None:
+            raise DriverError(
+                "assert 需要知道模块目录（module_dir）以定位 images/assert/ 目录"
+            )
+        module_dir = Path(module_dir)
+
+        ref_path = ImageMatcher.resolve_reference_path(Path(reference), module_dir)
+        if not ref_path.exists():
+            raise FileNotFoundError(f"预期图片不存在: {ref_path}")
+
+        # 5. 截图
+        logger.info(
+            f"视觉断言: type={assert_type}, reference={reference}, "
+            f"threshold={threshold}, scope={scope}, wait={wait}"
+        )
+        screenshot = self.driver.screenshot()
+        if screenshot is None:
+            raise DriverError("截图失败，无法执行视觉断言")
+
+        # 6. 执行匹配
+        matcher = ImageMatcher()
+        result = matcher.match(
+            screenshot=screenshot,
+            reference=ref_path,
+            threshold=threshold,
+            scope=scope,
+            wait=wait,
+            element_bbox=element_bbox,
+        )
+
+        # 7. 注入截图路径（用于调试）
+        result["screenshot"] = None  # 截图是内存数据，不写路径
+
+        # 8. 失败时保存截图
+        if not result["matched"]:
+            saved_path = ImageMatcher.save_failure_screenshot(
+                screenshot,
+                Path(reference).name,
+                failures_dir=module_dir / "images" / "assert" / "failures",
+            )
+            result["failure_screenshot"] = saved_path
+            logger.warning(
+                f"图片断言失败: similarity={result['similarity']} < "
+                f"threshold={threshold}, reference={reference}"
+            )
+            if saved_path:
+                logger.info(f"失败截图已保存: {saved_path}")
+
+        # 9. 存储结果并返回
         self.store_return(result)
-        if not result:
-            logger.warning("断言失败")
-        return result
+        return result["matched"]
 
     def _kw_verify(self, params: Dict) -> bool:
         """验证 - 与 type 对称的批量验证关键字
