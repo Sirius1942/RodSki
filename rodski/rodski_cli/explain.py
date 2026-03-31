@@ -20,6 +20,16 @@ def setup_parser(subparsers):
         "--data-dir",
         help="数据文件目录 (data/)，不指定则自动推断",
     )
+    parser.add_argument(
+        "--format", "-f",
+        choices=["text", "markdown", "html"],
+        default="text",
+        help="输出格式 (默认: text)",
+    )
+    parser.add_argument(
+        "--output", "-o",
+        help="输出文件路径，不指定则输出到标准输出",
+    )
 
 
 def _resolve_module_dir(case_path: Path) -> Path:
@@ -101,12 +111,19 @@ def handle(args):
     print("-" * 60)
 
     try:
-        output = explainer.explain_case(str(case_path))
-        print(output)
+        output = explainer.explain_case(str(case_path), format=args.format)
     except Exception as e:
         print(f"错误: 解析失败: {e}", file=sys.stderr)
         import traceback
         traceback.print_exc()
         return 1
+
+    # 输出到文件或标准输出
+    if args.output:
+        output_path = Path(args.output)
+        output_path.write_text(output, encoding="utf-8")
+        print(f"[explain] 已输出到: {output_path}")
+    else:
+        print(output)
 
     return 0

@@ -44,36 +44,6 @@ class TestCaseExplainer:
 
     # ── 公共 API ─────────────────────────────────────────────────
 
-    def explain_case(self, case_xml_path: str) -> str:
-        """对单个测试用例文件生成人类可读说明
-
-        Args:
-            case_xml_path: case XML 文件路径
-
-        Returns:
-            格式化的可读文本
-        """
-        path = Path(case_xml_path)
-        if not path.exists():
-            return f"错误: 文件不存在 → {case_xml_path}"
-
-        try:
-            validator = RodskiXmlValidator()
-            validator.validate_file(path, validator.KIND_CASE)
-        except Exception:
-            pass  # 允许未注册文件，尝试直接解析
-
-        cases = self._parse_cases(path)
-        if not cases:
-            return f"警告: 未找到任何启用的用例 → {case_xml_path}"
-
-        lines = []
-        for case in cases:
-            lines.append(self._explain_case_struct(case))
-            lines.append("")  # 空行分隔
-
-        return "\n".join(lines).rstrip()
-
     def explain_steps(self, steps: List[Dict[str, str]], phase: str = "test_case") -> str:
         """对步骤列表生成说明（无需解析文件）"""
         if not steps:
@@ -661,3 +631,402 @@ class TestCaseExplainer:
         if len(value) < 30 and not value.startswith(('http', '/', '.')):
             return f'"{value}"'
         return f'"{value}"'
+
+    # ── 格式化器 ─────────────────────────────────────────────────
+
+    def explain_case(self, case_xml_path: str, format: str = "text") -> str:
+        """对单个测试用例文件生成人类可读说明
+
+        Args:
+            case_xml_path: case XML 文件路径
+            format: 输出格式 (text/markdown/html)
+
+        Returns:
+            格式化的可读文本
+        """
+        path = Path(case_xml_path)
+        if not path.exists():
+            return f"错误: 文件不存在 → {case_xml_path}"
+
+        try:
+            validator = RodskiXmlValidator()
+            validator.validate_file(path, validator.KIND_CASE)
+        except Exception:
+            pass  # 允许未注册文件，尝试直接解析
+
+        structured_cases = self._parse_cases_structured(path)
+        if not structured_cases:
+            return f"警告: 未找到任何启用的用例 → {case_xml_path}"
+
+        formatter_map = {
+            "text": TextFormatter(self),
+            "markdown": MarkdownFormatter(self),
+            "html": HtmlFormatter(self),
+        }
+        formatter = formatter_map.get(format, formatter_map["text"])
+
+        outputs = []
+        for case in structured_cases:
+            outputs.append(formatter.format_case(case))
+
+        return "\n".join(outputs).rstrip()
+
+    # ── 解析为结构化数据 ──────────────────────────────────────────
+
+    def _parse_cases_structured(self, xml_path: Path) -> List[Dict[str, Any]]:
+        """解析用例文件，返回结构化数据列表"""
+        try:
+            tree = ET.parse(xml_path)
+        except ET.ParseError:
+            return []
+        root = tree.getroot()
+        cases = []
+        for case_node in root.findall('case'):
+            execute = case_node.get('execute', '否').strip()
+            if execute != '是':
+                continue
+
+            case_id = case_node.get('id', '')
+            title = case_node.get('title', '')
+            description = case_node.get('description', '')
+            priority = case_node.get('priority', '')
+            component_type = case_node.get('component_type', '')
+
+            # 解析 metadata 中的标签
+            tags = []
+            metadata_node = case_node.find('metadata')
+            if metadata_node is not None:
+                for tag_node in metadata_node.findall('tag'):
+                    tag_text = (tag_node.text or '').strip()
+                    if tag_text:
+                        tags.append(tag_text)
+
+            # 解析所有步骤（带时长推断）
+            all_steps = []
+            for phase_key in ('pre_process', 'test_case', 'post_process'):
+                phase_steps = self._parse_steps_structured(case_node.find(phase_key))
+                for step in phase_steps:
+                    step['_phase'] = phase_key
+                all_steps.extend(phase_steps)
+
+            # 从 verify 步骤推断预期结果
+            expected_results = []
+            for step in all_steps:
+                if step['action'] == 'verify' and step.get('data'):
+                    expected_results.append(step['data'])
+                elif step['action'] == 'verify' and step.get('model'):
+                    # 批量验证
+                    expected_results.append(f"验证 {step['model']}/{step['data']}")
+
+            cases.append({
+                'case_id': case_id,
+                'title': title,
+                'purpose': description,
+                'priority': priority,
+                'tags': tags,
+                'component_type': component_type,
+                'steps': all_steps,
+                'expected_results': expected_results,
+            })
+        return cases
+
+    def _parse_steps_structured(self, phase_node) -> List[Dict[str, Any]]:
+        """解析阶段节点下的步骤，返回结构化步骤列表"""
+        if phase_node is None:
+            return []
+        raw_steps = []
+        for el in phase_node.findall('test_step'):
+            action = str(el.get('action', '') or '').strip()
+            if not action:
+                continue
+            raw_steps.append({
+                'action': action,
+                'model': str(el.get('model', '') or '').strip(),
+                'data': str(el.get('data', '') or '').strip(),
+            })
+
+        # 推断每步时长（wait 紧跟的步骤吸收其时长，但 wait 步骤保留自身显示）
+        steps = []
+        i = 0
+        while i < len(raw_steps):
+            step = raw_steps[i]
+            duration = None
+            # 如果下一步是 wait，吸收其时长
+            if i + 1 < len(raw_steps) and raw_steps[i + 1]['action'] == 'wait':
+                duration = raw_steps[i + 1].get('data', '')
+                i += 2  # 跳过 wait（wait 步骤会被单独处理）
+            elif step['action'] == 'wait':
+                # 独立的 wait 步骤，保留
+                steps.append({
+                    'action': 'wait',
+                    'model': '',
+                    'data': step.get('data', ''),
+                    'duration': step.get('data', ''),
+                })
+                i += 1
+                continue
+            else:
+                i += 1
+
+            steps.append({
+                'action': step['action'],
+                'model': step.get('model', ''),
+                'data': step.get('data', ''),
+                'duration': duration,
+            })
+        return steps
+
+    # URL → 描述映射（部分匹配）
+    _URL_HINTS = {
+        'passport/login': '登录页面',
+        'login': '登录页面',
+        'market/portal': '市场门户页',
+        'market/inquirys': '询价列表页',
+        'inquirys': '询价列表页',
+        'agentbuy': '采购页面',
+        'agentbuy/': '采购页面',
+        'inquiry': '询价页面',
+        '/inquiry': '询价页面',
+    }
+
+    def _url_to_desc(self, url: str) -> str:
+        """从 URL 推断页面描述"""
+        if not url:
+            return '指定页面'
+        url_lower = url.lower()
+        for hint, desc in self._URL_HINTS.items():
+            if hint in url_lower:
+                return desc
+        # 去掉 https:// 和路径，清理末尾斜杠
+        path = url_lower.split('://')[-1].rstrip('/')
+        # 取最后一段路径
+        segments = path.split('/')
+        last = segments[-1] if segments else path
+        if last and last not in ('http', 'https'):
+            return last
+        return path
+
+    def _step_description(self, step: Dict[str, Any]) -> str:
+        """生成单步的人类可读描述"""
+        action = step['action']
+        model = step.get('model', '')
+        data = step.get('data', '')
+
+        if action == 'navigate':
+            return f"打开{self._url_to_desc(data)}"
+        elif action == 'wait':
+            return f"等待 {data}s"
+        elif action == 'type' and model and data:
+            return f"输入内容"
+        elif action == 'type' and model:
+            return f"输入内容到 {model}"
+        elif action == 'type':
+            return f"输入内容"
+        elif action == 'click' and model:
+            return f"点击 {model}"
+        elif action == 'click':
+            return f"点击"
+        elif action == 'verify' and model and data:
+            return f"验证 {model}/{data}"
+        elif action == 'verify' and data:
+            return f"验证包含 '{data}'"
+        elif action == 'verify':
+            return f"验证"
+        elif action == 'screenshot':
+            return f"截图记录"
+        elif action == 'close':
+            return f"关闭页面"
+        elif action == 'clear':
+            return f"清空 {model or data}"
+        elif action == 'launch':
+            return f"启动应用"
+        elif action == 'get_text':
+            return f"获取文本 {model or data}"
+        elif action == 'upload_file':
+            return f"上传文件"
+        elif action == 'assert':
+            return f"断言 {data}"
+        elif action == 'db':
+            return f"数据库操作"
+        elif action == 'run':
+            return f"运行脚本"
+        elif action == 'send':
+            return f"发送请求"
+        elif action == 'set':
+            return f"设置变量"
+        elif action == 'verify_image':
+            return f"AI 截图验证"
+        elif action == 'if':
+            return f"条件判断"
+        elif action == 'loop':
+            return f"循环 {data}次"
+        else:
+            parts = []
+            if model:
+                parts.append(model)
+            if data:
+                parts.append(data)
+            hint = " ".join(parts) if parts else action
+            return hint
+
+
+# ══════════════════════════════════════════════════════════════════
+#  格式化器
+# ══════════════════════════════════════════════════════════════════
+
+
+class TextFormatter:
+    """纯文本格式化器"""
+
+    def __init__(self, explainer: TestCaseExplainer):
+        self.explainer = explainer
+
+    def format_case(self, case: Dict[str, Any]) -> str:
+        lines = []
+        # 用例头
+        lines.append(f"用例：{case['title']}")
+        lines.append(f"ID：{case['case_id']}")
+        if case.get('priority'):
+            lines.append(f"优先级：{case['priority']}")
+        if case.get('tags'):
+            lines.append(f"标签：{', '.join(case['tags'])}")
+
+        # 显示全部步骤（pre_process + test_case + post_process 合并）
+        all_steps = case['steps']
+
+        if all_steps:
+            lines.append("")
+            lines.append("测试步骤：")
+            for i, step in enumerate(all_steps, 1):
+                desc = self.explainer._step_description(step)
+                duration = step.get('duration', '')
+                suffix = f" ({duration}s)" if duration else ""
+                model = step.get('model', '')
+                data = step.get('data', '')
+                # 带模型/数据信息的简明格式: - ModelName/DataID
+                if model and data:
+                    extra = f" - {model}/{data}"
+                elif model:
+                    extra = f" - {model}"
+                else:
+                    extra = ""
+                lines.append(f"  步骤 {i}: {desc}{extra}{suffix}")
+
+        # 预期结果
+        if case.get('expected_results'):
+            lines.append("")
+            lines.append("预期结果：")
+            for result in case['expected_results']:
+                lines.append(f"  ✓ {result}")
+
+        return "\n".join(lines)
+
+
+class MarkdownFormatter:
+    """Markdown 格式化器"""
+
+    def __init__(self, explainer: TestCaseExplainer):
+        self.explainer = explainer
+
+    def format_case(self, case: Dict[str, Any]) -> str:
+        lines = []
+        lines.append(f"# {case['title']}")
+        lines.append("")
+        lines.append(f"**用例 ID**: `{case['case_id']}`")
+        if case.get('purpose'):
+            lines.append(f"**目的**: {case['purpose']}")
+        if case.get('priority'):
+            lines.append(f"**优先级**: {case['priority']}")
+        if case.get('tags'):
+            lines.append(f"**标签**: {' | '.join(case['tags'])}")
+
+        # 显示全部步骤
+        all_steps = case['steps']
+
+        if all_steps:
+            lines.append("")
+            lines.append("## 测试步骤")
+            lines.append("")
+            lines.append("| 步骤 | 操作 | 模型 | 数据 | 耗时 |")
+            lines.append("|------|------|------|------|------|")
+            for i, step in enumerate(all_steps, 1):
+                action = step['action']
+                model = step.get('model', '—')
+                data = step.get('data', '—')
+                duration = step.get('duration') or '—'
+                if duration not in ('—', 'None', ''):
+                    duration = f"{duration}s"
+                desc = self.explainer._step_description(step)
+                lines.append(f"| {i} | {desc} | {model} | {data} | {duration} |")
+
+        if case.get('expected_results'):
+            lines.append("")
+            lines.append("## 预期结果")
+            for result in case['expected_results']:
+                lines.append(f"- [x] {result}")
+
+        return "\n".join(lines)
+
+
+class HtmlFormatter:
+    """HTML 格式化器"""
+
+    def __init__(self, explainer: TestCaseExplainer):
+        self.explainer = explainer
+
+    def format_case(self, case: Dict[str, Any]) -> str:
+        lines = []
+        lines.append('<div class="test-case">')
+        lines.append('  <div class="case-header">')
+        lines.append(f'    <h2>{self._escape_html(case["title"])}</h2>')
+        lines.append(f'    <span class="case-id">{self._escape_html(case["case_id"])}</span>')
+        if case.get('priority'):
+            lines.append(f'    <span class="priority priority-{case["priority"].lower()}">{case["priority"]}</span>')
+        lines.append('  </div>')
+
+        if case.get('tags'):
+            lines.append('  <div class="tags">')
+            for tag in case['tags']:
+                lines.append(f'    <span class="tag">{self._escape_html(tag)}</span>')
+            lines.append('  </div>')
+
+        # 显示全部步骤
+        all_steps = case['steps']
+
+        if all_steps:
+            lines.append('  <div class="steps">')
+            lines.append('    <h3>测试步骤</h3>')
+            lines.append('    <ol>')
+            for i, step in enumerate(all_steps, 1):
+                desc = self.explainer._step_description(step)
+                duration = step.get('duration', '')
+                suffix = f' <span class="duration">({duration}s)</span>' if duration else ''
+                model = step.get('model', '')
+                data = step.get('data', '')
+                extra = ''
+                if model and data:
+                    extra = f' <span class="model-data">{model}/{data}</span>'
+                elif model:
+                    extra = f' <span class="model-data">{model}</span>'
+                lines.append(f'      <li>{self._escape_html(desc)}{extra}{suffix}</li>')
+            lines.append('    </ol>')
+            lines.append('  </div>')
+
+        if case.get('expected_results'):
+            lines.append('  <div class="expected-results">')
+            lines.append('    <h3>预期结果</h3>')
+            lines.append('    <ul>')
+            for result in case['expected_results']:
+                lines.append(f'      <li class="pass">✓ {self._escape_html(result)}</li>')
+            lines.append('    </ul>')
+            lines.append('  </div>')
+
+        lines.append('</div>')
+        return "\n".join(lines)
+
+    def _escape_html(self, text: str) -> str:
+        return (text
+                .replace('&', '&amp;')
+                .replace('<', '&lt;')
+                .replace('>', '&gt;')
+                .replace('"', '&quot;'))
