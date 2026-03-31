@@ -1,7 +1,9 @@
 """assertion 模块单元测试 - 图片匹配器"""
 import os
 import sys
+import time
 import cv2
+import unittest.mock
 import numpy as np
 from pathlib import Path
 
@@ -205,6 +207,246 @@ class TestImageMatcher:
         required_keys = ["matched", "similarity", "threshold", "screenshot", "reference", "location"]
         for key in required_keys:
             assert key in result, f"结果缺少字段: {key}"
+
+    # ── Phase 2 测试用例 ────────────────────────────────────────
+
+    def test_match_scope_element(self):
+        """scope=element 应仅在指定元素区域内匹配"""
+        # 创建 300x200 大图，中心有个绿色方块
+        screenshot = create_test_image(300, 200, (100, 100, 100))
+        screenshot[85:115, 140:160] = (0, 255, 0)  # 绿色方块
+
+        # 预期图片就是这个绿色方块
+        reference = np.zeros((30, 20, 3), dtype=np.uint8)
+        reference[:] = (0, 255, 0)
+        ref_path = save_temp_image(reference, "element_ref.png")
+
+        # scope=element，定位到绿色方块所在区域
+        element_bbox = {"x": 140, "y": 85, "w": 20, "h": 30}
+        result = self.matcher.match(
+            screenshot, Path(ref_path),
+            threshold=0.5,
+            scope="element",
+            element_bbox=element_bbox,
+        )
+
+        assert result["matched"] is True
+        assert result["location"]["w"] == 20
+        assert result["location"]["h"] == 30
+
+    def test_match_scope_element_without_bbox_raises(self):
+        """scope=element 但未提供 element_bbox 应抛出 ValueError"""
+        img = create_test_image(200, 100, (50, 100, 200))
+        ref_path = save_temp_image(img, "test.png")
+
+        try:
+            self.matcher.match(img, Path(ref_path), threshold=0.8, scope="element")
+            assert False, "应该抛出 ValueError"
+        except ValueError as e:
+            assert "element_bbox" in str(e)
+
+    def test_match_scope_invalid_raises(self):
+        """无效的 scope 值应抛出 ValueError"""
+        img = create_test_image(100, 100, (55, 55, 55))
+        ref_path = save_temp_image(img, "test.png")
+
+        try:
+            self.matcher.match(img, Path(ref_path), threshold=0.8, scope="invalid")
+            assert False, "应该抛出 ValueError"
+        except ValueError as e:
+            assert "full" in str(e) and "element" in str(e)
+
+    def test_match_wait_immediate_success(self):
+        """wait=0 应立即返回结果（立即断言）"""
+        img = create_test_image(200, 100, (50, 100, 200))
+        ref_path = save_temp_image(img, "wait_immediate.png")
+
+        result = self.matcher.match(img, Path(ref_path), threshold=0.8, wait=0)
+
+        assert result["matched"] is True
+        assert result["wait_attempts"] == 1
+        # 首次即成功，first_match_time 可能为 0.0 或 None
+        assert result["first_match_time"] is None or result["first_match_time"] == 0.0
+
+    def test_match_wait_polling_on_failure(self):
+        """wait>0 时，首次失败后应轮询重试"""
+        img = create_test_image(200, 100, (50, 100, 200))
+        ref_path = save_temp_image(img, "wait_fail.png")
+
+        # Mock _template_match 始终返回低相似度，模拟始终匹配失败
+        original_template_match = self.matcher._template_match
+        self.matcher._template_match = lambda scr, ref: (0.3, None)
+
+        sleep_calls = []
+        original_sleep = time.sleep
+        def tracked_sleep(delay):
+            sleep_calls.append(delay)
+        time.sleep = tracked_sleep
+
+        try:
+            result = self.matcher.match(
+                img, Path(ref_path),
+                threshold=0.8,
+                wait=2,  # 2 秒超时
+                poll_interval=0.5,
+            )
+        finally:
+            time.sleep = original_sleep
+            self.matcher._template_match = original_template_match
+
+        assert result["matched"] is False
+        assert result["wait_attempts"] >= 2  # 至少重试一次
+        # 验证轮询间隔
+        for delay in sleep_calls:
+            assert delay == 0.5
+
+    def test_match_wait_success_on_retry(self):
+        """wait>0 时，如果最终匹配成功应返回成功并记录首次匹配时间"""
+        # 创建一个带随机性的测试场景
+        # 第一次调用 _template_match 返回低相似度，后续返回高相似度
+        import unittest.mock as mock
+
+        img = create_test_image(200, 100, (50, 100, 200))
+        ref_path = save_temp_image(img, "wait_retry.png")
+
+        call_count = [0]
+
+        original_template_match = self.matcher._template_match
+
+        def flaky_template_match(scr, ref):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                # 第一次失败
+                return 0.3, None
+            return original_template_match(scr, ref)
+
+        self.matcher._template_match = flaky_template_match
+
+        try:
+            result = self.matcher.match(
+                img, Path(ref_path),
+                threshold=0.8,
+                wait=3,
+                poll_interval=0.3,
+            )
+        finally:
+            self.matcher._template_match = original_template_match
+
+        assert result["matched"] is True
+        assert result["wait_attempts"] == 2
+        assert result["first_match_time"] is not None
+        assert result["first_match_time"] > 0
+
+    def test_match_wait_timeout_returns_failure(self):
+        """wait>0 时，超时后应返回失败结果"""
+        img = create_test_image(200, 100, (50, 100, 200))
+        ref_path = save_temp_image(img, "wait_timeout.png")
+
+        # Mock _template_match 始终返回低相似度
+        original_template_match = self.matcher._template_match
+        self.matcher._template_match = lambda scr, ref: (0.3, None)
+
+        try:
+            result = self.matcher.match(
+                img, Path(ref_path),
+                threshold=0.8,
+                wait=1,  # 1 秒超时
+                poll_interval=0.2,
+            )
+        finally:
+            self.matcher._template_match = original_template_match
+
+        assert result["matched"] is False
+        assert result["first_match_time"] is None
+        assert result["wait_attempts"] >= 2  # 至少有几次重试
+
+    def test_save_failure_screenshot(self):
+        """匹配失败时应保存截图到 failures 目录"""
+        # 创建两个结构完全不同的图片
+        ui1 = np.full((200, 300, 3), (240, 240, 240), dtype=np.uint8)
+        ui1[0:40, :] = (30, 30, 30)
+        ui1[40:200, 0:60] = (220, 220, 220)
+        ui1[40:200, 60:300] = (255, 255, 255)
+
+        ui2 = np.full((200, 300, 3), (200, 200, 200), dtype=np.uint8)
+        ui2[0:30, :] = (0, 0, 128)
+        ui2[30:200, :] = (255, 255, 255)
+        ui2[50:100, 100:280] = (255, 0, 0)
+
+        ref_path = save_temp_image(ui2, "fail_ref.png")
+
+        result = self.matcher.match(ui1, Path(ref_path), threshold=0.95)
+
+        assert result["matched"] is False
+
+        # 验证截图保存
+        failures_dir = Path("/tmp/rodski_assertion_test/failures")
+        saved_path = ImageMatcher.save_failure_screenshot(
+            ui1, "fail_ref.png", failures_dir=failures_dir
+        )
+
+        assert saved_path is not None
+        assert Path(saved_path).exists()
+        assert "fail_ref" in saved_path
+        assert saved_path.endswith(".png")
+
+    def test_save_failure_screenshot_creates_dir(self):
+        """save_failure_screenshot 应自动创建目录"""
+        screenshot = create_test_image(100, 100, (50, 50, 50))
+        failures_dir = Path("/tmp/rodski_assertion_test/failures_auto_create/subdir")
+        # 清理可能存在的目录
+        import shutil
+        parent = failures_dir.parent
+        if parent.exists():
+            shutil.rmtree(parent)
+        assert not failures_dir.exists()
+
+        saved_path = ImageMatcher.save_failure_screenshot(
+            screenshot, "test.png", failures_dir=failures_dir
+        )
+
+        assert saved_path is not None
+        assert failures_dir.exists()
+
+    def test_result_structure_with_phase2_fields(self):
+        """Phase2 结果字典应包含新字段"""
+        img = create_test_image(100, 100, (55, 55, 55))
+        ref_path = save_temp_image(img, "phase2_struct.png")
+
+        result = self.matcher.match(img, Path(ref_path), threshold=0.8, wait=0)
+
+        required_keys = [
+            "matched", "similarity", "threshold",
+            "screenshot", "reference", "location",
+            "wait_attempts", "first_match_time",
+        ]
+        for key in required_keys:
+            assert key in result, f"结果缺少字段: {key}"
+
+    def test_crop_element_region_exact(self):
+        """_crop_element_region 应正确裁剪指定区域"""
+        screenshot = np.zeros((200, 300, 3), dtype=np.uint8)
+        screenshot[50:100, 100:200] = (255, 0, 0)  # 红色区域
+
+        cropped = self.matcher._crop_element_region(
+            screenshot, {"x": 100, "y": 50, "w": 100, "h": 50}
+        )
+
+        assert cropped.shape == (50, 100, 3)
+        # 验证裁剪的是红色区域
+        assert cropped[0, 0].tolist() == [255, 0, 0]
+
+    def test_crop_element_region_clips_to_bounds(self):
+        """_crop_element_region 超出边界时应裁剪到有效区域"""
+        screenshot = np.zeros((100, 100, 3), dtype=np.uint8)
+
+        # 请求超出边界的区域
+        cropped = self.matcher._crop_element_region(
+            screenshot, {"x": 90, "y": 90, "w": 50, "h": 50}
+        )
+
+        # 应该裁剪到 (90,90) 到 (100,100) 的 10x10 区域
+        assert cropped.shape == (10, 10, 3)
 
 
 class TestBaseAssertion:

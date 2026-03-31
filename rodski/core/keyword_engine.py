@@ -831,7 +831,16 @@ class KeywordEngine:
         )
 
     def _kw_assert_image(self, args: Dict, params: Dict) -> bool:
-        """执行图片断言"""
+        """执行图片断言
+
+        支持参数:
+            reference: 预期图片路径
+            threshold: 匹配度阈值 0.0~1.0
+            scope: full（全屏截图，默认）或 element（指定元素区域）
+            wait: 等待秒数，0=立即断言，>0=轮询等待
+            element_locator: scope=element 时使用，格式同 locate_element，如 "id=btn"
+            poll_interval: 轮询间隔（秒），默认 0.5
+        """
         from core.assertion import ImageMatcher
 
         # 解析参数
@@ -849,19 +858,15 @@ class KeywordEngine:
                 reason=f"threshold 必须在 0.0~1.0 范围内，实际为 {threshold}"
             )
 
-        # scope=element 暂不支持（Phase2）
         scope = args.get("scope", "full")
-        if scope not in ("full",):
-            logger.warning(
-                f"assert[type=image] scope={scope} 仅支持 full，Phase2 将支持 element"
+        if scope not in ("full", "element"):
+            raise InvalidParameterError(
+                keyword="assert", param_name="scope",
+                reason=f"scope 必须是 'full' 或 'element'，实际为 '{scope}'"
             )
 
-        # wait 参数暂不支持（Phase2）
         wait_seconds = int(args.get("wait", 0))
-        if wait_seconds > 0:
-            logger.warning(
-                f"assert[type=image] wait={wait_seconds}s 暂不支持，将在 Phase2 实现"
-            )
+        poll_interval = float(args.get("poll_interval", 0.5))
 
         # 确保驱动可用
         self._ensure_driver()
@@ -895,23 +900,60 @@ class KeywordEngine:
         if screenshot_img is None:
             raise DriverError(f"assert 无法读取截图: {screenshot_path}")
 
+        # 获取元素 bbox（scope=element 时需要）
+        element_bbox = None
+        if scope == "element":
+            element_locator = args.get("element_locator", "")
+            if not element_locator:
+                raise InvalidParameterError(
+                    keyword="assert", param_name="element_locator",
+                    reason="scope=element 需要提供 element_locator 参数，格式如 'id=btn'"
+                )
+            # 解析定位器
+            if "=" not in element_locator:
+                raise InvalidParameterError(
+                    keyword="assert", param_name="element_locator",
+                    reason=f"element_locator 格式错误，应为 'type=value'，实际为 '{element_locator}'"
+                )
+            loc_type, loc_value = element_locator.split("=", 1)
+            bbox = self.driver.locate_element(loc_type.strip(), loc_value.strip())
+            if not bbox:
+                raise ElementNotFoundError(
+                    keyword="assert", locator=element_locator,
+                    reason=f"scope=element 无法定位元素: {element_locator}"
+                )
+            element_bbox = bbox
+            logger.info(f"元素定位成功: {element_locator} -> {bbox}")
+
         # 执行图片匹配
         matcher = ImageMatcher()
-        result = matcher.match(screenshot_img, full_ref_path, threshold=threshold)
+        result = matcher.match(
+            screenshot_img,
+            full_ref_path,
+            threshold=threshold,
+            scope=scope,
+            wait=wait_seconds,
+            element_bbox=element_bbox,
+            poll_interval=poll_interval,
+        )
         result["screenshot"] = screenshot_path
 
         self.store_return(result)
 
         if not result["matched"]:
+            # 匹配失败：保存失败截图
+            ImageMatcher.save_failure_screenshot(screenshot_img, reference)
             logger.warning(
                 f"assert[type=image] 匹配失败: similarity={result['similarity']} "
-                f"< threshold={threshold}, reference={reference}"
+                f"< threshold={threshold}, reference={reference}, "
+                f"wait_attempts={result['wait_attempts']}"
             )
             return False
 
         logger.info(
             f"assert[type=image] 匹配成功: similarity={result['similarity']}, "
-            f"reference={reference}"
+            f"reference={reference}, wait_attempts={result['wait_attempts']}"
+            + (f", first_match_time={result['first_match_time']}s" if result.get("first_match_time") else "")
         )
         return True
 
