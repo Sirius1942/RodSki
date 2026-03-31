@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试报告 - RodSki Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar">
+        <div class="navbar-brand">
+            <div class="logo-icon">🚗</div>
+            <span class="brand-text">RodSki</span>
+            <span class="brand-sub">Dashboard</span>
+        </div>
+        <div class="navbar-menu">
+            <a href="index.html" class="nav-item">首页</a>
+            <a href="cases.html" class="nav-item">用例</a>
+            <a href="models.html" class="nav-item">模型</a>
+            <a href="data.html" class="nav-item">数据</a>
+            <a href="results.html" class="nav-item active">结果</a>
+        </div>
+        <div class="navbar-actions">
+            <button class="btn btn-sm btn-secondary">📤 导出PDF</button>
+            <button class="btn btn-sm btn-secondary">📤 导出HTML</button>
+        </div>
+    </nav>
+
+    <!-- 主内容 -->
+    <main class="main-content">
+        <!-- 报告头部 -->
+        <div class="report-header">
+            <div class="report-title-section">
+                <h1 class="report-title">🎮 RodSki 测试报告</h1>
+                <p class="report-subtitle">cassmall-beta 自动化测试执行报告</p>
+            </div>
+            <div class="report-meta">
+                <div class="meta-card">
+                    <span class="meta-icon">📅</span>
+                    <div class="meta-content">
+                        <span class="meta-label">执行时间</span>
+                        <span class="meta-value">2026-03-31 16:00:00</span>
+                    </div>
+                </div>
+                <div class="meta-card">
+                    <span class="meta-icon">⏱️</span>
+                    <div class="meta-content">
+                        <span class="meta-label">执行耗时</span>
+                        <span class="meta-value">2分35秒</span>
+                    </div>
+                </div>
+                <div class="meta-card">
+                    <span class="meta-icon">🔢</span>
+                    <div class="meta-content">
+                        <span class="meta-label">执行编号</span>
+                        <span class="meta-value">RUN_20260331_001</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 核心指标 -->
+        <div class="report-kpi-section">
+            <div class="kpi-cards">
+                <div class="kpi-card kpi-main">
+                    <div class="kpi-star">⭐</div>
+                    <div class="kpi-value">95.1%</div>
+                    <div class="kpi-label">综合通过率</div>
+                    <div class="kpi-trend">较上次 +2.3%</div>
+                </div>
+                <div class="kpi-card kpi-success">
+                    <div class="kpi-icon">✅</div>
+                    <div class="kpi-value">156</div>
+                    <div class="kpi-label">通过用例</div>
+                </div>
+                <div class="kpi-card kpi-danger">
+                    <div class="kpi-icon">❌</div>
+                    <div class="kpi-value">8</div>
+                    <div class="kpi-label">失败用例</div>
+                </div>
+                <div class="kpi-card kpi-info">
+                    <div class="kpi-icon">📊</div>
+                    <div class="kpi-value">169</div>
+                    <div class="kpi-label">总用例数</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 图表区域 -->
+        <div class="report-charts">
+            <div class="chart-box">
+                <h3 class="chart-title">📊 模块通过率分布</h3>
+                <div id="moduleChart" class="chart-container"></div>
+            </div>
+            <div class="chart-box">
+                <h3 class="chart-title">🔥 失败用例分析</h3>
+                <div id="failChart" class="chart-container"></div>
+            </div>
+        </div>
+
+        <!-- 模块详情 -->
+        <div class="module-details">
+            <h2 class="section-title">📋 模块执行详情</h2>
+            
+            <div class="module-cards">
+                <div class="module-card">
+                    <div class="module-header">
+                        <div class="module-icon">🔐</div>
+                        <div class="module-info">
+                            <h4>登录模块</h4>
+                            <span class="module-path">login/</span>
+                        </div>
+                        <span class="badge badge-success">100%</span>
+                    </div>
+                    <div class="module-stats">
+                        <span>通过: 15</span>
+                        <span>失败: 0</span>
+                        <span>耗时: 45s</span>
+                    </div>
+                </div>
+
+                <div class="module-card">
+                    <div class="module-header">
+                        <div class="module-icon">📝</div>
+                        <div class="module-info">
+                            <h4>询价模块</h4>
+                            <span class="module-path">inquiry/</span>
+                        </div>
+                        <span class="badge badge-success">96.4%</span>
+                    </div>
+                    <div class="module-stats">
+                        <span>通过: 27</span>
+                        <span>失败: 1</span>
+                        <span>耗时: 2m 30s</span>
+                    </div>
+                </div>
+
+                <div class="module-card">
+                    <div class="module-header">
+                        <div class="module-icon">🛒</div>
+                        <div class="module-info">
+                            <h4>购物车模块</h4>
+                            <span class="module-path">cart/</span>
+                        </div>
+                        <span class="badge badge-success">100%</span>
+                    </div>
+                    <div class="module-stats">
+                        <span>通过: 18</span>
+                        <span>失败: 0</span>
+                        <span>耗时: 1m 20s</span>
+                    </div>
+                </div>
+
+                <div class="module-card">
+                    <div class="module-header">
+                        <div class="module-icon">📦</div>
+                        <div class="module-info">
+                            <h4>入库单模块</h4>
+                            <span class="module-path">inbound/</span>
+                        </div>
+                        <span class="badge badge-warning">85.7%</span>
+                    </div>
+                    <div class="module-stats">
+                        <span>通过: 12</span>
+                        <span>失败: 2</span>
+                        <span>耗时: 3m 45s</span>
+                    </div>
+                </div>
+
+                <div class="module-card">
+                    <div class="module-header">
+                        <div class="module-icon">🔌</div>
+                        <div class="module-info">
+                            <h4>接口测试</h4>
+                            <span class="module-path">api/</span>
+                        </div>
+                        <span class="badge badge-success">100%</span>
+                    </div>
+                    <div class="module-stats">
+                        <span>通过: 84</span>
+                        <span>失败: 0</span>
+                        <span>耗时: 45s</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 失败用例详情 -->
+        <div class="fail-cases-section">
+            <h2 class="section-title">❌ 失败用例详情</h2>
+            
+            <div class="fail-cases-list">
+                <div class="fail-case-card">
+                    <div class="fail-case-header">
+                        <span class="fail-case-id">TC_INQUIRY_003</span>
+                        <span class="badge badge-danger">FAILED</span>
+                    </div>
+                    <h4 class="fail-case-title">询价提交-无效VIN码</h4>
+                    <div class="fail-case-info">
+                        <span class="fail-time">16:05:23</span>
+                        <span class="fail-module">inquiry/</span>
+                    </div>
+                    <div class="fail-reason">
+                        <span class="fail-label">失败原因：</span>
+                        <p>元素 #vin 未找到，超时 5s</p>
+                    </div>
+                    <div class="fail-screenshot">
+                        <div class="screenshot-placeholder">📸 失败截图</div>
+                    </div>
+                </div>
+
+                <div class="fail-case-card">
+                    <div class="fail-case-header">
+                        <span class="fail-case-id">TC_INBOUND_007</span>
+                        <span class="badge badge-danger">FAILED</span>
+                    </div>
+                    <h4 class="fail-case-title">入库单创建-必填字段校验</h4>
+                    <div class="fail-case-info">
+                        <span class="fail-time">16:08:45</span>
+                        <span class="fail-module">inbound/</span>
+                    </div>
+                    <div class="fail-reason">
+                        <span class="fail-label">失败原因：</span>
+                        <p>接口返回 code=500，期望 code=0</p>
+                    </div>
+                    <div class="fail-screenshot">
+                        <div class="screenshot-placeholder">📸 失败截图</div>
+                    </div>
+                </div>
+
+                <div class="fail-case-card">
+                    <div class="fail-case-header">
+                        <span class="fail-case-id">TC_ORDER_012</span>
+                        <span class="badge badge-danger">FAILED</span>
+                    </div>
+                    <h4 class="fail-case-title">订单支付-超时模拟</h4>
+                    <div class="fail-case-info">
+                        <span class="fail-time">16:12:10</span>
+                        <span class="fail-module">order/</span>
+                    </div>
+                    <div class="fail-reason">
+                        <span class="fail-label">失败原因：</span>
+                        <p>实际支付状态"超时"，期望"成功"</p>
+                    </div>
+                    <div class="fail-screenshot">
+                        <div class="screenshot-placeholder">📸 失败截图</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 问题与建议 -->
+        <div class="suggestions-section">
+            <h2 class="section-title">💡 问题与建议</h2>
+            
+            <div class="suggestion-cards">
+                <div class="suggestion-card suggestion-warn">
+                    <div class="suggestion-icon">⚠️</div>
+                    <div class="suggestion-content">
+                        <h4>VIN输入框定位不稳定</h4>
+                        <p>TC_INQUIRY_003 失败原因是 #vin 元素定位超时，建议使用 ocr 定位作为兜底方案。</p>
+                    </div>
+                </div>
+                <div class="suggestion-card suggestion-info">
+                    <div class="suggestion-icon">💡</div>
+                    <div class="suggestion-content">
+                        <h4>入库单接口需要增加重试</h4>
+                        <p>部分入库单接口响应较慢（609ms），建议在 RodSki 中增加接口超时重试配置。</p>
+                    </div>
+                </div>
+                <div class="suggestion-card suggestion-success">
+                    <div class="suggestion-icon">✨</div>
+                    <div class="suggestion-content">
+                        <h4>接口测试表现优秀</h4>
+                        <p>62个接口测试全部通过，接口稳定性良好。建议继续保持。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 报告底部 -->
+        <div class="report-footer">
+            <div class="footer-info">
+                <span>📊 RodSki Dashboard</span>
+                <span>•</span>
+                <span>生成时间: 2026-03-31 16:30:00</span>
+                <span>•</span>
+                <span>版本: v1.2.0</span>
+            </div>
+            <div class="footer-branding">
+                <span>Made with ❤️ by RodSki Team</span>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // 模块通过率图表
+        const moduleChart = echarts.init(document.getElementById('moduleChart'));
+        moduleChart.setOption({
+            color: ['#38B044', '#38B044', '#38B044', '#F7D731', '#38B044'],
+            series: [{
+                type: 'bar',
+                data: [
+                    { value: 100, name: '登录' },
+                    { value: 96.4, name: '询价' },
+                    { value: 100, name: '购物车' },
+                    { value: 85.7, name: '入库单' },
+                    { value: 100, name: '接口' }
+                ],
+                itemStyle: {
+                    borderRadius: [8, 8, 0, 0]
+                },
+                label: {
+                    show: true,
+                    position: 'top',
+                    formatter: '{c}%',
+                    fontFamily: 'Nunito'
+                }
+            }],
+            xAxis: {
+                type: 'category',
+                data: ['登录', '询价', '购物车', '入库单', '接口']
+            },
+            yAxis: {
+                type: 'value',
+                max: 100,
+                axisLabel: { formatter: '{value}%' }
+            },
+            grid: { left: 50, right: 20, bottom: 30, top: 20 }
+        });
+
+        // 失败分析饼图
+        const failChart = echarts.init(document.getElementById('failChart'));
+        failChart.setOption({
+            color: ['#E52521', '#F7D731', '#049CD8'],
+            series: [{
+                type: 'pie',
+                radius: ['40%', '70%'],
+                center: ['50%', '50%'],
+                data: [
+                    { value: 4, name: '元素定位失败' },
+                    { value: 3, name: '接口响应异常' },
+                    { value: 1, name: '业务逻辑错误' }
+                ],
+                label: {
+                    formatter: '{b}\n{c}次',
+                    fontFamily: 'Nunito'
+                },
+                itemStyle: {
+                    borderRadius: 8,
+                    borderColor: '#fff',
+                    borderWidth: 2
+                }
+            }]
+        });
+
+        window.addEventListener('resize', () => {
+            moduleChart.resize();
+            failChart.resize();
+        });
+    </script>
+</body>
+</html>

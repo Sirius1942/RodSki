@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datatable name="LoginPage">
+  <row id="xiaoli_login" remark="小李账号-维修厂">
+    <field name="accountTab">click</field>
+    <field name="username">15521344075</field>
+    <field name="password">Cass2025</field>
+    <field name="agreeCheckbox">click</field>
+    <field name="loginBtn">click</field>
+  </row>
+  <row id="xiaohui_login" remark="小辉账号-供应商">
+    <field name="accountTab">click</field>
+    <field name="username">13395432251</field>
+    <field name="password">Cass2025</field>
+    <field name="agreeCheckbox">click</field>
+    <field name="loginBtn">click</field>
+  </row>
+</datatable>

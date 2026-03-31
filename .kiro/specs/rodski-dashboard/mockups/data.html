@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据管理 - RodSki Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar">
+        <div class="navbar-brand">
+            <div class="logo-icon">🚗</div>
+            <span class="brand-text">RodSki</span>
+            <span class="brand-sub">Dashboard</span>
+        </div>
+        <div class="navbar-menu">
+            <a href="index.html" class="nav-item">首页</a>
+            <a href="cases.html" class="nav-item">用例</a>
+            <a href="models.html" class="nav-item">模型</a>
+            <a href="data.html" class="nav-item active">数据</a>
+            <a href="results.html" class="nav-item">结果</a>
+        </div>
+        <div class="navbar-actions">
+            <button class="btn-icon" title="设置">⚙️</button>
+        </div>
+    </nav>
+
+    <!-- 主内容 -->
+    <main class="main-content">
+        <!-- 页面标题 -->
+        <div class="page-header">
+            <div class="page-title-group">
+                <h1 class="page-title">💾 数据管理</h1>
+                <p class="page-subtitle">测试数据表 · 数据编辑 · 导入导出</p>
+            </div>
+            <div class="page-actions">
+                <button class="btn btn-secondary">📥 导入</button>
+                <button class="btn btn-secondary">📤 导出</button>
+                <button class="btn btn-primary">➕ 新建数据表</button>
+            </div>
+        </div>
+
+        <!-- 统计卡片 -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">📊</div>
+                <div class="stat-value">23</div>
+                <div class="stat-label">数据表总数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📝</div>
+                <div class="stat-value">156</div>
+                <div class="stat-label">数据记录</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🔧</div>
+                <div class="stat-value">8</div>
+                <div class="stat-label">关联模块</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">⏰</div>
+                <div class="stat-value">2</div>
+                <div class="stat-label">最近更新</div>
+            </div>
+        </div>
+
+        <!-- 筛选栏 -->
+        <div class="filter-bar">
+            <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" class="search-input" placeholder="搜索数据表名称...">
+            </div>
+            <div class="filter-group">
+                <select class="filter-select">
+                    <option value="">全部模块</option>
+                    <option value="login">登录</option>
+                    <option value="inquiry">询价</option>
+                    <option value="order">订单</option>
+                    <option value="inbound">入库单</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- 数据表列表 -->
+        <div class="data-tables-section">
+            <h2 class="section-title">📋 数据表列表</h2>
+            
+            <div class="tables-grid">
+                <!-- 数据表卡片 1 -->
+                <div class="data-table-card">
+                    <div class="table-card-header">
+                        <div class="table-icon">🔐</div>
+                        <div class="table-info">
+                            <h3 class="table-name">LoginData</h3>
+                            <span class="table-module">登录模块</span>
+                        </div>
+                        <span class="badge badge-green">8 记录</span>
+                    </div>
+                    <div class="table-card-body">
+                        <p class="table-desc">用户登录测试数据，包含多个账号</p>
+                        <div class="table-preview">
+                            <span class="preview-label">字段：</span>
+                            <code>username, password, expected</code>
+                        </div>
+                    </div>
+                    <div class="table-card-footer">
+                        <span class="table-time">更新于 2026-03-30</span>
+                        <button class="btn-sm btn-primary">👁️ 查看</button>
+                    </div>
+                </div>
+
+                <!-- 数据表卡片 2 -->
+                <div class="data-table-card">
+                    <div class="table-card-header">
+                        <div class="table-icon">📝</div>
+                        <div class="table-info">
+                            <h3 class="table-name">InquiryData</h3>
+                            <span class="table-module">询价模块</span>
+                        </div>
+                        <span class="badge badge-green">12 记录</span>
+                    </div>
+                    <div class="table-card-body">
+                        <p class="table-desc">询价单填写数据，包含VIN码、需求描述</p>
+                        <div class="table-preview">
+                            <span class="preview-label">字段：</span>
+                            <code>vin, needName, expectMsg</code>
+                        </div>
+                    </div>
+                    <div class="table-card-footer">
+                        <span class="table-time">更新于 2026-03-29</span>
+                        <button class="btn-sm btn-primary">👁️ 查看</button>
+                    </div>
+                </div>
+
+                <!-- 数据表卡片 3 -->
+                <div class="data-table-card">
+                    <div class="table-card-header">
+                        <div class="table-icon">🛒</div>
+                        <div class="table-info">
+                            <h3 class="table-name">CartData</h3>
+                            <span class="table-module">购物车模块</span>
+                        </div>
+                        <span class="badge badge-green">6 记录</span>
+                    </div>
+                    <div class="table-card-body">
+                        <p class="table-desc">购物车商品数据</p>
+                        <div class="table-preview">
+                            <span class="preview-label">字段：</span>
+                            <code>partNo, quantity, expectTotal</code>
+                        </div>
+                    </div>
+                    <div class="table-card-footer">
+                        <span class="table-time">更新于 2026-03-28</span>
+                        <button class="btn-sm btn-primary">👁️ 查看</button>
+                    </div>
+                </div>
+
+                <!-- 数据表卡片 4 -->
+                <div class="data-table-card">
+                    <div class="table-card-header">
+                        <div class="table-icon">📦</div>
+                        <div class="table-info">
+                            <h3 class="table-name">InboundOrderList</h3>
+                            <span class="table-module">入库单模块</span>
+                        </div>
+                        <span class="badge badge-green">15 记录</span>
+                    </div>
+                    <div class="table-card-body">
+                        <p class="table-desc">入库单列表查询参数数据</p>
+                        <div class="table-preview">
+                            <span class="preview-label">字段：</span>
+                            <code>pageNum, pageSize, orderNo</code>
+                        </div>
+                    </div>
+                    <div class="table-card-footer">
+                        <span class="table-time">更新于 2026-03-27</span>
+                        <button class="btn-sm btn-primary">👁️ 查看</button>
+                    </div>
+                </div>
+
+                <!-- 数据表卡片 5 -->
+                <div class="data-table-card">
+                    <div class="table-card-header">
+                        <div class="table-icon">🛒</div>
+                        <div class="table-info">
+                            <h3 class="table-name">OrderData</h3>
+                            <span class="table-module">订单模块</span>
+                        </div>
+                        <span class="badge badge-green">10 记录</span>
+                    </div>
+                    <div class="table-card-body">
+                        <p class="table-desc">订单创建和查询数据</p>
+                        <div class="table-preview">
+                            <span class="preview-label">字段：</span>
+                            <code>orderId, status, expectStatus</code>
+                        </div>
+                    </div>
+                    <div class="table-card-footer">
+                        <span class="table-time">更新于 2026-03-26</span>
+                        <button class="btn-sm btn-primary">👁️ 查看</button>
+                    </div>
+                </div>
+
+                <!-- 数据表卡片 6 -->
+                <div class="data-table-card">
+                    <div class="table-card-header">
+                        <div class="table-icon">🔌</div>
+                        <div class="table-info">
+                            <h3 class="table-name">StockinOrder_verify</h3>
+                            <span class="table-module">入库单模块</span>
+                        </div>
+                        <span class="badge badge-yellow">验证数据</span>
+                    </div>
+                    <div class="table-card-body">
+                        <p class="table-desc">入库单接口响应验证数据</p>
+                        <div class="table-preview">
+                            <span class="preview-label">字段：</span>
+                            <code>code, msg, dataCount</code>
+                        </div>
+                    </div>
+                    <div class="table-card-footer">
+                        <span class="table-time">更新于 2026-03-25</span>
+                        <button class="btn-sm btn-primary">👁️ 查看</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 数据表详情弹窗 -->
+        <div class="modal show" id="dataDetailModal">
+            <div class="modal-content modal-xl">
+                <div class="modal-header">
+                    <h3 class="modal-title">📋 InquiryData - 数据表详情</h3>
+                    <button class="modal-close">✕</button>
+                </div>
+                <div class="modal-body">
+                    <div class="data-table-toolbar">
+                        <button class="btn btn-sm btn-primary">➕ 添加记录</button>
+                        <button class="btn btn-sm btn-secondary">📋 批量导入</button>
+                    </div>
+                    <div class="data-table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>DataID</th>
+                                    <th>备注</th>
+                                    <th>vin</th>
+                                    <th>needName</th>
+                                    <th>needBrand</th>
+                                    <th>needYear</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>I001</code></td>
+                                    <td>正常询价-奔驰</td>
+                                    <td>WBAKB4106BC920125</td>
+                                    <td>前轮摆臂...</td>
+                                    <td>奔驰</td>
+                                    <td>2012</td>
+                                    <td>
+                                        <button class="btn-sm btn-info">✏️</button>
+                                        <button class="btn-sm btn-danger">🗑️</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><code>I002</code></td>
+                                    <td>正常询价-宝马</td>
+                                    <td>WBAKB4106BC920126</td>
+                                    <td>发动机罩...</td>
+                                    <td>宝马</td>
+                                    <td>2015</td>
+                                    <td>
+                                        <button class="btn-sm btn-info">✏️</button>
+                                        <button class="btn-sm btn-danger">🗑️</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><code>I003</code></td>
+                                    <td>异常-VIN格式错误</td>
+                                    <td>INVALID123</td>
+                                    <td>测试需求</td>
+                                    <td>奥迪</td>
+                                    <td>2020</td>
+                                    <td>
+                                        <button class="btn-sm btn-info">✏️</button>
+                                        <button class="btn-sm btn-danger">🗑️</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="pagination">
+                        <button class="page-btn" disabled>◀️</button>
+                        <span class="page-info">1 / 2</span>
+                        <button class="page-btn">▶️</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

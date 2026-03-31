@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<models>
+  <!-- ============================================
+       E2E 端到端测试模型
+       复用 login/inquiry/quotation/order/supplier_inquiry 模块的模型
+       ============================================ -->
+
+  <!-- 登录页模型 -->
+  <model name="LoginPage">
+    <element name="accountTab" type="css" value="span[type=PASSWORD]" desc="账号登录页签"/>
+    <element name="username" type="css" value="#userName" desc="用户名输入框"/>
+    <element name="password" type="css" value="#password" desc="密码输入框"/>
+    <element name="agreeCheckbox" type="css" value="label.br-checkbox" desc="同意协议复选框"/>
+    <element name="loginBtn" type="css" value=".btn-submit" desc="登录按钮"/>
+  </model>
+
+  <!-- 发布询价页（维修厂-小李） -->
+  <model name="InquiryPage">
+    <element name="vin" type="css" value="#vin" desc="VIN码输入框"/>
+    <element name="needsName" type="css" value="textarea[name=needName]" desc="配件名称输入框"/>
+    <element name="needQuantity" type="css" value="textarea[name=needQuantity]" desc="数量输入框"/>
+    <element name="qualityRemarks" type="css" value="#new-quality-remarks" desc="质量要求备注"/>
+    <element name="submitInquiry" type="css" value=".save-inquiry" desc="发布询价按钮"/>
+  </model>
+
+  <!-- 报价列表页（维修厂-小李） -->
+  <model name="QuotationListPage">
+    <element name="viewQuote" type="xpath" value="//*[contains(text(),'查看报价')]" desc="查看报价按钮"/>
+    <element name="buyNow" type="xpath" value="//*[contains(text(),'选购') or contains(text(),'立即购买')]" desc="立即购买/选购按钮"/>
+    <element name="vinSearch" type="css" value="input[name=vin]" desc="VIN搜索框"/>
+    <element name="partSearch" type="css" value="input[name=userNeed]" desc="配件名称搜索框"/>
+  </model>
+
+  <!-- 报价商品详情/选购页 -->
+  <model name="QuotationDetailPage">
+    <element name="quantity" type="css" value="input[type='number'], input[name='quantity']" desc="数量输入框"/>
+    <element name="addToCart" type="xpath" value="//*[contains(text(),'加入购物车') or contains(text(),'选购')]" desc="加入购物车/选购按钮"/>
+    <element name="buyNow" type="xpath" value="//*[contains(text(),'立即购买')]" desc="立即购买按钮"/>
+  </model>
+
+  <!-- 购物车页面 -->
+  <model name="CartPage">
+    <element name="selectAll" type="css" value="input.check-all,input.select-all" desc="全选复选框"/>
+    <element name="itemCheck" type="css" value="input[type=checkbox]" desc="商品勾选框"/>
+    <element name="checkout" type="xpath" value="//*[contains(text(),'去结算')]" desc="去结算按钮"/>
+    <element name="totalAmount" type="css" value="[class*=total-amount],[class*=amount]" desc="合计金额"/>
+  </model>
+
+  <!-- 提交订单页 -->
+  <model name="CheckoutPage">
+    <element name="receiverName" type="css" value="#receiverName" desc="收货人姓名"/>
+    <element name="contactTel" type="css" value="#contactNumber" desc="联系电话"/>
+    <element name="province" type="css" value="#provinceGeoId" desc="省份选择"/>
+    <element name="city" type="css" value="#cityGeoId" desc="城市选择"/>
+    <element name="county" type="css" value="#countyGeoId" desc="区县选择"/>
+    <element name="address" type="css" value="#inquiryDetailAddress" desc="详细地址"/>
+    <element name="logistics" type="css" value="[class*=logistics],[class*=express]" desc="物流方式"/>
+    <element name="submitOrder" type="xpath" value="//*[contains(text(),'提交订单') or contains(text(),'确认提交')]" desc="提交订单按钮"/>
+  </model>
+
+  <!-- 供应商询价单列表 -->
+  <model name="SupplierInquiryPage">
+    <element name="quoteNow" type="xpath" value="//*[contains(text(),'立即报价')]" desc="立即报价按钮"/>
+    <element name="vinSearch" type="css" value="input[name=vin]" desc="VIN搜索框"/>
+    <element name="inquiryList" type="css" value=".inquiry-list,[class*=inquiry-list]" desc="询价单列表"/>
+  </model>
+
+  <!-- 供应商报价页 -->
+  <model name="QuotePage">
+    <element name="quotePrice" type="css" value="input[placeholder*=报价]" desc="报价输入框"/>
+    <element name="quantity" type="css" value="input[type=number]" desc="数量"/>
+    <element name="submitQuote" type="xpath" value="//*[contains(text(),'提交报价')]" desc="提交报价按钮"/>
+  </model>
+</models>

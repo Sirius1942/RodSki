@@ -1,0 +1,307 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  入库单接口测试用例 - 商家端入库单管理模块
+  使用 send 关键字进行接口自动化测试
+  
+  前置条件：已登录商家端（小辉账号 13395432251）
+-->
+<cases>
+
+  <!-- 入库单列表接口测试 -->
+  <case id="inbound_list_001" title="入库单列表-分页查询" execute="是" description="测试入库单列表分页查询接口" component_type="接口">
+    <pre_process>
+      <!-- 导航到商家端 -->
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="2"/>
+      <!-- 登录商家端 -->
+      <test_step action="type" model="LoginPage" data="xiaohui_login"/>
+      <test_step action="wait" data="3"/>
+    </pre_process>
+    <test_case>
+      <!-- 调用入库单列表接口 -->
+      <test_step action="send" model="InboundOrderList" data="I001"/>
+      <!-- 验证返回成功 -->
+      <test_step action="verify" model="InboundOrderList" data="V001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close"/>
+    </post_process>
+  </case>
+
+  <case id="inbound_list_002" title="入库单列表-按单号查询" execute="是" description="测试按入库单号查询接口" component_type="接口">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="2"/>
+      <test_step action="type" model="LoginPage" data="xiaohui_login"/>
+      <test_step action="wait" data="3"/>
+    </pre_process>
+    <test_case>
+      <test_step action="send" model="InboundOrderList" data="I002"/>
+      <test_step action="verify" model="InboundOrderList" data="V001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close"/>
+    </post_process>
+  </case>
+
+  <case id="inbound_list_003" title="入库单列表-按状态查询" execute="是" description="测试按入库单状态查询接口" component_type="接口">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="2"/>
+      <test_step action="type" model="LoginPage" data="xiaohui_login"/>
+      <test_step action="wait" data="3"/>
+    </pre_process>
+    <test_case>
+      <test_step action="send" model="InboundOrderList" data="I003"/>
+      <test_step action="verify" model="InboundOrderList" data="V001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close"/>
+    </post_process>
+  </case>
+
+  <case id="inbound_list_004" title="入库单列表-按仓库查询" execute="是" description="测试按仓库查询接口" component_type="接口">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="2"/>
+      <test_step action="type" model="LoginPage" data="xiaohui_login"/>
+      <test_step action="wait" data="3"/>
+    </pre_process>
+    <test_case>
+      <test_step action="send" model="InboundOrderList" data="I004"/>
+      <test_step action="verify" model="InboundOrderList" data="V001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close"/>
+    </post_process>
+  </case>
+
+  <case id="inbound_list_005" title="入库单列表-按类型查询" execute="是" description="测试按入库类型查询接口" component_type="接口">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="2"/>
+      <test_step action="type" model="LoginPage" data="xiaohui_login"/>
+      <test_step action="wait" data="3"/>
+    </pre_process>
+    <test_case>
+      <test_step action="send" model="InboundOrderList" data="I005"/>
+      <test_step action="verify" model="InboundOrderList" data="V001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close"/>
+    </post_process>
+  </case>
+
+  <case id="inbound_list_006" title="入库单列表-按零件号查询" execute="是" description="测试按零件号查询接口" component_type="接口">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="2"/>
+      <test_step action="type" model="LoginPage" data="xiaohui_login"/>
+      <test_step action="wait" data="3"/>
+    </pre_process>
+    <test_case>
+      <test_step action="send" model="InboundOrderList" data="I006"/>
+      <test_step action="verify" model="InboundOrderList" data="V001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close"/>
+    </post_process>
+  </case>
+
+  <case id="inbound_list_007" title="入库单列表-按来源单号查询" execute="是" description="测试按来源单号查询接口" component_type="接口">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="2"/>
+      <test_step action="type" model="LoginPage" data="xiaohui_login"/>
+      <test_step action="wait" data="3"/>
+    </pre_process>
+    <test_case>
+      <test_step action="send" model="InboundOrderList" data="I007"/>
+      <test_step action="verify" model="InboundOrderList" data="V001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close"/>
+    </post_process>
+  </case>
+
+  <case id="inbound_list_008" title="入库单列表-分页查询第2页" execute="是" description="测试分页查询第2页接口" component_type="接口">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="2"/>
+      <test_step action="type" model="LoginPage" data="xiaohui_login"/>
+      <test_step action="wait" data="3"/>
+    </pre_process>
+    <test_case>
+      <test_step action="send" model="InboundOrderList" data="I008"/>
+      <test_step action="verify" model="InboundOrderList" data="V001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close"/>
+    </post_process>
+  </case>
+
+  <case id="inbound_list_009" title="入库单列表-综合条件查询" execute="是" description="测试多条件组合查询接口" component_type="接口">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="2"/>
+      <test_step action="type" model="LoginPage" data="xiaohui_login"/>
+      <test_step action="wait" data="3"/>
+    </pre_process>
+    <test_case>
+      <test_step action="send" model="InboundOrderList" data="I009"/>
+      <test_step action="verify" model="InboundOrderList" data="V001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close"/>
+    </post_process>
+  </case>
+
+  <!-- 入库单详情接口测试 -->
+  <case id="inbound_detail_001" title="入库单详情-查询详情" execute="是" description="测试入库单详情查询接口" component_type="接口">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="2"/>
+      <test_step action="type" model="LoginPage" data="xiaohui_login"/>
+      <test_step action="wait" data="3"/>
+    </pre_process>
+    <test_case>
+      <test_step action="send" model="InboundOrderDetail" data="D001"/>
+      <test_step action="verify" model="InboundOrderDetail" data="V002"/>
+    </test_case>
+    <post_process>
+      <test_step action="close"/>
+    </post_process>
+  </case>
+
+  <case id="inbound_detail_002" title="入库单详情-无效ID" execute="是" description="测试入库单详情查询-无效ID" component_type="接口">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="2"/>
+      <test_step action="type" model="LoginPage" data="xiaohui_login"/>
+      <test_step action="wait" data="3"/>
+    </pre_process>
+    <test_case>
+      <test_step action="send" model="InboundOrderDetail" data="D002"/>
+      <test_step action="verify" model="InboundOrderDetail" data="V003"/>
+    </test_case>
+    <post_process>
+      <test_step action="close"/>
+    </post_process>
+  </case>
+
+  <!-- 创建入库单接口测试 -->
+  <case id="inbound_create_001" title="创建入库单-采购入库" execute="是" description="测试创建采购入库单接口" component_type="接口">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="2"/>
+      <test_step action="type" model="LoginPage" data="xiaohui_login"/>
+      <test_step action="wait" data="3"/>
+    </pre_process>
+    <test_case>
+      <test_step action="send" model="InboundOrderCreate" data="C001"/>
+      <test_step action="verify" model="InboundOrderCreate" data="V004"/>
+    </test_case>
+    <post_process>
+      <test_step action="close"/>
+    </post_process>
+  </case>
+
+  <case id="inbound_create_002" title="创建入库单-退货入库" execute="是" description="测试创建退货入库单接口" component_type="接口">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="2"/>
+      <test_step action="type" model="LoginPage" data="xiaohui_login"/>
+      <test_step action="wait" data="3"/>
+    </pre_process>
+    <test_case>
+      <test_step action="send" model="InboundOrderCreate" data="C002"/>
+      <test_step action="verify" model="InboundOrderCreate" data="V004"/>
+    </test_case>
+    <post_process>
+      <test_step action="close"/>
+    </post_process>
+  </case>
+
+  <case id="inbound_create_003" title="创建入库单-调拨入库" execute="是" description="测试创建调拨入库单接口" component_type="接口">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="2"/>
+      <test_step action="type" model="LoginPage" data="xiaohui_login"/>
+      <test_step action="wait" data="3"/>
+    </pre_process>
+    <test_case>
+      <test_step action="send" model="InboundOrderCreate" data="C003"/>
+      <test_step action="verify" model="InboundOrderCreate" data="V004"/>
+    </test_case>
+    <post_process>
+      <test_step action="close"/>
+    </post_process>
+  </case>
+
+  <!-- 更新入库单接口测试 -->
+  <case id="inbound_update_001" title="更新入库单-更新备注" execute="是" description="测试更新入库单备注接口" component_type="接口">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="2"/>
+      <test_step action="type" model="LoginPage" data="xiaohui_login"/>
+      <test_step action="wait" data="3"/>
+    </pre_process>
+    <test_case>
+      <test_step action="send" model="InboundOrderUpdate" data="U001"/>
+      <test_step action="verify" model="InboundOrderUpdate" data="V005"/>
+    </test_case>
+    <post_process>
+      <test_step action="close"/>
+    </post_process>
+  </case>
+
+  <!-- 枚举字典接口测试 -->
+  <case id="enum_001" title="枚举字典-获取所有枚举" execute="是" description="测试获取所有枚举接口" component_type="接口">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="2"/>
+      <test_step action="type" model="LoginPage" data="xiaohui_login"/>
+      <test_step action="wait" data="3"/>
+    </pre_process>
+    <test_case>
+      <test_step action="send" model="EnumDictionary" data="E001"/>
+      <test_step action="verify" model="EnumDictionary" data="V006"/>
+    </test_case>
+    <post_process>
+      <test_step action="close"/>
+    </post_process>
+  </case>
+
+  <case id="enum_002" title="枚举字典-获取入库单状态枚举" execute="是" description="测试获取入库单状态枚举" component_type="接口">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="2"/>
+      <test_step action="type" model="LoginPage" data="xiaohui_login"/>
+      <test_step action="wait" data="3"/>
+    </pre_process>
+    <test_case>
+      <test_step action="send" model="EnumDictionary" data="E002"/>
+      <test_step action="verify" model="EnumDictionary" data="V006"/>
+    </test_case>
+    <post_process>
+      <test_step action="close"/>
+    </post_process>
+  </case>
+
+  <case id="enum_003" title="枚举字典-获取入库类型枚举" execute="是" description="测试获取入库类型枚举" component_type="接口">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="2"/>
+      <test_step action="type" model="LoginPage" data="xiaohui_login"/>
+      <test_step action="wait" data="3"/>
+    </pre_process>
+    <test_case>
+      <test_step action="send" model="EnumDictionary" data="E003"/>
+      <test_step action="verify" model="EnumDictionary" data="V006"/>
+    </test_case>
+    <post_process>
+      <test_step action="close"/>
+    </post_process>
+  </case>
+
+</cases>
