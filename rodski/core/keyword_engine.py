@@ -790,15 +790,148 @@ class KeywordEngine:
             raise DriverError(f"AI 截图验证失败: {e}")
 
     def _kw_assert(self, params: Dict) -> bool:
-        """断言（保留兼容）"""
-        locator = params.get("locator", "") or params.get("data", "")
-        expected = params.get("expected", "")
-        logger.info(f"断言: {locator} 包含 '{expected}'")
-        result = self.driver.assert_element(locator, expected)
+        """断言 - 支持视觉图片断言
+
+        格式: assert[type=image,reference=img/xxx.png,threshold=0.85,scope=full,wait=5]
+
+        参数:
+            type: 断言类型（目前支持 image）
+            reference: 预期图片路径（相对于 images/assert/ 目录）
+            threshold: 匹配度阈值，0.0~1.0，默认 0.8
+            scope: 断言范围，full（仅 Phase1 支持）
+            wait: 等待秒数（Phase2 支持）
+        """
+        # 优先从 data 字段获取 assert 参数字符串（数据表字段值格式）
+        raw_data = params.get("data", "")
+        if not raw_data:
+            raise InvalidParameterError(
+                keyword="assert",
+                param_name="data",
+                reason="assert 缺少数据（格式：assert[type=image,reference=...,threshold=...]）"
+            )
+
+        raw_data = raw_data.strip()
+
+        # 解析 assert[...] 包装格式
+        if raw_data.startswith("assert[") and raw_data.endswith("]"):
+            raw_data = raw_data[7:-1]  # 去掉 "assert[" 和 "]"
+
+        # 解析 key=value,key=value 格式
+        args = self._parse_kv_args(raw_data)
+
+        # 提取 assert 类型
+        assert_type = args.get("type", "image")
+        if assert_type == "image":
+            return self._kw_assert_image(args, params)
+
+        raise InvalidParameterError(
+            keyword="assert",
+            param_name="type",
+            reason=f"不支持的 assert 类型: {assert_type}，仅支持 image"
+        )
+
+    def _kw_assert_image(self, args: Dict, params: Dict) -> bool:
+        """执行图片断言"""
+        from core.assertion import ImageMatcher
+
+        # 解析参数
+        reference = args.get("reference", "")
+        if not reference:
+            raise InvalidParameterError(
+                keyword="assert", param_name="reference",
+                reason="assert[type=image] 缺少 reference 参数"
+            )
+
+        threshold = float(args.get("threshold", 0.8))
+        if not (0.0 <= threshold <= 1.0):
+            raise InvalidParameterError(
+                keyword="assert", param_name="threshold",
+                reason=f"threshold 必须在 0.0~1.0 范围内，实际为 {threshold}"
+            )
+
+        # scope=element 暂不支持（Phase2）
+        scope = args.get("scope", "full")
+        if scope not in ("full",):
+            logger.warning(
+                f"assert[type=image] scope={scope} 仅支持 full，Phase2 将支持 element"
+            )
+
+        # wait 参数暂不支持（Phase2）
+        wait_seconds = int(args.get("wait", 0))
+        if wait_seconds > 0:
+            logger.warning(
+                f"assert[type=image] wait={wait_seconds}s 暂不支持，将在 Phase2 实现"
+            )
+
+        # 确保驱动可用
+        self._ensure_driver()
+
+        # 确定模块目录
+        module_dir = self._module_dir
+        if module_dir is None and self._case_file:
+            module_dir = self._case_file.parent.parent
+        if module_dir is None:
+            raise DriverError("assert 需要知道模块目录以定位 images/assert/ 目录")
+
+        # 解析预期图片路径（相对于 images/assert/）
+        images_assert_dir = Path(module_dir) / "images" / "assert"
+        ref_path = Path(reference)
+        if ref_path.is_absolute():
+            full_ref_path = ref_path
+        else:
+            full_ref_path = images_assert_dir / reference
+
+        if not full_ref_path.exists():
+            raise FileNotFoundError(
+                f"assert 预期图片不存在: {full_ref_path}\n"
+                f"请将图片放入 {images_assert_dir}/ 目录"
+            )
+
+        # 截图
+        screenshot_path = self.driver.screenshot()
+        import cv2
+        import numpy as np
+        screenshot_img = cv2.imread(screenshot_path) if screenshot_path else None
+        if screenshot_img is None:
+            raise DriverError(f"assert 无法读取截图: {screenshot_path}")
+
+        # 执行图片匹配
+        matcher = ImageMatcher()
+        result = matcher.match(screenshot_img, full_ref_path, threshold=threshold)
+        result["screenshot"] = screenshot_path
+
         self.store_return(result)
-        if not result:
-            logger.warning("断言失败")
-        return result
+
+        if not result["matched"]:
+            logger.warning(
+                f"assert[type=image] 匹配失败: similarity={result['similarity']} "
+                f"< threshold={threshold}, reference={reference}"
+            )
+            return False
+
+        logger.info(
+            f"assert[type=image] 匹配成功: similarity={result['similarity']}, "
+            f"reference={reference}"
+        )
+        return True
+
+    @staticmethod
+    def _parse_kv_args(data: str) -> Dict[str, str]:
+        """解析 key=value,key=value 格式的参数字符串"""
+        import re
+        args = {}
+        # 匹配 key=value，支持带引号的值
+        pattern = re.compile(r'(\w+)=("[^"]*"|\'[^\']*\'|[^,\s]+)')
+        for match in pattern.finditer(data):
+            key = match.group(1)
+            value = match.group(2)
+            # 去掉引号
+            if value.startswith('"') and value.endswith('"'):
+                value = value[1:-1]
+            elif value.startswith("'") and value.endswith("'"):
+                value = value[1:-1]
+            args[key] = value
+        return args
 
     def _kw_verify(self, params: Dict) -> bool:
         """验证 - 与 type 对称的批量验证关键字
