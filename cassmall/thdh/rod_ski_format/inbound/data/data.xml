@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datatables>
+  <!-- 登录数据 -->
+  <datatable name="LoginPage">
+    <row id="xiaohui_login" remark="小辉账号-商家端">
+      <field name="accountTab">click</field>
+      <field name="username">13395432251</field>
+      <field name="password">Cass2025</field>
+      <field name="agreeCheckbox">click</field>
+      <field name="loginBtn">click</field>
+    </row>
+  </datatable>
+
+  <!-- 入库单列表查询数据 -->
+  <datatable name="InboundOrderList">
+    <!-- 默认查询第一页 -->
+    <row id="I001" remark="查询入库单列表第1页">
+      <field name="pageNum">1</field>
+      <field name="pageSize">30</field>
+      <field name="advancedStockInNoteId"></field>
+      <field name="partsNo"></field>
+      <field name="sourceNote"></field>
+      <field name="startDeliveryTime">2026-02-28T00:00:00</field>
+      <field name="lastDeliveryTime">2026-03-31T23:59:59</field>
+      <field name="statusIds">[]</field>
+      <field name="types">[]</field>
+    </row>
+    <!-- 按单据号查询 -->
+    <row id="I002" remark="按单据号查询">
+      <field name="pageNum">1</field>
+      <field name="pageSize">30</field>
+      <field name="advancedStockInNoteId">RK20260331001</field>
+      <field name="partsNo"></field>
+      <field name="sourceNote"></field>
+      <field name="startDeliveryTime"></field>
+      <field name="lastDeliveryTime"></field>
+      <field name="statusIds">[]</field>
+      <field name="types">[]</field>
+    </row>
+    <!-- 按配件号查询 -->
+    <row id="I003" remark="按配件号查询">
+      <field name="pageNum">1</field>
+      <field name="pageSize">30</field>
+      <field name="advancedStockInNoteId"></field>
+      <field name="partsNo">12345678</field>
+      <field name="sourceNote"></field>
+      <field name="startDeliveryTime"></field>
+      <field name="lastDeliveryTime"></field>
+      <field name="statusIds">[]</field>
+      <field name="types">[]</field>
+    </row>
+  </datatable>
+
+  <!-- 入库单列表验证数据 -->
+  <datatable name="InboundOrderList_verify">
+    <row id="IV001" remark="验证返回成功">
+      <field name="code">0</field>
+      <field name="msg">success</field>
+    </row>
+    <row id="IV002" remark="验证有数据返回">
+      <field name="data_total">大于等于0</field>
+    </row>
+  </datatable>
+
+  <!-- 逾期统计数据 -->
+  <datatable name="InboundOrderOverdueStats">
+    <row id="IOS001" remark="统计本月逾期">
+      <field name="startTime">2026-03-01T00:00:00</field>
+      <field name="endTime">2026-03-31T23:59:59</field>
+    </row>
+  </datatable>
+
+  <!-- 逾期统计验证 -->
+  <datatable name="InboundOrderOverdueStats_verify">
+    <row id="IOSV001" remark="验证返回成功">
+      <field name="code">0</field>
+      <field name="msg">success</field>
+    </row>
+  </datatable>
+
+  <!-- 机构入库单列表数据 -->
+  <datatable name="InboundOrderListOrg">
+    <row id="IO001" remark="查询机构入库单">
+      <field name="sendOrganizationName"></field>
+      <field name="pageNum">1</field>
+      <field name="pageSize">30</field>
+    </row>
+    <row id="IO002" remark="按机构名称精确查询">
+      <field name="sendOrganizationName">测试机构</field>
+      <field name="pageNum">1</field>
+      <field name="pageSize">30</field>
+    </row>
+  </datatable>
+
+  <!-- 机构入库单验证 -->
+  <datatable name="InboundOrderListOrg_verify">
+    <row id="IOV001" remark="验证返回成功">
+      <field name="code">0</field>
+      <field name="msg">success</field>
+    </row>
+  </datatable>
+
+  <!-- 字典枚举数据 -->
+  <datatable name="CommonDictionary">
+    <row id="CD001" remark="查询入库单状态枚举">
+      <field name="enumType">STOCKIN_STATUS</field>
+      <field name="operateType">LIST</field>
+    </row>
+    <row id="CD002" remark="查询入库单类型枚举">
+      <field name="enumType">STOCKIN_TYPE</field>
+      <field name="operateType">LIST</field>
+    </row>
+  </datatable>
+
+  <!-- 合并统计验证 -->
+  <datatable name="InboundMergeCount_verify">
+    <row id="IMCV001" remark="验证返回成功">
+      <field name="code">0</field>
+    </row>
+  </datatable>
+
+  <!-- 草稿箱数量验证 -->
+  <datatable name="InboundDraftCount_verify">
+    <row id="IDCV001" remark="验证返回成功">
+      <field name="code">0</field>
+    </row>
+  </datatable>
+</datatables>

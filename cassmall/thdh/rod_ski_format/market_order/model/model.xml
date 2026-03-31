@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<models>
+  <!-- 登录页模型 -->
+  <model name="LoginPage">
+    <element name="accountTab" type="css" value="span[type=PASSWORD]" desc="账号登录页签"/>
+    <element name="username" type="css" value="#userName" desc="用户名输入框"/>
+    <element name="password" type="css" value="#password" desc="密码输入框"/>
+    <element name="agreeCheckbox" type="css" value="label.br-checkbox" desc="同意协议复选框"/>
+    <element name="loginBtn" type="css" value=".btn-submit" desc="登录按钮"/>
+  </model>
+
+  <!-- 订单列表页面 -->
+  <model name="OrderListPage">
+    <!-- 订单状态Tab -->
+    <element name="statusTab" type="css" value="[class*=status-tab],[class*='tab-item']" desc="订单状态Tab"/>
+    <!-- 订单号 -->
+    <element name="orderNo" type="css" value="[class*=order-no]" desc="订单号"/>
+    <!-- 订单状态 -->
+    <element name="orderStatus" type="css" value="[class*=status],[class*=order-status]" desc="订单状态"/>
+    <!-- 搜索框 -->
+    <element name="searchInput" type="css" value="input[type=text],[class*=search-input]" desc="搜索框"/>
+    <!-- 搜索按钮 -->
+    <element name="searchBtn" type="xpath" value="//*[contains(text(),'搜索')]" desc="搜索按钮"/>
+  </model>
+
+  <!-- 订单列表接口 -->
+  <model name="MarketOrderList" type="interface">
+    <element name="_method"><static>GET</static></element>
+    <element name="_url"><static>/market/order/list</static></element>
+  </model>
+
+  <!-- 订单列表验证模型 -->
+  <model name="MarketOrderList_verify" type="interface">
+    <element name="code"><field>code</field></element>
+    <element name="msg"><field>msg</field></element>
+  </model>
+
+  <!-- 用户主信息接口 -->
+  <model name="MarketUserMain" type="interface">
+    <element name="_method"><static>GET</static></element>
+    <element name="_url"><static>/market/user/main/garage</static></element>
+  </model>
+
+  <!-- 用户主信息验证 -->
+  <model name="MarketUserMain_verify" type="interface">
+    <element name="code"><field>code</field></element>
+  </model>
+
+  <!-- 会员信息接口 -->
+  <model name="MarketMemberInfo" type="interface">
+    <element name="_method"><static>GET</static></element>
+    <element name="_url"><static>/market/portal/memberInfo</static></element>
+  </model>
+
+  <!-- 会员信息验证 -->
+  <model name="MarketMemberInfo_verify" type="interface">
+    <element name="code"><field>code</field></element>
+  </model>
+
+  <!-- 积分接口 -->
+  <model name="MarketUserPoint" type="interface">
+    <element name="_method"><static>GET</static></element>
+    <element name="_url"><static>/market/points/userpoint</static></element>
+  </model>
+
+  <!-- 积分验证 -->
+  <model name="MarketUserPoint_verify" type="interface">
+    <element name="code"><field>code</field></element>
+  </model>
+
+  <!-- 金币账户接口 -->
+  <model name="MarketGoldcoinAccount" type="interface">
+    <element name="_method"><static>GET</static></element>
+    <element name="_url"><static>/market/goldcoin/account</static></element>
+  </model>
+
+  <!-- 金币账户验证 -->
+  <model name="MarketGoldcoinAccount_verify" type="interface">
+    <element name="code"><field>code</field></element>
+  </model>
+
+  <!-- 权限列表接口 -->
+  <model name="MarketGarageRightList" type="interface">
+    <element name="_method"><static>GET</static></element>
+    <element name="_url"><static>/market/garage-right/list</static></element>
+  </model>
+
+  <!-- 权限列表验证 -->
+  <model name="MarketGarageRightList_verify" type="interface">
+    <element name="code"><field>code</field></element>
+  </model>
+
+  <!-- 可用权限接口 -->
+  <model name="MarketGarageRightAvailable" type="interface">
+    <element name="_method"><static>GET</static></element>
+    <element name="_url"><static>/market/garage-right/available</static></element>
+  </model>
+
+  <!-- 可用权限验证 -->
+  <model name="MarketGarageRightAvailable_verify" type="interface">
+    <element name="code"><field>code</field></element>
+  </model>
+
+  <!-- 询价页面接口 -->
+  <model name="MarketAgentBuy" type="interface">
+    <element name="_method"><static>GET</static></element>
+    <element name="_url"><static>/market/agentBuy/</static></element>
+  </model>
+
+  <!-- 询价页面验证 -->
+  <model name="MarketAgentBuy_verify" type="interface">
+    <element name="code"><field>code</field></element>
+  </model>
+
+  <!-- 询价权限检查接口 -->
+  <model name="MarketAuthInquiry" type="interface">
+    <element name="_method"><static>GET</static></element>
+    <element name="_url"><static>/market/portal/check/authenticated/inquiry</static></element>
+  </model>
+
+  <!-- 询价权限验证 -->
+  <model name="MarketAuthInquiry_verify" type="interface">
+    <element name="code"><field>code</field></element>
+  </model>
+</models>
