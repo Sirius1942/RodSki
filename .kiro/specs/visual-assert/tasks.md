@@ -43,29 +43,29 @@
 - **内容**:
   - 解析 `assert[type=image,...]` 参数（支持 `assert[...]` 包装格式）
   - 调用 ImageMatcher 执行匹配
-  - `_parse_kv_args` 解析 key=value,key=value 格式
-  - 失败时截图并记录
+  - `_parse_kv_args` 解析 key=value,key=value 格式（含 element_bbox 特殊合并逻辑）
+  - 失败时截图并记录到 images/assert/failures/
   - 返回结构化结果（存入 Return[-1]）
 - **工作量**: 45min
 - **依赖**: Task 1.2
-- **状态**: ✅ 完成 (2026-03-31)
+- **状态**: ✅ 完成 (2026-04-01)
 
 ### Task 1.4: 添加 model.xsd 扩展（assertion 类型） ✅
 - **文件**: `schemas/model.xsd`
-- **内容**: 新增 `assertion` 类型的元素定义（AssertionElementType、AssertionDetailType、相关枚举）
+- **内容**: 新增 `assertion` 类型的元素定义（AssertionDetailType、AssertionElementType、AssertionType枚举、AssertionScope枚举、VideoPosition枚举）
 - **工作量**: 15min
 - **依赖**: 无
-- **状态**: ✅ 完成 (2026-03-31)
+- **状态**: ✅ 完成 (2026-04-01)
 
 ### Task 1.5: 编写自测试用例 ✅
 - **文件**: `tests/unit/test_assertion.py`
-- **内容**: 为 ImageMatcher 编写 12 个单元测试
-  - 相同图片匹配、不同图片区分、阈值边界
-  - 尺寸裁剪、位置返回、灰度转换、类型检查
-  - 缺失文件异常、结构完整性
+- **内容**: 为 ImageMatcher 编写单元测试
+  - Phase 1: 相同图片匹配、不同图片区分、阈值边界、尺寸裁剪、位置返回、灰度转换、类型检查、缺失文件异常、结构完整性
+  - Phase 2: scope=element、wait 轮询、截图保存
+  - 集成: _parse_kv_args 解析、element_bbox 合并
 - **工作量**: 30min
 - **依赖**: Task 1.2
-- **状态**: ✅ 完成 (2026-03-31) — 24/24 测试通过（Phase 1: 12个 + Phase 2: 12个）
+- **状态**: ✅ 完成 (2026-04-01) — 29/29 测试通过（Phase 1: 12个 + Phase 2: 12个 + 集成: 5个）
 
 ---
 
