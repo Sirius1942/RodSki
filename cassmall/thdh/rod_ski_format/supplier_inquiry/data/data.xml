@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datatables>
+  <!-- 登录数据 -->
+  <datatable name="LoginPage">
+    <row id="xiaohui_login" remark="小辉账号-供应商">
+      <field name="accountTab">click</field>
+      <field name="username">13395432251</field>
+      <field name="password">Cass2025</field>
+      <field name="agreeCheckbox">click</field>
+      <field name="loginBtn">click</field>
+    </row>
+  </datatable>
+
+  <!-- 供应商首页数据 -->
+  <datatable name="SupplierHomePage">
+    <row id="H001" remark="进入询价单管理">
+      <field name="inquiryManage">click</field>
+    </row>
+    <row id="H002" remark="进入订单管理">
+      <field name="orderManage">click</field>
+    </row>
+  </datatable>
+
+  <!-- 供应商询价单列表数据 -->
+  <datatable name="SupplierInquiryPage">
+    <!-- 点击立即报价 -->
+    <row id="SQ001" remark="点击立即报价">
+      <field name="quoteNow">click</field>
+    </row>
+    <!-- 按VIN搜索 -->
+    <row id="SQ002" remark="按VIN搜索">
+      <field name="vinSearch">WBAKB4106BC920125</field>
+    </row>
+  </datatable>
+
+  <!-- 供应商报价数据 -->
+  <datatable name="QuotePage">
+    <row id="QP001" remark="填写报价并提交">
+      <field name="quotePrice">288.50</field>
+      <field name="quantity">10</field>
+      <field name="submitQuote">click</field>
+    </row>
+    <row id="QP002" remark="填写另一个报价">
+      <field name="quotePrice">158.00</field>
+      <field name="quantity">5</field>
+      <field name="submitQuote">click</field>
+    </row>
+  </datatable>
+
+  <!-- 供应商订单数据 -->
+  <datatable name="SupplierOrderPage">
+    <row id="SO001" remark="查看订单详情">
+      <field name="viewOrder">click</field>
+    </row>
+    <row id="SO002" remark="确认订单">
+      <field name="confirmOrder">click</field>
+    </row>
+  </datatable>
+</datatables>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+  <!-- 小李查看供应商报价 -->
+  <case id="cassmall_quotation_view" title="小李查看供应商报价" execute="是" description="小李（维修厂）登录后进入报价列表查看供应商的报价" component_type="界面">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="type" model="LoginPage" data="xiaoli_login"/>
+      <test_step action="wait" data="5"/>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/market/portal"/>
+      <test_step action="wait" data="2"/>
+    </pre_process>
+    <test_case>
+      <!-- 进入报价列表 -->
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/market/inquirys"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="screenshot" data="quotation_view_list.png"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" data=""/>
+    </post_process>
+  </case>
+</cases>

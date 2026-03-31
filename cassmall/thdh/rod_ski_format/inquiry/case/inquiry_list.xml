@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+  <!-- 小李查看询价单列表 -->
+  <case id="cassmall_inquiry_list" title="小李查看询价单列表" execute="是" description="小李登录后进入询价单列表页面，查看所有询价单" component_type="界面">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="type" model="LoginPage" data="xiaoli_login"/>
+      <test_step action="wait" data="5"/>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/market/portal"/>
+      <test_step action="wait" data="2"/>
+    </pre_process>
+    <test_case>
+      <!-- 进入询价单列表页面 -->
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/market/inquirys"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="screenshot" data="inquiry_list_page.png"/>
+      <!-- 可选：按VIN搜索 -->
+      <test_step action="type" model="InquiryListPage" data="L001"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="screenshot" data="inquiry_list_searched.png"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" data=""/>
+    </post_process>
+  </case>
+</cases>

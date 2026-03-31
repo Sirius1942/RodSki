@@ -42,3 +42,16 @@ rodski/product/
 
 # OpenClaw
 .openclaw/
+
+# Result directories
+cassmall/thdh/rod_ski_format/*/result/
+cassmall/thdh/rod_ski_format/*/*/result/
+
+# Screenshots and media (exclude from git)
+*.png
+*.webm
+*.mp4
+
+# Python
+*.pyc
+__pycache__/

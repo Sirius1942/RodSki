@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>用例管理 - RodSki Dashboard</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .case-id { font-family: 'Press Start 2P', cursive; font-size: 10px; color: #666; }
+    .priority-badge { padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+    .priority-p0 { background: #E52521; color: white; }
+    .priority-p1 { background: #F7D731; color: #2C2C2C; }
+    .priority-p2 { background: #049CD8; color: white; }
+    .priority-p3 { background: #38B044; color: white; }
+  </style>
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="navbar">
+    <a href="index.html" class="navbar-brand">
+      <svg viewBox="0 0 40 40" fill="none">
+        <rect x="4" y="4" width="32" height="32" rx="4" fill="#C84C0C"/>
+        <rect x="8" y="8" width="24" height="24" rx="2" fill="#E52521"/>
+        <text x="20" y="26" text-anchor="middle" fill="white" font-size="16" font-weight="bold">R</text>
+      </svg>
+      RodSki Dashboard
+    </a>
+    <ul class="navbar-menu">
+      <li><a href="index.html">首页</a></li>
+      <li><a href="cases.html" class="active">用例管理</a></li>
+      <li><a href="models.html">模型管理</a></li>
+      <li><a href="data.html">数据管理</a></li>
+      <li><a href="results.html">测试结果</a></li>
+      <li><a href="reports.html">报告</a></li>
+    </ul>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="container">
+    <!-- Page Header -->
+    <div class="page-header">
+      <div class="breadcrumb">
+        <a href="index.html">首页</a>
+        <span>/</span>
+        <span>用例管理</span>
+      </div>
+      <h1 class="page-title">
+        <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+          <rect x="6" y="6" width="28" height="28" rx="4" fill="#C84C0C"/>
+          <rect x="10" y="10" width="20" height="20" rx="2" fill="#E52521"/>
+          <rect x="14" y="16" width="12" height="2" rx="1" fill="white"/>
+          <rect x="14" y="20" width="8" height="2" rx="1" fill="white"/>
+          <rect x="14" y="24" width="10" height="2" rx="1" fill="white"/>
+        </svg>
+        用例管理
+      </h1>
+      <p class="page-subtitle">管理所有测试用例，支持搜索、过滤和详情查看</p>
+    </div>
+
+    <!-- Stats Bar -->
+    <div style="display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap;">
+      <div class="card" style="padding: 12px 20px; display: flex; align-items: center; gap: 12px;">
+        <span style="font-size: 24px;">📋</span>
+        <div>
+          <div style="font-weight: 700; font-size: 1.25rem;">248</div>
+          <div style="font-size: 12px; color: #666;">总用例数</div>
+        </div>
+      </div>
+      <div class="card" style="padding: 12px 20px; display: flex; align-items: center; gap: 12px;">
+        <span style="font-size: 24px;">✅</span>
+        <div>
+          <div style="font-weight: 700; font-size: 1.25rem; color: #38B044;">228</div>
+          <div style="font-size: 12px; color: #666;">已通过</div>
+        </div>
+      </div>
+      <div class="card" style="padding: 12px 20px; display: flex; align-items: center; gap: 12px;">
+        <span style="font-size: 24px;">❌</span>
+        <div>
+          <div style="font-weight: 700; font-size: 1.25rem; color: #E52521;">15</div>
+          <div style="font-size: 12px; color: #666;">失败</div>
+        </div>
+      </div>
+      <div class="card" style="padding: 12px 20px; display: flex; align-items: center; gap: 12px;">
+        <span style="font-size: 24px;">⏭️</span>
+        <div>
+          <div style="font-weight: 700; font-size: 1.25rem; color: #F7D731;">5</div>
+          <div style="font-size: 12px; color: #666;">跳过</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Search & Filters -->
+    <div class="search-bar">
+      <input type="text" class="search-input" placeholder="🔍 搜索用例名称、ID 或标签...">
+      <select class="filter-select">
+        <option value="">全部模块</option>
+        <option value="login">登录模块</option>
+        <option value="home">首页模块</option>
+        <option value="product">商品模块</option>
+        <option value="cart">购物车模块</option>
+        <option value="order">订单模块</option>
+      </select>
+      <select class="filter-select">
+        <option value="">全部优先级</option>
+        <option value="P0">P0 - 核心功能</option>
+        <option value="P1">P1 - 重要功能</option>
+        <option value="P2">P2 - 普通功能</option>
+        <option value="P3">P3 - 低优先级</option>
+      </select>
+      <select class="filter-select">
+        <option value="">全部状态</option>
+        <option value="active">激活</option>
+        <option value="disabled">禁用</option>
+      </select>
+      <button class="btn btn-primary">+ 新建用例</button>
+    </div>
+
+    <!-- Cases Table -->
+    <div class="table-wrapper">
+      <table class="table">
+        <thead>
+          <tr>
+            <th style="width: 120px;">用例ID</th>
+            <th>用例名称</th>
+            <th style="width: 100px;">模块</th>
+            <th style="width: 80px;">优先级</th>
+            <th style="width: 80px;">状态</th>
+            <th style="width: 120px;">更新时间</th>
+            <th style="width: 100px;">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr onclick="openModal('case-001')" style="cursor: pointer;">
+            <td class="case-id">TC-001</td>
+            <td>用户登录-正确账号密码</td>
+            <td>登录模块</td>
+            <td><span class="priority-badge priority-p0">P0</span></td>
+            <td><span class="badge badge-pass">通过</span></td>
+            <td>2024-01-15</td>
+            <td>
+              <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();">编辑</button>
+            </td>
+          </tr>
+          <tr onclick="openModal('case-002')" style="cursor: pointer;">
+            <td class="case-id">TC-002</td>
+            <td>用户登录-错误密码</td>
+            <td>登录模块</td>
+            <td><span class="priority-badge priority-p0">P0</span></td>
+            <td><span class="badge badge-pass">通过</span></td>
+            <td>2024-01-15</td>
+            <td>
+              <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();">编辑</button>
+            </td>
+          </tr>
+          <tr onclick="openModal('case-003')" style="cursor: pointer;">
+            <td class="case-id">TC-003</td>
+            <td>用户登录-空用户名</td>
+            <td>登录模块</td>
+            <td><span class="priority-badge priority-p1">P1</span></td>
+            <td><span class="badge badge-pass">通过</span></td>
+            <td>2024-01-14</td>
+            <td>
+              <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();">编辑</button>
+            </td>
+          </tr>
+          <tr onclick="openModal('case-004')" style="cursor: pointer;">
+            <td class="case-id">TC-004</td>
+            <td>首页轮播图切换</td>
+            <td>首页模块</td>
+            <td><span class="priority-badge priority-p2">P2</span></td>
+            <td><span class="badge badge-pass">通过</span></td>
+            <td>2024-01-14</td>
+            <td>
+              <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();">编辑</button>
+            </td>
+          </tr>
+          <tr onclick="openModal('case-005')" style="cursor: pointer;">
+            <td class="case-id">TC-005</td>
+            <td>商品搜索-关键词搜索</td>
+            <td>商品模块</td>
+            <td><span class="priority-badge priority-p1">P1</span></td>
+            <td><span class="badge badge-fail">失败</span></td>
+            <td>2024-01-13</td>
+            <td>
+              <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();">编辑</button>
+            </td>
+          </tr>
+          <tr onclick="openModal('case-006')" style="cursor: pointer;">
+            <td class="case-id">TC-006</td>
+            <td>购物车添加商品</td>
+            <td>购物车模块</td>
+            <td><span class="priority-badge priority-p0">P0</span></td>
+            <td><span class="badge badge-pass">通过</span></td>
+            <td>2024-01-13</td>
+            <td>
+              <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();">编辑</button>
+            </td>
+          </tr>
+          <tr onclick="openModal('case-007')" style="cursor: pointer;">
+            <td class="case-id">TC-007</td>
+            <td>购物车删除商品</td>
+            <td>购物车模块</td>
+            <td><span class="priority-badge priority-p1">P1</span></td>
+            <td><span class="badge badge-skip">跳过</span></td>
+            <td>2024-01-12</td>
+            <td>
+              <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();">编辑</button>
+            </td>
+          </tr>
+          <tr onclick="openModal('case-008')" style="cursor: pointer;">
+            <td class="case-id">TC-008</td>
+            <td>订单确认页信息展示</td>
+            <td>订单模块</td>
+            <td><span class="priority-badge priority-p1">P1</span></td>
+            <td><span class="badge badge-pass">通过</span></td>
+            <td>2024-01-12</td>
+            <td>
+              <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();">编辑</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination">
+      <button class="pagination-btn" disabled>上一页</button>
+      <button class="pagination-btn active">1</button>
+      <button class="pagination-btn">2</button>
+      <button class="pagination-btn">3</button>
+      <button class="pagination-btn">...</button>
+      <button class="pagination-btn">13</button>
+      <button class="pagination-btn">下一页</button>
+    </div>
+  </main>
+
+  <!-- Case Detail Modal -->
+  <div class="modal-overlay" id="caseModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>用例详情</h2>
+        <button class="modal-close" onclick="closeModal()">×</button>
+      </div>
+      <div style="display: grid; gap: 20px;">
+        <!-- Basic Info -->
+        <div style="background: white; padding: 16px; border-radius: 8px; border: 2px solid #C84C0C;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h3 style="color: #E52521;">TC-001</h3>
+            <span class="badge badge-pass">通过</span>
+          </div>
+          <h4 style="margin-bottom: 8px;">用户登录-正确账号密码</h4>
+          <div style="display: flex; gap: 16px; font-size: 14px; color: #666;">
+            <span>📁 登录模块</span>
+            <span>⭐ P0</span>
+            <span>🕐 2024-01-15</span>
+          </div>
+        </div>
+
+        <!-- Tags -->
+        <div>
+          <h4 style="margin-bottom: 8px;">标签</h4>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <span style="background: #E52521; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px;">登录</span>
+            <span style="background: #049CD8; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px;">核心流程</span>
+            <span style="background: #38B044; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px;">smoke</span>
+          </div>
+        </div>
+
+        <!-- Test Steps -->
+        <div>
+          <h4 style="margin-bottom: 12px;">测试步骤</h4>
+          <div style="display: grid; gap: 12px;">
+            <div style="display: flex; gap: 12px; align-items: flex-start;">
+              <span style="background: #E52521; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; flex-shrink: 0;">1</span>
+              <div>
+                <div style="font-weight: 600;">打开登录页面</div>
+                <div style="font-size: 13px; color: #666;">进入 https://example.com/login</div>
+              </div>
+            </div>
+            <div style="display: flex; gap: 12px; align-items: flex-start;">
+              <span style="background: #E52521; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; flex-shrink: 0;">2</span>
+              <div>
+                <div style="font-weight: 600;">输入用户名</div>
+                <div style="font-size: 13px; color: #666;">在用户名输入框输入: testuser</div>
+              </div>
+            </div>
+            <div style="display: flex; gap: 12px; align-items: flex-start;">
+              <span style="background: #E52521; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; flex-shrink: 0;">3</span>
+              <div>
+                <div style="font-weight: 600;">输入密码</div>
+                <div style="font-size: 13px; color: #666;">在密码输入框输入: test123</div>
+              </div>
+            </div>
+            <div style="display: flex; gap: 12px; align-items: flex-start;">
+              <span style="background: #E52521; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; flex-shrink: 0;">4</span>
+              <div>
+                <div style="font-weight: 600;">点击登录按钮</div>
+                <div style="font-size: 13px; color: #666;">点击登录按钮，等待页面跳转</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Expected Result -->
+        <div style="background: #E8F5E9; padding: 16px; border-radius: 8px; border: 2px solid #38B044;">
+          <h4 style="margin-bottom: 8px; color: #38B044;">✅ 预期结果</h4>
+          <p>登录成功后页面跳转到首页，显示用户欢迎信息</p>
+        </div>
+
+        <!-- Related Model & Data -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div style="background: white; padding: 12px; border-radius: 8px; border: 2px solid #049CD8;">
+            <div style="font-size: 12px; color: #666; margin-bottom: 4px;">关联模型</div>
+            <div style="font-weight: 600;">LoginPage</div>
+          </div>
+          <div style="background: white; padding: 12px; border-radius: 8px; border: 2px solid #F7D731;">
+            <div style="font-size: 12px; color: #666; margin-bottom: 4px;">测试数据</div>
+            <div style="font-weight: 600;">test_user_data</div>
+          </div>
+        </div>
+
+        <!-- Execution History -->
+        <div>
+          <h4 style="margin-bottom: 12px;">执行历史</h4>
+          <div style="display: grid; gap: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #F0F0F0; border-radius: 4px;">
+              <span>2024-01-15 14:30</span>
+              <span class="badge badge-pass">通过</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #F0F0F0; border-radius: 4px;">
+              <span>2024-01-14 10:15</span>
+              <span class="badge badge-pass">通过</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #F0F0F0; border-radius: 4px;">
+              <span>2024-01-13 16:45</span>
+              <span class="badge badge-pass">通过</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function openModal(caseId) {
+      document.getElementById('caseModal').classList.add('active');
+    }
+    function closeModal() {
+      document.getElementById('caseModal').classList.remove('active');
+    }
+    document.getElementById('caseModal').addEventListener('click', function(e) {
+      if (e.target === this) closeModal();
+    });
+  </script>
+</body>
+</html>
