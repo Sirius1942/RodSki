@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datatables>
+  <!-- 登录数据 -->
+  <datatable name="LoginPage">
+    <row id="xiaoli_login" remark="小李账号-维修厂">
+      <field name="accountTab">click</field>
+      <field name="username">15521344075</field>
+      <field name="password">Cass2025</field>
+      <field name="agreeCheckbox">click</field>
+      <field name="loginBtn">click</field>
+    </row>
+  </datatable>
+
+  <!-- 订单列表数据 -->
+  <datatable name="OrderListPage">
+    <row id="OL001" remark="默认查询全部订单">
+      <field name="statusTab">click</field>
+    </row>
+  </datatable>
+
+  <!-- 订单列表接口数据 -->
+  <datatable name="MarketOrderList">
+    <row id="MOL001" remark="获取订单列表">
+    </row>
+  </datatable>
+
+  <!-- 订单列表验证 -->
+  <datatable name="MarketOrderList_verify">
+    <row id="MOLV001" remark="验证返回成功">
+      <field name="code">0</field>
+      <field name="msg">success</field>
+    </row>
+  </datatable>
+
+  <!-- 用户主信息数据 -->
+  <datatable name="MarketUserMain">
+    <row id="MUM001" remark="获取用户主信息">
+    </row>
+  </datatable>
+
+  <!-- 用户主信息验证 -->
+  <datatable name="MarketUserMain_verify">
+    <row id="MUMV001" remark="验证返回成功">
+      <field name="code">0</field>
+    </row>
+  </datatable>
+
+  <!-- 会员信息数据 -->
+  <datatable name="MarketMemberInfo">
+    <row id="MMI001" remark="获取会员信息">
+    </row>
+  </datatable>
+
+  <!-- 会员信息验证 -->
+  <datatable name="MarketMemberInfo_verify">
+    <row id="MMIV001" remark="验证返回成功">
+      <field name="code">0</field>
+    </row>
+  </datatable>
+
+  <!-- 积分数据 -->
+  <datatable name="MarketUserPoint">
+    <row id="MUP001" remark="获取用户积分">
+    </row>
+  </datatable>
+
+  <!-- 积分验证 -->
+  <datatable name="MarketUserPoint_verify">
+    <row id="MUPV001" remark="验证返回成功">
+      <field name="code">0</field>
+    </row>
+  </datatable>
+
+  <!-- 金币账户数据 -->
+  <datatable name="MarketGoldcoinAccount">
+    <row id="MGA001" remark="获取金币账户">
+    </row>
+  </datatable>
+
+  <!-- 金币账户验证 -->
+  <datatable name="MarketGoldcoinAccount_verify">
+    <row id="MGAV001" remark="验证返回成功">
+      <field name="code">0</field>
+    </row>
+  </datatable>
+
+  <!-- 权限列表数据 -->
+  <datatable name="MarketGarageRightList">
+    <row id="MGRL001" remark="获取权限列表">
+    </row>
+  </datatable>
+
+  <!-- 权限列表验证 -->
+  <datatable name="MarketGarageRightList_verify">
+    <row id="MGRLV001" remark="验证返回成功">
+      <field name="code">0</field>
+    </row>
+  </datatable>
+
+  <!-- 可用权限数据 -->
+  <datatable name="MarketGarageRightAvailable">
+    <row id="MGRA001" remark="获取可用权限">
+    </row>
+  </datatable>
+
+  <!-- 可用权限验证 -->
+  <datatable name="MarketGarageRightAvailable_verify">
+    <row id="MGRAV001" remark="验证返回成功">
+      <field name="code">0</field>
+    </row>
+  </datatable>
+
+  <!-- 询价页面数据 -->
+  <datatable name="MarketAgentBuy">
+    <row id="MAB001" remark="访问询价页面">
+    </row>
+  </datatable>
+
+  <!-- 询价权限检查数据 -->
+  <datatable name="MarketAuthInquiry">
+    <row id="MAI001" remark="检查询价权限">
+    </row>
+  </datatable>
+
+  <!-- 询价权限验证 -->
+  <datatable name="MarketAuthInquiry_verify">
+    <row id="MAIV001" remark="验证返回成功">
+      <field name="code">0</field>
+    </row>
+  </datatable>
+</datatables>

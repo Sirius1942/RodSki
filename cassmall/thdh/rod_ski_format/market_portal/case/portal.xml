@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+  <!-- 小李-访问维修厂首页 -->
+  <case id="cassmall_market_portal" title="小李-访问维修厂首页" execute="是" description="小李（维修厂）登录后访问首页">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="type" model="LoginPage" data="xiaoli_login"/>
+      <test_step action="wait" data="5"/>
+    </pre_process>
+    <test_case>
+      <!-- 访问首页 -->
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/market/portal"/>
+      <test_step action="wait" data="3"/>
+      <!-- 验证首页返回 -->
+      <test_step action="send" model="MarketPortal" data="P001"/>
+      <test_step action="verify" model="MarketPortal_verify" data="PV001"/>
+      <!-- 获取会员信息 -->
+      <test_step action="send" model="MarketMemberInfo" data="M001"/>
+      <test_step action="verify" model="MarketMemberInfo_verify" data="MV001"/>
+      <!-- 获取金币账户 -->
+      <test_step action="send" model="MarketGoldcoinAccount" data="GA001"/>
+      <test_step action="verify" model="MarketGoldcoinAccount_verify" data="GAV001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" data=""/>
+    </post_process>
+  </case>
+
+  <!-- 小李-查看公告 -->
+  <case id="cassmall_market_announcements" title="小李-查看维修厂公告" execute="是" description="小李查看在线公告和未读公告">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="type" model="LoginPage" data="xiaoli_login"/>
+      <test_step action="wait" data="5"/>
+    </pre_process>
+    <test_case>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/market/portal"/>
+      <test_step action="wait" data="3"/>
+      <!-- 获取在线公告 -->
+      <test_step action="send" model="MarketAnnouncements" data="A001"/>
+      <test_step action="verify" model="MarketAnnouncements_verify" data="AV001"/>
+      <!-- 获取未读公告 -->
+      <test_step action="send" model="MarketLastUnreadAnnouncement" data="LUA001"/>
+      <test_step action="verify" model="MarketLastUnreadAnnouncement_verify" data="LUAV001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" data=""/>
+    </post_process>
+  </case>
+
+  <!-- 小李-查看积分信息 -->
+  <case id="cassmall_market_points" title="小李-查看积分和金币" execute="是" description="小李查看积分和金币账户信息">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="type" model="LoginPage" data="xiaoli_login"/>
+      <test_step action="wait" data="5"/>
+    </pre_process>
+    <test_case>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/market/portal"/>
+      <test_step action="wait" data="3"/>
+      <!-- 获取积分 -->
+      <test_step action="send" model="MarketUserPoint" data="UP001"/>
+      <test_step action="verify" model="MarketUserPoint_verify" data="UPV001"/>
+      <!-- 获取金币 -->
+      <test_step action="send" model="MarketGoldcoinAccount" data="GA001"/>
+      <test_step action="verify" model="MarketGoldcoinAccount_verify" data="GAV001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" data=""/>
+    </post_process>
+  </case>
+</cases>
