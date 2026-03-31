@@ -1,0 +1,842 @@
+[
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/public/cassadv/active?caller=CASS&version=1774929111574",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/public/cassadvcenter/system/config?keyword=MIN_AD_EXPOSURE_TIME",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/portal",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "document"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/portal",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "document"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/order/track/css/order-track.css?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "stylesheet"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/common/plugins/util/common.js?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "script"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/common/plugins/util/textarealimit.js?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "script"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/common/plugins/artTemplate/artTemplate.js?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "script"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/common/plugins/util/utils.js?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "script"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/js/tenant-config.js?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "script"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/js/setTenantConfig.js?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "script"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/common/plugins/util/cdn-images-util.js?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "script"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/js/MutationObserver.js?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "script"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/js/bury.js?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "script"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/patch-sass/css/market-header.css?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "stylesheet"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/common/plugins/bootstrap-tour/css/bootstrap-tour-standalone.css?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "stylesheet"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/product/portal/css/portal.css?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "stylesheet"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/product/portal/css/coupon-index.css?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "stylesheet"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/product/portal/css/point-checkin.css?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "stylesheet"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/rights/css/rights.css?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "stylesheet"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/patch-sass/css/portal.css?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "stylesheet"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/common/utils.js?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "script"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/common/plugins/jquery-lazyload/jquery.lazyload.js?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "script"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/common/plugins/bootstrap-tour/js/bootstrap-tour-standalone.js?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "script"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/common/plugins/layui/layui.js?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "script"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/product/portal/images/yearend-status-one.png?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "image"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/product/common/polyfill.min.js?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "script"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/product/common/babel-browser.min.js?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "script"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/product/common/axios.min.js?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "script"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/product/common/vue-test.js?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "script"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/product/portal/js/portal-floor-layui.js?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "script"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/product/portal/js/portal.js?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "script"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/product/portal/js/artTemplate-extends.js?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "script"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/product/portal/js/notice.js?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "script"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/member/point/js/point-checkin.js?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "script"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/product/portal/js/portal-tour-guide.js?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "script"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/product/portal/images/search-icon.png?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "image"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/product/portal/images/recommend.png?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "image"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/list/reward/task",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/common/plugins/layui/lay/modules/laytpl.js",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "script"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/portal/getPortalFloor?caller=",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/public/cassadvcenter/system/config?keyword=MIN_AD_EXPOSURE_TIME",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/portal/getProductBrands",
+    "method": "POST",
+    "post_data": "[\"A-WORKS\",\"SHELL\",\"1TONGYANG\",\"1_MEILENG\",\"3M\",\"555\",\"BOSCH\"]",
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/portal/getSecondCategory",
+    "method": "POST",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/product/portal/images/to-top-ico1.png?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "image"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/product/portal/images/1f.png?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "image"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/product/portal/images/2f.png?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "image"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/product/portal/images/3f.png?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "image"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/product/portal/images/4f.png?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "image"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/product/portal/images/5f.png?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "image"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/product/portal/images/6f.png?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "image"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/product/portal/images/7f.png?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "image"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/product/portal/images/8f.png?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "image"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/product/portal/images/9f.png?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "image"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/product/portal/images/10f.png?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "image"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/product/portal/images/11f.png?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "image"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/product/portal/images/12f.png?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "image"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/product/portal/images/13f.png?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "image"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/product/portal/images/14f.png?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "image"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/product/portal/images/15f.png?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "image"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/public/cassadvcenter/system/config?keyword=MIN_AD_EXPOSURE_TIME",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/public/cassadv/active?urlReferer=activity_float_window",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/public/cassadv/active?urlReferer=activity_feel_bg",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/common/topbar",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/activity/yearend/getCurrentGift",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/public/cassadvcenter/system/config?keyword=MIN_AD_EXPOSURE_TIME",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/portal/check/authenticated/inquiry",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/lotterydraw/records/news?code=20191111&level=4",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/portal/memberInfo",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/portal/checkin/info?beginDate=2026-03-01&endDate=2026-03-31",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/cassadv/listByPositions?positionId=7,8,9,13&caller=",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/portal/hotWordSearch",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/announcements/online",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/user/main/garage",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/public/cassadv/active?caller=CASS&version=1774929123657",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/portal/slideAnnouncement",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/static/product/portal/images/des1.png?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "image"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/static/product/portal/images/des2.png?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "image"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/static/product/portal/images/des3.png?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "image"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/announcements/last-unread",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/contract/plan/shouldpopup",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/public/cassadvcenter/system/config?keyword=MIN_AD_EXPOSURE_TIME",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/public/cassadv/statistics/update",
+    "method": "POST",
+    "post_data": "[{\"code\":\"undefined\",\"id\":\"1796333722270420992\",\"displayNum\":1}]",
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/garage-right/available",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/common/68954d6d1aeb54000134a402/remindpoint",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/goldcoin/account",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/points/userpoint",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/points/boschpoint",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/person-level/byuser",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/cassadv/listByPositions?positionId=91",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/garage-right/list",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/lottery/golden_201808090001/remainChance",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/feedback/types",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/user/main/garage",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/garage-level/upgrade/tip",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/garage-trial-right/show-button",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/announcements/last-unread?type=ACTIVITY_AD",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/portal/checkin/68954d6d1aeb54000134a402",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/portal/statistics/10",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/common/topbar",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/rights/images/icon-company-portrait.png?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "image"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/rights/images/rights/icon-au-line.png?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "image"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/rights/images/rights/V-20/v0.png?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "image"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/rights/images/rights/icon-company-level-n0.png?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "image"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/images/icon-c.png?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "image"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/product/portal/images/icon-checkin-btn-bg.png?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "image"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/loans/getCompanyProfile?companyId=z7tn4aiPFa7A6Y1zarP",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/company/provide-coupon/silent?companyId=z7tn4aiPFa7A6Y1zarP",
+    "method": "POST",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/msg/api/messages/unread_count?type=NOTICE&_=1774929122353",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/product/portal/images/icon-checkin-btn.png?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "image"
+  },
+  {
+    "url": "https://sen.cassmall.com/api/3/envelope/?sentry_key=abbe1f3ae00d4e1c932fa2f3ee4f8756&sentry_version=7&sentry_client=sentry.javascript.browser%2F7.24.2",
+    "method": "POST",
+    "post_data": "{\"event_id\":\"b8a15485b8b3450093043afc7ba36629\",\"sent_at\":\"2026-03-31T03:52:05.832Z\",\"sdk\":{\"name\":\"sentry.javascript.browser\",\"version\":\"7.24.2\"},\"trace\":{\"environment\":\"development\",\"public_key\":\"abbe1f3ae00d4e1c932fa2f3ee4f8756\",\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\",\"sample_rate\":\"1\"}}\n{\"type\":\"transaction\"}\n{\"contexts\":{\"trace\":{\"op\":\"pageload\",\"span_id\":\"8be96ba4b3a71a94\",\"tags\":{\"effectiveConnectionType\":\"4g\",\"deviceMemory\":\"8 GB\",\"hardwareConcurrency\":\"14\"},\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"}},\"spans\":[{\"description\":\"Main UI thread blocked\",\"op\":\"ui.long-task\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b355eb53aee2a6c6\",\"start_timestamp\":1774929122.3741999,\"timestamp\":1774929122.4882,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"description\":\"Main UI thread blocked\",\"op\":\"ui.long-task\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"9b19c71ebae42c97\",\"start_timestamp\":1774929122.5507,\"timestamp\":1774929122.6067,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/mall/common/header_menus\"},\"description\":\"GET /mall/common/header_menus\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"bef5f281cdc5d88d\",\"start_timestamp\":1774929122.8218,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.0126998,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/agentBuy/mall/datastatistics/remind/icon/isshowed\"},\"description\":\"GET /agentBuy/mall/datastatistics/remind/icon/isshowed\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"a9cc56d2dec87dfa\",\"start_timestamp\":1774929122.8222,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929122.9155,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/portal/getPortalFloor?caller=\"},\"description\":\"GET /market/portal/getPortalFloor?caller=\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b3205d43f7a77784\",\"start_timestamp\":1774929122.8492,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929122.9117,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/public/cassadvcenter/system/config?keyword=MIN_AD_EXPOSURE_TIME\"},\"description\":\"GET /market/public/cassadvcenter/system/config?keyword=MIN_AD_EXPOSURE_TIME\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"bb982f38203006a5\",\"start_timestamp\":1774929122.9133,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.1945,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"POST\",\"url\":\"/market/portal/getProductBrands\"},\"description\":\"POST /market/portal/getProductBrands\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"8308009834c7519a\",\"start_timestamp\":1774929122.9138,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929122.9519,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"POST\",\"url\":\"/market/portal/getSecondCategory\"},\"description\":\"POST /market/portal/getSecondCategory\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"80d9aab010c1f9f8\",\"start_timestamp\":1774929122.914,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929122.9778998,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"description\":\"Main UI thread blocked\",\"op\":\"ui.long-task\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"86354b1fc7ae906b\",\"start_timestamp\":1774929122.8492,\"timestamp\":1774929122.9152,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"https://ec-hwbeta.casstime.com/static/common/cass-popup/popup-homepage.js\"},\"description\":\"GET https://ec-hwbeta.casstime.com/static/common/cass-popup/popup-homepage.js\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"9b74b3c412cffee2\",\"start_timestamp\":1774929123.0319,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.0593998,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/product-mall/inquiry/tyre/check\"},\"description\":\"GET /product-mall/inquiry/tyre/check\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"872720387861f3c5\",\"start_timestamp\":1774929123.0598998,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.1822,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/public/cassadvcenter/system/config?keyword=MIN_AD_EXPOSURE_TIME\"},\"description\":\"GET /market/public/cassadvcenter/system/config?keyword=MIN_AD_EXPOSURE_TIME\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b888dbbb7d312e89\",\"start_timestamp\":1774929123.1833,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.6625,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/product-mall/product/mall/portal/category?caller=\"},\"description\":\"GET /product-mall/product/mall/portal/category?caller=\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"9cd860fe0a001760\",\"start_timestamp\":1774929123.1841002,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.6629,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/mall/common/footer_help_menus\"},\"description\":\"GET /mall/common/footer_help_menus\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"94a8c08ef56ebfb7\",\"start_timestamp\":1774929123.1996999,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.6674,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"description\":\"Main UI thread blocked\",\"op\":\"ui.long-task\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"bfa3f346ac15e818\",\"start_timestamp\":1774929123.0599,\"timestamp\":1774929123.1879,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/public/cassadv/active?urlReferer=activity_float_window\"},\"description\":\"GET /market/public/cassadv/active?urlReferer=activity_float_window\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"89558c1e9e8a736c\",\"start_timestamp\":1774929123.2001998,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.2394,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/public/cassadv/active?urlReferer=activity_feel_bg\"},\"description\":\"GET /market/public/cassadv/active?urlReferer=activity_feel_bg\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"bb83d28c17f645a0\",\"start_timestamp\":1774929123.2414,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.2875,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"https://ec-hwbeta.casstime.com/static/common/tenantConfig/tenantConfig.js\"},\"description\":\"GET https://ec-hwbeta.casstime.com/static/common/tenantConfig/tenantConfig.js\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"91b7e5bf4eff7007\",\"start_timestamp\":1774929123.2949,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.3198998,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"https://ec-hwbeta.casstime.com/static/common/tenantConfig/tenant-config.js\"},\"description\":\"GET https://ec-hwbeta.casstime.com/static/common/tenantConfig/tenant-config.js\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"a7ac7ddd2196983e\",\"start_timestamp\":1774929123.3209,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.3428998,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"https://ec-hwbeta.casstime.com/static/common/tenantConfig/setTenantConfig.js\"},\"description\":\"GET https://ec-hwbeta.casstime.com/static/common/tenantConfig/setTenantConfig.js\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"aa227cf84ea86bcd\",\"start_timestamp\":1774929123.3441,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.3663,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/mall/public/tenant/CASS\"},\"description\":\"GET /mall/public/tenant/CASS\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"9f2ee3589fc48cbe\",\"start_timestamp\":1774929123.3671,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.409,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/terminal-api-v2/public/app/document_config?key=isSpecialDay\"},\"description\":\"GET /terminal-api-v2/public/app/document_config?key=isSpecialDay\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b7fff490f4769e9e\",\"start_timestamp\":1774929123.4105,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.6678998,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"https://ec-hwbeta.casstime.com/static/common/jquery-cookie/jquery.cookie.1.4.1.js\"},\"description\":\"GET https://ec-hwbeta.casstime.com/static/common/jquery-cookie/jquery.cookie.1.4.1.js\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"8566435a94f7d5f0\",\"start_timestamp\":1774929123.4115,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.4371002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"https://ec-hwbeta.casstime.com/static/common/bootstrap-tour/js/bootstrap-tour-standalone.js\"},\"description\":\"GET https://ec-hwbeta.casstime.com/static/common/bootstrap-tour/js/bootstrap-tour-standalone.js\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"9bdcdec2c414255e\",\"start_timestamp\":1774929123.4393,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.4772,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"https://ec-hwbeta.casstime.com/static/common/quick_cart/webuploader.js\"},\"description\":\"GET https://ec-hwbeta.casstime.com/static/common/quick_cart/webuploader.js\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"aa77b31e478d8bcd\",\"start_timestamp\":1774929123.4811,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.557,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"https://ec-hwbeta.casstime.com/static/common/quick_cart/feedbackUploader.js\"},\"description\":\"GET https://ec-hwbeta.casstime.com/static/common/quick_cart/feedbackUploader.js\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"9401addda97c60cd\",\"start_timestamp\":1774929123.5696,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.5944,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"https://ec-hwbeta.casstime.com/static/common/quick_cart/feedback.js\"},\"description\":\"GET https://ec-hwbeta.casstime.com/static/common/quick_cart/feedback.js\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"9d9b29949c472742\",\"start_timestamp\":1774929123.595,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.6197,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"https://ec-hwbeta.casstime.com/static/common/cass-statistics/baidu-statistics.js\"},\"description\":\"GET https://ec-hwbeta.casstime.com/static/common/cass-statistics/baidu-statistics.js\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"bd41ee24a8f43051\",\"start_timestamp\":1774929123.6217,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.647,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/common/topbar\"},\"description\":\"GET /market/common/topbar\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"9d82716f8978baf8\",\"start_timestamp\":1774929123.6491,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.7075,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/static/common/cass-announcement/announcement.js?_=1774929122346\"},\"description\":\"GET /static/common/cass-announcement/announcement.js?_=1774929122346\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"8944411675794a57\",\"start_timestamp\":1774929123.6496,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.6733,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/activity/yearend/getCurrentGift\"},\"description\":\"GET /market/activity/yearend/getCurrentGift\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"84b0249762fe9cee\",\"start_timestamp\":1774929123.6504,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.774,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/public/cassadvcenter/system/config?keyword=MIN_AD_EXPOSURE_TIME\"},\"description\":\"GET /market/public/cassadvcenter/system/config?keyword=MIN_AD_EXPOSURE_TIME\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"942f21a5b3bf059c\",\"start_timestamp\":1774929123.6511002,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.7225,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/portal/check/authenticated/inquiry\"},\"description\":\"GET /market/portal/check/authenticated/inquiry\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"8f83dda8e7752eb0\",\"start_timestamp\":1774929123.6516001,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.713,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/lotterydraw/records/news?code=20191111&level=4\"},\"description\":\"GET /market/lotterydraw/records/news?code=20191111&level=4\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"8bd35a50687c4a5d\",\"start_timestamp\":1774929123.652,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.7133,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/portal/memberInfo\"},\"description\":\"GET /market/portal/memberInfo\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"8173407834ba7bec\",\"start_timestamp\":1774929123.6524,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929124.4296,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/portal/checkin/info?beginDate=2026-03-01&endDate=2026-03-31\"},\"description\":\"GET /market/portal/checkin/info?beginDate=2026-03-01&endDate=2026-03-31\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"909588496444a416\",\"start_timestamp\":1774929123.6532,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.8072,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/cassadv/listByPositions?positionId=7,8,9,13&caller=\"},\"description\":\"GET /market/cassadv/listByPositions?positionId=7,8,9,13&caller=\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"8d741336f0f2f8ff\",\"start_timestamp\":1774929123.6541998,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.7678,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/portal/hotWordSearch\"},\"description\":\"GET /market/portal/hotWordSearch\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"9966e335f234e9cd\",\"start_timestamp\":1774929123.6545,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.7696002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/announcements/online\"},\"description\":\"GET /market/announcements/online\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"965a13f78149883e\",\"start_timestamp\":1774929123.655,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.7818,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/user/main/garage\"},\"description\":\"GET /market/user/main/garage\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b4f7d9059625cedb\",\"start_timestamp\":1774929123.6556,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929124.0698001,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/public/cassadv/active?caller=CASS&version=1774929123657\"},\"description\":\"GET /market/public/cassadv/active?caller=CASS&version=1774929123657\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"8846f2e5d35d25be\",\"start_timestamp\":1774929123.6571999,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.8258998,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/portal/slideAnnouncement\"},\"description\":\"GET /market/portal/slideAnnouncement\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"ad877e87c3b65d9a\",\"start_timestamp\":1774929123.6571999,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.8483,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/static/common/cass-announcement/hoarding-plan-remind-homepage.js?_=1774929122347\"},\"description\":\"GET /static/common/cass-announcement/hoarding-plan-remind-homepage.js?_=1774929122347\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"9a30139952ea860a\",\"start_timestamp\":1774929123.6593,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.7963,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"description\":\"Main UI thread blocked\",\"op\":\"ui.long-task\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"802170f2298993b7\",\"start_timestamp\":1774929123.2003,\"timestamp\":1774929123.2872999,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"description\":\"Main UI thread blocked\",\"op\":\"ui.long-task\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"8ac678d3f53cd103\",\"start_timestamp\":1774929123.2907,\"timestamp\":1774929123.6597,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"https://ec-hwbeta.casstime.com/static/common/jquery-superslide/jquery.SuperSlide.2.1.1.js\"},\"description\":\"GET https://ec-hwbeta.casstime.com/static/common/jquery-superslide/jquery.SuperSlide.2.1.1.js\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"969f800859d506d6\",\"start_timestamp\":1774929123.6736999,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.7069,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/announcements/last-unread\"},\"description\":\"GET /market/announcements/last-unread\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"be17cdc4e4d7af44\",\"start_timestamp\":1774929123.7073,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.8465,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/featuretoggles/feature-toggles/feature/INQUIRY_ORDER_GROUP_APPROVAL\"},\"description\":\"GET /featuretoggles/feature-toggles/feature/INQUIRY_ORDER_GROUP_APPROVAL\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"bcaad1498ace7d8d\",\"start_timestamp\":1774929123.7077,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.8611002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/contract/plan/shouldpopup\"},\"description\":\"GET /market/contract/plan/shouldpopup\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"aa9501155874b729\",\"start_timestamp\":1774929123.7979,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.8643,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/public/cassadvcenter/system/config?keyword=MIN_AD_EXPOSURE_TIME\"},\"description\":\"GET /market/public/cassadvcenter/system/config?keyword=MIN_AD_EXPOSURE_TIME\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"bf078671709feaec\",\"start_timestamp\":1774929123.8269,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929124.0691001,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"POST\",\"url\":\"/market/public/cassadv/statistics/update\"},\"description\":\"POST /market/public/cassadv/statistics/update\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b13a987829dcf6fc\",\"start_timestamp\":1774929123.8283,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.8721,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/static/common/cass-announcement/ad.js?_=1774929122348\"},\"description\":\"GET /static/common/cass-announcement/ad.js?_=1774929122348\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"852f05f070c79e1b\",\"start_timestamp\":1774929123.847,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.8722,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/garage-right/available\"},\"description\":\"GET /market/garage-right/available\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"aa7501922fdbb4e1\",\"start_timestamp\":1774929123.8623002,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929124.07,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/common/68954d6d1aeb54000134a402/remindpoint\"},\"description\":\"GET /market/common/68954d6d1aeb54000134a402/remindpoint\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"9e13468efe9445cf\",\"start_timestamp\":1774929123.8628001,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929124.0698998,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"POST\",\"url\":\"/cart/web/cart/item/count?channel=PLATMALL\"},\"description\":\"POST /cart/web/cart/item/count?channel=PLATMALL\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"a2255d4ae244eeef\",\"start_timestamp\":1774929123.8632,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929124.0721002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/goldcoin/account\"},\"description\":\"GET /market/goldcoin/account\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b54a6ae437cb3167\",\"start_timestamp\":1774929123.8635,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929124.0719,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/points/userpoint\"},\"description\":\"GET /market/points/userpoint\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"9ac0d12a4b9edc79\",\"start_timestamp\":1774929123.8636,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929124.0714,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/points/boschpoint\"},\"description\":\"GET /market/points/boschpoint\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b385164f1538a154\",\"start_timestamp\":1774929123.8638,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929124.072,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/person-level/byuser\"},\"description\":\"GET /market/person-level/byuser\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"afa3f30eb3f0ad4f\",\"start_timestamp\":1774929123.8638,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929124.0709,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/static/common/cass-announcement/first-order-draw-homepage.js?_=1774929122349\"},\"description\":\"GET /static/common/cass-announcement/first-order-draw-homepage.js?_=1774929122349\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"8df69979cb90b1a3\",\"start_timestamp\":1774929123.8644,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929124.0703,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"https://ec-hwbeta.casstime.com/static/common/json3/json3.min.js\"},\"description\":\"GET https://ec-hwbeta.casstime.com/static/common/json3/json3.min.js\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"9f67cc5e2e3bb162\",\"start_timestamp\":1774929123.8726,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929123.9071002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/pointshop/common/topbar\"},\"description\":\"GET /pointshop/common/topbar\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"a94edfc8028f97dd\",\"start_timestamp\":1774929123.9108999,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929124.0591002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/cassadv/listByPositions?positionId=91\"},\"description\":\"GET /market/cassadv/listByPositions?positionId=91\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"a57db9ede3d33014\",\"start_timestamp\":1774929124.06,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929124.2141001,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/garage-right/list\"},\"description\":\"GET /market/garage-right/list\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"9c8f9309de7835a7\",\"start_timestamp\":1774929124.0701,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929124.2161002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/lottery/golden_201808090001/remainChance\"},\"description\":\"GET /market/lottery/golden_201808090001/remainChance\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"8cf4fc02e34032b3\",\"start_timestamp\":1774929124.0706,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929124.2159,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"description\":\"Main UI thread blocked\",\"op\":\"ui.long-task\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"aad12f9b13d8009f\",\"start_timestamp\":1774929123.8725,\"timestamp\":1774929124.0605,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"POST\",\"url\":\"/cart/web/cart/item/count?channel=PLATMALL\"},\"description\":\"POST /cart/web/cart/item/count?channel=PLATMALL\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"9ae6e782fd719f99\",\"start_timestamp\":1774929124.0725,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929124.2155,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/feedback/types\"},\"description\":\"GET /market/feedback/types\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"a1ed7db60ab83ca9\",\"start_timestamp\":1774929124.0728998,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929124.121,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"POST\",\"url\":\"/maindata/partsCart/getCount\"},\"description\":\"POST /maindata/partsCart/getCount\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"92780a4a60e3524e\",\"start_timestamp\":1774929124.1216002,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929124.2275,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"https://ec-hwbeta.casstime.com/static/common/quick_cart/quick_cart_common.js\"},\"description\":\"GET https://ec-hwbeta.casstime.com/static/common/quick_cart/quick_cart_common.js\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"ac19c24f863b5621\",\"start_timestamp\":1774929124.1222,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929124.1459,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"https://ec-hwbeta.casstime.com/static/common/quick_cart/quick_cart.js\"},\"description\":\"GET https://ec-hwbeta.casstime.com/static/common/quick_cart/quick_cart.js\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"83d9e934c6b7ab9a\",\"start_timestamp\":1774929124.1476002,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929124.1748002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"https://ec-hwbeta.casstime.com/static/common/quick_cart/parabola.js\"},\"description\":\"GET https://ec-hwbeta.casstime.com/static/common/quick_cart/parabola.js\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b2d2ff26518ee92a\",\"start_timestamp\":1774929124.1777,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929124.2027,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/WebIM/js/msg.js?_=1774929122351\"},\"description\":\"GET /WebIM/js/msg.js?_=1774929122351\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"a48552eda95c406f\",\"start_timestamp\":1774929124.2038,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929124.2453,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/static/common/cass-announcement/oil.js?r=201796143759&_=1774929122352\"},\"description\":\"GET /static/common/cass-announcement/oil.js?r=201796143759&_=1774929122352\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"a435cb8278a53668\",\"start_timestamp\":1774929124.2146,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929124.2496002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/user/main/garage\"},\"description\":\"GET /market/user/main/garage\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"9d0f48333f2c4d51\",\"start_timestamp\":1774929124.2165,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929124.2939,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/garage-level/upgrade/tip\"},\"description\":\"GET /market/garage-level/upgrade/tip\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b5c37bff0559c976\",\"start_timestamp\":1774929124.2168999,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929124.2618,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/garage-trial-right/show-button\"},\"description\":\"GET /market/garage-trial-right/show-button\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"a2e96d6fd43d7f11\",\"start_timestamp\":1774929124.2171001,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929124.2851,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"description\":\"Main UI thread blocked\",\"op\":\"ui.long-task\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"a7dfac625bd6d5f9\",\"start_timestamp\":1774929124.0725,\"timestamp\":1774929124.2095,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/sellerMgr/product/common/fetchPreference?preferenceKey=firstInPopup-market-portal\"},\"description\":\"GET /sellerMgr/product/common/fetchPreference?preferenceKey=firstInPopup-market-portal\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b264b0283055c3c8\",\"start_timestamp\":1774929124.2183,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929124.2647,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/announcements/last-unread?type=ACTIVITY_AD\"},\"description\":\"GET /market/announcements/last-unread?type=ACTIVITY_AD\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"9888599c99a91aa2\",\"start_timestamp\":1774929124.2498,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929124.3239,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/portal/checkin/68954d6d1aeb54000134a402\"},\"description\":\"GET /market/portal/checkin/68954d6d1aeb54000134a402\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b0589bd52ba337b8\",\"start_timestamp\":1774929124.4373999,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929124.4943998,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/portal/statistics/10\"},\"description\":\"GET /market/portal/statistics/10\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"847b6ac213527ced\",\"start_timestamp\":1774929124.4378,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929124.5101001,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/common/topbar\"},\"description\":\"GET /market/common/topbar\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"8570fdd37715ff93\",\"start_timestamp\":1774929124.4382,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929124.4773002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/market/loans/getCompanyProfile?companyId=z7tn4aiPFa7A6Y1zarP\"},\"description\":\"GET /market/loans/getCompanyProfile?companyId=z7tn4aiPFa7A6Y1zarP\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b9c67923c5bcc77d\",\"start_timestamp\":1774929124.4775,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929124.5328999,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"POST\",\"url\":\"/market/company/provide-coupon/silent?companyId=z7tn4aiPFa7A6Y1zarP\"},\"description\":\"POST /market/company/provide-coupon/silent?companyId=z7tn4aiPFa7A6Y1zarP\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"a6ace627bf6aaf20\",\"start_timestamp\":1774929124.4777,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929124.6548998,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/webim/user/jwt_token\"},\"description\":\"GET /webim/user/jwt_token\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"8105c4f3810de789\",\"start_timestamp\":1774929124.484,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929124.5243,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/msg/api/messages/unread_count?type=NOTICE&_=1774929122353\"},\"description\":\"GET /msg/api/messages/unread_count?type=NOTICE&_=1774929122353\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"92bca411186f175f\",\"start_timestamp\":1774929124.5249,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929124.8026001,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/webim/im/account/me/user?tenantId=CASS_EC\"},\"description\":\"GET /webim/im/account/me/user?tenantId=CASS_EC\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"9e1c2dae341ecde9\",\"start_timestamp\":1774929124.53,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929124.6185,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/webim/im/account/me/user?tenantId=CASS_EC\"},\"description\":\"GET /webim/im/account/me/user?tenantId=CASS_EC\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"809e51c42e0cc082\",\"start_timestamp\":1774929124.5316,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929124.6996,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"type\":\"xhr\",\"method\":\"GET\",\"url\":\"/webim/im/conversation?userId=68954d6d1aeb54000134a402&unread=true&tenantId=CASS_EC&_=1774929122354\"},\"description\":\"GET /webim/im/conversation?userId=68954d6d1aeb54000134a402&unread=true&tenantId=CASS_EC&_=1774929122354\",\"op\":\"http.client\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"971b93e3336bc8e1\",\"start_timestamp\":1774929124.6187,\"status\":\"ok\",\"tags\":{\"http.status_code\":\"200\"},\"timestamp\":1774929124.7201002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"description\":\"domContentLoadedEvent\",\"op\":\"browser\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"af1ae251e11669cc\",\"start_timestamp\":1774929123.2907002,\"timestamp\":1774929123.6604002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"description\":\"connect\",\"op\":\"browser\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b8e5e7cccf4bb7d2\",\"start_timestamp\":1774929122.0725002,\"timestamp\":1774929122.0725002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"description\":\"TLS/SSL\",\"op\":\"browser\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b81bb56350aa0075\",\"start_timestamp\":1774929122.0725002,\"timestamp\":1774929122.0725002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"description\":\"cache\",\"op\":\"browser\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b1b39a46f45fd952\",\"start_timestamp\":1774929122.0725002,\"timestamp\":1774929122.0725002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"description\":\"DNS\",\"op\":\"browser\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"9bebde93edfb6919\",\"start_timestamp\":1774929122.0725002,\"timestamp\":1774929122.0725002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"description\":\"request\",\"op\":\"browser\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"a4aedea67dda04ee\",\"start_timestamp\":1774929122.0735002,\"timestamp\":1774929122.3075001,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"description\":\"response\",\"op\":\"browser\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"84013e35db27caff\",\"start_timestamp\":1774929122.2348,\"timestamp\":1774929122.3075001,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/static/common/js/cassec.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b143dd541781e5e3\",\"start_timestamp\":1774929122.2395,\"timestamp\":1774929122.2717001,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/static/common/plugins/kkpager/kkpager_orange.css?version=1769053522532\",\"op\":\"resource.link\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"87c4e32342cabf0f\",\"start_timestamp\":1774929122.2397,\"timestamp\":1774929122.2625,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/static/common/plugins/bootstrap/css/bootstrap.min.css?version=1769053522532\",\"op\":\"resource.link\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"ad2f1084b3c593e6\",\"start_timestamp\":1774929122.2397,\"timestamp\":1774929122.2641,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/static/common/jquery/css/autocomplete.min.css?version=1769053522532\",\"op\":\"resource.link\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"9aa31df329eaa97a\",\"start_timestamp\":1774929122.2398002,\"timestamp\":1774929122.2717001,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/static/common/css/layout.css?version=1769053522532\",\"op\":\"resource.link\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"ab603729a42ffb20\",\"start_timestamp\":1774929122.2398002,\"timestamp\":1774929122.2729,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/static/skins/depends/css/bootstrap.modify.css?version=1769053522532\",\"op\":\"resource.link\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"88142f7cddf84296\",\"start_timestamp\":1774929122.2398002,\"timestamp\":1774929122.3383002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/order/track/css/order-track.css?version=1769053522532\",\"op\":\"resource.link\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"8fa6ef8d0743dc3e\",\"start_timestamp\":1774929122.2399,\"timestamp\":1774929122.2883,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/static/common/topbar/topbar.css?version=1769053522532\",\"op\":\"resource.link\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"a90511c0e487d7b7\",\"start_timestamp\":1774929122.2400002,\"timestamp\":1774929122.2929003,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/static/skins/assets/jquery-1.12.1/jquery-1.12.0.min.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"a95b88a497dbfc69\",\"start_timestamp\":1774929122.2400002,\"timestamp\":1774929122.3373003,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/static/skins/depends/js/jquery.custom-plugins.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"9057659aa8b6a701\",\"start_timestamp\":1774929122.2400002,\"timestamp\":1774929122.3388002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/static/common/plugins/bootstrap/js/bootstrap.min.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b532df27f1ed21c1\",\"start_timestamp\":1774929122.2400002,\"timestamp\":1774929122.3411002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/common/plugins/util/common.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b59379b8fce06874\",\"start_timestamp\":1774929122.2401001,\"timestamp\":1774929122.3347,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/static/common/plugins/my97DatePicker/WdatePicker.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"85971f4d28160623\",\"start_timestamp\":1774929122.2402,\"timestamp\":1774929122.3514001,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/static/common/quick_cart/quick_cart_main.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"976597708302ea1a\",\"start_timestamp\":1774929122.2402,\"timestamp\":1774929122.3534,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/static/common/layer/layer.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b0ad8de8a56de99a\",\"start_timestamp\":1774929122.2402,\"timestamp\":1774929122.3552,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/common/plugins/util/textarealimit.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"a24c8e9a4c8a7e02\",\"start_timestamp\":1774929122.2402,\"timestamp\":1774929122.3583,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/common/plugins/util/utils.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b0eb7df125539903\",\"start_timestamp\":1774929122.2404,\"timestamp\":1774929122.3549001,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/common/plugins/artTemplate/artTemplate.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"a6ba783d377231b1\",\"start_timestamp\":1774929122.2404,\"timestamp\":1774929122.3571,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/static/common/plugins/kkpager/kkpager.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"96539ecd08f1c724\",\"start_timestamp\":1774929122.2404,\"timestamp\":1774929122.3674002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/js/setTenantConfig.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b30f61f1e5362116\",\"start_timestamp\":1774929122.2404,\"timestamp\":1774929122.3681002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/js/tenant-config.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"ab6b955bb50c3ae8\",\"start_timestamp\":1774929122.2404,\"timestamp\":1774929122.3738,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://fe-cdn.cassmall.com/components/core-js@3.19.2.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"84c37b52266611fb\",\"start_timestamp\":1774929122.2405002,\"timestamp\":1774929122.2716002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/static/common/casspop-plugin/casspop.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"9c3d3ba40c260c82\",\"start_timestamp\":1774929122.2405002,\"timestamp\":1774929122.3747003,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/common/plugins/util/cdn-images-util.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"9248cf6c8702567a\",\"start_timestamp\":1774929122.2405002,\"timestamp\":1774929122.3758001,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":20790,\"Encoded Body Size\":20490,\"Decoded Body Size\":20490},\"description\":\"/mall/public/ecstatic/cassSensor_js\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"8333475e6542d5bb\",\"start_timestamp\":1774929122.2406,\"timestamp\":1774929122.2845001,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/js/MutationObserver.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"bff3d4f2d2b3dc11\",\"start_timestamp\":1774929122.2406,\"timestamp\":1774929122.3836,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/js/bury.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b1171be3a2a2c961\",\"start_timestamp\":1774929122.2406,\"timestamp\":1774929122.385,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/static/common/react2js/bundle.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"add516f38607ca2a\",\"start_timestamp\":1774929122.2406,\"timestamp\":1774929122.4216,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/patch-sass/css/market-header.css?version=1769053522532\",\"op\":\"resource.link\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"bab7082bf3a9f667\",\"start_timestamp\":1774929122.2407002,\"timestamp\":1774929122.2885003,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/static/common/topbar/topbar.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"942e3b8b4033c784\",\"start_timestamp\":1774929122.2407002,\"timestamp\":1774929122.3949003,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/common/plugins/bootstrap-tour/css/bootstrap-tour-standalone.css?version=1769053522532\",\"op\":\"resource.link\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"90cc8606aae5a64b\",\"start_timestamp\":1774929122.2408001,\"timestamp\":1774929122.2874002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/static/common/jquery-slider/nivo-slider.css?version=1769053522532\",\"op\":\"resource.link\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"925b791a02473650\",\"start_timestamp\":1774929122.2408001,\"timestamp\":1774929122.2894,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/product/portal/css/portal.css?version=1769053522532\",\"op\":\"resource.link\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"8832c9dc5c4d34ca\",\"start_timestamp\":1774929122.2408001,\"timestamp\":1774929122.3048,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/product/portal/css/coupon-index.css?version=1769053522532\",\"op\":\"resource.link\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"8be8fa4f8925181b\",\"start_timestamp\":1774929122.2409,\"timestamp\":1774929122.3194,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/product/portal/css/point-checkin.css?version=1769053522532\",\"op\":\"resource.link\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"984ff9f0e27b56ed\",\"start_timestamp\":1774929122.2410002,\"timestamp\":1774929122.3082001,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/patch-sass/css/portal.css?version=1769053522532\",\"op\":\"resource.link\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"86b8724e4836e857\",\"start_timestamp\":1774929122.2410002,\"timestamp\":1774929122.3100002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/rights/css/rights.css?version=1769053522532\",\"op\":\"resource.link\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b1c5f4310ebbb48a\",\"start_timestamp\":1774929122.2410002,\"timestamp\":1774929122.3104002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/common/plugins/jquery-lazyload/jquery.lazyload.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"9a12bb97abc9a8bb\",\"start_timestamp\":1774929122.2410002,\"timestamp\":1774929122.3971002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/common/utils.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"aeb6fe0b3ff70fc0\",\"start_timestamp\":1774929122.2410002,\"timestamp\":1774929122.4059002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/common/plugins/bootstrap-tour/js/bootstrap-tour-standalone.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"89ac642a42937afc\",\"start_timestamp\":1774929122.2411,\"timestamp\":1774929122.4032001,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/common/plugins/layui/layui.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"abb4cd47cd424d7f\",\"start_timestamp\":1774929122.2411,\"timestamp\":1774929122.4157,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://fe-static.cassmall.com/assets/js/cap-center/collectExposure_v1.1.0.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"95353ca2bb4d2e43\",\"start_timestamp\":1774929122.2413,\"timestamp\":1774929122.2628002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":3226,\"Encoded Body Size\":2926,\"Decoded Body Size\":2926},\"description\":\"https://pic-market.cassmall.com/activity/activity-tools/activity-float-include/activity-float-include.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"9143dfb0e7719a62\",\"start_timestamp\":1774929122.2413,\"timestamp\":1774929122.3306,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/product/portal/images/yearend-status-one.png?version=1769053522532\",\"op\":\"resource.img\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"a7d43b74af4b3361\",\"start_timestamp\":1774929122.2456002,\"timestamp\":1774929122.4106002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://cass-upload.oss-cn-shenzhen.aliyuncs.com/mall/portal/reward-task-btn.png?version=1769053522532\",\"op\":\"resource.img\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"89120fb246205a9b\",\"start_timestamp\":1774929122.2609003,\"timestamp\":1774929122.3747003,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/product/common/polyfill.min.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"93613033a1d15192\",\"start_timestamp\":1774929122.2610002,\"timestamp\":1774929122.5104,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://cass-upload.oss-cn-shenzhen.aliyuncs.com/mall/portal/btn-close-icon.png?version=1769053522532\",\"op\":\"resource.img\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"a78e91d6753a4e54\",\"start_timestamp\":1774929122.2610002,\"timestamp\":1774929122.5214002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/product/common/axios.min.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b64a70a65e9b98d0\",\"start_timestamp\":1774929122.2610002,\"timestamp\":1774929122.5673,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/product/common/vue-test.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"a127c362c5fbd819\",\"start_timestamp\":1774929122.2610002,\"timestamp\":1774929122.5859,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/product/common/babel-browser.min.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"a654d5f32eee12e7\",\"start_timestamp\":1774929122.2610002,\"timestamp\":1774929122.7775002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://assets.giocdn.com/2.1/gio.js\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"bf039648caea4689\",\"start_timestamp\":1774929122.2725,\"timestamp\":1774929122.5183,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/static/common/jquery-slider/jquery.nivo.slider.pack.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"bee1d550bdf1d353\",\"start_timestamp\":1774929122.2770002,\"timestamp\":1774929122.5324001,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/product/portal/js/portal-floor-layui.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"bedb5f677c94bb7d\",\"start_timestamp\":1774929122.2770002,\"timestamp\":1774929122.5405002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/static/common/cass-inventory/inventory-div.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"8d8ac805f5ad71b2\",\"start_timestamp\":1774929122.2770002,\"timestamp\":1774929122.5666,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/static/common/jquery-superslide/jquery.SuperSlide.2.1.1.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"880f1e3edac9010f\",\"start_timestamp\":1774929122.2770002,\"timestamp\":1774929122.5696,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/product/portal/js/notice.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"a2949e2ac3526fa8\",\"start_timestamp\":1774929122.2770002,\"timestamp\":1774929122.6017003,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/product/portal/js/portal.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"9eba990f24e13e6e\",\"start_timestamp\":1774929122.2770002,\"timestamp\":1774929122.6247003,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/product/portal/js/artTemplate-extends.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b1069cbb878692bd\",\"start_timestamp\":1774929122.2770002,\"timestamp\":1774929122.6884003,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/static/common/cap-center/js/index.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b4b38d17b8a8a503\",\"start_timestamp\":1774929122.2770002,\"timestamp\":1774929122.7525003,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/static/common/cass-statistics/baidu-statistics.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"ab0cbda6b4f2603a\",\"start_timestamp\":1774929122.2770002,\"timestamp\":1774929122.7568002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/member/point/js/point-checkin.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"86b78532c2f506ab\",\"start_timestamp\":1774929122.2770002,\"timestamp\":1774929122.9633002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/product/portal/js/portal-tour-guide.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b3e65028bb3c5b4e\",\"start_timestamp\":1774929122.2771,\"timestamp\":1774929123.0316,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/static/common/footer/react-footer-script.js?version=1769053522532\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"a52768d241f45252\",\"start_timestamp\":1774929122.3076003,\"timestamp\":1774929122.8990002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/static/common/plugins/my97DatePicker/skin/WdatePicker.css\",\"op\":\"resource.link\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"ab84b96f449920e3\",\"start_timestamp\":1774929122.3520002,\"timestamp\":1774929122.3672001,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/static/common/layer/skin/layer.css\",\"op\":\"resource.link\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"ac6ca5c77e9fff2a\",\"start_timestamp\":1774929122.3560002,\"timestamp\":1774929122.3562002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":1476,\"Encoded Body Size\":1176,\"Decoded Body Size\":3985},\"description\":\"/static/common/casspop-plugin/casspop.css\",\"op\":\"resource.link\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b66134cf3ff80616\",\"start_timestamp\":1774929122.4926002,\"timestamp\":1774929122.5175002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://fe-cdn.cassmall.com/components/bricks@2.13.34-cass.js\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"bfb675be1f155eed\",\"start_timestamp\":1774929122.5161002,\"timestamp\":1774929122.5200002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":911,\"Encoded Body Size\":611,\"Decoded Body Size\":1857},\"description\":\"https://pic-market.cassmall.com/activity/activity-tools/demo/activity-float-common/activity-float-include.css?v=1619599800041\",\"op\":\"resource.link\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b307761906d1704d\",\"start_timestamp\":1774929122.5517,\"timestamp\":1774929122.6016002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":2937,\"Encoded Body Size\":2637,\"Decoded Body Size\":2637},\"description\":\"https://pic-market.cassmall.com/activity/activity-tools/demo/activity-float-common/activity-float-include.js?v=1619599800041\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"aa277676f808066a\",\"start_timestamp\":1774929122.5519001,\"timestamp\":1774929122.9755,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://fe-cdn.cassmall.com/components/sentry@0.3.3.js\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"94ab14259c3c0ae7\",\"start_timestamp\":1774929122.6275,\"timestamp\":1774929122.7788,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://fe-cdn.cassmall.com/components/mall-header@0.64.0.js\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"99a6f297db55e05c\",\"start_timestamp\":1774929122.6275,\"timestamp\":1774929122.7801,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://fe-cdn.cassmall.com/assets/js/sensorsdata-1.26.14/sensorsdata.js\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"94e84622a4dd21ae\",\"start_timestamp\":1774929122.6337001,\"timestamp\":1774929122.8376002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://fe-cdn.cassmall.com/assets/js/sensorsdata-1.26.14/plugin-pageleave.js\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"86f6f43945f59655\",\"start_timestamp\":1774929122.6338003,\"timestamp\":1774929122.8378003,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://fe-cdn.cassmall.com/components/sls-web-tracker@0.2.8-build.js\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"9f3134d0c5f482cc\",\"start_timestamp\":1774929122.6338003,\"timestamp\":1774929122.8379002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://cass-upload.oss-cn-shenzhen.aliyuncs.com/mall/portal/reward-task-bg.png?version=1769053522532\",\"op\":\"resource.css\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"9ca394591cb0d33f\",\"start_timestamp\":1774929122.6469002,\"timestamp\":1774929122.7257001,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://cass-upload.oss-cn-shenzhen.aliyuncs.com/mall/portal/task-modal-top.png?version=1769053522532\",\"op\":\"resource.css\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"8823603803843cbf\",\"start_timestamp\":1774929122.6469002,\"timestamp\":1774929122.8392003,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://cass-upload.oss-cn-shenzhen.aliyuncs.com/mall/portal/current-node.png?version=1769053522532\",\"op\":\"resource.css\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b0540d18276d52b1\",\"start_timestamp\":1774929122.6472,\"timestamp\":1774929122.7323,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://cass-upload.oss-cn-shenzhen.aliyuncs.com/mall/portal/empty.png?version=1769053522532\",\"op\":\"resource.css\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b3f2bdd75f5fd34e\",\"start_timestamp\":1774929122.6472,\"timestamp\":1774929122.8692,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://api-os.growingio.com/v2/9d2350559e69271a/web/pv?stm=1774929122663\",\"op\":\"resource.beacon\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"bba97285e1b9a00d\",\"start_timestamp\":1774929122.6638002,\"timestamp\":1774929122.7323003,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"description\":\"first-paint\",\"op\":\"paint\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"96a6db962b9c1b35\",\"start_timestamp\":1774929122.6738002,\"timestamp\":1774929122.6738002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"description\":\"first-contentful-paint\",\"op\":\"paint\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"8d066370e4b911a2\",\"start_timestamp\":1774929122.6738002,\"timestamp\":1774929122.6738002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/common/plugins/layui/lay/modules/laytpl.js\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"9c26a616ca1bf92a\",\"start_timestamp\":1774929122.812,\"timestamp\":1774929122.8428001,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":926,\"Encoded Body Size\":626,\"Decoded Body Size\":1754},\"description\":\"/static/common/cass-inventory/inventory-div.css\",\"op\":\"resource.link\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"a342952edd28a00d\",\"start_timestamp\":1774929122.8126001,\"timestamp\":1774929122.8374002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"description\":\"sentry-tracing-init\",\"op\":\"mark\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b35741516f550fae\",\"start_timestamp\":1774929122.8145,\"timestamp\":1774929122.8145,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://fe-static.cassmall.com/assets/images/b2cbea2de7704109966ff437074cc467.png\",\"op\":\"resource.css\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"86682a823373b84c\",\"start_timestamp\":1774929122.8188002,\"timestamp\":1774929122.8528001,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/product/portal/images/1f.png?version=1769053522532\",\"op\":\"resource.css\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"ba345493fd16af87\",\"start_timestamp\":1774929122.9166002,\"timestamp\":1774929122.9343002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":28985,\"Encoded Body Size\":28685,\"Decoded Body Size\":28685},\"description\":\"https://pic-market.cassmall.com/mall/hwbeta/2022-6/1655704916201_SwABTMj88bhjSyktSmTrBWRGieKrwmXR.jpg?version=1769053522532\",\"op\":\"resource.css\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"8f8c169da17d0cfa\",\"start_timestamp\":1774929122.9166002,\"timestamp\":1774929125.7175002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/product/portal/images/2f.png?version=1769053522532\",\"op\":\"resource.css\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"9eb052e06b09ecd3\",\"start_timestamp\":1774929122.9167001,\"timestamp\":1774929122.9323,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":63648,\"Encoded Body Size\":63348,\"Decoded Body Size\":63348},\"description\":\"https://pic-market.cassmall.com/mall/hwbeta/2022-6/1655705467101_Khd3nrPYWrNzjQftxhP3zXryJF7HmCwh.jpg?version=1769053522532\",\"op\":\"resource.css\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"992fb7b6ef4de1ac\",\"start_timestamp\":1774929122.9167001,\"timestamp\":1774929123.1156,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/product/portal/images/3f.png?version=1769053522532\",\"op\":\"resource.css\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"8268f6145224216c\",\"start_timestamp\":1774929122.9168003,\"timestamp\":1774929122.9323003,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/product/portal/images/4f.png?version=1769053522532\",\"op\":\"resource.css\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"bc463c456a4e26c2\",\"start_timestamp\":1774929122.9168003,\"timestamp\":1774929122.9486003,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":234569,\"Encoded Body Size\":234269,\"Decoded Body Size\":234269},\"description\":\"https://pic-market.cassmall.com/mall/hwbeta/2022-4/1651214971545_KJNMTfCFJKze7HtFCAKBkA55tYpNMd35.jpg?version=1769053522532\",\"op\":\"resource.css\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"acd6f29ecbc229a1\",\"start_timestamp\":1774929122.9168003,\"timestamp\":1774929124.6969004,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":60906,\"Encoded Body Size\":60606,\"Decoded Body Size\":60606},\"description\":\"https://pic-market.cassmall.com/mall/hwbeta/2022-4/1651214722288_MicsTrp5QMwQhtGc8Z7FPQbRSMAExrem.jpg?version=1769053522532\",\"op\":\"resource.css\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"a6372ab36e8155f4\",\"start_timestamp\":1774929122.9169002,\"timestamp\":1774929123.3267002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/product/portal/images/6f.png?version=1769053522532\",\"op\":\"resource.css\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"88d246704785cd37\",\"start_timestamp\":1774929122.917,\"timestamp\":1774929122.9486,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/product/portal/images/7f.png?version=1769053522532\",\"op\":\"resource.css\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"a5637961c3bedd85\",\"start_timestamp\":1774929122.917,\"timestamp\":1774929122.9486,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/product/portal/images/5f.png?version=1769053522532\",\"op\":\"resource.css\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"9a41bdee791badb3\",\"start_timestamp\":1774929122.917,\"timestamp\":1774929122.9486,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":41874,\"Encoded Body Size\":41574,\"Decoded Body Size\":41574},\"description\":\"https://pic-market.cassmall.com/mall/hwbeta/2022-4/1651214846362_PcCPHCZ8yBWnEmeYiRwRry5TBmkEYsZz.png?version=1769053522532\",\"op\":\"resource.css\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"99dfa9311bc225a2\",\"start_timestamp\":1774929122.917,\"timestamp\":1774929123.5091,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":42561,\"Encoded Body Size\":42261,\"Decoded Body Size\":42261},\"description\":\"https://pic-market.cassmall.com/mall/hwbeta/2022-4/1651214589423_EBwZKD3neT2dj2YBTm2JGyhwHEicbGGP.jpg?version=1769053522532\",\"op\":\"resource.css\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b44603e8fd441224\",\"start_timestamp\":1774929122.917,\"timestamp\":1774929124.2489,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/product/portal/images/9f.png?version=1769053522532\",\"op\":\"resource.css\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"9b492b09e6e9a37e\",\"start_timestamp\":1774929122.9172,\"timestamp\":1774929122.9643002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/product/portal/images/8f.png?version=1769053522532\",\"op\":\"resource.css\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b2e8717e381a5475\",\"start_timestamp\":1774929122.9172,\"timestamp\":1774929122.9787002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/product/portal/images/10f.png?version=1769053522532\",\"op\":\"resource.css\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"8ccbf51c9a2b9b07\",\"start_timestamp\":1774929122.9173002,\"timestamp\":1774929122.9641001,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/product/portal/images/11f.png?version=1769053522532\",\"op\":\"resource.css\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"98db06b7c1839935\",\"start_timestamp\":1774929122.9173002,\"timestamp\":1774929122.9643002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/product/portal/images/12f.png?version=1769053522532\",\"op\":\"resource.css\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b0a8f3cc2c1305b8\",\"start_timestamp\":1774929122.9174001,\"timestamp\":1774929122.9788,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/product/portal/images/13f.png?version=1769053522532\",\"op\":\"resource.css\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"90051547cf770e6d\",\"start_timestamp\":1774929122.9174001,\"timestamp\":1774929122.9827,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/product/portal/images/15f.png?version=1769053522532\",\"op\":\"resource.css\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"91ffbbec1fd4fd23\",\"start_timestamp\":1774929122.9175003,\"timestamp\":1774929122.9788003,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/product/portal/images/14f.png?version=1769053522532\",\"op\":\"resource.css\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"a95cc0a9b2489e4c\",\"start_timestamp\":1774929122.9175003,\"timestamp\":1774929122.9828002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":1546,\"Encoded Body Size\":1246,\"Decoded Body Size\":5232},\"description\":\"/static/common/footer/index.css\",\"op\":\"resource.link\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"8e5584483f17d98d\",\"start_timestamp\":1774929123.1994002,\"timestamp\":1774929123.2244003,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":771,\"Encoded Body Size\":471,\"Decoded Body Size\":471},\"description\":\"/static/skins/depends/patch-sass/css/footer.css\",\"op\":\"resource.link\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"933b5330b1fdf6b8\",\"start_timestamp\":1774929123.1995,\"timestamp\":1774929123.2251,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":557,\"Encoded Body Size\":257,\"Decoded Body Size\":257},\"description\":\"https://pic-market.cassmall.com/mall/demo/2020-9/1600849139652_f4G7jjDXTiQd7jCkGFahzAQhMCND6DRr.png\",\"op\":\"resource.css\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b9f284cd85ae8193\",\"start_timestamp\":1774929123.2897003,\"timestamp\":1774929125.7181003,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":7008,\"Encoded Body Size\":6708,\"Decoded Body Size\":31650},\"description\":\"/static/common/quick_cart/css/quick_cart.css?v=1589469434669\",\"op\":\"resource.link\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b9a863e2cee09eff\",\"start_timestamp\":1774929123.4386,\"timestamp\":1774929123.4666002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":2282,\"Encoded Body Size\":1982,\"Decoded Body Size\":9012},\"description\":\"/static/common/quick_cart/css/feedback.css\",\"op\":\"resource.link\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"aa387bd52cf700a5\",\"start_timestamp\":1774929123.4390001,\"timestamp\":1774929123.4644,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":679,\"Encoded Body Size\":379,\"Decoded Body Size\":379},\"description\":\"/static/skins/depends/patch-sass/css/sidebar.css\",\"op\":\"resource.link\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"be75826a341c8812\",\"start_timestamp\":1774929123.6209002,\"timestamp\":1774929123.6441002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":905,\"Encoded Body Size\":605,\"Decoded Body Size\":605},\"description\":\"/static/skins/depends/patch-sass/css/topbar.css\",\"op\":\"resource.link\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"bb50ef62ef13b4d4\",\"start_timestamp\":1774929123.6480002,\"timestamp\":1774929123.6734002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":2460,\"Encoded Body Size\":2160,\"Decoded Body Size\":4916},\"description\":\"https://mstatic.cassmall.com/assets/sensors/cassSensors.js\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"9f4a6701f7a4a6c6\",\"start_timestamp\":1774929123.6485002,\"timestamp\":1774929123.6901002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://fe-static.cassmall.com/assets/js/chrome-download-guide/guide.js\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"8245e1c59e1ca483\",\"start_timestamp\":1774929123.6489003,\"timestamp\":1774929123.6698003,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":804,\"Decoded Body Size\":804},\"description\":\"/static/common/cap-center/css/index.css?v=1\",\"op\":\"resource.link\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"8289338e1809fb60\",\"start_timestamp\":1774929123.6573002,\"timestamp\":1774929123.6582003,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://cass-fe-static.obs.cn-south-1.myhuaweicloud.com/assets/portal/cass/6874.png\",\"op\":\"resource.img\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"a0984c0f33d5aa0f\",\"start_timestamp\":1774929123.6673002,\"timestamp\":1774929123.9022002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":1327,\"Encoded Body Size\":1027,\"Decoded Body Size\":1027},\"description\":\"/market/static/product/portal/images/des1.png?version=1769053522532\",\"op\":\"resource.img\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"ad33c82aee4d0354\",\"start_timestamp\":1774929123.6673002,\"timestamp\":1774929123.9075003,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":1272,\"Encoded Body Size\":972,\"Decoded Body Size\":972},\"description\":\"/market/static/product/portal/images/des3.png?version=1769053522532\",\"op\":\"resource.img\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"be5df3c4bdf78792\",\"start_timestamp\":1774929123.6673002,\"timestamp\":1774929124.0020003,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":1135,\"Encoded Body Size\":835,\"Decoded Body Size\":835},\"description\":\"/market/static/product/portal/images/des2.png?version=1769053522532\",\"op\":\"resource.img\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"976c71e6816dfcbb\",\"start_timestamp\":1774929123.6673002,\"timestamp\":1774929124.0024002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://cass-fe-static.obs.cn-south-1.myhuaweicloud.com/assets/portal/cass/6896.png\",\"op\":\"resource.img\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b5cf343dd84c5cd4\",\"start_timestamp\":1774929123.6674001,\"timestamp\":1774929123.8614001,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://cass-fe-static.obs.cn-south-1.myhuaweicloud.com/assets/portal/cass/6877.png\",\"op\":\"resource.img\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b1e9f727f508cada\",\"start_timestamp\":1774929123.6674001,\"timestamp\":1774929123.8758001,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://cass-fe-static.obs.cn-south-1.myhuaweicloud.com/assets/portal/cass/6876.png\",\"op\":\"resource.img\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"aeee5c103f26f0cf\",\"start_timestamp\":1774929123.6674001,\"timestamp\":1774929123.8778002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://cass-fe-static.obs.cn-south-1.myhuaweicloud.com/assets/portal/cass/6914.png\",\"op\":\"resource.img\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b9c7dc80738c7cef\",\"start_timestamp\":1774929123.6675003,\"timestamp\":1774929123.8627002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://cass-fe-static.obs.cn-south-1.myhuaweicloud.com/assets/portal/cass/6878.png\",\"op\":\"resource.img\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"80f961e96f1fe4b0\",\"start_timestamp\":1774929123.6675003,\"timestamp\":1774929123.8644001,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://cass-fe-static.obs.cn-south-1.myhuaweicloud.com/assets/portal/cass/6875.png\",\"op\":\"resource.img\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"aa5956cf5b43bd4f\",\"start_timestamp\":1774929123.6675003,\"timestamp\":1774929123.8837004,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":753,\"Encoded Body Size\":453,\"Decoded Body Size\":1242},\"description\":\"/static/common/cass-announcement/popup.css\",\"op\":\"resource.link\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"991883924b41d018\",\"start_timestamp\":1774929123.6739001,\"timestamp\":1774929123.7226002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":777,\"Encoded Body Size\":477,\"Decoded Body Size\":1689},\"description\":\"/static/common/cass-announcement/hoarding-plan-remind-homepage.css\",\"op\":\"resource.link\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"8dadd8f812463111\",\"start_timestamp\":1774929123.7977002,\"timestamp\":1774929123.8298001,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://fe-static.cassmall.com/assets/images/2e3583675882e62eb4eceeaaa4c3e054.png\",\"op\":\"resource.img\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"8732ae1f9909a270\",\"start_timestamp\":1774929123.8642,\"timestamp\":1774929123.8787,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://fe-static.cassmall.com/assets/images/986aefc55a7b09b8afaf589c7e28f0ac.png\",\"op\":\"resource.img\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"be947ea7f48a8dba\",\"start_timestamp\":1774929123.8642,\"timestamp\":1774929123.8862002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":1046,\"Encoded Body Size\":746,\"Decoded Body Size\":746},\"description\":\"/static/common/cass-announcement/oil.css?r=201796143759\",\"op\":\"resource.link\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"8b4c5125f9d17683\",\"start_timestamp\":1774929123.9109,\"timestamp\":1774929123.9467,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://fe-static.cassmall.com/assets/js/cap-center/collectExposure_v1.1.0.js?_=1774929122350\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"ba6c1f2b659d4a2c\",\"start_timestamp\":1774929124.0698001,\"timestamp\":1774929124.3482,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":740,\"Encoded Body Size\":440,\"Decoded Body Size\":1242},\"description\":\"/static/common/cass-announcement/first-order-draw-homepage.css\",\"op\":\"resource.link\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"9705e49fb62fdf39\",\"start_timestamp\":1774929124.0709002,\"timestamp\":1774929124.0951002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://fe-static.cassmall.com/assets/images/e23006c95d7a3524653546f4f12eebb9.png\",\"op\":\"resource.img\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"830b4010c675bd5a\",\"start_timestamp\":1774929124.0715,\"timestamp\":1774929124.0906,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/static/common/layer/skin/cass-ui/style.css\",\"op\":\"resource.link\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"baec0d7b78dd5c40\",\"start_timestamp\":1774929124.2053,\"timestamp\":1774929124.2217002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://fe-static.cassmall.com/assets/images/db49afb01b00e126688357194c8c1a20.png\",\"op\":\"resource.img\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"877663d3ee132771\",\"start_timestamp\":1774929124.2140002,\"timestamp\":1774929124.2145002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":1240,\"Encoded Body Size\":940,\"Decoded Body Size\":940},\"description\":\"/webim/static/css/msg-19c1dbbaa1.min.css?v=1\",\"op\":\"resource.link\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b7c7ce230ea8ad96\",\"start_timestamp\":1774929124.2485,\"timestamp\":1774929124.2845001,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta.casstime.com/webim/static/lib/socket.io-client/socket.io.js?v=1\",\"op\":\"resource.script\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"8ee1e32dec60cbfa\",\"start_timestamp\":1774929124.249,\"timestamp\":1774929124.4797,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":0,\"Encoded Body Size\":0,\"Decoded Body Size\":0},\"description\":\"https://file-hwbeta-gray.casstime.com/market/static/rights/images/icon-company-portrait.png?version=1769053522532\",\"op\":\"resource.img\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"9018391ac8ff5e11\",\"start_timestamp\":1774929124.4388,\"timestamp\":1774929124.4562001,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":4840,\"Encoded Body Size\":4540,\"Decoded Body Size\":4540},\"description\":\"/webim/static/img/ksxiaoma-e90374b7eb.png?v=1\",\"op\":\"resource.css\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b3c2f3123e073cd1\",\"start_timestamp\":1774929124.5765002,\"timestamp\":1774929124.6048002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":13861,\"Encoded Body Size\":13561,\"Decoded Body Size\":13561},\"description\":\"/webim/static/img/icon-88e2f2d1c7.png?v=1\",\"op\":\"resource.css\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"8c196e3c3a515b83\",\"start_timestamp\":1774929124.5768,\"timestamp\":1774929124.6274002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":9459,\"Encoded Body Size\":9159,\"Decoded Body Size\":9159},\"description\":\"/static/common/quick_cart/images/ibar_sprites.png\",\"op\":\"resource.css\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"b155323b93803cef\",\"start_timestamp\":1774929124.6281002,\"timestamp\":1774929124.6501002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":43425,\"Encoded Body Size\":43125,\"Decoded Body Size\":43125},\"description\":\"/static/skins/depends/images/icons/icon-new.png\",\"op\":\"resource.css\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"9d30142b52698f64\",\"start_timestamp\":1774929124.6281002,\"timestamp\":1774929124.6856,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":1500,\"Encoded Body Size\":1200,\"Decoded Body Size\":1200},\"description\":\"/static/common/quick_cart/images/feedback.png\",\"op\":\"resource.css\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"bb4a860e68c6c891\",\"start_timestamp\":1774929124.6282,\"timestamp\":1774929124.6727002,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":42728,\"Encoded Body Size\":42428,\"Decoded Body Size\":42428},\"description\":\"/static/common/quick_cart/images/icon-new-11.png\",\"op\":\"resource.css\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"a7e98d5c1cba74af\",\"start_timestamp\":1774929124.6282,\"timestamp\":1774929124.7105,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"},{\"data\":{\"Transfer Size\":18840,\"Encoded Body Size\":18540,\"Decoded Body Size\":18540},\"description\":\"/static/common/quick_cart/images/barcode-pc.png\",\"op\":\"resource.css\",\"parent_span_id\":\"8be96ba4b3a71a94\",\"span_id\":\"ab3f5d7752e00901\",\"start_timestamp\":1774929124.6283002,\"timestamp\":1774929124.7063003,\"trace_id\":\"5b9cd2682b364f1b9298994187d8e4bf\"}],\"start_timestamp\":1774929122.0725002,\"tags\":{\"currentProjectName\":\"icec-cloud-web-market\",\"effectiveConnectionType\":\"4g\",\"deviceMemory\":\"8 GB\",\"hardwareConcurrency\":\"14\"},\"timestamp\":1774929125.7181003,\"transaction\":\"/market/portal\",\"type\":\"transaction\",\"transaction_info\":{\"source\":\"url\",\"changes\":[],\"propagations\":67},\"measurements\":{\"fp\":{\"value\":601.3000011444092,\"unit\":\"millisecond\"},\"fcp\":{\"value\":601.3000011444092,\"unit\":\"millisecond\"},\"connection.rtt\":{\"value\":0,\"unit\":\"millisecond\"},\"ttfb\":{\"value\":162.29987144470215,\"unit\":\"millisecond\"},\"ttfb.requestTime\":{\"value\":161.2999439239502,\"unit\":\"millisecond\"}},\"platform\":\"javascript\",\"event_id\":\"b8a15485b8b3450093043afc7ba36629\",\"environment\":\"development\",\"sdk\":{\"integrations\":[\"InboundFilters\",\"FunctionToString\",\"TryCatch\",\"Breadcrumbs\",\"GlobalHandlers\",\"LinkedErrors\",\"Dedupe\",\"HttpContext\",\"BrowserTracing\"],\"name\":\"sentry.javascript.browser\",\"version\":\"7.24.2\",\"packages\":[{\"name\":\"npm:@sentry/browser\",\"version\":\"7.24.2\"}]},\"extra\":{\"cookie:security_userid\":\"68954d6d1aeb54000134a402\",\"cookie:company_id\":\"z7tn4aiPFa7A6Y1zarP\"},\"user\":{\"id\":\"68954d6d1aeb54000134a402\",\"username\":\"68954d6d1aeb54000134a402\"},\"breadcrumbs\":[{\"timestamp\":1774929122.82,\"category\":\"console\",\"data\":{\"arguments\":[\"Download the Vue Devtools extension for a better development experience:\\nhttps://github.com/vuejs/vue-devtools\"],\"logger\":\"console\"},\"level\":\"info\",\"message\":\"Download the Vue Devtools extension for a better development experience:\\nhttps://github.com/vuejs/vue-devtools\"},{\"timestamp\":1774929122.82,\"category\":\"console\",\"data\":{\"arguments\":[\"You are running Vue in development mode.\\nMake sure to turn on production mode when deploying for production.\\nSee more tips at https://vuejs.org/guide/deployment.html\"],\"logger\":\"console\"},\"level\":\"info\",\"message\":\"You are running Vue in development mode.\\nMake sure to turn on production mode when deploying for production.\\nSee more tips at https://vuejs.org/guide/deployment.html\"},{\"timestamp\":1774929122.911,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/portal/getPortalFloor?caller=\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929122.915,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/agentBuy/mall/datastatistics/remind/icon/isshowed\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929122.916,\"category\":\"console\",\"data\":{\"arguments\":[{\"data\":\"[Object]\",\"status\":200,\"statusText\":\"OK\",\"headers\":\"[Object]\",\"config\":\"[Object]\",\"request\":\"[XMLHttpRequest]\"}],\"logger\":\"console\"},\"level\":\"log\",\"message\":\"[object Object]\"},{\"timestamp\":1774929122.916,\"category\":\"console\",\"data\":{\"arguments\":[{\"code\":200}],\"logger\":\"console\"},\"level\":\"log\",\"message\":\"[object Object]\"},{\"timestamp\":1774929122.952,\"category\":\"xhr\",\"data\":{\"method\":\"POST\",\"url\":\"/market/portal/getProductBrands\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929122.978,\"category\":\"xhr\",\"data\":{\"method\":\"POST\",\"url\":\"/market/portal/getSecondCategory\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.013,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/mall/common/header_menus\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.059,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"https://ec-hwbeta.casstime.com/static/common/cass-popup/popup-homepage.js\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.182,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/product-mall/inquiry/tyre/check\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.194,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/public/cassadvcenter/system/config?keyword=MIN_AD_EXPOSURE_TIME\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.239,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/public/cassadv/active?urlReferer=activity_float_window\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.287,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/public/cassadv/active?urlReferer=activity_feel_bg\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.32,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"https://ec-hwbeta.casstime.com/static/common/tenantConfig/tenantConfig.js\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.343,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"https://ec-hwbeta.casstime.com/static/common/tenantConfig/tenant-config.js\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.366,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"https://ec-hwbeta.casstime.com/static/common/tenantConfig/setTenantConfig.js\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.409,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/mall/public/tenant/CASS\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.409,\"category\":\"console\",\"data\":{\"arguments\":[\"tenant---res---\",{\"code\":200,\"data\":\"[Object]\"}],\"logger\":\"console\"},\"level\":\"log\",\"message\":\"tenant---res--- [object Object]\"},{\"timestamp\":1774929123.437,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"https://ec-hwbeta.casstime.com/static/common/jquery-cookie/jquery.cookie.1.4.1.js\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.477,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"https://ec-hwbeta.casstime.com/static/common/bootstrap-tour/js/bootstrap-tour-standalone.js\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.557,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"https://ec-hwbeta.casstime.com/static/common/quick_cart/webuploader.js\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.594,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"https://ec-hwbeta.casstime.com/static/common/quick_cart/feedbackUploader.js\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.62,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"https://ec-hwbeta.casstime.com/static/common/quick_cart/feedback.js\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.647,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"https://ec-hwbeta.casstime.com/static/common/cass-statistics/baidu-statistics.js\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.656,\"category\":\"console\",\"data\":{\"arguments\":[\"上报数据：\",\"MARKET_PORTAL_PAGE_VIEW_CLICK\",{\"shop_id\":\"z7tn4aiPFa7A6Y1zarP\",\"collect_subevent\":\"\",\"collect_env\":\"\",\"collect_time\":1774929123656,\"collect_desc\":\"商城首页预览\",\"collect_type\":\"click\",\"collect_app\":\"garage\",\"collect_uuid\":\"0l1o7eyallb\",\"extraProperties\":\"{\\\"user\\\":\\\"68954d6d1aeb54000134a402\\\"}\"}],\"logger\":\"console\"},\"level\":\"log\",\"message\":\"上报数据： MARKET_PORTAL_PAGE_VIEW_CLICK [object Object]\"},{\"timestamp\":1774929123.662,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/public/cassadvcenter/system/config?keyword=MIN_AD_EXPOSURE_TIME\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.663,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/product-mall/product/mall/portal/category?caller=\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.667,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/mall/common/footer_help_menus\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.668,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/terminal-api-v2/public/app/document_config?key=isSpecialDay\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.67,\"category\":\"console\",\"data\":{\"arguments\":[\"chromeGuide\"],\"logger\":\"console\"},\"level\":\"log\",\"message\":\"chromeGuide\"},{\"timestamp\":1774929123.673,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/static/common/cass-announcement/announcement.js?_=1774929122346\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.707,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"https://ec-hwbeta.casstime.com/static/common/jquery-superslide/jquery.SuperSlide.2.1.1.js\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.707,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/common/topbar\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.713,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/portal/check/authenticated/inquiry\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.713,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/lotterydraw/records/news?code=20191111&level=4\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.722,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/public/cassadvcenter/system/config?keyword=MIN_AD_EXPOSURE_TIME\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.768,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/cassadv/listByPositions?positionId=7,8,9,13&caller=\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.769,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/portal/hotWordSearch\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.774,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/activity/yearend/getCurrentGift\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.782,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/announcements/online\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.796,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/static/common/cass-announcement/hoarding-plan-remind-homepage.js?_=1774929122347\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.807,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/portal/checkin/info?beginDate=2026-03-01&endDate=2026-03-31\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.826,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/public/cassadv/active?caller=CASS&version=1774929123657\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.846,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/announcements/last-unread\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.848,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/portal/slideAnnouncement\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.861,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/featuretoggles/feature-toggles/feature/INQUIRY_ORDER_GROUP_APPROVAL\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.864,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/contract/plan/shouldpopup\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.872,\"category\":\"xhr\",\"data\":{\"method\":\"POST\",\"url\":\"/market/public/cassadv/statistics/update\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.872,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/static/common/cass-announcement/ad.js?_=1774929122348\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929123.907,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"https://ec-hwbeta.casstime.com/static/common/json3/json3.min.js\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929124.059,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/pointshop/common/topbar\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929124.069,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/public/cassadvcenter/system/config?keyword=MIN_AD_EXPOSURE_TIME\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929124.07,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/user/main/garage\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929124.07,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/common/68954d6d1aeb54000134a402/remindpoint\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929124.07,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/garage-right/available\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929124.07,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/static/common/cass-announcement/first-order-draw-homepage.js?_=1774929122349\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929124.071,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/person-level/byuser\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929124.071,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/points/userpoint\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929124.072,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/goldcoin/account\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929124.072,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/points/boschpoint\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929124.072,\"category\":\"xhr\",\"data\":{\"method\":\"POST\",\"url\":\"/cart/web/cart/item/count?channel=PLATMALL\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929124.121,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/feedback/types\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929124.146,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"https://ec-hwbeta.casstime.com/static/common/quick_cart/quick_cart_common.js\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929124.175,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"https://ec-hwbeta.casstime.com/static/common/quick_cart/quick_cart.js\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929124.203,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"https://ec-hwbeta.casstime.com/static/common/quick_cart/parabola.js\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929124.214,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/cassadv/listByPositions?positionId=91\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929124.215,\"category\":\"xhr\",\"data\":{\"method\":\"POST\",\"url\":\"/cart/web/cart/item/count?channel=PLATMALL\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929124.216,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/lottery/golden_201808090001/remainChance\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929124.216,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/garage-right/list\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929124.227,\"category\":\"xhr\",\"data\":{\"method\":\"POST\",\"url\":\"/maindata/partsCart/getCount\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929124.245,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/WebIM/js/msg.js?_=1774929122351\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929124.249,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/static/common/cass-announcement/oil.js?r=201796143759&_=1774929122352\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929124.262,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/garage-level/upgrade/tip\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929124.265,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/sellerMgr/product/common/fetchPreference?preferenceKey=firstInPopup-market-portal\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929124.285,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/garage-trial-right/show-button\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929124.294,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/user/main/garage\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929124.324,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/announcements/last-unread?type=ACTIVITY_AD\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929124.429,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/portal/memberInfo\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929124.477,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/common/topbar\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929124.494,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/portal/checkin/68954d6d1aeb54000134a402\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929124.51,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/portal/statistics/10\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929124.524,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/webim/user/jwt_token\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929124.533,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/market/loans/getCompanyProfile?companyId=z7tn4aiPFa7A6Y1zarP\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929124.594,\"category\":\"console\",\"data\":{\"arguments\":[\"socket.io 连接成功\"],\"logger\":\"console\"},\"level\":\"log\",\"message\":\"socket.io 连接成功\"},{\"timestamp\":1774929124.618,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/webim/im/account/me/user?tenantId=CASS_EC\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929124.655,\"category\":\"xhr\",\"data\":{\"method\":\"POST\",\"url\":\"/market/company/provide-coupon/silent?companyId=z7tn4aiPFa7A6Y1zarP\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929124.699,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/webim/im/account/me/user?tenantId=CASS_EC\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929124.72,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/webim/im/conversation?userId=68954d6d1aeb54000134a402&unread=true&tenantId=CASS_EC&_=1774929122354\",\"status_code\":200},\"type\":\"http\"},{\"timestamp\":1774929124.802,\"category\":\"xhr\",\"data\":{\"method\":\"GET\",\"url\":\"/msg/api/messages/unread_count?type=NOTICE&_=1774929122353\",\"status_code\":200},\"type\":\"http\"}],\"request\":{\"url\":\"https://ec-hwbeta.casstime.com/market/portal\",\"headers\":{\"User-Agent\":\"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36\"}}}",
+    "resource_type": "fetch"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/agentBuy/",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "document"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/js/tenant-config.js?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "script"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/js/setTenantConfig.js?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "script"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/common/topbar",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/garage-right/available",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/common/68954d6d1aeb54000134a402/remindpoint",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/goldcoin/account",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/points/userpoint",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/points/boschpoint",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/person-level/byuser",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/garage-right/list",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/user/main/garage",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/garage-level/upgrade/tip",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/garage-trial-right/show-button",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/cart",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "document"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/order/list",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "document"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/js/tenant-config.js?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "script"
+  },
+  {
+    "url": "https://file-hwbeta-gray.casstime.com/market/static/js/setTenantConfig.js?version=1769053522532",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "script"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/common/topbar",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/garage-right/available",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/common/68954d6d1aeb54000134a402/remindpoint",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/goldcoin/account",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/points/userpoint",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/points/boschpoint",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/person-level/byuser",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/garage-right/list",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/user/main/garage",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/garage-level/upgrade/tip",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  },
+  {
+    "url": "https://ec-hwbeta.casstime.com/market/garage-trial-right/show-button",
+    "method": "GET",
+    "post_data": null,
+    "resource_type": "xhr"
+  }
+]

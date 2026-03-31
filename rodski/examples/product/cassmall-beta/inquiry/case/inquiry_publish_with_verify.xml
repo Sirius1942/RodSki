@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+  <!-- 小李发布询价并验证（完整端到端） -->
+  <case id="cassmall_inquiry_xiaoli_verify" title="小李发布询价并验证列表" execute="是" description="小李（维修厂）登录后发布询价单，并验证询价单出现在列表中" component_type="界面">
+    <pre_process>
+      <!-- 导航到登录页 -->
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="3"/>
+      <!-- 登录 -->
+      <test_step action="type" model="LoginPage" data="xiaoli_login"/>
+      <test_step action="wait" data="5"/>
+    </pre_process>
+    <test_case>
+      <!-- 导航到发布询价页 -->
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/agentBuy/"/>
+      <test_step action="wait" data="3"/>
+      <!-- 填写询价表单 -->
+      <test_step action="type" model="InquiryPage" data="I001_verify"/>
+      <test_step action="wait" data="5"/>
+      <!-- 截图记录发布结果 -->
+      <test_step action="screenshot" data="cassmall_inquiry_publish_result.png"/>
+      <!-- 发布成功后跳转到询价单列表验证 -->
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/market/inquirys"/>
+      <test_step action="wait" data="5"/>
+      <!-- 截图询价单列表 -->
+      <test_step action="screenshot" data="cassmall_inquiry_list_verify.png"/>
+      <!-- 验证列表中有今日询价单记录 -->
+      <test_step action="verify" model="MarketInquiryList" data="verify_today_inquiry"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" data=""/>
+    </post_process>
+  </case>
+</cases>

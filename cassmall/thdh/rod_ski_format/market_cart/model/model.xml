@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<models>
+  <!-- 登录页模型 -->
+  <model name="LoginPage">
+    <element name="accountTab" type="css" value="span[type=PASSWORD]" desc="账号登录页签"/>
+    <element name="username" type="css" value="#userName" desc="用户名输入框"/>
+    <element name="password" type="css" value="#password" desc="密码输入框"/>
+    <element name="agreeCheckbox" type="css" value="label.br-checkbox" desc="同意协议复选框"/>
+    <element name="loginBtn" type="css" value=".btn-submit" desc="登录按钮"/>
+  </model>
+
+  <!-- 购物车页面 -->
+  <model name="CartPage">
+    <!-- 商品勾选框（全选或单个） -->
+    <element name="itemCheck" type="css" value="input[type=checkbox]" desc="商品勾选框"/>
+    <!-- 全选复选框 -->
+    <element name="selectAll" type="css" value="input.check-all,input.select-all" desc="全选复选框"/>
+    <!-- 去结算按钮 -->
+    <element name="checkout" type="xpath" value="//*[contains(text(),'去结算')]" desc="去结算按钮"/>
+    <!-- 合计金额 -->
+    <element name="totalAmount" type="css" value="[class*=total-amount],[class*=amount]" desc="合计金额"/>
+    <!-- 购物车商品行 -->
+    <element name="cartItems" type="css" value="[class*=cart-item],tr[item-id]" desc="购物车商品行"/>
+    <!-- 删除商品按钮 -->
+    <element name="deleteItem" type="xpath" value="//*[contains(text(),'删除')]" desc="删除商品"/>
+  </model>
+
+  <!-- 购物车接口 -->
+  <model name="MarketCart" type="interface">
+    <element name="_method"><static>GET</static></element>
+    <element name="_url"><static>/market/cart</static></element>
+  </model>
+
+  <!-- 购物车验证模型 -->
+  <model name="MarketCart_verify" type="interface">
+    <element name="code"><field>code</field></element>
+    <element name="msg"><field>msg</field></element>
+  </model>
+
+  <!-- 购物车数量接口 -->
+  <model name="MarketCartCount" type="interface">
+    <element name="_method"><static>GET</static></element>
+    <element name="_url"><static>/market/cart/count</static></element>
+  </model>
+
+  <!-- 购物车数量验证 -->
+  <model name="MarketCartCount_verify" type="interface">
+    <element name="code"><field>code</field></element>
+  </model>
+
+  <!-- 顶部栏接口 -->
+  <model name="MarketTopbar" type="interface">
+    <element name="_method"><static>GET</static></element>
+    <element name="_url"><static>/market/common/topbar</static></element>
+  </model>
+
+  <!-- 顶部栏验证 -->
+  <model name="MarketTopbar_verify" type="interface">
+    <element name="code"><field>code</field></element>
+  </model>
+
+  <!-- 消息未读数接口 -->
+  <model name="MarketUnreadCount" type="interface">
+    <element name="_method"><static>GET</static></element>
+    <element name="_url"><static>/market/messages/unread_count</static></element>
+  </model>
+
+  <!-- 消息未读数验证 -->
+  <model name="MarketUnreadCount_verify" type="interface">
+    <element name="code"><field>code</field></element>
+  </model>
+</models>

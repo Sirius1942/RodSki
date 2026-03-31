@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<models>
+  <!-- 登录页模型 -->
+  <model name="LoginPage">
+    <element name="accountTab" type="css" value="span[type=PASSWORD]" desc="账号登录页签"/>
+    <element name="username" type="css" value="#userName" desc="用户名输入框"/>
+    <element name="password" type="css" value="#password" desc="密码输入框"/>
+    <element name="agreeCheckbox" type="css" value="label.br-checkbox" desc="同意协议复选框"/>
+    <element name="loginBtn" type="css" value=".btn-submit" desc="登录按钮"/>
+  </model>
+
+  <!-- 入库单列表接口 -->
+  <model name="InboundOrderList" type="interface">
+    <element name="_method"><static>POST</static></element>
+    <element name="_url"><static>/merchant/seller/stockin/advanced-inbound-order/list</static></element>
+    <element name="pageNum"><field>pageNum</field></element>
+    <element name="pageSize"><field>pageSize</field></element>
+    <element name="advancedStockInNoteId"><field>advancedStockInNoteId</field></element>
+    <element name="partsNo"><field>partsNo</field></element>
+    <element name="sourceNote"><field>sourceNote</field></element>
+    <element name="startDeliveryTime"><field>startDeliveryTime</field></element>
+    <element name="lastDeliveryTime"><field>lastDeliveryTime</field></element>
+    <element name="statusIds"><field>statusIds</field></element>
+    <element name="types"><field>types</field></element>
+  </model>
+
+  <!-- 入库单列表验证模型 -->
+  <model name="InboundOrderList_verify" type="interface">
+    <element name="code"><field>code</field></element>
+    <element name="msg"><field>msg</field></element>
+    <element name="data"><field>data</field></element>
+    <element name="data_list"><field>data.list</field></element>
+    <element name="data_total"><field>data.total</field></element>
+  </model>
+
+  <!-- 逾期统计接口 -->
+  <model name="InboundOrderOverdueStats" type="interface">
+    <element name="_method"><static>POST</static></element>
+    <element name="_url"><static>/merchant/seller/stockin/advanced-inbound-order/overdue/statistics</static></element>
+    <element name="startTime"><field>startTime</field></element>
+    <element name="endTime"><field>endTime</field></element>
+  </model>
+
+  <!-- 逾期统计验证模型 -->
+  <model name="InboundOrderOverdueStats_verify" type="interface">
+    <element name="code"><field>code</field></element>
+    <element name="msg"><field>msg</field></element>
+  </model>
+
+  <!-- 机构入库单列表接口 -->
+  <model name="InboundOrderListOrg" type="interface">
+    <element name="_method"><static>POST</static></element>
+    <element name="_url"><static>/merchant/seller/stockin/advanced-inbound-order/list-organization</static></element>
+    <element name="sendOrganizationName"><field>sendOrganizationName</field></element>
+    <element name="pageNum"><field>pageNum</field></element>
+    <element name="pageSize"><field>pageSize</field></element>
+  </model>
+
+  <!-- 机构入库单验证模型 -->
+  <model name="InboundOrderListOrg_verify" type="interface">
+    <element name="code"><field>code</field></element>
+    <element name="msg"><field>msg</field></element>
+  </model>
+
+  <!-- 字典枚举接口 -->
+  <model name="CommonDictionary" type="interface">
+    <element name="_method"><static>POST</static></element>
+    <element name="_url"><static>/merchant/seller/common-dictionary/get-enums</static></element>
+    <element name="enumType"><field>enumType</field></element>
+    <element name="operateType"><field>operateType</field></element>
+  </model>
+
+  <!-- 合并统计接口 -->
+  <model name="InboundMergeCount" type="interface">
+    <element name="_method"><static>GET</static></element>
+    <element name="_url"><static>/merchant/seller/stockin/advanced-inbound-order-group/v2/merge-count</static></element>
+  </model>
+
+  <!-- 草稿箱数量接口 -->
+  <model name="InboundDraftCount" type="interface">
+    <element name="_method"><static>GET</static></element>
+    <element name="_url"><static>/merchant/seller/draftstockin/advanced-inbound-order/count</static></element>
+  </model>
+
+  <!-- 仓库列表接口 -->
+  <model name="WarehouseSelects" type="interface">
+    <element name="_method"><static>GET</static></element>
+    <element name="_url"><static>/web-api/central-inventory/warehouse-facilities/limit-selects</static></element>
+  </model>
+</models>

@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<models>
+  <!-- 登录页模型 -->
+  <model name="LoginPage">
+    <element name="accountTab" type="css" value="span[type=PASSWORD]" desc="账号登录页签"/>
+    <element name="username" type="css" value="#userName" desc="用户名输入框"/>
+    <element name="password" type="css" value="#password" desc="密码输入框"/>
+    <element name="agreeCheckbox" type="css" value="label.br-checkbox" desc="同意协议复选框"/>
+    <element name="loginBtn" type="css" value=".btn-submit" desc="登录按钮"/>
+  </model>
+
+  <!-- 供应商首页模型 -->
+  <model name="SupplierHomePage">
+    <!-- 询价单管理入口 -->
+    <element name="inquiryManage" type="css" value="[href*='inquiry']" desc="询价单管理入口"/>
+    <!-- 订单管理入口 -->
+    <element name="orderManage" type="css" value="[href*='order']" desc="订单管理入口"/>
+    <!-- 报价管理入口 -->
+    <element name="quoteManage" type="css" value="[href*='quote']" desc="报价管理入口"/>
+  </model>
+
+  <!-- 供应商询价单列表页 -->
+  <model name="SupplierInquiryPage">
+    <!-- 询价单列表容器 -->
+    <element name="inquiryList" type="css" value="[class*=inquiry]" desc="询价单列表"/>
+    <!-- 询价单号 -->
+    <element name="inquiryNo" type="css" value="[class*=inquiry-no]" desc="询价单号"/>
+    <!-- 询价商品描述 -->
+    <element name="inquiryProduct" type="css" value="[class*=product]" desc="询价商品"/>
+    <!-- 立即报价按钮 -->
+    <element name="quoteNow" type="css" value="button:has-text('立即报价'),a:has-text('立即报价')" desc="立即报价按钮"/>
+    <!-- 查看详情按钮 -->
+    <element name="viewDetail" type="css" value="button:has-text('查看详情'),a:has-text('查看详情')" desc="查看详情"/>
+    <!-- VIN搜索框 -->
+    <element name="vinSearch" type="css" value="input[name=vin]" desc="VIN搜索框"/>
+  </model>
+
+  <!-- 供应商报价页 -->
+  <model name="QuotePage">
+    <!-- 报价输入框 -->
+    <element name="quotePrice" type="css" value="input[placeholder*=报价]" desc="报价输入"/>
+    <!-- 数量输入 -->
+    <element name="quantity" type="css" value="input[type=number]" desc="数量输入"/>
+    <!-- 提交报价按钮 -->
+    <element name="submitQuote" type="css" value="button[type=submit]" desc="提交报价按钮"/>
+    <!-- 取消报价按钮 -->
+    <element name="cancelQuote" type="css" value="button:has-text('取消')" desc="取消报价"/>
+  </model>
+
+  <!-- 供应商报价单列表页 -->
+  <model name="QuoteListPage">
+    <!-- 报价单列表 -->
+    <element name="quoteList" type="css" value="[class*=quote-list]" desc="报价单列表"/>
+    <!-- 报价单号 -->
+    <element name="quoteNo" type="css" value="[class*=quote-no]" desc="报价单号"/>
+    <!-- 查看报价 -->
+    <element name="viewQuote" type="css" value="button:has-text('查看报价')" desc="查看报价"/>
+  </model>
+
+  <!-- 供应商订单页 -->
+  <model name="SupplierOrderPage">
+    <!-- 订单列表 -->
+    <element name="orderList" type="css" value="[class*=order-list]" desc="订单列表"/>
+    <!-- 订单号 -->
+    <element name="orderNo" type="css" value="[class*=order-no]" desc="订单号"/>
+    <!-- 订单状态 -->
+    <element name="orderStatus" type="css" value="[class*=status]" desc="订单状态"/>
+    <!-- 查看订单详情 -->
+    <element name="viewOrder" type="css" value="button:has-text('查看详情'),a:has-text('查看详情')" desc="查看订单详情"/>
+    <!-- 确认订单按钮 -->
+    <element name="confirmOrder" type="css" value="button:has-text('确认订单')" desc="确认订单"/>
+    <!-- 发货按钮 -->
+    <element name="shipOrder" type="css" value="button:has-text('发货')" desc="发货"/>
+  </model>
+</models>

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datatables>
+  <!-- 登录数据 -->
+  <datatable name="LoginPage">
+    <row id="xiaoli_login" remark="小李账号-维修厂">
+      <field name="accountTab">click</field>
+      <field name="username">15521344075</field>
+      <field name="password">Cass2025</field>
+      <field name="agreeCheckbox">click</field>
+      <field name="loginBtn">click</field>
+    </row>
+  </datatable>
+
+  <!-- 购物车数据 -->
+  <datatable name="CartPage">
+    <!-- 全选并去结算 -->
+    <row id="C001" remark="全选商品去结算">
+      <field name="selectAll">click</field>
+      <field name="checkout">click</field>
+    </row>
+    <!-- 只勾选第一个商品去结算 -->
+    <row id="C002" remark="勾选单个商品去结算">
+      <field name="itemCheck">click</field>
+      <field name="checkout">click</field>
+    </row>
+  </datatable>
+
+  <!-- 结算页数据 -->
+  <datatable name="CheckoutPage">
+    <!-- 填写收货信息并提交订单 -->
+    <row id="CO001" remark="填写收货信息提交订单">
+      <field name="receiverName">李测试</field>
+      <field name="contactTel">15521344075</field>
+      <field name="address">建国路88号测试地址</field>
+      <field name="logistics">click</field>
+      <field name="submitOrder">click</field>
+    </row>
+    <!-- 只提交订单（信息已预填） -->
+    <row id="CO002" remark="直接提交订单">
+      <field name="submitOrder">click</field>
+    </row>
+  </datatable>
+
+  <!-- 支付页数据 -->
+  <datatable name="PaymentPage">
+    <row id="P001" remark="立即支付">
+      <field name="payNow">click</field>
+    </row>
+  </datatable>
+</datatables>

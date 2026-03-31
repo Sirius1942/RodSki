@@ -1,0 +1,8 @@
+<?xml version="1.0" ?>
+<testresult>
+  <summary total="2" passed="2" failed="0" skipped="0" errors="0" pass_rate="100.0%" total_time="26.14s" average_time="13.07s" start_time="2026-03-30 06:47:38" end_time="2026-03-30 06:47:38"/>
+  <results>
+    <result case_id="cassmall_beta_login_xiaoli" title="小李账号登录（维修厂）" status="PASS" execution_time="11.3" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-03-30 06:47:38"/>
+    <result case_id="cassmall_beta_login_xiaohui" title="小辉账号登录（供应商）" status="PASS" execution_time="14.84" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-03-30 06:47:38"/>
+  </results>
+</testresult>
