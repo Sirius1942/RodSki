@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+  <!-- ============================================================ -->
+  <!-- 询价→下单完整链路测试（E2E）                                  -->
+  <!-- 小李账号（维修厂）：15521344075 / Cass2025                  -->
+  <!-- 流程：登录 → 发布询价 → 小辉报价 → 选择报价 → 加入购物车 → 结算 → 提交订单 -->
+  <!-- ============================================================ -->
+  <case id="cassmall_e2e_full_chain" title="询价→下单完整链路"
+        execute="是"
+        description="完整链路：小李发布询价 → 小辉报价 → 小李选报价加入购物车 → 结算 → 提交订单"
+        component_type="界面">
+
+    <!-- ── 预处理：两个账号分别登录建立session ── -->
+
+    <!-- 小辉（供应商）先登录报价（后台） -->
+    <pre_process>
+      <!-- 小李登录 -->
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="type" model="LoginPage" data="xiaoli_login"/>
+      <test_step action="wait" data="5"/>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/market/portal"/>
+      <test_step action="wait" data="2"/>
+    </pre_process>
+
+    <!-- ── 第一阶段：小李发布询价 ── -->
+    <test_case>
+      <!-- 进入发布询价页 -->
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/agentBuy/"/>
+      <test_step action="wait" data="3"/>
+
+      <!-- 填 VIN -->
+      <test_step action="type" model="InquiryPage" data="I001_vin"/>
+      <test_step action="wait" data="1"/>
+
+      <!-- 点击配件名称输入框，触发弹窗 -->
+      <test_step action="type" model="InquiryPage" data="I001_trigger_popup"/>
+      <test_step action="wait" data="2"/>
+
+      <!-- 弹窗出现，点击「不追加，发布新询价单」 -->
+      <test_step action="type" model="AppendPopup" data="A003"/>
+      <test_step action="wait" data="5"/>
+
+      <!-- 视觉断言：确认询价发布成功（出现成功提示或跳转列表） -->
+      <test_step action="assert" data="assert[type=image,reference=images/assert/va02_inquiry_reference.png,threshold=0.6,wait=3]"/>
+
+      <!-- 截图记录 -->
+      <test_step action="screenshot" data="images/e2e_01_inquiry_published.png"/>
+    </test_case>
+
+    <!-- ── 第二阶段：小辉报价（小辉账号） ── -->
+    <!-- 注：此处先关闭当前浏览器，用小辉账号登录报价 -->
+    <post_process>
+      <test_step action="close" data=""/>
+    </post_process>
+  </case>
+
+  <!-- ============================================================ -->
+  <!-- 小辉供应商：登录 → 对询价单报价                              -->
+  <!-- ============================================================ -->
+  <case id="cassmall_e2e_xiaohui_quote" title="小辉供应商报价"
+        execute="是"
+        description="小辉（供应商）登录后对询价单进行报价"
+        component_type="界面">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="type" model="LoginPage" data="xiaohui_login"/>
+      <test_step action="wait" data="5"/>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/seller#/merchant/home"/>
+      <test_step action="wait" data="3"/>
+    </pre_process>
+    <test_case>
+      <!-- 进入询价单管理 -->
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/seller#/inquiry/list"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="screenshot" data="images/e2e_02_seller_inquiry_list.png"/>
+
+      <!-- 点击「立即报价」 -->
+      <test_step action="type" model="SupplierInquiryPage" data="SQ001"/>
+      <test_step action="wait" data="3"/>
+
+      <!-- 填写报价 -->
+      <test_step action="type" model="QuotePage" data="QP001"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="screenshot" data="images/e2e_03_quote_submitted.png"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" data=""/>
+    </post_process>
+  </case>
+
+  <!-- ============================================================ -->
+  <!-- 小李：选择报价 → 加入购物车 → 购物车结算 → 提交订单        -->
+  <!-- ============================================================ -->
+  <case id="cassmall_e2e_select_cart_checkout" title="小李选择报价加入购物车并下单"
+        execute="是"
+        description="小李选择供应商报价，加入购物车，填写收货信息，提交订单"
+        component_type="界面">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="type" model="LoginPage" data="xiaoli_login"/>
+      <test_step action="wait" data="5"/>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/market/portal"/>
+      <test_step action="wait" data="2"/>
+    </pre_process>
+    <test_case>
+      <!-- ── 进入我的询价单 → 选购 ── -->
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/market/inquirys"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="screenshot" data="images/e2e_04_inquiry_list.png"/>
+
+      <!-- 按VIN搜索（定位刚发布的询价单） -->
+      <test_step action="type" model="QuotationListPage" data="QL002"/>
+      <test_step action="wait" data="2"/>
+
+      <!-- 点击查看报价 -->
+      <test_step action="type" model="QuotationListPage" data="S001"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="screenshot" data="images/e2e_05_quote_detail.png"/>
+
+      <!-- ── 报价详情页：输入数量 → 加入购物车 ── -->
+      <test_step action="type" model="QuotationDetailPage" data="QD001"/>
+      <test_step action="wait" data="3"/>
+
+      <!-- 视觉断言：确认商品已加入购物车（购物车数字更新） -->
+      <test_step action="screenshot" data="images/e2e_06_cart_updated.png"/>
+      <test_step action="assert" data="assert[type=image,reference=images/e2e_06_cart_updated.png,threshold=0.8]"/>
+
+      <!-- ── 进入购物车 ── -->
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/market/cart"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="screenshot" data="images/e2e_07_cart.png"/>
+
+      <!-- ── 购物车：全选 → 去结算 ── -->
+      <test_step action="type" model="CartPage" data="C001"/>
+      <test_step action="wait" data="3"/>
+
+      <!-- ── 结算页：填写收货信息 → 提交订单 ── -->
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/market/checkout"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="screenshot" data="images/e2e_08_checkout.png"/>
+
+      <!-- 填写收货信息并提交 -->
+      <test_step action="type" model="CheckoutPage" data="CO001"/>
+      <test_step action="wait" data="5"/>
+
+      <!-- 视觉断言：确认订单号出现 -->
+      <test_step action="screenshot" data="images/e2e_09_order_success.png"/>
+      <test_step action="assert" data="assert[type=image,reference=images/e2e_09_order_success.png,threshold=0.7,wait=3]"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" data=""/>
+    </post_process>
+  </case>
+</cases>

@@ -71,4 +71,10 @@
     <element name="quantity" type="css" value="input[type=number]" desc="数量"/>
     <element name="submitQuote" type="xpath" value="//*[contains(text(),'提交报价')]" desc="提交报价按钮"/>
   </model>
+
+  <!-- 追加询价弹窗 -->
+  <model name="AppendPopup">
+    <element name="noAppendNew" type="xpath" value="//*[contains(text(),'不追加')]" desc="不追加，发布新询价单"/>
+    <element name="addMore" type="xpath" value="//*[contains(text(),'追加询价需求')]" desc="追加询价需求"/>
+  </model>
 </models>

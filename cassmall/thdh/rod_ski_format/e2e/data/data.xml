@@ -25,12 +25,31 @@
 
   <!-- 询价发布数据 -->
   <datatable name="InquiryPage">
+    <!-- 完整流程（单步提交，不触发弹窗） -->
     <row id="I001" remark="发布询价单-VIN: WBAKB4106BC920125">
       <field name="vin">WBAKB4106BC920125</field>
       <field name="needsName">12125A4EF60</field>
       <field name="needQuantity">2</field>
       <field name="qualityRemarks">原厂配件</field>
       <field name="submitInquiry">click</field>
+    </row>
+    <!-- 分步流程 Step1: 只填 VIN -->
+    <row id="I001_vin" remark="发布询价-Step1: 填VIN">
+      <field name="vin">LSVAXXRVVSR987654</field>
+    </row>
+    <!-- 分步流程 Step2: 点击配件名称触发弹窗 -->
+    <row id="I001_trigger_popup" remark="发布询价-Step2: 点击配件名称触发弹窗">
+      <field name="needsName">click</field>
+    </row>
+  </datatable>
+
+  <!-- 追加询价弹窗数据 -->
+  <datatable name="AppendPopup">
+    <row id="A003" remark="不追加，发布新询价单">
+      <field name="noAppendNew">click</field>
+    </row>
+    <row id="A004" remark="追加询价需求">
+      <field name="addMore">click</field>
     </row>
   </datatable>
 
