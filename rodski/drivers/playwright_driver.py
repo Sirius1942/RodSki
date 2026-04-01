@@ -102,7 +102,7 @@ class PlaywrightDriver(BaseDriver):
             )
 
     def _convert_locator(self, locator: str) -> str:
-        """转换定位器格式为 CSS 选择器"""
+        """转换定位器格式为 Playwright 支持的选择器"""
         if locator.startswith('id='):
             return '#' + locator[3:]
         elif locator.startswith('class='):
@@ -110,9 +110,11 @@ class PlaywrightDriver(BaseDriver):
         elif locator.startswith('css='):
             return locator[4:]
         elif locator.startswith('xpath='):
-            return locator
+            # 移除 xpath= 前缀，Playwright 原生支持 XPath
+            return locator[6:]  # 返回纯 XPath 字符串
         elif locator.startswith('text='):
-            return locator
+            # Playwright text locator: text=内容
+            return locator  # 保持原格式
         elif locator.startswith('name='):
             return f'[name="{locator[5:]}"]'
         elif locator.startswith('#') or locator.startswith('.'):
@@ -264,13 +266,25 @@ class PlaywrightDriver(BaseDriver):
                     
                     # 尝试 JavaScript 点击，验证元素确实存在
                     logger.debug(f"尝试 JavaScript 点击...")
-                    clicked = self.page.evaluate(f"""
-                        (() => {{
-                            const el = document.querySelector('{css_locator}');
-                            if (el) {{ el.click(); return true; }}
-                            return false;
-                        }})()
-                    """)
+                    if css_locator.startswith('//'):
+                        # XPath: 使用 document.evaluate
+                        clicked = self.page.evaluate(f"""
+                            (() => {{
+                                const result = document.evaluate(`{css_locator}`, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+                                const el = result.singleNodeValue;
+                                if (el) {{ el.click(); return true; }}
+                                return false;
+                            }})()
+                        """)
+                    else:
+                        # CSS 选择器
+                        clicked = self.page.evaluate(f"""
+                            (() => {{
+                                const el = document.querySelector('{css_locator}');
+                                if (el) {{ el.click(); return true; }}
+                                return false;
+                            }})()
+                        """)
                     if clicked:
                         return True
                     raise DriverError(f"点击失败: 元素未找到 {locator}", locator=locator)
