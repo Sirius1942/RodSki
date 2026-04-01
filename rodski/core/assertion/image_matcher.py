@@ -107,8 +107,8 @@ class ImageMatcher(BaseAssertion):
                 )
                 break
 
-            # wait=0 或已达到超时时间，停止轮询
-            if wait <= 0 or (time.time() - start_time) >= wait:
+            # wait<=0 → 立即断言（一次），不重试；wait>0 → 超时后停止轮询
+            if wait <= 0 or (wait > 0 and (time.time() - start_time) >= wait):
                 logger.warning(
                     f"图片匹配失败: similarity={similarity:.4f} < threshold={threshold}, "
                     f"reference={ref_path.name}, attempts={wait_attempts}"

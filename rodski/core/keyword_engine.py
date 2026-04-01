@@ -1,4 +1,5 @@
 """关键字引擎 - 支持14个操作关键字（UI / API / DB / Code）"""
+import cv2
 import json
 import logging
 import subprocess
@@ -395,7 +396,7 @@ class KeywordEngine:
             )
         
         logger.info(f"输入: {locator} <- '{text}'")
-        result = self.driver.type(locator, text)
+        result = self.driver.type_locator(locator, text)
         if not result:
             raise DriverError(f"输入失败: {locator}")
         return result
@@ -501,10 +502,10 @@ class KeywordEngine:
         # 简单动作：值恰好等于关键字名
         if value_lower in self.ELEMENT_ACTIONS:
             action_map = {
-                'click': self.driver.click,
-                'double_click': self.driver.double_click,
-                'right_click': self.driver.right_click,
-                'hover': self.driver.hover,
+                'click': self.driver.click_locator,
+                'double_click': self.driver.double_click_locator,
+                'right_click': self.driver.right_click_locator,
+                'hover': self.driver.hover_locator,
                 'scroll': lambda loc: self.driver.scroll(0, 300),
             }
             fn = action_map[value_lower]
@@ -632,7 +633,7 @@ class KeywordEngine:
                     value = value[:-9]
                     display_value = '***'
                 logger.debug(f"{element_name}: {locator} <- '{display_value}'")
-                result = self.driver.type(locator, value)
+                result = self.driver.type_locator(locator, value)
                 operations.append(('type', element_name, result))
         
         failed_ops = [op for op in operations if not op[2]]
@@ -863,6 +864,11 @@ class KeywordEngine:
     def _kw_screenshot(self, params: Dict) -> bool:
         """截图"""
         path = params.get("path", "") or params.get("data", "") or "screenshot.png"
+        # 解析相对路径：相对于 module_dir（与 assert 关键字一致）
+        if self._module_dir:
+            path_obj = Path(path)
+            if not path_obj.is_absolute():
+                path = str(self._module_dir / path)
         logger.info(f"截图: {path}")
         return self.driver.screenshot(path)
 
@@ -958,9 +964,12 @@ class KeywordEngine:
                 f"视觉断言: type={assert_type}, reference={reference}, "
                 f"threshold={threshold}, scope={scope}, wait={wait}"
             )
-            screenshot = self.driver.screenshot()
-            if screenshot is None:
+            screenshot_path = self.driver.take_screenshot()
+            if screenshot_path is None:
                 raise DriverError("截图失败，无法执行视觉断言")
+            screenshot = cv2.imread(screenshot_path)
+            if screenshot is None:
+                raise DriverError(f"无法读取截图文件: {screenshot_path}")
 
             matcher = ImageMatcher()
             result = matcher.match(
