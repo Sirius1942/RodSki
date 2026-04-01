@@ -874,15 +874,24 @@ class KeywordEngine:
            assert[type=image,reference=img/expected_modal.png,threshold=0.85]
 
         2. 数据引用格式（通过数据表间接引用）:
-           assert[type=image,reference=img/expected_modal.png,threshold=0.85,scope=full,wait=5]
+           assert[type=video,reference=img/expected_frame.png,threshold=0.85,video_source=recording,position=middle]
 
         参数说明（type=image）:
-        - type: 断言类型，固定为 image（未来支持 video）
+        - type: 断言类型，image 或 video
         - reference: 预期图片路径（相对于 images/assert/ 或绝对路径）
         - threshold: 匹配度阈值，默认 0.8
         - scope: 断言范围，full（全屏）或 element（元素区域），默认 full
         - wait: 等待秒数，0=立即断言，>0=轮询等待，默认 0
         - element_bbox: 元素区域，scope=element 时格式 x,y,w,h
+
+        参数说明（type=video）:
+        - type: 断言类型，固定为 video
+        - reference: 预期图片路径
+        - threshold: 匹配度阈值，默认 0.8
+        - video_source: 视频源，recording（内置录屏）或文件路径，默认 recording
+        - position: 关键帧位置，start/middle/end/any，默认 any
+        - time_range: 时间范围，start,end 格式（秒）
+        - wait: 等待秒数，0=立即断言，>0=轮询等待，默认 0
         """
         # 1. 获取断言参数字符串
         raw_data = params.get("data", "") or params.get("assert_params", "")
@@ -902,21 +911,9 @@ class KeywordEngine:
 
         # 3. 提取参数
         assert_type = parsed.get("type", "image")
-        if assert_type != "image":
-            raise InvalidParameterError(
-                keyword="assert",
-                param_name="type",
-                reason=f"暂不支持的断言类型: {assert_type}，目前仅支持 type=image"
-            )
 
+        # 获取公共参数
         reference = parsed.get("reference", "")
-        if not reference:
-            raise InvalidParameterError(
-                keyword="assert",
-                param_name="reference",
-                reason="assert[type=image] 缺少必需参数: reference"
-            )
-
         threshold = float(parsed.get("threshold", "0.8"))
         scope = parsed.get("scope", "full")
         wait = int(parsed.get("wait", "0"))
@@ -934,7 +931,7 @@ class KeywordEngine:
                     "h": int(parts[3].strip()),
                 }
 
-        # 4. 解析 reference 路径
+        # 解析 reference 路径
         module_dir = self._module_dir or (
             self._case_file.parent.parent if self._case_file else None
         )
@@ -948,47 +945,119 @@ class KeywordEngine:
         if not ref_path.exists():
             raise FileNotFoundError(f"预期图片不存在: {ref_path}")
 
-        # 5. 截图
-        logger.info(
-            f"视觉断言: type={assert_type}, reference={reference}, "
-            f"threshold={threshold}, scope={scope}, wait={wait}"
-        )
-        screenshot = self.driver.screenshot()
-        if screenshot is None:
-            raise DriverError("截图失败，无法执行视觉断言")
+        # ── type=image ────────────────────────────────────────────
+        if assert_type == "image":
+            if not reference:
+                raise InvalidParameterError(
+                    keyword="assert",
+                    param_name="reference",
+                    reason="assert[type=image] 缺少必需参数: reference"
+                )
 
-        # 6. 执行匹配
-        matcher = ImageMatcher()
-        result = matcher.match(
-            screenshot=screenshot,
-            reference=ref_path,
-            threshold=threshold,
-            scope=scope,
-            wait=wait,
-            element_bbox=element_bbox,
-        )
-
-        # 7. 注入截图路径（用于调试）
-        result["screenshot"] = None  # 截图是内存数据，不写路径
-
-        # 8. 失败时保存截图
-        if not result["matched"]:
-            saved_path = ImageMatcher.save_failure_screenshot(
-                screenshot,
-                Path(reference).name,
-                failures_dir=module_dir / "images" / "assert" / "failures",
+            logger.info(
+                f"视觉断言: type={assert_type}, reference={reference}, "
+                f"threshold={threshold}, scope={scope}, wait={wait}"
             )
-            result["failure_screenshot"] = saved_path
-            logger.warning(
-                f"图片断言失败: similarity={result['similarity']} < "
-                f"threshold={threshold}, reference={reference}"
-            )
-            if saved_path:
-                logger.info(f"失败截图已保存: {saved_path}")
+            screenshot = self.driver.screenshot()
+            if screenshot is None:
+                raise DriverError("截图失败，无法执行视觉断言")
 
-        # 9. 存储结果并返回
-        self.store_return(result)
-        return result["matched"]
+            matcher = ImageMatcher()
+            result = matcher.match(
+                screenshot=screenshot,
+                reference=ref_path,
+                threshold=threshold,
+                scope=scope,
+                wait=wait,
+                element_bbox=element_bbox,
+            )
+
+            result["screenshot"] = None
+
+            if not result["matched"]:
+                saved_path = ImageMatcher.save_failure_screenshot(
+                    screenshot,
+                    Path(reference).name,
+                    failures_dir=module_dir / "images" / "assert" / "failures",
+                )
+                result["failure_screenshot"] = saved_path
+                logger.warning(
+                    f"图片断言失败: similarity={result['similarity']} < "
+                    f"threshold={threshold}, reference={reference}"
+                )
+                if saved_path:
+                    logger.info(f"失败截图已保存: {saved_path}")
+
+            self.store_return(result)
+            return result["matched"]
+
+        # ── type=video ─────────────────────────────────────────────
+        elif assert_type == "video":
+            if not reference:
+                raise InvalidParameterError(
+                    keyword="assert",
+                    param_name="reference",
+                    reason="assert[type=video] 缺少必需参数: reference"
+                )
+
+            video_source = parsed.get("video_source", "recording")
+            position = parsed.get("position", "any")
+            time_range_str = parsed.get("time_range", "")
+
+            # 解析 time_range: start,end 格式
+            time_range = None
+            if time_range_str:
+                parts = time_range_str.split(",")
+                if len(parts) == 2:
+                    time_range = {
+                        "start": float(parts[0].strip()),
+                        "end": float(parts[1].strip()),
+                    }
+
+            logger.info(
+                f"视频断言: type={assert_type}, reference={reference}, "
+                f"threshold={threshold}, video_source={video_source}, "
+                f"position={position}, wait={wait}"
+            )
+
+            analyzer = VideoAnalyzer()
+            result = analyzer.match(
+                video_source=video_source,
+                reference=ref_path,
+                threshold=threshold,
+                position=position,
+                time_range=time_range,
+                scope=scope,
+                element_bbox=element_bbox,
+                wait=wait,
+            )
+
+            if not result["matched"]:
+                # 尝试获取/保存录屏
+                recording_path = None
+                try:
+                    from core.recording import recorder as global_recorder
+                    case_id = getattr(self, '_case_file', 'unknown') or 'unknown'
+                    recording_path = global_recorder.get_video_path(str(case_id))
+                except Exception:
+                    pass
+
+                logger.warning(
+                    f"视频断言失败: similarity={result['similarity']} < "
+                    f"threshold={threshold}, reference={reference}, "
+                    f"frames_checked={result['total_frames_checked']}"
+                )
+                result["failure_recording"] = recording_path
+
+            self.store_return(result)
+            return result["matched"]
+
+        else:
+            raise InvalidParameterError(
+                keyword="assert",
+                param_name="type",
+                reason=f"暂不支持的断言类型: {assert_type}，目前仅支持 type=image 和 type=video"
+            )
 
     def _kw_verify(self, params: Dict) -> bool:
         """验证 - 与 type 对称的批量验证关键字
