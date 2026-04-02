@@ -4,13 +4,13 @@
 
 ```bash
 # 基本用法
-rodski run case.xml --output-format json
+python3 -c "from rodski_cli import main; import sys; sys.argv = ['rodski', 'run', 'case.xml', '--output-format', 'json']; main()"
 
 # 无头模式
-rodski run case.xml --output-format json --headless
+python3 -c "from rodski_cli import main; import sys; sys.argv = ['rodski', 'run', 'case.xml', '--output-format', 'json', '--headless']; main()"
 
 # 指定浏览器
-rodski run case.xml --output-format json --browser firefox
+python3 -c "from rodski_cli import main; import sys; sys.argv = ['rodski', 'run', 'case.xml', '--output-format', 'json', '--browser', 'firefox']; main()"
 ```
 
 ## 集成到 Agent
@@ -20,7 +20,8 @@ import subprocess
 import json
 
 result = subprocess.run(
-    ["rodski", "run", "case.xml", "--output-format", "json"],
+    ["python3", "-c",
+     "from rodski_cli import main; import sys; sys.argv = ['rodski', 'run', 'case.xml', '--output-format', 'json']; main()"],
     capture_output=True, text=True
 )
 
@@ -33,6 +34,6 @@ else:
 
 ## 文档
 
-- `docs/agent-integration.md` - 完整集成指南
-- `docs/skill-integration.md` - Skill 定义规范
-- `examples/agent_integration_example.py` - 示例代码
+- [../../agent/AGENT_INTEGRATION.md](../../agent/AGENT_INTEGRATION.md) - 完整 Agent 集成指南
+- [../../agent/AGENT_SKILL_GUIDE.md](../../agent/AGENT_SKILL_GUIDE.md) - Skill 定义规范
+- `rodski/examples/agent_integration_example.py` - 示例代码

@@ -65,10 +65,10 @@
 2. **Demo 项目验证**
    ```bash
    # 运行完整功能 Demo
-   python3 rodski/ski_run.py rodski-demo/DEMO/demo_full/case/demo_case.xml
+   python3 -c "from rodski_cli import main; import sys; sys.argv = ['rodski', 'run', 'case.xml']; main()" -- case demo_case.xml
 
-   # 运行运行时控制 Demo
-   python3 rodski/ski_run.py rodski-demo/DEMO/demo_runtime_control/case/runtime_case.xml
+   # 运行运行时控制 Demo（通过 --insert-step 插入动态步骤）
+   python3 -c "from rodski_cli import main; import sys; sys.argv = ['rodski', 'run', 'case.xml']; main()" -- case runtime_case.xml
    ```
 
 3. **验收标准**
@@ -98,8 +98,8 @@
 
 ```bash
 # 1. 运行所有 Demo 项目
-python3 rodski/ski_run.py rodski-demo/DEMO/demo_full/case/demo_case.xml
-python3 rodski/ski_run.py rodski-demo/DEMO/demo_runtime_control/case/runtime_case.xml
+python3 -c "from rodski_cli import main; import sys; sys.argv = ['rodski', 'run', 'rodski-demo/DEMO/demo_full/case/']; main()"
+python3 -c "from rodski_cli import main; import sys; sys.argv = ['rodski', 'run', 'rodski-demo/DEMO/demo_runtime_control/case/']; main()"
 
 # 2. 检查结果
 ls -la rodski-demo/DEMO/*/result/
@@ -152,7 +152,7 @@ python3 init_db.py
 test:
   script:
     - python3 rodski/selftest.py
-    - python3 rodski/ski_run.py rodski-demo/DEMO/demo_full/case/demo_case.xml
+    - python3 -c "from rodski_cli import main; import sys; sys.argv = ['rodski', 'run', 'rodski-demo/DEMO/demo_full/case/']; main()"
   artifacts:
     paths:
       - rodski-demo/DEMO/*/result/

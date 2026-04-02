@@ -41,9 +41,9 @@ rodski run case.xml --output-format json
 ### 3. Skill 集成文档 ✅
 
 **文档文件**:
-- `docs/agent-integration.md` - Agent 集成指南
-- `docs/skill-integration.md` - Skill 集成规范
-- `examples/agent_integration_example.py` - 集成示例代码
+- [../../agent/AGENT_INTEGRATION.md](../../agent/AGENT_INTEGRATION.md) - Agent 集成指南
+- [../../agent/AGENT_SKILL_GUIDE.md](../../agent/AGENT_SKILL_GUIDE.md) - Skill 集成规范
+- `rodski/examples/agent_integration_example.py` - 集成示例代码
 
 **支持的集成方式**:
 - OpenClaw skill 定义
