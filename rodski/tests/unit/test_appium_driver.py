@@ -129,6 +129,8 @@ class TestAppiumDriver:
         driver.driver = Mock()
         driver.wait = Mock()
         element = Mock()
+        element.tag_name = 'select'
+        element.find_elements.return_value = [Mock()]
         driver.wait.until.return_value = element
 
         assert driver.select("id=dropdown", "option1") == True
@@ -139,6 +141,7 @@ class TestAppiumDriver:
         driver.driver = Mock()
         driver.wait = Mock()
         element = Mock()
+        element.id = 'elem123'
         driver.wait.until.return_value = element
 
         assert driver.hover("id=menu") == True
@@ -235,7 +238,8 @@ class TestAppiumDriver:
     def test_long_press_failure(self, mock_remote):
         driver = AppiumDriver({"platformName": "Android"})
         driver.driver = Mock()
-        driver.driver.find_element.side_effect = Exception("Not found")
+        driver.wait = Mock()
+        driver.wait.until.side_effect = Exception("Not found")
 
         assert driver.long_press("id=missing") == False
 

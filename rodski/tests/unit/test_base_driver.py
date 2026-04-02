@@ -51,6 +51,18 @@ class ConcreteDriver(BaseDriver):
         self.actions.append(("take_screenshot",))
         return "/tmp/screenshot.png"
 
+    def double_click(self, x: int, y: int) -> None:
+        self.actions.append(("double_click", x, y))
+
+    def right_click(self, x: int, y: int) -> None:
+        self.actions.append(("right_click", x, y))
+
+    def hover(self, x: int, y: int) -> None:
+        self.actions.append(("hover", x, y))
+
+    def scroll(self, x: int, y: int) -> None:
+        self.actions.append(("scroll", x, y))
+
 
 @pytest.fixture
 def driver():

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+  <case id="demo_login" title="Demo Login Test" execute="是" description="Demo dry-run test" component_type="界面">
+    <pre_process>
+      <test_step action="navigate" data="https://example.com"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="Login" data="L001"/>
+    </test_case>
+    <post_process>
+    </post_process>
+  </case>
+</cases>

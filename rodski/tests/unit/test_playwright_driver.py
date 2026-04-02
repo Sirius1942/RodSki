@@ -70,16 +70,14 @@ class TestPlaywrightDriver:
         driver = self._create_driver(mock_pw)
         driver.page.is_visible = Mock(return_value=False)
 
-        with pytest.raises(DriverError, match="校验失败"):
-            driver.check("#element")
+        assert driver.check("#element") == False
 
     @patch('playwright.sync_api.sync_playwright')
     def test_check_error(self, mock_pw):
         driver = self._create_driver(mock_pw)
         driver.page.is_visible = Mock(side_effect=Exception("Error"))
 
-        with pytest.raises(DriverError, match="校验失败"):
-            driver.check("#element")
+        assert driver.check("#element") == False
 
     @patch('playwright.sync_api.sync_playwright')
     @patch('time.sleep')
@@ -95,7 +93,7 @@ class TestPlaywrightDriver:
         driver.page.goto = Mock(return_value=None)
 
         assert driver.navigate("https://example.com") == True
-        driver.page.goto.assert_called_once_with("https://example.com")
+        driver.page.goto.assert_called_once_with("https://example.com", wait_until="networkidle", timeout=30000)
 
     @patch('playwright.sync_api.sync_playwright')
     def test_navigate_failure(self, mock_pw):
