@@ -42,3 +42,6 @@ rodski/product/
 
 # OpenClaw
 .openclaw/
+
+# CassMall 业务测试用例（不纳入版本控制）
+CassMall_examples/
