@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}测试结果 - RodSki Web{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📊 测试结果</h1>
+    <button class="btn btn-refresh" onclick="loadResults()">🔄 刷新</button>
+</div>
+
+<div class="summary-cards" id="summary-cards">
+    <div class="summary-card success">
+        <div class="summary-icon">✅</div>
+        <div class="summary-value" id="success-count">-</div>
+        <div class="summary-label">成功</div>
+    </div>
+    <div class="summary-card failed">
+        <div class="summary-icon">❌</div>
+        <div class="summary-value" id="failed-count">-</div>
+        <div class="summary-label">失败</div>
+    </div>
+    <div class="summary-card rate">
+        <div class="summary-icon">📈</div>
+        <div class="summary-value" id="success-rate">-</div>
+        <div class="summary-label">成功率</div>
+    </div>
+</div>
+
+<div class="results-list" id="results-list">
+    <div class="loading">加载中...</div>
+</div>
+
+<div class="result-detail" id="result-detail" style="display: none;">
+    <div class="detail-header">
+        <h2 id="detail-title"></h2>
+        <button class="btn btn-close" onclick="closeDetail()">✕</button>
+    </div>
+    <div class="detail-content" id="detail-content"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentResults = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadSummary();
+    loadResults();
+});
+
+function loadSummary() {
+    fetch('/api/results/summary')
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('success-count').textContent = data.success || 0;
+            document.getElementById('failed-count').textContent = data.failed || 0;
+            document.getElementById('success-rate').textContent = data.success_rate || '0%';
+        });
+}
+
+function loadResults() {
+    fetch('/api/results')
+        .then(r => r.json())
+        .then(data => {
+            currentResults = data.results || [];
+            renderResults(currentResults);
+        });
+}
+
+function renderResults(results) {
+    const list = document.getElementById('results-list');
+    
+    if (results.length === 0) {
+        list.innerHTML = '<div class="empty-state">暂无测试结果</div>';
+        return;
+    }
+    
+    list.innerHTML = results.map(r => {
+        const statusClass = r.success === 'true' || r.success === true ? 'status-success' : 'status-failed';
+        const statusText = r.success === 'true' || r.success === true ? '✅ 成功' : '❌ 失败';
+        
+        return `
+        <div class="result-card ${statusClass}" onclick="showResultDetail('${r.result_dir}')">
+            <div class="result-header">
+                <span class="result-id">${r.case_id || '未知用例'}</span>
+                <span class="result-status">${statusText}</span>
+            </div>
+            <div class="result-meta">
+                <span>📁 ${r.dir_name}</span>
+                <span>⏱️ ${r.duration || '-'}</span>
+            </div>
+            <div class="result-time">🕐 ${r.start_time || '-'}</div>
+        </div>
+    `}).join('');
+}
+
+function showResultDetail(resultDir) {
+    const result = currentResults.find(r => r.result_dir === resultDir);
+    if (!result) return;
+    
+    document.getElementById('detail-title').textContent = result.case_id || '测试结果详情';
+    
+    let html = `
+        <div class="result-info">
+            <div class="info-row"><strong>用例ID:</strong> ${result.case_id || '-'}</div>
+            <div class="info-row"><strong>开始时间:</strong> ${result.start_time || '-'}</div>
+            <div class="info-row"><strong>结束时间:</strong> ${result.end_time || '-'}</div>
+            <div class="info-row"><strong>耗时:</strong> ${result.duration || '-'}</div>
+            <div class="info-row"><strong>结果:</strong> ${result.success === 'true' || result.success === true ? '✅ 成功' : '❌ 失败'}</div>
+        </div>
+        <div class="result-steps">
+            <h4>执行步骤</h4>
+    `;
+    
+    if (result.steps && result.steps.length > 0) {
+        html += '<ol class="steps-list">';
+        result.steps.forEach((step, i) => {
+            const stepStatus = step.success === 'false' || step.success === false ? '❌' : '✅';
+            html += `<li>${stepStatus} <code>${step.action}</code>: ${step.data}</li>`;
+        });
+        html += '</ol>';
+    } else {
+        html += '<p>无步骤详情</p>';
+    }
+    
+    html += '</div>';
+    
+    document.getElementById('detail-content').innerHTML = html;
+    document.getElementById('result-detail').style.display = 'block';
+}
+
+function closeDetail() {
+    document.getElementById('result-detail').style.display = 'none';
+}
+</script>
+{% endblock %}
