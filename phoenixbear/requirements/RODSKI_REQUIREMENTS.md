@@ -1,6 +1,6 @@
 # RodSki 需求总览
 
-**目的**：作为需求与验收的**单一入口**；与 `RODSKI_REQUIREMENTS_HISTORY_2026-03-20.md` 中的历史梳理一致，并随产品演进更新。
+**目的**：作为需求与验收的**单一入口**。
 
 ---
 
@@ -26,24 +26,30 @@ RodSki 旨在提供一套**关键字驱动**的自动化测试框架，使团队
 
 ---
 
-## 3. 验收原则（如何验收）
+## 3. 验收原则
 
-验收分三层，**与《用户指南》及设计约束一致**：
+验收分三层：
 
-1. **需求与范围**  
-   - 与本文及 `RODSKI_REQUIREMENTS_HISTORY_2026-03-20.md` 中的能力基线一致（随版本更新条目）。
+1. **需求与范围** — 与本文档一致。
 
-2. **设计符合性**  
-   - 实现与 `../design/核心设计约束.md` 一致；重大偏离需评审并更新文档。
+2. **设计符合性** — 实现与 `../design/CORE_DESIGN_CONSTRAINTS.md` 一致；重大偏离需评审并更新文档。
 
-3. **用户可交付性**  
-   - 最终用户能依据 `../user-guides/` 下的手册完成安装、编写用例、执行与报告；  
-   - **验收测试**应覆盖：用例编写规范、CLI 执行、结果产出（如 `result.xsd` 约定）、关键场景（Web/API/DB 等按项目范围）。
+3. **用户可交付性** — 最终用户能依据 RodSki 框架完成安装、编写用例、执行与报告。
 
 ---
 
-## 4. 相关文档
+## 4. 关键约束
 
-- 历史梳理：`RODSKI_REQUIREMENTS_HISTORY_2026-03-20.md`
-- 设计约束：`../design/核心设计约束.md`
-- 用户手册入口：`../user-guides/QUICKSTART.md`、`../user-guides/TEST_CASE_WRITING_GUIDE.md`
+- ⭐ 每个迭代的实现**绝对不能违反** `../design/CORE_DESIGN_CONSTRAINTS.md`
+- ⭐ 每个迭代的实现**绝对不能违反** `../design/TEST_CASE_WRITING_GUIDE.md`
+
+详见 `../conventions/PROJECT_CONSTRAINTS.md#8-核心文档不可违反约束`
+
+---
+
+## 5. 相关文档
+
+- 设计约束: [../design/CORE_DESIGN_CONSTRAINTS.md](../design/CORE_DESIGN_CONSTRAINTS.md)
+- 用例编写: [../design/TEST_CASE_WRITING_GUIDE.md](../design/TEST_CASE_WRITING_GUIDE.md)
+- Agent 开发: [../agent/README.md](../agent/README.md)
+- 项目规范: [../conventions/README.md](../conventions/README.md)

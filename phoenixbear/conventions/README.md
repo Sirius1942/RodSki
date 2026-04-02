@@ -5,9 +5,8 @@
 ## 规范文档
 
 - [Git 工作流规范](GIT_WORKFLOW.md) - 分支管理、提交规范、发布流程
-- [项目约束](PROJECT_CONSTRAINTS.md) - 项目结构，开发约束、测试规范
+- [项目约束](PROJECT_CONSTRAINTS.md) - 项目结构，开发约束，测试规范
 - [CI/CD 集成指南](CI_CD_GUIDE.md) - GitHub Actions、Docker、Jenkins、GitLab CI 集成
-- [代码规范](CODING_STANDARDS.md) - 代码风格、命名规范，最佳实践（待补充）
 
 ## 核心约束
 
@@ -15,9 +14,7 @@
 
 ## 使用方式
 
-### 在 Specs 中引用
-
-在功能开发的 spec 文档中引用这些规范：
+### 在迭代文档中引用
 
 ```markdown
 # 功能设计
