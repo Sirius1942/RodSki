@@ -87,7 +87,6 @@ class TestSKIExecutorScreenshot:
         config = _make_config(tmp_path, True)
         executor = SKIExecutor(case_path, _make_mock_driver(), config)
         assert executor.auto_screenshot == True
-        assert executor.screenshot_dir.exists()
 
     def test_executor_respects_disabled_screenshot(self, tmp_path):
         module_dir = _build_module(tmp_path)
@@ -103,6 +102,7 @@ class TestSKIExecutorScreenshot:
         mock_driver.wait.side_effect = RuntimeError("Element not found")
         config = _make_config(tmp_path, True)
         executor = SKIExecutor(case_path, mock_driver, config)
+        executor.result_writer._init_run_dir()
 
         case = {
             'case_id': 'TC_FAIL',
@@ -164,6 +164,8 @@ class TestAutoScreenshotIntegration:
         mock_driver.wait.side_effect = RuntimeError("Timeout waiting for element")
         config = _make_config(tmp_path, True)
         executor = SKIExecutor(case_path, mock_driver, config)
+        # ensure run dir is initialized so screenshots can be saved
+        executor.result_writer._init_run_dir()
 
         case = {
             'case_id': 'TC_INTEGRATION',

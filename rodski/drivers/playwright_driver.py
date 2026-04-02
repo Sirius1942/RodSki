@@ -178,10 +178,23 @@ class PlaywrightDriver(BaseDriver):
             pass
         return None
 
-    def click(self, x: int, y: int) -> None:
-        """点击指定坐标（BaseDriver 接口）"""
+    def click(self, locator_or_x, y=None, **kwargs) -> bool:
+        """点击元素或坐标
+
+        支持两种调用方式：
+        - click(locator)     → 旧 API，定位器点击（通过 click_locator）
+        - click(x, y)       → BaseDriver 坐标 API
+        """
+        if y is None and isinstance(locator_or_x, str):
+            return self.click_locator(locator_or_x, **kwargs)
+        x = locator_or_x
         self._check_driver_alive()
-        self.page.mouse.click(x, y)
+        try:
+            self.page.mouse.click(x, y)
+            return True
+        except Exception as e:
+            self._handle_error("click", f"({x}, {y})", e)
+            return False
 
     def type_text(self, x: int, y: int, text: str) -> None:
         """在指定坐标输入文字（BaseDriver 接口）"""
@@ -206,8 +219,16 @@ class PlaywrightDriver(BaseDriver):
         self._check_driver_alive()
         self.page.mouse.click(x, y, button="right")
 
-    def hover(self, x: int, y: int) -> None:
-        """悬停在指定坐标（BaseDriver 接口）"""
+    def hover(self, locator_or_x, y=None) -> bool:
+        """悬停
+
+        支持两种调用方式：
+        - hover(locator)  → 旧 API，定位器悬停
+        - hover(x, y)     → BaseDriver 坐标 API
+        """
+        if y is None and isinstance(locator_or_x, str):
+            return self.hover_locator(locator_or_x)
+        x = locator_or_x
         self._check_driver_alive()
         self.page.mouse.move(x, y)
 
@@ -292,10 +313,10 @@ class PlaywrightDriver(BaseDriver):
         自动等待元素可见、可编辑后执行输入
         """
         self._check_driver_alive()
-        
+
         css_locator = self._convert_locator(locator)
         logger.debug(f"输入文本: {locator} -> {css_locator}")
-        
+
         try:
             # 先等待元素可见
             try:
@@ -303,7 +324,7 @@ class PlaywrightDriver(BaseDriver):
             except Exception:
                 # 等待失败，继续尝试
                 pass
-            
+
             # 尝试正常输入
             try:
                 self.page.fill(css_locator, text, timeout=5000, **kwargs)
@@ -359,10 +380,14 @@ class PlaywrightDriver(BaseDriver):
             self._handle_error("type", locator, e)
             raise DriverError(f"输入失败: {locator}", locator=locator, cause=e)
 
+    def type(self, locator: str, text: str) -> bool:
+        """输入文本（KeywordEngine 旧 API）"""
+        return self.type_locator(locator, text)
+
     def check(self, locator: str, **kwargs) -> bool:
         """检查元素可见"""
         self._check_driver_alive()
-        
+
         try:
             self.page.wait_for_selector(locator, state="visible", timeout=3000)
             return True
@@ -455,6 +480,10 @@ class PlaywrightDriver(BaseDriver):
         except Exception as e:
             self._handle_error("scroll_page", f"({x}, {y})", e)
             raise DriverError(f"滚动失败", cause=e)
+
+    def scroll(self, x: int = 0, y: int = 300) -> bool:
+        """滚动（KeywordEngine 旧 API）"""
+        return self.scroll_page(x, y)
 
     def assert_element(self, locator: str, expected: str) -> bool:
         """断言元素文本包含预期值"""

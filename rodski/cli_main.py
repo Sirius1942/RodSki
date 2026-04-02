@@ -5,7 +5,7 @@ import argparse
 import traceback
 from rodski_cli import run, model, config, log, report, profile
 
-VERSION = "2.0.1"
+VERSION = "3.1.0"
 
 
 def format_error(e, verbose=False):

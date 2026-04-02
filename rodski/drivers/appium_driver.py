@@ -33,9 +33,28 @@ class AppiumDriver(BaseDriver):
         except:
             return None
 
-    def click(self, x: int, y: int) -> None:
-        """点击坐标"""
-        self.driver.tap([(x, y)])
+    # ── BaseDriver 坐标接口（两阶段 API）───────────────────────────
+
+    def click(self, locator_or_x, y=None) -> bool:
+        """点击元素
+
+        支持两种调用方式：
+        - click(locator_str)     → 旧 API，定位器点击
+        - click(x, y)            → BaseDriver 坐标 API
+        """
+        if y is None and isinstance(locator_or_x, str):
+            # 旧 API: click("id=test") → 定位器点击
+            try:
+                by, value = self._parse_locator(locator_or_x)
+                element = self.wait.until(EC.presence_of_element_located((by, value)))
+                element.click()
+                return True
+            except Exception:
+                return False
+        else:
+            # BaseDriver API: click(x, y) → 坐标点击
+            x = locator_or_x
+            self.driver.tap([(x, y)])
 
     def type_text(self, x: int, y: int, text: str) -> None:
         """输入文字"""
@@ -62,16 +81,35 @@ class AppiumDriver(BaseDriver):
         """右键点击（移动端不支持）"""
         pass
 
-    def hover(self, x: int, y: int) -> None:
-        """悬停（移动端不支持）"""
-        pass
+    def hover(self, locator_or_x, y=None) -> bool:
+        """悬停
 
-    def scroll(self, x: int, y: int) -> None:
-        """滚动"""
-        size = self.driver.get_window_size()
-        start_x = size['width'] // 2
-        start_y = size['height'] // 2
-        self.driver.swipe(start_x, start_y, start_x + x, start_y + y, 500)
+        支持两种调用方式：
+        - hover(locator_str)  → 旧 API，定位器悬停
+        - hover(x, y)         → BaseDriver 坐标 API（移动端不支持，直接 pass）
+        """
+        if y is None and isinstance(locator_or_x, str):
+            try:
+                by, value = self._parse_locator(locator_or_x)
+                element = self.wait.until(EC.presence_of_element_located((by, value)))
+                self.driver.execute_script("mobile: longClick", {"element": element.id})
+                return True
+            except Exception:
+                return False
+        # 移动端悬停不支持，直接 pass
+
+    def scroll(self, x: int, y: int) -> bool:
+        """滚动（BaseDriver API）"""
+        try:
+            size = self.driver.get_window_size()
+            start_x = size['width'] // 2
+            start_y = size['height'] // 2
+            self.driver.swipe(start_x, start_y, start_x + x, start_y + y, 500)
+            return True
+        except Exception:
+            return False
+
+    # ── 旧 API（定位器接口，保留用于兼容性和测试）───────────────────
 
     def _parse_locator(self, locator: str) -> tuple:
         """解析定位符"""
@@ -87,3 +125,135 @@ class AppiumDriver(BaseDriver):
             "name": AppiumBy.NAME
         }
         return mapping.get(strategy.lower(), AppiumBy.ID), value
+
+    def hover_locator(self, locator: str) -> bool:
+        """通过定位器悬停（旧 API）"""
+        try:
+            by, value = self._parse_locator(locator)
+            element = self.wait.until(EC.presence_of_element_located((by, value)))
+            # 移动端用 longPress 模拟悬停
+            self.driver.execute_script("mobile: longClick", {"element": element.id})
+            return True
+        except Exception:
+            return False
+
+    def drag(self, from_locator: str, to_locator: str) -> bool:
+        """拖拽操作（旧 API）"""
+        try:
+            by1, val1 = self._parse_locator(from_locator)
+            by2, val2 = self._parse_locator(to_locator)
+            el1 = self.driver.find_element(by1, val1)
+            el2 = self.driver.find_element(by2, val2)
+            self.driver.drag_and_drop(el1, el2)
+            return True
+        except Exception:
+            return False
+
+    def assert_element(self, locator: str, expected: str) -> bool:
+        """断言元素文本（旧 API）"""
+        try:
+            by, value = self._parse_locator(locator)
+            element = self.driver.find_element(by, value)
+            return expected in (element.text or "")
+        except Exception:
+            return False
+
+    def click_element(self, locator: str) -> bool:
+        """通过定位器点击元素（旧 API）"""
+        try:
+            by, value = self._parse_locator(locator)
+            element = self.wait.until(EC.presence_of_element_located((by, value)))
+            element.click()
+            return True
+        except Exception:
+            return False
+
+    def type(self, locator: str, text: str) -> bool:
+        """通过定位器输入文字（旧 API）"""
+        try:
+            by, value = self._parse_locator(locator)
+            element = self.wait.until(EC.presence_of_element_located((by, value)))
+            element.clear()
+            element.send_keys(text)
+            return True
+        except Exception:
+            return False
+
+    def check(self, locator: str) -> bool:
+        """检查元素是否可见（旧 API）"""
+        try:
+            by, value = self._parse_locator(locator)
+            element = self.wait.until(EC.visibility_of_element_located((by, value)))
+            return element.is_displayed()
+        except Exception:
+            return False
+
+    def swipe(self, start_x: int, start_y: int, end_x: int, end_y: int, duration: int = 500) -> bool:
+        """滑动操作（旧 API）"""
+        try:
+            self.driver.swipe(start_x, start_y, end_x, end_y, duration)
+            return True
+        except Exception:
+            return False
+
+    def tap(self, x: int, y: int) -> bool:
+        """点击坐标（旧 API）"""
+        try:
+            self.driver.tap([(x, y)])
+            return True
+        except Exception:
+            return False
+
+    def screenshot(self, path: str = None) -> bool:
+        """截图（旧 API）"""
+        try:
+            if path is None:
+                self.take_screenshot()
+            else:
+                self.driver.save_screenshot(path)
+            return True
+        except Exception:
+            return False
+
+    def navigate(self, url: str) -> bool:
+        """导航到 URL（旧 API）"""
+        try:
+            self.driver.get(url)
+            return True
+        except Exception:
+            return False
+
+    def select(self, locator: str, value: str) -> bool:
+        """下拉选择（旧 API）"""
+        try:
+            from selenium.webdriver.support.ui import Select
+            by, val = self._parse_locator(locator)
+            element = self.wait.until(EC.presence_of_element_located((by, val)))
+            Select(element).select_by_value(value)
+            return True
+        except Exception:
+            return False
+
+    def long_press(self, locator: str) -> bool:
+        """长按元素（旧 API）"""
+        try:
+            by, value = self._parse_locator(locator)
+            element = self.wait.until(EC.presence_of_element_located((by, value)))
+            self.driver.execute_script("mobile: longClick", {"element": element.id})
+            return True
+        except Exception:
+            return False
+
+    def hide_keyboard(self) -> bool:
+        """隐藏键盘（旧 API）"""
+        try:
+            self.driver.hide_keyboard()
+            return True
+        except Exception:
+            return False
+
+    def get_supported_keywords(self) -> list:
+        """返回支持的关键字列表（旧 API）"""
+        return ["click", "type", "check", "swipe", "tap", "screenshot",
+                "navigate", "select", "long_press", "hide_keyboard",
+                "launch", "close", "locate_element"]
