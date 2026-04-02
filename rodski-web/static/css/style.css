@@ -1,0 +1,230 @@
+/* RodSki Web - Mario Theme Styles */
+
+:root {
+    --mario-red: #E52521;
+    --mario-blue: #049CD8;
+    --mario-green: #43A047;
+    --mario-yellow: #FFC107;
+    --mario-orange: #FF9800;
+    --mario-bg: #1a1a2e;
+    --mario-card: #16213e;
+    --mario-text: #eaeaea;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--mario-bg);
+    color: var(--mario-text);
+    min-height: 100vh;
+}
+
+/* Header */
+.mario-header {
+    background: linear-gradient(135deg, var(--mario-red), #b71c1c);
+    padding: 1rem 2rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.header-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.mario-header h1 {
+    font-size: 1.8rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Project Selector */
+.project-selector {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(255,255,255,0.15);
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+}
+
+.project-selector label {
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.project-selector select {
+    background: rgba(255,255,255,0.9);
+    color: #333;
+    border: none;
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    min-width: 120px;
+}
+
+.project-selector select:hover {
+    background: rgba(255,255,255,1);
+}
+
+/* Stats Cards */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    padding: 2rem;
+}
+
+.stat-card {
+    background: var(--mario-card);
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+    border: 3px solid var(--mario-yellow);
+    transition: transform 0.2s;
+}
+
+.stat-card:hover {
+    transform: translateY(-4px);
+}
+
+.stat-icon {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--mario-yellow);
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    opacity: 0.8;
+}
+
+/* Question Block Style Cards */
+.question-block {
+    background: linear-gradient(135deg, var(--mario-yellow), var(--mario-orange));
+    border-radius: 8px;
+    padding: 1rem 1.5rem;
+    color: #333;
+    font-weight: bold;
+    display: inline-block;
+    box-shadow: 0 4px 0 #c67900;
+}
+
+/* Tables */
+.mario-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--mario-card);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.mario-table th {
+    background: var(--mario-blue);
+    padding: 1rem;
+    text-align: left;
+}
+
+.mario-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.mario-table tr:hover {
+    background: rgba(255,255,255,0.05);
+}
+
+/* Buttons */
+.mario-btn {
+    padding: 0.5rem 1.5rem;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.2s;
+}
+
+.mario-btn-primary {
+    background: var(--mario-red);
+    color: white;
+}
+
+.mario-btn-success {
+    background: var(--mario-green);
+    color: white;
+}
+
+.mario-btn:hover {
+    transform: scale(1.05);
+}
+
+/* Status Badges */
+.status-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.status-pass {
+    background: var(--mario-green);
+    color: white;
+}
+
+.status-fail {
+    background: var(--mario-red);
+    color: white;
+}
+
+/* Grid Layout */
+.content-grid {
+    display: grid;
+    grid-template-columns: 250px 1fr;
+    gap: 2rem;
+    padding: 2rem;
+}
+
+/* Sidebar */
+.sidebar {
+    background: var(--mario-card);
+    border-radius: 12px;
+    padding: 1rem;
+}
+
+.module-list {
+    list-style: none;
+}
+
+.module-item {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: background 0.2s;
+}
+
+.module-item:hover, .module-item.active {
+    background: var(--mario-blue);
+}
+
+/* Footer */
+.mario-footer {
+    text-align: center;
+    padding: 2rem;
+    opacity: 0.6;
+    font-size: 0.9rem;
+}
