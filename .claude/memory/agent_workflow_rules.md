@@ -1,6 +1,6 @@
 ---
 name: agent_workflow_rules
-description: Agent 自主开发 RodSki 时必须遵循的工作流规范
+description: Agent 自主开发工作流规范
 type: feedback
 ---
 
@@ -16,9 +16,9 @@ Agent 在 RodSki 项目中自主开发时，必须严格遵循以下工作流：
 7. 保存报告到 `.claude/reports/`
 8. 等待人工确认后继续
 
-**核心约束（不可违反）**：
-- ⭐ `CORE_DESIGN_CONSTRAINTS.md` 中的任何约束条款都不得违反
-- ⭐ `TEST_CASE_WRITING_GUIDE.md` 中的任何编写规范都不得违反
+**核心约束（绝对不可违反）**：
+- ⭐ `CORE_DESIGN_CONSTRAINTS.md` 中任何约束条款
+- ⭐ `TEST_CASE_WRITING_GUIDE.md` 中任何编写规范
 
 **Agent 停止点（必须请求人工决策）**：
 1. 测试失败
@@ -27,9 +27,3 @@ Agent 在 RodSki 项目中自主开发时，必须严格遵循以下工作流：
 4. 覆盖率下降
 5. Breaking Changes
 6. 修改 XML Schema
-
-**Why:** 用户要求 Agent 开发时必须严格遵守设计约束，遇到关键决策点必须人工确认。
-**How to apply:**
-- 测试失败时立即停止，不尝试自动修复
-- 每个任务完成后生成标准格式报告
-- Commit 前检查是否违反核心约束

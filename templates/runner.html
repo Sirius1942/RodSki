@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}测试执行器 - RodSki Web{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>▶️ 测试执行器</h1>
+</div>
+
+<div class="runner-container">
+    <div class="runner-status" id="runner-status">
+        <h3>🔧 执行器状态</h3>
+        <div class="status-info">
+            <div class="info-row"><strong>项目路径:</strong> <span id="project-path">-</span></div>
+            <div class="info-row"><strong>数据路径:</strong> <span id="data-path">-</span></div>
+            <div class="info-row"><strong>CLI 路径:</strong> <span id="cli-path">-</span></div>
+            <div class="info-row"><strong>超时设置:</strong> <span id="run-timeout">-</span></div>
+        </div>
+    </div>
+
+    <div class="runner-form">
+        <h3>🎮 执行测试用例</h3>
+        <div class="form-group">
+            <label for="case-id">用例 ID:</label>
+            <input type="text" id="case-id" class="form-input" placeholder="输入用例 ID, 如: cassmall_beta_quotation_list">
+        </div>
+        <div class="form-actions">
+            <button class="btn btn-success" onclick="runCase()">▶️ 执行</button>
+            <button class="btn btn-secondary" onclick="dryRun()">🔍 验证</button>
+            <button class="btn btn-info" onclick="explain()">📖 说明</button>
+        </div>
+    </div>
+
+    <div class="runner-output" id="runner-output" style="display: none;">
+        <div class="output-header">
+            <h3>📋 执行结果</h3>
+            <button class="btn btn-close" onclick="closeOutput()">✕</button>
+        </div>
+        <div class="output-content" id="output-content"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    loadStatus();
+});
+
+function loadStatus() {
+    fetch('/api/runner/status')
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('project-path').textContent = data.project_path || '-';
+            document.getElementById('data-path').textContent = data.data_path || '-';
+            document.getElementById('cli-path').textContent = data.cli_path || '-';
+            document.getElementById('run-timeout').textContent = data.run_timeout ? `${data.run_timeout}秒` : '-';
+        });
+}
+
+function getCaseId() {
+    return document.getElementById('case-id').value.trim();
+}
+
+function showOutput(title, content, isError = false) {
+    document.getElementById('runner-output').style.display = 'block';
+    document.getElementById('output-content').innerHTML = `
+        <div class="output-title">${title}</div>
+        <pre class="output-pre ${isError ? 'output-error' : ''}">${content}</pre>
+    `;
+}
+
+function closeOutput() {
+    document.getElementById('runner-output').style.display = 'none';
+}
+
+function runCase() {
+    const caseId = getCaseId();
+    if (!caseId) {
+        alert('请输入用例 ID');
+        return;
+    }
+    
+    showOutput('⏳ 正在执行...', '请稍候...');
+    
+    fetch('/api/runner/run', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({case_id: caseId})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showOutput('✅ 执行成功', data.stdout || '用例执行完成');
+        } else {
+            showOutput('❌ 执行失败', data.error || data.stderr || '未知错误', true);
+        }
+    });
+}
+
+function dryRun() {
+    const caseId = getCaseId();
+    if (!caseId) {
+        alert('请输入用例 ID');
+        return;
+    }
+    
+    showOutput('⏳ 正在验证...', '请稍候...');
+    
+    fetch('/api/runner/dry-run', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({case_id: caseId})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showOutput('✅ 验证通过', data.output || '用例格式正确');
+        } else {
+            showOutput('❌ 验证失败', data.error || data.output || '验证失败', true);
+        }
+    });
+}
+
+function explain() {
+    const caseId = getCaseId();
+    if (!caseId) {
+        alert('请输入用例 ID');
+        return;
+    }
+    
+    fetch('/api/runner/explain', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({case_id: caseId})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showOutput('📖 用例说明', data.explanation || '无说明');
+        } else {
+            showOutput('❌ 获取失败', data.error || '无法获取用例说明', true);
+        }
+    });
+}
+</script>
+{% endblock %}
