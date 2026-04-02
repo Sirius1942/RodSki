@@ -1,0 +1,20 @@
+# RodSki Web 配置文件
+
+# 多项目配置
+projects:
+  - name: cassmall-beta
+    path: /Users/sirius.chen/Documents/projects/lightning-strike-team/cassmall/thdh/rod_ski_format
+  - name: test-project
+    path: /Users/sirius.chen/Documents/projects/lightning-strike-team/cassmall/thdh/rod_ski_format
+
+# 当前激活的项目
+current_project: cassmall-beta
+
+server:
+  host: 0.0.0.0
+  port: 5002
+  debug: true
+
+rodski:
+  project_path: /Users/sirius.chen/Documents/projects/lightning-strike-team/rodski
+  run_timeout: 300
