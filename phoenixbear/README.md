@@ -1,10 +1,18 @@
 # PhoenixBear Studio
 
-**飞熊项目工作室** — RodSki 自动化测试框架的项目管理体系。
+**飞熊项目工作室** — RodSki 项目的管理体系。
 
 ## 概述
 
-PhoenixBear 管理 RodSki 项目的所有迭代开发，涵盖需求、约束、设计、Agent 集成和测试规范。
+**RodSki 是什么**：文档与工具系统，核心定位是**辅助 AI Agent 工作**。
+
+它不是传统测试框架，而是一套让 AI Agent 能够：
+- **探索** — Vision/OmniParser 视觉感知界面元素
+- **记录** — XML 活文档（Case + Model + Data）替代静态文档
+- **执行** — 关键字驱动（type/send/verify/run）执行操作
+- **观测** — 结构化结果（JSON）、日志、截图供 Agent 决策
+
+PhoenixBear 管理 RodSki 的所有迭代开发，涵盖需求、约束、设计和 Agent 集成规范。
 
 ## 核心约束（⭐ 必读）
 
