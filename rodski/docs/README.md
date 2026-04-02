@@ -4,6 +4,20 @@
 
 ---
 
+## ⚠️ 项目管理体系已迁移
+
+> RodSki 的**项目管理体系**（需求、设计约束、迭代管理、Agent 开发规范）已迁移到项目根目录的 **`../phoenixbear/`** 目录。
+>
+> - ⭐ **核心设计约束**: `../phoenixbear/design/CORE_DESIGN_CONSTRAINTS.md`
+> - ⭐ **用例编写指南**: `../phoenixbear/design/TEST_CASE_WRITING_GUIDE.md`
+> - 项目规范: `../phoenixbear/conventions/`
+> - 迭代管理: `../phoenixbear/iterations/`
+> - Agent 开发: `../phoenixbear/agent/`
+>
+> **每个迭代的实现绝对不能违反** `CORE_DESIGN_CONSTRAINTS.md` 和 `TEST_CASE_WRITING_GUIDE.md` 中的约束条款。
+
+---
+
 ## 需求文档 `requirements/`
 
 | 文档 | 说明 |
@@ -53,5 +67,7 @@
 
 ## 路径约定
 
+- **需求与设计约束文档**: 放入 `../phoenixbear/requirements/` 和 `../phoenixbear/design/`
+- **用户指南文档**: 放入本目录 `user-guides/`
 - **新增文档**请放入本目录下对应子目录：`requirements/`、`design/`、`user-guides/`。
 - 仓库根目录 **`doc/`**（若存在）仅保留兼容跳转，**勿**再向其中新增正式文档。
