@@ -417,6 +417,19 @@ class KeywordEngine:
             return value[start + 1:end]
         return ''
 
+    @staticmethod
+    def _parse_locator_string(locator: str) -> tuple:
+        """解析 "type=value" 格式的定位器字符串
+
+        Returns:
+            (locator_type, locator_value) 元组
+        """
+        if '=' in locator:
+            idx = locator.index('=')
+            return (locator[:idx].strip(), locator[idx + 1:].strip())
+        # 没有等号时默认当作 css
+        return ('css', locator.strip())
+
     def _execute_element_action(self, value: str, locator: str, element_name: str):
         """检查数据表值是否为 UI 动作关键字，是则执行对应操作。
 
@@ -427,16 +440,28 @@ class KeywordEngine:
 
         # 简单动作：值恰好等于关键字名
         if value_lower in self.ELEMENT_ACTIONS:
+            # 需要先通过 locator 解析获取元素坐标
+            locator_type, locator_value = self._parse_locator_string(locator)
+            element_info = {'type': locator_type, 'value': locator_value, 'locations': []}
+            bbox = self._try_locators(element_info)
+            if not bbox:
+                raise ElementNotFoundError(
+                    f"无法定位元素 '{element_name}'，所有定位器均失败",
+                    locator=locator
+                )
+            x1, y1, x2, y2 = bbox
+            cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+
             action_map = {
-                'click': self.driver.click,
-                'double_click': self.driver.double_click,
-                'right_click': self.driver.right_click,
-                'hover': self.driver.hover,
-                'scroll': lambda loc: self.driver.scroll(0, 300),
+                'click': lambda: self.driver.click(cx, cy),
+                'double_click': lambda: self.driver.double_click(cx, cy),
+                'right_click': lambda: self.driver.right_click(cx, cy),
+                'hover': lambda: self.driver.hover(cx, cy),
+                'scroll': lambda: self.driver.scroll(0, 300),
             }
             fn = action_map[value_lower]
-            logger.debug(f"{element_name}: {value_lower} {locator}")
-            return (value_lower, element_name, fn(locator))
+            logger.debug(f"{element_name}: {value_lower} {locator} @ ({cx}, {cy})")
+            return (value_lower, element_name, fn())
 
         # 带参数的动作：key_press【按键】
         if value_lower.startswith('key_press'):
