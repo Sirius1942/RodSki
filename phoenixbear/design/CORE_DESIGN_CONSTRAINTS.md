@@ -945,4 +945,97 @@ rodski generate-model --elements elements.json \
 
 ---
 
-*文档版本: v3.7 | 最后更新: 2026-03-27*
+## 12. 流程控制：if/else 条件分支
+
+### 12.1 设计决策
+
+RodSki DSL 支持 `<if>/<else>` 条件分支。这是**声明式 DSL 的扩展，不是退化**。理由：
+- 一个用例能看到完整业务流程，方便人类阅读
+- Agent 探索结果直接沉淀到用例，不需要维护 case + 决策脚本两套
+- 与 Karate/Gherkin 等业界 DSL 的条件语法一致
+
+**核心约束**：if/else 只在 XML 结构层扩展，不污染 SUPPORTED 关键字列表。
+
+### 12.2 XML 语法
+
+```xml
+<case id="inquiry_create" execute="是">
+  <test_case>
+    <test_step action="send" model="InquiryAPI" data="I001"/>
+    <test_step action="verify" model="Inquiry_verify" data="V001"/>
+
+    <if condition="element_exists(#append_dialog)">
+      <test_step action="type" model="AppendDialog" data="A001"/>
+    </if>
+  </test_case>
+</case>
+```
+
+**带 else 分支**：
+```xml
+<if condition="${Return[-1].msg contains '追加对话框'">
+  <test_step action="type" model="AppendDialog" data="A001"/>
+  <test_step action="verify" model="Inquiry_verify" data="V002"/>
+<else>
+  <test_step action="screenshot" data="success.png"/>
+</else>
+```
+
+**多条件分支**：
+```xml
+<if condition="verify_fail">
+  <test_step action="screenshot" data="debug.png"/>
+</if>
+```
+
+### 12.3 条件表达式语法
+
+| condition 语法 | 说明 | 示例 |
+|-------------|------|------|
+| `verify_fail` | 上一步 verify 失败 | `<if condition="verify_fail">` |
+| `${Return[N].field == 值` | Return 值等于比较 | `condition="${Return[-1].status == 200"` |
+| `${Return[N].field contains 文本` | Return 值包含判断 | `condition="${Return[-1].msg contains '追加'` |
+| `element_exists(locator)` | 页面元素可见 | `condition="element_exists(#dialog)` |
+| `element_not_exists(locator)` | 页面元素不可见 | `condition="element_not_exists(.toast-error)` |
+| `text_contains(文本)` | 页面包含文字 | `condition="text_contains('成功')` |
+| `text_not_contains(文本)` | 页面不包含文字 | `condition="text_not_contains('失败')` |
+| `AND` / `OR` | 逻辑组合 | `condition="verify_fail AND element_exists(#dialog)` |
+
+**Locator 格式**：`type=value`，如 `#dialog`（CSS）、`.error`（class）、`xpath=//button[@id='btn'`、纯 CSS 选择器。
+
+### 12.4 执行语义
+
+1. **解析阶段**：`<if>/<else>` 作为结构容器解析为 `{'type': 'if', 'condition': '...', 'steps': [...], 'else_steps': [...]}`
+2. **执行阶段**：条件评估 → True 执行 `<test_step>` 分支，False 执行 `<else>` 分支
+3. **条件评估失败**：条件无法解析或评估出错时，打印友好警告 + 截图，跳过该条件块，继续下一步
+
+### 12.5 条件评估失败时的 Agent 提示
+
+框架在以下情况给出详细提示：
+- 条件语法无法解析
+- 条件依赖的页面元素定位失败
+- 条件引用的 Return 值不存在
+
+```text
+[IF] ⚠️ 条件无法评估: text_contains('追加对话框')
+   错误: page_text() 返回 None
+   截图: result/.../condition_failed_xxx.png
+   页面URL: https://...
+   建议:
+   1. 检查条件语法是否正确
+   2. 确认页面是否已加载
+   3. 考虑使用 element_not_exists() 兜底
+   4. 插入 cleanup 步骤重试
+```
+
+### 12.6 约束规则
+
+1. `<if>` 容器**必须有** `condition` 属性
+2. `<else>` 是可选的，最多出现一次
+3. `<if>/<else>` 内只能放 `<test_step>`，**不能嵌套** `<if>`（防止条件爆炸）
+4. 条件表达式**不超过 200 字符**
+5. 条件不评估为 True 也不评估为 False 时，**默认 False**（不执行）
+
+---
+
+*文档版本: v3.8 | 最后更新: 2026-04-02*

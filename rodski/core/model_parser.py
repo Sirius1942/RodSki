@@ -1,8 +1,11 @@
 import xml.etree.ElementTree as ET
+import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
 from core.xml_schema_validator import RodskiXmlValidator
+
+logger = logging.getLogger("rodski")
 
 
 # 驱动类型常量，对应老 SKI 中 element 的 type 属性
@@ -25,10 +28,12 @@ VISION_LOCATOR_TYPES = {"vision", "ocr", "vision_bbox"}
 class ModelParser:
     def __init__(self, xml_path: str):
         self.xml_path = Path(xml_path)
+        logger.info(f"加载模型文件: {self.xml_path}")
         RodskiXmlValidator.validate_file(self.xml_path, RodskiXmlValidator.KIND_MODEL)
         self.tree = ET.parse(self.xml_path)
         self.root = self.tree.getroot()
         self.models = self._parse_models()
+        logger.info(f"模型解析完成: 共 {len(self.models)} 个模型")
 
     def _parse_models(self) -> Dict[str, Dict[str, Dict]]:
         """解析所有模型，兼容老 SKI 格式和简化格式

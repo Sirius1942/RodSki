@@ -148,8 +148,11 @@ class SKIExecutor:
         )
         self.keyword_engine.data_resolver = self.data_resolver
 
-        # 初始化动态执行器
-        self.dynamic_executor = DynamicExecutor(self.data_resolver)
+        # 初始化动态执行器（与 keyword_engine 共享 _return_values）
+        self.dynamic_executor = DynamicExecutor(
+            self.data_resolver,
+            return_values=self.keyword_engine._return_values,
+        )
 
         # 连接关键字引擎的变量存储到动态执行器
         self.keyword_engine._dynamic_executor = self.dynamic_executor
@@ -200,10 +203,10 @@ class SKIExecutor:
         for case in cases:
             case_count += 1
             if self._driver_closed:
-                print(f"\n🔄 用例 {case_count}/{total_cases}: 驱动已关闭，重新创建浏览器...")
+                logger.info(f"用例 {case_count}/{total_cases}: 驱动已关闭，重新创建浏览器...")
                 try:
                     self._ensure_driver_alive()
-                    print(f"✅ 新浏览器已启动")
+                    logger.info(f"新浏览器已启动")
                 except DriverStoppedError as e:
                     logger.error(f"无法重新创建驱动: {e}")
                     results.append({
@@ -216,21 +219,20 @@ class SKIExecutor:
                     })
                     continue
 
-            print(f"\n📍 执行用例 {case_count}/{total_cases}: {case['case_id']} - {case['title']}")
+            logger.info(f"执行用例 {case_count}/{total_cases}: {case['case_id']} - {case['title']}")
             try:
                 result = self.execute_case(case)
                 results.append(result)
 
                 st = result.get('status', '').upper()
                 if st == 'PASS':
-                    status = "✅ PASS"
+                    logger.info(f"  PASS ({result['execution_time']}s)")
                 elif st == 'SKIP':
-                    status = "⏹️ SKIP"
+                    logger.info(f"  SKIP ({result['execution_time']}s)")
                 else:
-                    status = "❌ FAIL"
-                print(f"   {status} ({result['execution_time']}s)")
+                    logger.info(f"  FAIL ({result['execution_time']}s)")
                 if result.get('error'):
-                    print(f"   错误: {result['error']}")
+                    logger.error(f"  错误: {result['error']}")
 
             except DriverStoppedError as e:
                 logger.critical(f"驱动已停止: {e}")
@@ -286,7 +288,6 @@ class SKIExecutor:
                 return self._case_result_force_terminated(case, start, e)
             except Exception as e:
                 logger.error(f"预处理失败: {e}")
-                print(f"   ❌ 预处理错误: {e}")
                 _merge_error(e)
 
             # 用例阶段（仅当预处理未失败且未优雅终止时执行）
@@ -297,7 +298,6 @@ class SKIExecutor:
                     return self._case_result_force_terminated(case, start, e)
                 except Exception as e:
                     logger.error(f"用例阶段失败: {e}")
-                    print(f"   ❌ 用例错误: {e}")
                     _merge_error(e)
 
             # 后处理：无论预处理/用例是否失败均执行（除非强制终止已返回）
@@ -307,7 +307,6 @@ class SKIExecutor:
                 return self._case_result_force_terminated(case, start, e)
             except Exception as e:
                 logger.error(f"后处理失败: {e}")
-                print(f"   ❌ 后处理错误: {e}")
                 _merge_error(e)
 
             if err is not None:
@@ -417,26 +416,51 @@ class SKIExecutor:
             # 处理条件步骤
             if step.get('type') == 'if':
                 condition = step.get('condition', '')
-                if self.dynamic_executor.evaluate_condition(condition):
-                    print(f"   📌 {phase_label} [{self._phase_runtime_seq}]: if ({condition}) → True")
+                try:
+                    evaluated = self.dynamic_executor.evaluate_condition(
+                        condition, driver=self.driver
+                    )
+                except Exception as e:
+                    # 条件评估失败：友好提示 + 截图
+                    screenshot_path = self._take_failure_screenshot(
+                        f"if_cond_failed_{hash(condition) & 0xFFFFFFFF:08x}"
+                    )
+                    logger.warning(
+                        f"[IF] ⚠️ 条件无法评估: condition={condition}\n"
+                        f"   错误: {e}\n"
+                        f"   截图: {screenshot_path}\n"
+                        f"   建议: Agent 检查条件语法或页面状态\n"
+                        f"   可用操作: 调整条件 / 跳过此分支 / 插入 cleanup 步骤"
+                    )
+                    logger.warning(f"  [{self._phase_runtime_seq}] if ({condition}) → 评估失败（跳过）")
+                    continue
+
+                if evaluated:
+                    logger.info(f"  [{self._phase_runtime_seq}] if ({condition}) → True")
                     for sub_step in step.get('steps', []):
                         self.execute_step(sub_step, phase_label)
                 else:
-                    print(f"   📌 {phase_label} [{self._phase_runtime_seq}]: if ({condition}) → False (跳过)")
+                    else_steps = step.get('else_steps', [])
+                    if else_steps:
+                        logger.info(f"  [{self._phase_runtime_seq}] if ({condition}) → False → else")
+                        for sub_step in else_steps:
+                            self.execute_step(sub_step, phase_label)
+                    else:
+                        logger.debug(f"  [{self._phase_runtime_seq}] if ({condition}) → False (无 else 跳过)")
             # 处理循环步骤
             elif step.get('type') == 'loop':
                 loop_range = step.get('range', '')
                 var_name = step.get('var', 'item')
                 items = self.dynamic_executor.parse_loop_range(loop_range)
-                print(f"   📌 {phase_label} [{self._phase_runtime_seq}]: loop {var_name} in {loop_range} ({len(items)} 次)")
+                logger.info(f"  [{self._phase_runtime_seq}] loop {var_name} in {loop_range} ({len(items)} 次)")
                 for idx, item in enumerate(items, 1):
                     self.dynamic_executor.set_variable(var_name, item)
-                    print(f"      循环 [{idx}/{len(items)}]: {var_name}={item}")
+                    logger.debug(f"    循环 [{idx}/{len(items)}]: {var_name}={item}")
                     for sub_step in step.get('steps', []):
                         self.execute_step(sub_step, phase_label)
             # 普通步骤
             else:
-                print(f"   📌 {phase_label} [{self._phase_runtime_seq}]: {step['action']}")
+                logger.debug(f"  [{self._phase_runtime_seq}] {step['action']}")
                 self.execute_step(step, phase_label)
 
             if self._drain_runtime_at_boundary(dq):

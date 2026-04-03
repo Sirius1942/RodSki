@@ -7,10 +7,13 @@
 XML 格式参见 schemas/case.xsd。
 """
 import xml.etree.ElementTree as ET
+import logging
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 
 from core.xml_schema_validator import RodskiXmlValidator
+
+logger = logging.getLogger("rodski")
 
 
 class CaseParser:
@@ -22,6 +25,7 @@ class CaseParser:
         """
         self.case_path = Path(case_path)
         self._cases: List[Dict[str, Any]] = []
+        logger.debug(f"初始化 CaseParser: path={case_path}")
 
     def parse_cases(self) -> List[Dict[str, Any]]:
         """解析所有用例，返回用例列表"""
@@ -33,12 +37,15 @@ class CaseParser:
         elif self.case_path.is_file():
             self._cases = self._parse_file(self.case_path)
         else:
+            logger.error(f"用例路径不存在: {self.case_path}")
             raise FileNotFoundError(f"用例路径不存在: {self.case_path}")
 
+        logger.info(f"解析完成: 共 {len(self._cases)} 个用例")
         return self._cases
 
     def _parse_file(self, xml_path: Path) -> List[Dict[str, Any]]:
         """解析单个 case XML 文件"""
+        logger.debug(f"解析用例文件: {xml_path}")
         RodskiXmlValidator.validate_file(xml_path, RodskiXmlValidator.KIND_CASE)
         tree = ET.parse(xml_path)
         root = tree.getroot()
@@ -108,13 +115,31 @@ class CaseParser:
 
     @staticmethod
     def _parse_if_element(el: ET.Element) -> Dict[str, Any]:
-        """解析 if 条件元素"""
+        """解析 if 条件元素（支持 else 分支）"""
+        condition = str(el.get('condition', '') or '').strip()
+
+        # 解析 then 分支
+        then_steps = [
+            CaseParser._parse_step_element(step)
+            for step in el.findall('test_step')
+            if step.get('action')
+        ]
+
+        # 解析 else 分支
+        else_steps = []
+        else_el = el.find('else')
+        if else_el is not None:
+            else_steps = [
+                CaseParser._parse_step_element(step)
+                for step in else_el.findall('test_step')
+                if step.get('action')
+            ]
+
         return {
             'type': 'if',
-            'condition': str(el.get('condition', '') or '').strip(),
-            'steps': [CaseParser._parse_step_element(step)
-                     for step in el.findall('test_step')
-                     if step.get('action')],
+            'condition': condition,
+            'steps': then_steps,
+            'else_steps': else_steps,
         }
 
     @staticmethod

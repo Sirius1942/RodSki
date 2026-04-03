@@ -567,6 +567,15 @@ class PlaywrightDriver(BaseDriver):
             self._handle_error("upload_file", locator, e)
             raise DriverError(f"上传文件失败: {file_path}", cause=e)
 
+    def get_page_text(self) -> str:
+        """获取页面所有文本内容"""
+        self._check_driver_alive()
+        try:
+            return self.page.inner_text('body')
+        except Exception as e:
+            logger.warning(f"获取页面文本失败: {e}")
+            return ""
+
     def close(self) -> None:
         """关闭驱动"""
         if self._is_closed:
