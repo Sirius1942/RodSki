@@ -266,4 +266,313 @@ test:
 
 ---
 
-**最后更新**: 2026-04-02
+**最后更新**: 2026-04-04
+
+---
+
+# 技术设计约束
+
+以下是 RodSki 框架的核心技术设计约束，所有开发必须遵循。
+
+## 9. 关键字职责划分
+
+### 9.1 三大核心关键字
+
+| 关键字 | 职责 | 适用范围 |
+|--------|------|---------|
+| **type** | UI 批量输入 | PC Web / Android / iOS / 桌面端 — 所有 UI 平台统一 |
+| **send** | 接口请求发送 | REST API 接口测试 |
+| **verify** | 批量验证 | UI 验证 + 接口响应验证 — 通用 |
+
+**约束**：
+- `type` 只做 UI，`send` 只做接口，二者不混用
+- `verify` 是通用的，根据模型的 `driver_type`（web / interface）自动判断从界面读值还是从接口响应读值
+- 不存在 `http_get`、`http_post`、`http_put`、`http_delete`、`assert_json`、`assert_status` 等独立 HTTP 关键字
+
+### 9.2 UI 原子动作不作为独立关键字
+
+以下操作**不出现在 Case XML 的 action 属性中**，只能作为数据表字段值，由 `type` 批量模式自动识别执行：
+
+```
+click / double_click / right_click / hover / select【值】
+key_press【按键】 / drag【目标】 / scroll / scroll【x,y】
+```
+
+**约束**：`SUPPORTED` 列表中不包含这些关键字，测试用例中不允许写 `click` 或 `hover` 等作为动作。
+
+### 9.3 navigate / launch — 应用启动（场景化双关键字）
+
+**`navigate`** 和 **`launch`** 在功能上完全相同，都是"启动或切换到目标应用/页面"，只是适用场景不同：
+
+| 关键字 | 适用场景 | 参数格式 | 行为 |
+|--------|---------|---------|------|
+| **navigate** | Web / Mobile | URL 地址 | 如果当前没有浏览器实例 → 自动通过 `driver_factory` 创建；如果已有浏览器实例 → 复用现有实例，导航到目标 URL |
+| **launch** | Desktop (Windows/macOS) | 应用路径或应用名 | 如果应用未运行 → 启动应用；如果应用已运行 → 切换到该应用窗口 |
+
+**约束**：
+- `navigate` 替代了 `open`（已废弃）
+- `navigate` 和 `launch` 在关键字计数中**算作一个**（场景化变体，非独立关键字）
+- 桌面端不使用 `navigate`，Web/Mobile 不使用 `launch`，避免语义混淆
+
+### 9.4 run = 脚本调用能力
+
+`run` 是与 `type`/`verify`/`send` 同级的通用关键字，为框架提供脚本调用能力：
+
+**定义**：
+- 在独立子进程中执行 Python 脚本
+- 代码以工程形式组织在 `fun/` 目录下（与 `case/` 同级）
+- 脚本 stdout 自动保存为步骤返回值（优先 JSON 解析）
+- 目前仅支持 Python
+
+**定位**：
+- 是用例执行时预留的扩展能力
+- 与其他关键字级别相同，任何平台都可使用
+- 用于处理框架内置关键字无法覆盖的场景
+
+**使用示例**：
+```xml
+<test_step action="run" model="" data="fun/utils/data_process.py"/>
+```
+
+## 10. 数据表命名与引用规则
+
+### 10.1 数据表文件组织方式
+
+**实际实现**：所有数据表合并在两个固定文件中：
+
+```
+data/data.xml          ← 所有操作数据表（type/send 使用）
+data/data_verify.xml   ← 所有验证数据表（verify 使用，可选）
+```
+
+**约束**：
+- 模型名与数据表名（`datatable.name`）必须一致
+- 不需要为每个模型创建独立的 XML 文件
+- `data_verify.xml` 是可选的，可以将验证数据也放在 `data.xml` 中
+
+### 10.2 验证数据表自动拼接 `_verify` 后缀
+
+```
+verify Login V001 → 自动查找表名为 "Login_verify" 的数据表
+verify LoginAPI V001 → 自动查找表名为 "LoginAPI_verify" 的数据表
+```
+
+### 10.3 数据列只写 DataID
+
+Case XML 的 data 属性中，只需要写 DataID，不需要写表名前缀：
+
+```
+✅ type  Login    L001      → 在 Login.xml 中查找 id="L001"
+✅ send  LoginAPI D001      → 在 LoginAPI.xml 中查找 id="D001"
+✅ verify Login    V001      → 在 Login_verify.xml 中查找 id="V001"
+
+❌ type  Login    LoginData.L001   ← 不需要写表名
+```
+
+### 10.4 元素名 = 数据表字段名
+
+模型 XML 中的 `element name` 必须与数据表 XML 中 `<field name="...">` 完全一致（区分大小写），这是 `type`/`send`/`verify` 批量模式的匹配基础。
+
+## 11. 定位器类型（完整）
+
+RodSki 支持 12 种定位器类型，分为传统定位器和视觉定位器两大类。
+
+### 11.1 传统定位器
+
+| 类型 | 格式 | 说明 | 示例 |
+|------|------|------|------|
+| `id` | CSS ID | 转换为 `#值` | `<location type="id">username</location>` → `#username` |
+| `class` | CSS Class | 转换为 `.值` | `<location type="class">btn-submit</location>` → `.btn-submit` |
+| `css` | CSS 选择器 | 原样使用 | `<location type="css">input[name="user"]</location>` |
+| `xpath` | XPath | 原样使用 | `<location type="xpath">//input[@id='user']</location>` |
+| `text` | 文本匹配 | Playwright `text=...` | `<location type="text">登录</location>` → `text=登录` |
+| `tag` | 标签名 | HTML 标签 | `<location type="tag">button</location>` |
+| `name` | name 属性 | 按 name 属性定位 | `<location type="name">username</location>` |
+| `static` | 静态值 | 字面量，不定位 | 用于接口 `_method` 等 |
+| `field` | 字段映射 | 接口请求字段 | 用于接口 body/query |
+
+### 11.2 视觉定位器
+
+| 类型 | 格式 | 说明 | 示例 |
+|------|------|------|------|
+| `vision` | 图片匹配 | 通过截图/图片模板匹配定位 | `<location type="vision">img/login_btn.png</location>` |
+| `ocr` | 文字识别 | 通过 OCR 识别文字定位 | `<location type="ocr">登录</location>` |
+| `vision_bbox` | 坐标定位 | 直接使用坐标 `x1,y1,x2,y2` | `<location type="vision_bbox">100,200,150,250</location>` |
+
+### 11.3 多定位器格式
+
+每个元素可定义多个定位器，失败时自动切换：
+
+```xml
+<element name="loginBtn" type="web">
+    <type>button</type>
+    <location type="id" priority="1">loginBtn</location>
+    <location type="xpath" priority="2">//button[@class='login']</location>
+    <location type="ocr" priority="3">登录</location>
+</element>
+```
+
+## 12. 接口测试设计约束
+
+### 12.1 接口模型定义请求属性
+
+| 元素名 | 作用 | 说明 |
+|--------|------|------|
+| `_method` | 请求方式 | GET / POST / PUT / DELETE，模型中定义默认值 |
+| `_url` | 请求地址 | 绝对 URL 或相对路径 |
+| `_header_*` | 请求头 | 如 `_header_Authorization`、`_header_Content-Type` |
+| 其他元素 | 请求体字段 | POST/PUT → JSON body；GET/DELETE → 查询参数 |
+
+### 12.2 send 的响应存储格式
+
+`send` 的响应自动保存为字典，包含 `status` 和响应体字段：
+
+```python
+{"status": 200, "token": "abc123", "username": "admin", ...}
+```
+
+## 13. 特殊值约定
+
+| 值 | UI 行为（type） | 接口行为（send） | 验证行为（verify） |
+|----|----------------|-----------------|-------------------|
+| 空值 | 跳过 | — | — |
+| `BLANK` | 跳过 | 发送空字符串 | 期望空字符串 |
+| `NULL` | 跳过 | 发送 null | 期望 null |
+| `NONE` | 跳过 | 不发送该字段 | 跳过验证 |
+| `.Password` 后缀 | 输入，日志脱敏 | — | — |
+
+## 14. Return 引用
+
+- `${Return[-1]}`、`${Return[0]}` 等只应出现在**数据表 XML 的 field 值中**
+- 使用的标准格式是 `${Return[x]}` 其中x代表测试步骤，0是当前测试步骤，也就是当前测试步骤执行完成后保存的执行结果变量.-1代表上一个测试步骤的执行结果。以此类推。
+- 不要写在 Case XML 的 data 属性，否则会在进入关键字前被替换成字符串
+
+## 15. 当前关键字清单（15 个）
+
+```
+SUPPORTED = [
+    "close", "type", "verify", "wait", "navigate", "launch",
+    "assert",
+    "upload_file", "clear", "get_text", "get",
+    "send", "set", "DB", "run",
+]
+```
+
+加上 1 个兼容关键字 `check`（等同 `verify`）。
+
+**设计原则**：关键字数量应保持精简，新增关键字前需评估是否可以通过现有批量模式（数据表字段值）实现。
+
+## 16. 目录结构约束（强制）
+
+### 16.1 产品目录层级
+
+```
+product/                           ← 产品根目录（顶层）
+└── {测试项目名}/                   ← 测试项目（如 DEMO）
+    └── {测试模块名}/               ← 测试模块/业务（如 demo_site）
+        ├── case/                  ← 测试用例 XML 文件
+        ├── model/                 ← 模型 XML 文件
+        ├── fun/                   ← 代码工程目录（run 关键字使用）
+        ├── data/                  ← 数据 XML 文件 + 全局变量
+        └── result/                ← 测试结果 XML（框架自动生成）
+```
+
+### 16.2 禁止变更
+
+- **product 必须是最顶层目录**，不可将项目/模块提升到 product 之上
+- **5 个固定文件夹名称不可更改**（case/model/fun/data/result）
+- **固定文件夹只出现在测试模块层级下**，不可出现在测试项目层级
+- **model.xml 是唯一的模型文件名**，不可改名
+
+## 17. XML 文件格式约束
+
+### 17.1 运行时 XSD 校验（强制）
+
+框架在**读取**各类测试相关 XML 时，会按类型对照 `rodski/schemas/*.xsd` 做一次 **XML Schema 校验**。
+
+### 17.2 Case XML 格式约束（三阶段）
+
+每个 `<case>` 下**固定三个阶段容器**：
+
+| 阶段容器 | 说明 |
+|---------|------|
+| `<pre_process>` | 预处理：内层 0 个或多个 `<test_step>` |
+| `<test_case>` | **必选且恰好 1 个**：内层至少 1 个 `<test_step>` |
+| `<post_process>` | 后处理：内层 0 个或多个 `<test_step>` |
+
+## 18. 固定与动态测试步骤（架构规划）
+
+### 18.1 目标与边界
+
+| 能力 | 说明 |
+|------|------|
+| 固定步骤 | 来自 `case/*.xml` 的 `<test_step>`，顺序与内容在运行前已知 |
+| 动态步骤 | 由 CLI 指令、扩展点或运行时策略在**执行过程中**插入的步骤 |
+| 混合执行 | 同一用例阶段内，执行序列为「固定步骤流」与「动态步骤」的可组合序列 |
+
+### 18.2 运行时控制命令
+
+| 命令 | 语义 |
+|------|------|
+| **暂停（pause）** | 当前执行流停住，直至收到继续或终止 |
+| **插入（insert）** | 在当前固定步骤流中插入新测试步骤 |
+| **终止（terminate）** | 结束当前用例或当前执行会话 |
+
+## 19. 自检约束 — 不依赖外部测试框架
+
+### 19.1 原则
+
+RodSki 的**框架自身测试（自检）不得依赖任何外部测试框架**（`pytest`、`nose`、`unittest` runner 等）。
+
+### 19.2 自有测试执行器
+
+| 文件 | 作用 |
+|------|------|
+| `core/test_runner.py` | **`RodskiTestRunner`** — 自动发现并执行测试 |
+| `selftest.py` | 入口脚本，自动设置 `sys.path` |
+
+### 19.3 禁止事项
+
+- ❌ `requirements.txt` 中列出 `pytest` / `pytest-cov` 等
+- ❌ 测试文件中使用 `@pytest.fixture`、`pytest.raises` 等
+- ❌ 需要 `PYTHONPATH=.` 才能运行测试
+
+## 20. 视觉定位设计约束
+
+### 20.1 OmniParser 作为图像坐标识别核心
+
+**设计决策**: RodSki 使用 **OmniParser** 作为图像坐标识别的核心能力。
+
+**架构原则**:
+- OmniParser 提供页面元素的坐标和内容识别
+- 多模态 LLM（Claude/GPT-4V/Qwen-VL）提供语义理解
+- 视觉定位作为**定位器类型**，不是独立关键字
+
+### 20.2 约束规则
+
+- ❌ 不新增 `vision_click`、`vision_input` 等关键字
+- ❌ 不在 Case XML 中直接写坐标
+- ✅ 视觉定位作为模型定位器类型
+- ✅ 复用现有 15 个关键字
+- ✅ 坐标信息记录在模型 XML 中
+
+## 21. 桌面平台约束
+
+### 21.1 平台标识
+
+| driver_type | 说明 | 适用场景 |
+|------------|------|---------|
+| `windows` | Windows 桌面应用 | Win10/Win11 桌面自动化 |
+| `macos` | macOS 桌面应用 | macOS 桌面自动化 |
+
+### 21.2 桌面端设计原则
+
+**核心原则**：
+- ✅ 关键字统一：type/verify/launch 与 Web 平台完全相同
+- ✅ 驱动分离：桌面使用 pyautogui + OmniParser 驱动
+- ✅ 视觉定位为主（vision/ocr/vision_bbox）
+- ❌ 不支持接口测试（`send` 关键字不适用于桌面端）
+
+---
+
+*文档版本: v3.8 | 最后更新: 2026-04-04*
