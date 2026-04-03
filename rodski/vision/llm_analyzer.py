@@ -255,12 +255,25 @@ def _call_qwen(
 # ---------------------------------------------------------------------------
 
 class LLMAnalyzer:
-    """多模态 LLM 客户端，为 OmniParser 元素列表附加语义标签。"""
+    """多模态 LLM 客户端，为 OmniParser 元素列表附加语义标签。
+
+    注意：此类现在是适配器，内部调用统一的 LLM 架构。
+    """
 
     def __init__(self, config: dict | None = None, global_vars: dict | None = None) -> None:
-        self._cfg = _load_llm_config(config, global_vars)
-        self._global_vars = global_vars
-        self._api_key = _resolve_api_key(self._cfg, global_vars)
+        # 使用新的统一 LLM 客户端
+        try:
+            from rodski.llm import LLMClient
+            self._client = LLMClient(config, global_vars)
+            self._capability = self._client.get_capability('vision_locator')
+            self._use_new_arch = True
+        except Exception as e:
+            # 降级到旧实现
+            logger.warning(f"Failed to load new LLM architecture, using legacy: {e}")
+            self._cfg = _load_llm_config(config, global_vars)
+            self._global_vars = global_vars
+            self._api_key = _resolve_api_key(self._cfg, global_vars)
+            self._use_new_arch = False
 
     # ------------------------------------------------------------------
     # Public API
@@ -289,6 +302,11 @@ class LLMAnalyzer:
         if not elements:
             return elements
 
+        # 使用新架构
+        if self._use_new_arch:
+            return self._capability.execute(screenshot_path, elements)
+
+        # 降级到旧实现
         if not self._api_key:
             logger.warning(
                 "No API key found for provider '%s'; skipping LLM analysis.",
