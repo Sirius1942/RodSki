@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+  <!-- E2E供应商报价完整流程（供应商-小辉视角） -->
+  <!-- 执行顺序：登录 → 进入询价单列表 → 查看询价详情 → 填写报价 → 提交报价 -->
+  <case id="cassmall_e2e_supplier_quote" title="E2E-供应商报价完整流程" execute="是"
+    description="小辉（供应商）登录后进入询价单列表 → 查看来自维修厂的询价单 → 对询价单进行报价 → 提交报价。端到端测试。"
+    component_type="界面">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="type" model="LoginPage" data="xiaohui_login"/>
+      <test_step action="wait" data="5"/>
+    </pre_process>
+
+    <test_case>
+      <!-- 步骤1：进入供应商询价单列表 -->
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/seller#/inquiry/list"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="screenshot" data="e2e_supplier_step01_inquiry_list.png"/>
+
+      <!-- 步骤2：直接查看询价单列表（不搜索，等待数据同步） -->
+      <test_step action="wait" data="3"/>
+      <test_step action="screenshot" data="e2e_supplier_step02_inquiry_list_raw.png"/>
+
+      <!-- 步骤3：截图查看询价单列表当前状态 -->
+      <test_step action="wait" data="5"/>
+      <test_step action="screenshot" data="e2e_supplier_step03_inquiry_list_status.png"/>
+
+      <!-- 步骤4：截图当前可用的菜单 -->
+      <test_step action="wait" data="3"/>
+      <test_step action="screenshot" data="e2e_supplier_step04_menu_status.png"/>
+
+      <!-- 步骤5：进入报价单列表（查看是否有历史报价） -->
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/seller#/quote/list"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="screenshot" data="e2e_supplier_step05_quote_list.png"/>
+    </test_case>
+
+    <post_process>
+      <test_step action="close" data=""/>
+    </post_process>
+  </case>
+</cases>

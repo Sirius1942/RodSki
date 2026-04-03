@@ -1,0 +1,96 @@
+# RodSki 默认配置 - Iteration-04 异常处理与智能恢复
+
+execution:
+  # 最大重试次数（全局）
+  max_retries: 3
+  # 是否启用智能恢复
+  recovery_enabled: true
+  # 单次恢复最大尝试次数
+  recovery_max_attempts: 2
+  # 失败时自动截图
+  screenshot_on_failure: true
+  # 浏览器实例最大步数（超过后自动回收）
+  browser_restart_interval: 50
+  # 恢复动作之间等待秒数
+  recovery_wait_seconds: 1
+
+verification:
+  # AI 视觉验证模型
+  model: claude
+  # AI 请求超时（秒）
+  timeout: 30
+  # 模型名称（空表示提供者默认值）
+  model_name: ""
+  # API 密钥环境变量名
+  api_key_env: ANTHROPIC_API_KEY
+  # 代理地址（空表示官方地址）
+  base_url: ""
+
+diagnosis:
+  # 是否启用 AI 辅助诊断
+  ai_enabled: true
+  # 诊断超时（秒）
+  timeout: 30
+  # AI 视觉分析失败时是否回退到规则诊断
+  fallback_to_rules: true
+
+recovery:
+  # 恢复动作注册表（可扩展自定义动作）
+  actions: {}
+    # custom_action: "my_module.custom_handler"
+
+snapshot:
+  # 是否启用执行快照（断点续跑）
+  enabled: false
+  # 快照存放目录
+  snapshot_dir: "snapshots"
+  # 每次步骤执行后保存快照（可能导致性能下降）
+  save_on_every_step: false
+
+result:
+  # 记录步骤执行时间
+  record_step_timing: true
+  # 捕获失败上下文（页面源码、控制台日志等）
+  capture_failure_context: true
+  # 在结果中嵌入诊断信息
+  embed_diagnosis: true
+
+metadata:
+  # 从用例中提取元数据
+  extract_from_case: true
+  # 在 CLI 中显示元数据
+  show_in_cli: true
+
+statistics:
+  # 结果目录
+  result_dir: "result"
+  # 不稳定用例阈值（失败率）
+  flaky_threshold: 0.3
+  # 显示最慢用例数量
+  top_slow_count: 10
+
+execution:
+  # 最大重试次数（全局）
+  max_retries: 3
+  # 是否启用智能恢复
+  recovery_enabled: true
+  # 单次恢复最大尝试次数
+  recovery_max_attempts: 2
+  # 失败时自动截图
+  screenshot_on_failure: true
+  # 浏览器实例最大步数（超过后自动回收）
+  browser_restart_interval: 50
+  # 恢复动作之间等待秒数
+  recovery_wait_seconds: 1
+  # 允许条件执行
+  allow_conditions: true
+  # 允许循环执行
+  allow_loops: true
+  # 允许动态步骤注入
+  allow_dynamic_steps: true
+  # 循环最大迭代次数
+  loop_max_iterations: 1000
+  # 动态步骤配置
+  dynamic_step:
+    # 每个触发点最大动态步骤数
+    max_per_trigger: 10

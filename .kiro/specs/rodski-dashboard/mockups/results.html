@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试结果 - RodSki Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar">
+        <div class="navbar-brand">
+            <div class="logo-icon">🚗</div>
+            <span class="brand-text">RodSki</span>
+            <span class="brand-sub">Dashboard</span>
+        </div>
+        <div class="navbar-menu">
+            <a href="index.html" class="nav-item">首页</a>
+            <a href="cases.html" class="nav-item">用例</a>
+            <a href="models.html" class="nav-item">模型</a>
+            <a href="data.html" class="nav-item">数据</a>
+            <a href="results.html" class="nav-item active">结果</a>
+        </div>
+        <div class="navbar-actions">
+            <button class="btn-icon" title="设置">⚙️</button>
+        </div>
+    </nav>
+
+    <!-- 主内容 -->
+    <main class="main-content">
+        <!-- 页面标题 -->
+        <div class="page-header">
+            <div class="page-title-group">
+                <h1 class="page-title">📊 测试结果</h1>
+                <p class="page-subtitle">执行历史 · 详情查看 · 趋势分析</p>
+            </div>
+            <div class="page-actions">
+                <button class="btn btn-secondary">📤 导出报告</button>
+                <button class="btn btn-primary">▶️ 执行测试</button>
+            </div>
+        </div>
+
+        <!-- 统计概览 -->
+        <div class="stats-grid stats-4">
+            <div class="stat-card stat-highlight">
+                <div class="stat-icon">✅</div>
+                <div class="stat-value stat-success">156</div>
+                <div class="stat-label">通过用例</div>
+                <div class="stat-trend trend-up">📈 +12%</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">❌</div>
+                <div class="stat-value stat-danger">8</div>
+                <div class="stat-label">失败用例</div>
+                <div class="stat-trend trend-down">📉 -5%</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">⏭️</div>
+                <div class="stat-value">5</div>
+                <div class="stat-label">跳过用例</div>
+            </div>
+            <div class="stat-card stat-highlight-gold">
+                <div class="stat-icon">⭐</div>
+                <div class="stat-value">95.1%</div>
+                <div class="stat-label">通过率</div>
+                <div class="stat-trend trend-up">📈 再创新高!</div>
+            </div>
+        </div>
+
+        <!-- 图表区域 -->
+        <div class="charts-row">
+            <!-- 通过率饼图 -->
+            <div class="chart-card">
+                <h3 class="chart-title">🎯 本次通过率</h3>
+                <div id="passRateChart" class="chart-container"></div>
+            </div>
+            <!-- 趋势柱状图 -->
+            <div class="chart-card chart-wide">
+                <h3 class="chart-title">📈 近7次执行趋势</h3>
+                <div id="trendChart" class="chart-container"></div>
+            </div>
+        </div>
+
+        <!-- 筛选栏 -->
+        <div class="filter-bar">
+            <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" class="search-input" placeholder="搜索用例名称...">
+            </div>
+            <div class="filter-group">
+                <select class="filter-select">
+                    <option value="">全部状态</option>
+                    <option value="pass">通过</option>
+                    <option value="fail">失败</option>
+                    <option value="skip">跳过</option>
+                </select>
+                <select class="filter-select">
+                    <option value="">全部模块</option>
+                    <option value="login">登录</option>
+                    <option value="inquiry">询价</option>
+                    <option value="order">订单</option>
+                </select>
+                <input type="date" class="filter-date">
+            </div>
+        </div>
+
+        <!-- 测试历史列表 -->
+        <div class="results-section">
+            <h2 class="section-title">📋 执行历史</h2>
+            
+            <div class="results-table-wrapper">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>执行ID</th>
+                            <th>执行时间</th>
+                            <th>模块</th>
+                            <th>总数</th>
+                            <th>通过</th>
+                            <th>失败</th>
+                            <th>跳过</th>
+                            <th>通过率</th>
+                            <th>耗时</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>RUN_20260331_001</code></td>
+                            <td>2026-03-31 16:00</td>
+                            <td>登录模块</td>
+                            <td>15</td>
+                            <td class="text-success">14</td>
+                            <td class="text-danger">1</td>
+                            <td>0</td>
+                            <td><span class="rate rate-high">93.3%</span></td>
+                            <td>2m 35s</td>
+                            <td>
+                                <button class="btn-sm btn-info">👁️</button>
+                                <button class="btn-sm btn-secondary">📋</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><code>RUN_20260330_003</code></td>
+                            <td>2026-03-30 15:30</td>
+                            <td>询价模块</td>
+                            <td>28</td>
+                            <td class="text-success">27</td>
+                            <td class="text-danger">1</td>
+                            <td>0</td>
+                            <td><span class="rate rate-high">96.4%</span></td>
+                            <td>5m 12s</td>
+                            <td>
+                                <button class="btn-sm btn-info">👁️</button>
+                                <button class="btn-sm btn-secondary">📋</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><code>RUN_20260330_002</code></td>
+                            <td>2026-03-30 10:15</td>
+                            <td>订单模块</td>
+                            <td>35</td>
+                            <td class="text-success">35</td>
+                            <td class="text-danger">0</td>
+                            <td>0</td>
+                            <td><span class="rate rate-perfect">100%</span></td>
+                            <td>8m 45s</td>
+                            <td>
+                                <button class="btn-sm btn-info">👁️</button>
+                                <button class="btn-sm btn-secondary">📋</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><code>RUN_20260329_001</code></td>
+                            <td>2026-03-29 14:00</td>
+                            <td>入库单模块</td>
+                            <td>42</td>
+                            <td class="text-success">40</td>
+                            <td class="text-danger">2</td>
+                            <td>0</td>
+                            <td><span class="rate rate-high">95.2%</span></td>
+                            <td>12m 30s</td>
+                            <td>
+                                <button class="btn-sm btn-info">👁️</button>
+                                <button class="btn-sm btn-secondary">📋</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><code>RUN_20260328_002</code></td>
+                            <td>2026-03-28 16:30</td>
+                            <td>全模块</td>
+                            <td>120</td>
+                            <td class="text-success">115</td>
+                            <td class="text-danger">3</td>
+                            <td>2</td>
+                            <td><span class="rate rate-high">95.8%</span></td>
+                            <td>35m 20s</td>
+                            <td>
+                                <button class="btn-sm btn-info">👁️</button>
+                                <button class="btn-sm btn-secondary">📋</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 分页 -->
+            <div class="pagination">
+                <button class="page-btn" disabled>◀️ 上一页</button>
+                <span class="page-info">第 1/5 页</span>
+                <button class="page-btn">下一页 ▶️</button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // 通过率饼图
+        const passRateChart = echarts.init(document.getElementById('passRateChart'));
+        passRateChart.setOption({
+            color: ['#38B044', '#E52521', '#F7D731'],
+            series: [{
+                type: 'pie',
+                radius: ['50%', '70%'],
+                avoidLabelOverlap: false,
+                itemStyle: {
+                    borderRadius: 8,
+                    borderColor: '#fff',
+                    borderWidth: 3
+                },
+                label: {
+                    show: true,
+                    formatter: '{b}\n{d}%',
+                    fontSize: 14,
+                    fontFamily: 'Nunito'
+                },
+                data: [
+                    { value: 156, name: '通过' },
+                    { value: 8, name: '失败' },
+                    { value: 5, name: '跳过' }
+                ]
+            }]
+        });
+
+        // 趋势柱状图
+        const trendChart = echarts.init(document.getElementById('trendChart'));
+        trendChart.setOption({
+            tooltip: { trigger: 'axis' },
+            xAxis: {
+                type: 'category',
+                data: ['03-25', '03-26', '03-27', '03-28', '03-29', '03-30', '03-31'],
+                axisLabel: { fontFamily: 'Nunito' }
+            },
+            yAxis: {
+                type: 'value',
+                max: 100,
+                axisLabel: { formatter: '{value}%', fontFamily: 'Nunito' }
+            },
+            series: [{
+                type: 'bar',
+                data: [92.5, 88.3, 94.1, 95.8, 95.2, 96.4, 95.1],
+                itemStyle: {
+                    color: function(params) {
+                        return params.value >= 95 ? '#38B044' : params.value >= 85 ? '#F7D731' : '#E52521';
+                    },
+                    borderRadius: [8, 8, 0, 0]
+                },
+                barWidth: '50%'
+            }],
+            grid: { left: 50, right: 20, bottom: 30, top: 20 }
+        });
+
+        window.addEventListener('resize', () => {
+            passRateChart.resize();
+            trendChart.resize();
+        });
+    </script>
+</body>
+</html>

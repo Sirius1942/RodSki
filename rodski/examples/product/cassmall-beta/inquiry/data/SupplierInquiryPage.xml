@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datatable name="SupplierInquiryPage">
+  <!-- 点击立即报价按钮 -->
+  <row id="Q001" remark="点击立即报价">
+    <field name="quoteNow">click</field>
+  </row>
+
+  <!-- 查看详情 -->
+  <row id="Q002" remark="查看询价单详情">
+    <field name="viewDetail">click</field>
+  </row>
+</datatable>

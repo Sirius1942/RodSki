@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>模型管理 - RodSki Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar">
+        <div class="navbar-brand">
+            <div class="logo-icon">🚗</div>
+            <span class="brand-text">RodSki</span>
+            <span class="brand-sub">Dashboard</span>
+        </div>
+        <div class="navbar-menu">
+            <a href="index.html" class="nav-item">首页</a>
+            <a href="cases.html" class="nav-item">用例</a>
+            <a href="models.html" class="nav-item active">模型</a>
+            <a href="data.html" class="nav-item">数据</a>
+            <a href="results.html" class="nav-item">结果</a>
+        </div>
+        <div class="navbar-actions">
+            <button class="btn-icon" title="设置">⚙️</button>
+        </div>
+    </nav>
+
+    <!-- 主内容 -->
+    <main class="main-content">
+        <!-- 页面标题 -->
+        <div class="page-header">
+            <div class="page-title-group">
+                <h1 class="page-title">🧩 模型管理</h1>
+                <p class="page-subtitle">页面对象模型 · 接口模型 · 元素定义</p>
+            </div>
+            <div class="page-actions">
+                <button class="btn btn-secondary">📤 导出</button>
+                <button class="btn btn-primary">➕ 新建模型</button>
+            </div>
+        </div>
+
+        <!-- 统计卡片 -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">🧩</div>
+                <div class="stat-value">47</div>
+                <div class="stat-label">总模型数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🌐</div>
+                <div class="stat-value">32</div>
+                <div class="stat-label">页面模型</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🔌</div>
+                <div class="stat-value">15</div>
+                <div class="stat-label">接口模型</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📊</div>
+                <div class="stat-value">186</div>
+                <div class="stat-label">元素定义</div>
+            </div>
+        </div>
+
+        <!-- 筛选栏 -->
+        <div class="filter-bar">
+            <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" class="search-input" placeholder="搜索模型名称...">
+            </div>
+            <div class="filter-group">
+                <select class="filter-select">
+                    <option value="">全部类型</option>
+                    <option value="page">页面模型</option>
+                    <option value="interface">接口模型</option>
+                </select>
+                <select class="filter-select">
+                    <option value="">全部模块</option>
+                    <option value="login">登录</option>
+                    <option value="inquiry">询价</option>
+                    <option value="order">订单</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- 模型列表 -->
+        <div class="models-section">
+            <h2 class="section-title">📋 模型列表</h2>
+            
+            <div class="models-table-wrapper">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>模型名称</th>
+                            <th>类型</th>
+                            <th>所属模块</th>
+                            <th>元素数</th>
+                            <th>创建时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <div class="model-name">
+                                    <span class="model-icon">🌐</span>
+                                    LoginPage
+                                </div>
+                            </td>
+                            <td><span class="badge badge-blue">页面模型</span></td>
+                            <td>登录模块</td>
+                            <td>8</td>
+                            <td>2026-03-25</td>
+                            <td>
+                                <button class="btn-sm btn-info">👁️ 查看</button>
+                                <button class="btn-sm btn-secondary">✏️ 编辑</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <div class="model-name">
+                                    <span class="model-icon">🌐</span>
+                                    InquiryPage
+                                </div>
+                            </td>
+                            <td><span class="badge badge-blue">页面模型</span></td>
+                            <td>询价模块</td>
+                            <td>15</td>
+                            <td>2026-03-26</td>
+                            <td>
+                                <button class="btn-sm btn-info">👁️ 查看</button>
+                                <button class="btn-sm btn-secondary">✏️ 编辑</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <div class="model-name">
+                                    <span class="model-icon">🔌</span>
+                                    StockinOrderList
+                                </div>
+                            </td>
+                            <td><span class="badge badge-green">接口模型</span></td>
+                            <td>入库单模块</td>
+                            <td>12</td>
+                            <td>2026-03-27</td>
+                            <td>
+                                <button class="btn-sm btn-info">👁️ 查看</button>
+                                <button class="btn-sm btn-secondary">✏️ 编辑</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <div class="model-name">
+                                    <span class="model-icon">🌐</span>
+                                    CartPage
+                                </div>
+                            </td>
+                            <td><span class="badge badge-blue">页面模型</span></td>
+                            <td>购物车模块</td>
+                            <td>10</td>
+                            <td>2026-03-27</td>
+                            <td>
+                                <button class="btn-sm btn-info">👁️ 查看</button>
+                                <button class="btn-sm btn-secondary">✏️ 编辑</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <div class="model-name">
+                                    <span class="model-icon">🔌</span>
+                                    MarketOrderAPI
+                                </div>
+                            </td>
+                            <td><span class="badge badge-green">接口模型</span></td>
+                            <td>订单模块</td>
+                            <td>9</td>
+                            <td>2026-03-28</td>
+                            <td>
+                                <button class="btn-sm btn-info">👁️ 查看</button>
+                                <button class="btn-sm btn-secondary">✏️ 编辑</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 分页 -->
+            <div class="pagination">
+                <button class="page-btn" disabled>◀️ 上一页</button>
+                <span class="page-info">第 1/3 页</span>
+                <button class="page-btn">下一页 ▶️</button>
+            </div>
+        </div>
+
+        <!-- 模型详情弹窗 -->
+        <div class="modal" id="modelDetailModal">
+            <div class="modal-content modal-lg">
+                <div class="modal-header">
+                    <h3 class="modal-title">🔍 模型详情 - InquiryPage</h3>
+                    <button class="modal-close">✕</button>
+                </div>
+                <div class="modal-body">
+                    <div class="model-meta">
+                        <div class="meta-item">
+                            <span class="meta-label">类型</span>
+                            <span class="badge badge-blue">页面模型</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">所属模块</span>
+                            <span>询价模块</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">元素数量</span>
+                            <span>15</span>
+                        </div>
+                    </div>
+                    
+                    <h4 class="detail-section-title">📋 元素定义</h4>
+                    <div class="elements-table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>元素名称</th>
+                                    <th>类型</th>
+                                    <th>定位器</th>
+                                    <th>定位值</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>vin_input</td>
+                                    <td><span class="badge">input</span></td>
+                                    <td><span class="locator-badge">css</span></td>
+                                    <td><code>#vin</code></td>
+                                </tr>
+                                <tr>
+                                    <td>need_name</td>
+                                    <td><span class="badge">textarea</span></td>
+                                    <td><span class="locator-badge">css</span></td>
+                                    <td><code>textarea[name="needName"]</code></td>
+                                </tr>
+                                <tr>
+                                    <td>submit_btn</td>
+                                    <td><span class="badge">button</span></td>
+                                    <td><span class="locator-badge">text</span></td>
+                                    <td><code>发布询价</code></td>
+                                </tr>
+                                <tr>
+                                    <td>vin_error</td>
+                                    <td><span class="badge">text</span></td>
+                                    <td><span class="locator-badge">css</span></td>
+                                    <td><code>.error-tip</code></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // 模型详情弹窗
+        document.querySelectorAll('.btn-info').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.getElementById('modelDetailModal').classList.add('show');
+            });
+        });
+        
+        document.querySelector('.modal-close').addEventListener('click', () => {
+            document.getElementById('modelDetailModal').classList.remove('show');
+        });
+    </script>
+</body>
+</html>

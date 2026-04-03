@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+  <!-- 小李发布询价 -->
+  <case id="cassmall_inquiry_xiaoli" title="小李发布询价" execute="是" description="小李（维修厂）登录后发布询价单" component_type="界面">
+    <pre_process>
+      <!-- 导航到登录页 -->
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="3"/>
+      <!-- 复用已验证的 LoginPage model + xiaoli_login data 完成登录 -->
+      <test_step action="type" model="LoginPage" data="xiaoli_login"/>
+      <test_step action="wait" data="5"/>
+    </pre_process>
+    <test_case>
+      <!-- 导航到发布询价页 -->
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/agentBuy/"/>
+      <test_step action="wait" data="3"/>
+      <!-- 填写询价表单（复用 InquiryPage model + I001 data） -->
+      <test_step action="type" model="InquiryPage" data="I001"/>
+      <test_step action="wait" data="5"/>
+      <!-- 截图记录 -->
+      <test_step action="screenshot" data="cassmall_inquiry_result.png"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" data=""/>
+    </post_process>
+  </case>
+
+  <!-- 小辉查看询价单列表 -->
+  <case id="cassmall_inquiry_xiaohui_list" title="小辉查看询价单" execute="否" description="小辉（供应商）登录后查看询价单列表" component_type="界面">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="3"/>
+      <!-- 复用已验证的 LoginPage model + xiaohui_login data 完成登录 -->
+      <test_step action="type" model="LoginPage" data="xiaohui_login"/>
+      <test_step action="wait" data="5"/>
+    </pre_process>
+    <test_case>
+      <!-- 导航到供应商询价单列表页 -->
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/seller/"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="screenshot" data="supplier_inquiry_list.png"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" data=""/>
+    </post_process>
+  </case>
+
+  <!-- 小辉对询价单进行报价 -->
+  <case id="cassmall_inquiry_xiaohui_quote" title="小辉对询价单报价" execute="否" description="小辉（供应商）对询价单进行报价" component_type="界面">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="type" model="LoginPage" data="xiaohui_login"/>
+      <test_step action="wait" data="5"/>
+    </pre_process>
+    <test_case>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/seller/"/>
+      <test_step action="wait" data="3"/>
+      <!-- 点击立即报价 -->
+      <test_step action="type" model="SupplierInquiryPage" data="Q001"/>
+      <test_step action="wait" data="2"/>
+      <!-- 填写报价 -->
+      <test_step action="type" model="QuotePage" data="QP001"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="screenshot" data="supplier_quote_result.png"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" data=""/>
+    </post_process>
+  </case>
+</cases>

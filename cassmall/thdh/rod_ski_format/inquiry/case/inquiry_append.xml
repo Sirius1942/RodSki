@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+  <!-- 小李追加询价需求（VIN已存在于历史询价单，触发追加弹窗） -->
+  <case id="cassmall_inquiry_append" title="小李追加询价需求" execute="是" description="小李对已存在的VIN（WBAKB4106BC920125）追加配件需求，触发追加询价需求弹窗" component_type="界面">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="type" model="LoginPage" data="xiaoli_login"/>
+      <test_step action="wait" data="5"/>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/market/portal"/>
+      <test_step action="wait" data="2"/>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/agentBuy/"/>
+      <test_step action="wait" data="3"/>
+    </pre_process>
+    <test_case>
+      <!-- 步骤1：填VIN，会触发VIN解析弹窗 -->
+      <test_step action="type" model="InquiryPage" data="A001"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="screenshot" data="inquiry_append_01_vin_filled.png"/>
+      <!-- 步骤2：点击配件名称触发弹窗（追加询价需求弹窗出现） -->
+      <test_step action="type" model="InquiryPage" data="A002"/>
+      <test_step action="wait" data="2"/>
+      <test_step action="screenshot" data="inquiry_append_02_popup.png"/>
+      <!-- 步骤3：点击「不追加，发布新询价单」弹窗按钮 -->
+      <test_step action="type" model="AppendPopup" data="A003"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="screenshot" data="inquiry_append_03_after_action.png"/>
+      <!-- 验证：跳转询价单列表，确认询价单出现 -->
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/market/inquirys"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="screenshot" data="inquiry_append_list.png"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" data=""/>
+    </post_process>
+  </case>
+</cases>

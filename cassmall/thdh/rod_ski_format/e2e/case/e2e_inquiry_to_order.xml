@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+  <!-- E2E询价→下单完整流程（维修厂-小李视角） -->
+  <!-- 注意：完整链路需要供应商先报价，此用例专注于发布询价和查看询价单列表 -->
+  <case id="cassmall_e2e_inquiry_to_order" title="E2E-询价→下单完整流程" execute="是"
+    description="小李（维修厂）登录后发布询价 → 查看询价单列表。完整下单流程需等供应商报价后继续。"
+    component_type="界面">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="type" model="LoginPage" data="xiaoli_login"/>
+      <test_step action="wait" data="5"/>
+      <!-- 建立 session -->
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/market/portal"/>
+      <test_step action="wait" data="2"/>
+    </pre_process>
+
+    <test_case>
+      <!-- 步骤1：发布询价 -->
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/agentBuy/"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="type" model="InquiryPage" data="I001"/>
+      <test_step action="wait" data="5"/>
+      <test_step action="screenshot" data="e2e_step01_inquiry_published.png"/>
+
+      <!-- 步骤2：进入询价单列表，验证询价已发布 -->
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/market/inquirys"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="screenshot" data="e2e_step02_inquiry_list.png"/>
+
+      <!-- 步骤3：按VIN搜索确认询价单存在 -->
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/market/inquirys?vin=WBAKB4106BC920125"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="screenshot" data="e2e_step03_vin_search_result.png"/>
+    </test_case>
+
+    <post_process>
+      <test_step action="close" data=""/>
+    </post_process>
+  </case>
+</cases>
