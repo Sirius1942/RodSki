@@ -1,0 +1,25 @@
+# RodSki LLM 统一配置
+
+# 默认 provider
+provider: claude
+
+# Provider 配置
+providers:
+  claude:
+    model: claude-opus-4-6
+    base_url: ""  # 可选代理地址
+    api_key_env: ANTHROPIC_API_KEY
+    timeout: 10
+    max_tokens: 1024
+
+  openai:
+    model: gpt-4o
+    base_url: https://api.openai.com/v1
+    api_key_env: OPENAI_API_KEY
+    timeout: 10
+    max_tokens: 2000
+
+# 能力配置
+capabilities:
+  vision_locator:
+    provider: claude  # 可覆盖默认 provider
