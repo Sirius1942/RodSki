@@ -98,13 +98,24 @@ class ResultWriter:
         if self.current_run_dir:
             return
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        import uuid
-        run_id = str(uuid.uuid4())[:8]
-        run_dir_name = f"{timestamp}_{run_id}"
+        run_dir_name = f"run_{timestamp}"
         self.current_run_dir = self.result_dir / run_dir_name
         self.current_run_dir.mkdir(parents=True, exist_ok=True)
         screenshots_dir = self.current_run_dir / "screenshots"
         screenshots_dir.mkdir(exist_ok=True)
+
+        # 同步日志目录到 Logger
+        rodski_logger = logging.getLogger("rodski")
+        for handler in rodski_logger.handlers:
+            if hasattr(handler, '__class__') and handler.__class__.__name__ == 'FileHandler':
+                rodski_logger.removeHandler(handler)
+                handler.close()
+
+        log_file = self.current_run_dir / "execution.log"
+        fh = logging.FileHandler(log_file, encoding="utf-8")
+        fh.setLevel(logging.DEBUG)
+        fh.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+        rodski_logger.addHandler(fh)
 
     def write_result(self, result: Dict[str, Any]) -> None:
         self.write_results([result])

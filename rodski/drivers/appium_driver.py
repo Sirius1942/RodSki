@@ -6,14 +6,19 @@ from selenium.webdriver.support import expected_conditions as EC
 from typing import Optional, Tuple
 from .base_driver import BaseDriver
 import time
+import logging
+
+logger = logging.getLogger("rodski")
 
 
 class AppiumDriver(BaseDriver):
     """Appium 驱动基类，支持 Android 和 iOS"""
 
     def __init__(self, capabilities: dict, server_url: str = "http://localhost:4723"):
+        logger.info(f"初始化 Appium 驱动: server={server_url}")
         self.driver = webdriver.Remote(server_url, capabilities)
         self.wait = WebDriverWait(self.driver, 10)
+        logger.info("Appium 驱动初始化成功")
 
     def launch(self, **kwargs) -> None:
         """启动应用"""
@@ -21,6 +26,7 @@ class AppiumDriver(BaseDriver):
 
     def close(self) -> None:
         if self.driver:
+            logger.info("关闭 Appium 驱动")
             self.driver.quit()
 
     def locate_element(self, locator_type: str, locator_value: str) -> Optional[Tuple[int, int, int, int]]:
@@ -29,8 +35,11 @@ class AppiumDriver(BaseDriver):
             by, value = self._parse_locator(f"{locator_type}={locator_value}")
             element = self.driver.find_element(by, value)
             rect = element.rect
-            return (rect['x'], rect['y'], rect['x'] + rect['width'], rect['y'] + rect['height'])
-        except:
+            bbox = (rect['x'], rect['y'], rect['x'] + rect['width'], rect['y'] + rect['height'])
+            logger.debug(f"元素定位成功: {locator_type}={locator_value}, bbox={bbox}")
+            return bbox
+        except Exception as e:
+            logger.warning(f"元素定位失败: {locator_type}={locator_value}, error={e}")
             return None
 
     # ── BaseDriver 坐标接口（两阶段 API）───────────────────────────
@@ -48,16 +57,20 @@ class AppiumDriver(BaseDriver):
                 by, value = self._parse_locator(locator_or_x)
                 element = self.wait.until(EC.presence_of_element_located((by, value)))
                 element.click()
+                logger.debug(f"点击成功: {locator_or_x}")
                 return True
-            except Exception:
+            except Exception as e:
+                logger.error(f"点击失败: {locator_or_x}, error={e}")
                 return False
         else:
             # BaseDriver API: click(x, y) → 坐标点击
             x = locator_or_x
+            logger.debug(f"点击坐标: ({x}, {y})")
             self.driver.tap([(x, y)])
 
     def type_text(self, x: int, y: int, text: str) -> None:
         """输入文字"""
+        logger.debug(f"输入文字: ({x}, {y}), text={text}")
         self.driver.tap([(x, y)])
         time.sleep(0.1)
         self.driver.execute_script("mobile: type", {"text": text})

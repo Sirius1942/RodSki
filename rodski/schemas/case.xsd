@@ -23,18 +23,38 @@
     </xs:complexType>
   </xs:element>
 
-  <!-- 预处理 / 后处理：0..n 个步骤 -->
-  <xs:complexType name="PhaseType">
+  <!-- if 容器：条件 + then 分支 + 可选 else 分支 -->
+  <xs:complexType name="IfContainerType">
+    <xs:sequence>
+      <xs:sequence minOccurs="0" maxOccurs="unbounded">
+        <xs:element name="test_step" type="StepType"/>
+      </xs:sequence>
+      <xs:element name="else" type="ElseType" minOccurs="0" maxOccurs="1"/>
+    </xs:sequence>
+    <xs:attribute name="condition" type="xs:string" use="required"/>
+  </xs:complexType>
+
+  <!-- else 容器 -->
+  <xs:complexType name="ElseType">
     <xs:sequence>
       <xs:element name="test_step" type="StepType" minOccurs="0" maxOccurs="unbounded"/>
     </xs:sequence>
   </xs:complexType>
 
-  <!-- 用例阶段：至少 1 个步骤 -->
+  <!-- 预处理 / 后处理：0..n 个步骤（支持 if 容器） -->
+  <xs:complexType name="PhaseType">
+    <xs:choice minOccurs="0" maxOccurs="unbounded">
+      <xs:element name="test_step" type="StepType"/>
+      <xs:element name="if" type="IfContainerType"/>
+    </xs:choice>
+  </xs:complexType>
+
+  <!-- 用例阶段：至少 1 个步骤（支持 if 容器） -->
   <xs:complexType name="TestCasePhaseType">
-    <xs:sequence>
-      <xs:element name="test_step" type="StepType" minOccurs="1" maxOccurs="unbounded"/>
-    </xs:sequence>
+    <xs:choice minOccurs="1" maxOccurs="unbounded">
+      <xs:element name="test_step" type="StepType"/>
+      <xs:element name="if" type="IfContainerType"/>
+    </xs:choice>
   </xs:complexType>
 
   <xs:complexType name="CaseType">

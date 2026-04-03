@@ -1,15 +1,21 @@
 """Windows 自动化驱动 (pywinauto)"""
 import time
+import logging
 from typing import Optional, Tuple
 from .base_driver import BaseDriver
+
+logger = logging.getLogger("rodski")
 
 
 class PywinautoDriver(BaseDriver):
     def __init__(self, app_path: str = None):
+        logger.info(f"初始化 Pywinauto 驱动: app_path={app_path}")
         try:
             from pywinauto import Application
             self.app = Application().connect(path=app_path) if app_path else None
-        except ImportError:
+            logger.info("Pywinauto 驱动初始化成功")
+        except ImportError as e:
+            logger.error(f"pywinauto 未安装: {e}")
             raise ImportError("pywinauto not installed")
 
     def launch(self, **kwargs) -> None:
@@ -45,8 +51,10 @@ class PywinautoDriver(BaseDriver):
         path = tempfile.mktemp(suffix='.png')
         try:
             self.app.top_window().capture_as_image().save(path)
+            logger.debug(f"截图成功: {path}")
             return path
-        except Exception:
+        except Exception as e:
+            logger.error(f"截图失败: {e}")
             return ""
 
     def double_click(self, x: int, y: int) -> None:

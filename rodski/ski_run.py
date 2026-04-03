@@ -21,6 +21,7 @@ import sys
 import argparse
 from pathlib import Path
 from core.ski_executor import SKIExecutor, resolve_module_dir
+from core.logger import Logger
 from drivers.playwright_driver import PlaywrightDriver
 
 
@@ -50,7 +51,22 @@ def main():
     parser.add_argument("--browser", choices=["chromium", "firefox", "webkit"],
                         default="chromium", help="浏览器类型 (默认: chromium)")
     parser.add_argument("--headless", action="store_true", help="无头模式")
+    parser.add_argument("--log-level", choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+                        default="INFO", help="日志等级 (默认: INFO)")
+    parser.add_argument("--verbose", action="store_true", help="详细模式（等同 DEBUG）")
+    parser.add_argument("--quiet", action="store_true", help="静默模式（仅 ERROR）")
     args = parser.parse_args()
+
+    # 确定日志等级
+    if args.verbose:
+        log_level = "DEBUG"
+    elif args.quiet:
+        log_level = "ERROR"
+    else:
+        log_level = args.log_level
+
+    # 初始化 Logger
+    Logger(name="rodski", level=log_level, console=True)
 
     case_path = resolve_case_path(Path(args.case_path))
 
