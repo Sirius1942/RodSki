@@ -106,6 +106,10 @@ class ResultWriter:
 
         # 同步日志目录到 Logger
         rodski_logger = logging.getLogger("rodski")
+
+        # 设置 logger 级别为 DEBUG，确保所有日志都能被记录
+        rodski_logger.setLevel(logging.DEBUG)
+
         for handler in rodski_logger.handlers:
             if hasattr(handler, '__class__') and handler.__class__.__name__ == 'FileHandler':
                 rodski_logger.removeHandler(handler)

@@ -15,5 +15,11 @@
   "report_format": "html",
   "auto_screenshot_on_failure": true,
   "auto_screenshot_on_step": true,
-  "screenshot_dir": "screenshots"
+  "screenshot_dir": "screenshots",
+  "smart_wait_enabled": true,
+  "smart_wait_max_retries": 30,
+  "smart_wait_retry_interval": 0.3,
+  "smart_wait_log_retry": true,
+  "element_wait_timeout": 0.5,
+  "element_retry_interval": 0.1
 }
