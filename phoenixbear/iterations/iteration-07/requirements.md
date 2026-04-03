@@ -112,10 +112,34 @@ rodski run cases/login_test.xml
 
 ---
 
-## 五、待讨论
+## 五、设计决策
 
-1. Agent 推理过程是否展示给用户？
-2. 审查报告格式（JSON/Markdown）？
-3. 是否支持批量审查？
+### 决策 1：推理过程展示
+**选择**：完整展示
+**理由**：帮助用户理解 Agent 的审查逻辑，增强可信度
+
+### 决策 2：报告格式
+**选择**：JSON
+**理由**：结构化，便于程序解析和集成
+
+### 决策 3：批量审查
+**选择**：支持
+**实现**：`rodski review result/*` 批量审查多个测试结果
+
+### 决策 4：触发时机
+**选择**：可配置
+- `review.enabled: true` - 启用自动审查
+- `review.on_pass: true/false` - 是否审查 PASS 用例
+- `review.on_fail: true/false` - 是否审查 FAIL 用例
+- 如果配置了 `enabled: true`，则不管成功与失败都审查
+
+**配置示例**：
+```yaml
+review:
+  enabled: true      # 启用自动审查
+  on_pass: false     # 不审查 PASS（节省成本）
+  on_fail: true      # 审查 FAIL（定位问题）
+```
+
 
 
