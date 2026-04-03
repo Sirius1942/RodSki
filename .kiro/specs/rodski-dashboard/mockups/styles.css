@@ -1,0 +1,688 @@
+/* ===========================================
+   RodSki Dashboard - Mario Theme Styles
+   马里奥主题样式
+   =========================================== */
+
+/* ---------- CSS Variables ---------- */
+:root {
+  /* Mario Colors */
+  --mario-red: #E52521;
+  --mario-red-dark: #B81D1A;
+  --mario-blue: #049CD8;
+  --mario-blue-dark: #0377A8;
+  --mario-green: #38B044;
+  --mario-green-dark: #2D8A36;
+  --mario-brown: #C84C0C;
+  --mario-brown-light: #A63D0A;
+  --mario-yellow: #F7D731;
+  --mario-yellow-dark: #D4B52A;
+  --mario-sky: #5C94FC;
+  --mario-sky-light: #7EABFC;
+  --mario-dark: #2C2C2C;
+  --mario-cloud: #F0F0F0;
+  --mario-cloud-dark: #E0E0E0;
+  
+  /* Semantic Colors */
+  --success: #38B044;
+  --danger: #E52521;
+  --warning: #F7D731;
+  --info: #049CD8;
+  
+  /* Spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+  
+  /* Shadows */
+  --shadow-pixel: 4px 4px 0 var(--mario-dark);
+  --shadow-pixel-sm: 2px 2px 0 var(--mario-dark);
+  --shadow-pixel-lg: 6px 6px 0 var(--mario-dark);
+  
+  /* Border */
+  --border-pixel: 4px solid var(--mario-brown);
+  --border-pixel-sm: 3px solid var(--mario-brown);
+}
+
+/* ---------- Base Styles ---------- */
+@import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&family=Press+Start+2P&display=swap');
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Nunito', 'Segoe UI', sans-serif;
+  background: linear-gradient(180deg, var(--mario-sky) 0%, var(--mario-sky-light) 100%);
+  min-height: 100vh;
+  color: var(--mario-dark);
+  line-height: 1.6;
+}
+
+/* ---------- Typography ---------- */
+h1, h2, h3, h4 {
+  font-family: 'Fredoka One', cursive;
+  color: var(--mario-dark);
+}
+
+h1 { font-size: 2.5rem; }
+h2 { font-size: 2rem; }
+h3 { font-size: 1.5rem; }
+h4 { font-size: 1.25rem; }
+
+.pixel-text {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 0.75rem;
+}
+
+/* ---------- Navigation ---------- */
+.navbar {
+  background: var(--mario-red);
+  height: 70px;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-lg);
+  box-shadow: 0 4px 0 var(--mario-red-dark);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  color: white;
+  font-family: 'Fredoka One', cursive;
+  font-size: 1.5rem;
+  text-decoration: none;
+}
+
+.navbar-brand svg {
+  width: 40px;
+  height: 40px;
+}
+
+.navbar-menu {
+  display: flex;
+  gap: var(--space-xl);
+  margin-left: auto;
+  list-style: none;
+}
+
+.navbar-menu a {
+  color: white;
+  text-decoration: none;
+  font-weight: 700;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 4px;
+  transition: background 0.2s;
+  position: relative;
+}
+
+.navbar-menu a:hover,
+.navbar-menu a.active {
+  background: rgba(255,255,255,0.2);
+}
+
+.navbar-menu a.active::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  height: 4px;
+  background: var(--mario-yellow);
+  border-radius: 2px;
+}
+
+/* ---------- Container ---------- */
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: var(--space-lg);
+}
+
+/* ---------- Cards ---------- */
+.card {
+  background: var(--mario-cloud);
+  border: var(--border-pixel);
+  border-radius: 8px;
+  padding: var(--space-lg);
+  box-shadow: var(--shadow-pixel);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: var(--shadow-pixel-lg);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-md);
+  padding-bottom: var(--space-md);
+  border-bottom: 2px dashed var(--mario-brown);
+}
+
+.card-title {
+  font-family: 'Fredoka One', cursive;
+  font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+/* ---------- Stat Cards ---------- */
+.stat-card {
+  background: var(--mario-cloud);
+  border: var(--border-pixel);
+  border-radius: 8px;
+  padding: var(--space-lg);
+  box-shadow: var(--shadow-pixel);
+  text-align: center;
+  min-width: 200px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stat-card:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: var(--shadow-pixel-lg);
+}
+
+.stat-icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto var(--space-md);
+}
+
+.stat-value {
+  font-family: 'Fredoka One', cursive;
+  font-size: 3rem;
+  color: var(--mario-dark);
+  line-height: 1;
+  margin-bottom: var(--space-xs);
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  color: #666;
+  font-weight: 600;
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  font-family: 'Nunito', sans-serif;
+  font-weight: 700;
+  font-size: 1rem;
+  padding: var(--space-sm) var(--space-lg);
+  border: var(--border-pixel-sm);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.1s;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: none !important;
+}
+
+.btn-primary {
+  background: var(--mario-red);
+  color: white;
+  box-shadow: var(--shadow-pixel-sm);
+}
+
+.btn-primary:hover {
+  background: var(--mario-red-dark);
+}
+
+.btn-secondary {
+  background: var(--mario-blue);
+  color: white;
+  box-shadow: var(--shadow-pixel-sm);
+}
+
+.btn-secondary:hover {
+  background: var(--mario-blue-dark);
+}
+
+.btn-success {
+  background: var(--mario-green);
+  color: white;
+  box-shadow: var(--shadow-pixel-sm);
+}
+
+.btn-success:hover {
+  background: var(--mario-green-dark);
+}
+
+.btn-warning {
+  background: var(--mario-yellow);
+  color: var(--mario-dark);
+  box-shadow: var(--shadow-pixel-sm);
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--mario-dark);
+}
+
+.btn-outline:hover {
+  background: var(--mario-cloud-dark);
+}
+
+/* ---------- Tables ---------- */
+.table-wrapper {
+  overflow-x: auto;
+  border: var(--border-pixel);
+  border-radius: 8px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+}
+
+.table th {
+  background: var(--mario-sky);
+  color: white;
+  font-weight: 700;
+  padding: var(--space-md);
+  text-align: left;
+  font-family: 'Nunito', sans-serif;
+}
+
+.table td {
+  padding: var(--space-md);
+  border-bottom: 2px solid var(--mario-cloud-dark);
+}
+
+.table tr:nth-child(even) {
+  background: var(--mario-cloud);
+}
+
+.table tr:hover {
+  background: #FFF3CD;
+}
+
+/* ---------- Status Badges ---------- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.badge-pass {
+  background: var(--mario-green);
+  color: white;
+}
+
+.badge-fail {
+  background: var(--mario-red);
+  color: white;
+}
+
+.badge-skip {
+  background: var(--mario-yellow);
+  color: var(--mario-dark);
+}
+
+.badge-running {
+  background: var(--mario-blue);
+  color: white;
+}
+
+/* ---------- Grid Layouts ---------- */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-lg);
+  margin-bottom: var(--space-xl);
+}
+
+.quick-links-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-lg);
+}
+
+/* ---------- Search & Filters ---------- */
+.search-bar {
+  display: flex;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+  flex-wrap: wrap;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 250px;
+  padding: var(--space-sm) var(--space-md);
+  border: var(--border-pixel-sm);
+  border-radius: 4px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 1rem;
+  box-shadow: var(--shadow-pixel-sm);
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--mario-blue);
+}
+
+.filter-select {
+  padding: var(--space-sm) var(--space-md);
+  border: var(--border-pixel-sm);
+  border-radius: 4px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 1rem;
+  background: white;
+  cursor: pointer;
+  box-shadow: var(--shadow-pixel-sm);
+}
+
+/* ---------- Modal ---------- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s, visibility 0.3s;
+}
+
+.modal-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.modal {
+  background: var(--mario-cloud);
+  border: var(--border-pixel);
+  border-radius: 8px;
+  padding: var(--space-xl);
+  max-width: 700px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-pixel-lg);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-lg);
+  padding-bottom: var(--space-md);
+  border-bottom: 2px dashed var(--mario-brown);
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--mario-dark);
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.modal-close:hover {
+  background: var(--mario-cloud-dark);
+}
+
+/* ---------- Chart Container ---------- */
+.chart-container {
+  background: white;
+  border: var(--border-pixel);
+  border-radius: 8px;
+  padding: var(--space-lg);
+  box-shadow: var(--shadow-pixel);
+  min-height: 300px;
+}
+
+/* ---------- Page Header ---------- */
+.page-header {
+  margin-bottom: var(--space-xl);
+}
+
+.page-title {
+  font-family: 'Fredoka One', cursive;
+  font-size: 2rem;
+  color: var(--mario-dark);
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.page-subtitle {
+  color: #666;
+  margin-top: var(--space-sm);
+}
+
+/* ---------- Breadcrumb ---------- */
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+  font-size: 0.875rem;
+  color: #666;
+}
+
+.breadcrumb a {
+  color: var(--mario-blue);
+  text-decoration: none;
+}
+
+.breadcrumb a:hover {
+  text-decoration: underline;
+}
+
+/* ---------- Pagination ---------- */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+}
+
+.pagination-btn {
+  padding: var(--space-sm) var(--space-md);
+  border: var(--border-pixel-sm);
+  background: white;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: var(--mario-cloud);
+}
+
+.pagination-btn.active {
+  background: var(--mario-red);
+  color: white;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---------- Footer ---------- */
+.footer {
+  text-align: center;
+  padding: var(--space-xl);
+  color: white;
+  font-size: 0.875rem;
+}
+
+.footer a {
+  color: var(--mario-yellow);
+  text-decoration: none;
+}
+
+/* ---------- Decorative Elements ---------- */
+.cloud-decoration {
+  position: fixed;
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0.3;
+}
+
+.cloud-1 { top: 100px; left: 5%; }
+.cloud-2 { top: 200px; right: 10%; }
+.cloud-3 { top: 400px; left: 15%; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 768px) {
+  .navbar-menu {
+    display: none;
+  }
+  
+  .stats-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  
+  .stat-card {
+    min-width: auto;
+  }
+  
+  .page-title {
+    font-size: 1.5rem;
+  }
+  
+  .container {
+    padding: var(--space-md);
+  }
+}
+
+/* ---------- Animation Keyframes ---------- */
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-bounce {
+  animation: bounce 1s infinite;
+}
+
+.animate-pulse {
+  animation: pulse 2s infinite;
+}
+
+.animate-spin {
+  animation: spin 2s linear infinite;
+}
+
+/* ---------- Quick Link Cards ---------- */
+.quick-link-card {
+  background: var(--mario-cloud);
+  border: var(--border-pixel);
+  border-radius: 8px;
+  padding: var(--space-xl);
+  text-decoration: none;
+  color: var(--mario-dark);
+  box-shadow: var(--shadow-pixel);
+  transition: transform 0.2s, box-shadow 0.2s;
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+}
+
+.quick-link-card:hover {
+  transform: translate(-4px, -4px);
+  box-shadow: var(--shadow-pixel-lg);
+}
+
+.quick-link-icon {
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+}
+
+.quick-link-content h4 {
+  font-family: 'Fredoka One', cursive;
+  font-size: 1.25rem;
+  margin-bottom: var(--space-xs);
+}
+
+.quick-link-content p {
+  font-size: 0.875rem;
+  color: #666;
+}
+
+/* ---------- Recent Results List ---------- */
+.recent-results {
+  list-style: none;
+}
+
+.recent-result-item {
+  display: flex;
+  align-items: center;
+  padding: var(--space-md);
+  border-bottom: 2px solid var(--mario-cloud-dark);
+  gap: var(--space-md);
+}
+
+.recent-result-item:last-child {
+  border-bottom: none;
+}
+
+.recent-result-time {
+  font-size: 0.75rem;
+  color: #666;
+  min-width: 100px;
+}
+
+.recent-result-name {
+  flex: 1;
+  font-weight: 600;
+}
+
+.recent-result-rate {
+  font-family: 'Fredoka One', cursive;
+  font-size: 1.25rem;
+}

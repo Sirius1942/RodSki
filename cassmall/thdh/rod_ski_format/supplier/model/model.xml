@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<models>
+  <!-- 登录页模型（来自 login 模块） -->
+  <model name="LoginPage">
+    <!-- 账号登录 Tab -->
+    <element name="accountTab" type="css" value="span[type=PASSWORD]" desc="账号登录页签"/>
+    <!-- 用户名输入框 -->
+    <element name="username" type="css" value="#userName" desc="用户名输入框"/>
+    <!-- 密码输入框 -->
+    <element name="password" type="css" value="#password" desc="密码输入框"/>
+    <!-- 同意协议复选框（label 标签） -->
+    <element name="agreeCheckbox" type="css" value="label.br-checkbox" desc="同意协议复选框"/>
+    <!-- 登录按钮 -->
+    <element name="loginBtn" type="css" value=".btn-submit" desc="登录按钮"/>
+  </model>
+
+  <!-- 供应商首页模型 -->
+  <model name="SupplierHomePage">
+    <!-- 询价单管理入口 -->
+    <element name="inquiryManage" type="xpath" value="//*[contains(text(),'询价单管理')]" desc="询价单管理"/>
+    <!-- 商品管理入口 -->
+    <element name="productManage" type="xpath" value="//*[contains(text(),'商品管理')]" desc="商品管理"/>
+    <!-- 订单管理入口 -->
+    <element name="orderManage" type="xpath" value="//*[contains(text(),'订单管理')]" desc="订单管理"/>
+    <!-- 报价管理入口 -->
+    <element name="quoteManage" type="xpath" value="//*[contains(text(),'报价管理')]" desc="报价管理"/>
+  </model>
+
+  <!-- 询价单管理页（供应商-收到维修厂的询价） -->
+  <model name="SupplierInquiryPage">
+    <!-- 询价单列表 -->
+    <element name="inquiryList" type="css" value=".inquiry-list,[class*='inquiry']" desc="询价单列表"/>
+    <!-- 询价单号 -->
+    <element name="inquiryNo" type="css" value="[class*='inquiry-no']" desc="询价单号"/>
+    <!-- 询价商品 -->
+    <element name="inquiryProduct" type="css" value="[class*='product']" desc="询价商品"/>
+    <!-- 立即报价按钮 -->
+    <element name="quoteNow" type="xpath" value="//*[contains(text(),'立即报价')]" desc="立即报价"/>
+    <!-- 查看详情 -->
+    <element name="viewDetail" type="xpath" value="//*[contains(text(),'查看详情')]" desc="查看详情"/>
+  </model>
+
+  <!-- 商品管理页（供应商-维护商品和库存） -->
+  <model name="ProductManagePage">
+    <!-- 商品列表 -->
+    <element name="productList" type="css" value=".product-list,[class*='product']" desc="商品列表"/>
+    <!-- 新增商品 -->
+    <element name="addProduct" type="xpath" value="//*[contains(text(),'新增商品')]" desc="新增商品"/>
+    <!-- 编辑商品 -->
+    <element name="editProduct" type="xpath" value="//*[contains(text(),'编辑')]" desc="编辑商品"/>
+    <!-- 商品名称 -->
+    <element name="productName" type="css" value="input[placeholder*='商品名称']" desc="商品名称输入"/>
+    <!-- 商品编码 -->
+    <element name="productCode" type="css" value="input[placeholder*='编码']" desc="商品编码输入"/>
+    <!-- 库存数量 -->
+    <element name="stockQty" type="css" value="input[placeholder*='库存']" desc="库存数量"/>
+    <!-- 单价 -->
+    <element name="price" type="css" value="input[placeholder*='价格']" desc="单价输入"/>
+    <!-- 保存按钮 -->
+    <element name="saveBtn" type="xpath" value="//*[contains(text(),'保存')]" desc="保存按钮"/>
+  </model>
+
+  <!-- 报价页（供应商-对询价单报价） -->
+  <model name="QuotePage">
+    <!-- 报价输入框 -->
+    <element name="quotePrice" type="css" value="input[placeholder*='报价']" desc="报价输入"/>
+    <!-- 数量输入 -->
+    <element name="quantity" type="css" value="input[type='number']" desc="数量输入"/>
+    <!-- 提交报价 -->
+    <element name="submitQuote" type="xpath" value="//*[contains(text(),'提交报价')]" desc="提交报价"/>
+    <!-- 取消报价 -->
+    <element name="cancelQuote" type="xpath" value="//*[contains(text(),'取消')]" desc="取消报价"/>
+  </model>
+</models>

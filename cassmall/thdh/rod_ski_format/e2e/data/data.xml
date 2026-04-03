@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datatables>
+  <!-- ============================================
+       E2E 端到端测试数据
+       复用 login/inquiry/quotation/supplier_inquiry 模块的数据
+       ============================================ -->
+
+  <!-- 登录数据 - 小李（维修厂） -->
+  <datatable name="LoginPage">
+    <row id="xiaoli_login" remark="小李账号-维修厂">
+      <field name="accountTab">click</field>
+      <field name="username">15521344075</field>
+      <field name="password">Cass2025</field>
+      <field name="agreeCheckbox">click</field>
+      <field name="loginBtn">click</field>
+    </row>
+    <row id="xiaohui_login" remark="小辉账号-供应商">
+      <field name="accountTab">click</field>
+      <field name="username">13395432251</field>
+      <field name="password">Cass2025</field>
+      <field name="agreeCheckbox">click</field>
+      <field name="loginBtn">click</field>
+    </row>
+  </datatable>
+
+  <!-- 询价发布数据 -->
+  <datatable name="InquiryPage">
+    <!-- 完整流程（单步提交，不触发弹窗） -->
+    <row id="I001" remark="发布询价单-VIN: WBAKB4106BC920125">
+      <field name="vin">WBAKB4106BC920125</field>
+      <field name="needsName">12125A4EF60</field>
+      <field name="needQuantity">2</field>
+      <field name="qualityRemarks">原厂配件</field>
+      <field name="submitInquiry">click</field>
+    </row>
+    <!-- 分步流程 Step1: 只填 VIN -->
+    <row id="I001_vin" remark="发布询价-Step1: 填VIN">
+      <field name="vin">LSVAXXRVVSR987654</field>
+    </row>
+    <!-- 分步流程 Step2: 点击配件名称触发弹窗 -->
+    <row id="I001_trigger_popup" remark="发布询价-Step2: 点击配件名称触发弹窗">
+      <field name="needsName">click</field>
+    </row>
+  </datatable>
+
+  <!-- 追加询价弹窗数据 -->
+  <datatable name="AppendPopup">
+    <row id="A003" remark="不追加，发布新询价单">
+      <field name="noAppendNew">click</field>
+    </row>
+    <row id="A004" remark="追加询价需求">
+      <field name="addMore">click</field>
+    </row>
+  </datatable>
+
+  <!-- 报价列表页数据 -->
+  <datatable name="QuotationListPage">
+    <row id="S001" remark="点击查看报价按钮进入详情">
+      <field name="viewQuote">click</field>
+    </row>
+    <row id="QL002" remark="按VIN搜索报价">
+      <field name="vinSearch">WBAKB4106BC920125</field>
+    </row>
+  </datatable>
+
+  <!-- 报价详情页数据 -->
+  <datatable name="QuotationDetailPage">
+    <row id="QD001" remark="选购商品-填数量+加入购物车">
+      <field name="quantity">1</field>
+      <field name="addToCart">click</field>
+    </row>
+    <row id="QD002" remark="立即购买">
+      <field name="quantity">1</field>
+      <field name="buyNow">click</field>
+    </row>
+  </datatable>
+
+  <!-- 购物车数据 -->
+  <datatable name="CartPage">
+    <row id="C001" remark="全选+去结算">
+      <field name="selectAll">click</field>
+      <field name="checkout">click</field>
+    </row>
+  </datatable>
+
+  <!-- 提交订单数据 -->
+  <datatable name="CheckoutPage">
+    <row id="CO001" remark="填写收货信息并提交订单">
+      <field name="receiverName">李测试</field>
+      <field name="contactTel">15521344075</field>
+      <field name="province">北京城区</field>
+      <field name="city">北京市</field>
+      <field name="county">朝阳区</field>
+      <field name="address">建国路88号测试地址</field>
+      <field name="submitOrder">click</field>
+    </row>
+  </datatable>
+
+  <!-- 供应商询价单列表数据 -->
+  <datatable name="SupplierInquiryPage">
+    <row id="SQ001" remark="点击立即报价">
+      <field name="quoteNow">click</field>
+    </row>
+    <row id="SQ002" remark="按VIN搜索询价单">
+      <field name="vinSearch">WBAKB4106BC920125</field>
+    </row>
+  </datatable>
+
+  <!-- 供应商报价数据 -->
+  <datatable name="QuotePage">
+    <row id="QP001" remark="填写报价并提交-配件1">
+      <field name="quotePrice">288.50</field>
+      <field name="quantity">10</field>
+      <field name="submitQuote">click</field>
+    </row>
+    <row id="QP002" remark="填写报价并提交-配件2">
+      <field name="quotePrice">158.00</field>
+      <field name="quantity">5</field>
+      <field name="submitQuote">click</field>
+    </row>
+  </datatable>
+</datatables>

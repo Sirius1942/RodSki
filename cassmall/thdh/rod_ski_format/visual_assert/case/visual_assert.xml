@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+  <!-- ============================================================ -->
+  <!-- 用例1：小李维修厂登录 + 首页视觉验证                          -->
+  <!-- ============================================================ -->
+  <!--
+    assert[type=image] 会自动截取当前页面截图，与 reference 图片对比。
+    reference 图片路径相对于 module_dir (visual_assert/)。
+    首次运行前需先运行 baseline_capture.xml 捕获 reference 图片。
+  -->
+  <case id="cassmall_va01_login_portal" title="小李维修厂登录+首页视觉验证"
+        execute="是" description="小李账号登录后截图首页并用视觉断言验证"
+        component_type="界面">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="type" model="LoginPage" data="xiaoli_login"/>
+      <test_step action="wait" data="5"/>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/market/portal"/>
+      <test_step action="wait" data="3"/>
+    </pre_process>
+    <test_case>
+      <!--
+        视觉断言：截取当前页面，与 reference 图片对比
+        threshold=0.75 表示相似度 >= 75% 则通过
+      -->
+      <test_step action="assert" data="assert[type=image,reference=va01_portal_reference.png,threshold=0.75]"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" data=""/>
+    </post_process>
+  </case>
+
+  <!-- ============================================================ -->
+  <!-- 用例2：发布询价页视觉验证                                     -->
+  <!-- ============================================================ -->
+  <case id="cassmall_va02_inquiry_publish" title="发布询价页视觉验证"
+        execute="是" description="进入发布询价页，截取表单并用视觉断言验证"
+        component_type="界面">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="type" model="LoginPage" data="xiaoli_login"/>
+      <test_step action="wait" data="5"/>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/market/portal"/>
+      <test_step action="wait" data="2"/>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/agentBuy/"/>
+      <test_step action="wait" data="3"/>
+    </pre_process>
+    <test_case>
+      <!-- wait=3 表示轮询 3 秒检测页面稳定性 -->
+      <test_step action="assert" data="assert[type=image,reference=va02_inquiry_reference.png,threshold=0.75,wait=3]"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" data=""/>
+    </post_process>
+  </case>
+
+  <!-- ============================================================ -->
+  <!-- 用例3：小辉供应商工作台视觉验证                               -->
+  <!-- ============================================================ -->
+  <case id="cassmall_va03_seller_home" title="小辉供应商工作台视觉验证"
+        execute="是" description="小辉登录后进入供应商工作台，截图并用视觉断言验证"
+        component_type="界面">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="type" model="LoginPage" data="xiaohui_login"/>
+      <test_step action="wait" data="5"/>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/seller#/merchant/home"/>
+      <test_step action="wait" data="3"/>
+    </pre_process>
+    <test_case>
+      <test_step action="assert" data="assert[type=image,reference=va03_seller_home_reference.png,threshold=0.75]"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" data=""/>
+    </post_process>
+  </case>
+
+  <!-- ============================================================ -->
+  <!-- 用例4：供应商报价列表视觉验证                                 -->
+  <!-- ============================================================ -->
+  <case id="cassmall_va04_quote_list" title="供应商报价列表视觉验证"
+        execute="是" description="进入供应商报价列表页，截图并用视觉断言验证列表头部区域"
+        component_type="界面">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="type" model="LoginPage" data="xiaohui_login"/>
+      <test_step action="wait" data="5"/>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/seller#/merchant/home"/>
+      <test_step action="wait" data="2"/>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/seller#/quote/list"/>
+      <test_step action="wait" data="3"/>
+    </pre_process>
+    <test_case>
+      <test_step action="assert" data="assert[type=image,reference=va04_quote_list_reference.png,threshold=0.75]"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" data=""/>
+    </post_process>
+  </case>
+</cases>

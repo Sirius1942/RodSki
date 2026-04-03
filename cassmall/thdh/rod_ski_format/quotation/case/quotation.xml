@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+  <!-- 小李-查看报价列表 -->
+  <case id="cassmall_beta_quotation_list" title="小李-查看报价列表" execute="是" description="小李（维修厂）登录后进入market/portal，点击查看报价，进入报价列表页面" component_type="界面">
+    <pre_process>
+      <!-- 导航到登录页 -->
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="3"/>
+      <!-- 复用已验证的 LoginPage model + xiaoli_login data 完成登录 -->
+      <test_step action="type" model="LoginPage" data="xiaoli_login"/>
+      <test_step action="wait" data="5"/>
+      <!-- 关键：登录后先跳转到 market/portal 建立 session -->
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/market/portal"/>
+      <test_step action="wait" data="2"/>
+    </pre_process>
+    <test_case>
+      <!-- 直接导航到报价列表页面 -->
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/market/inquirys"/>
+      <test_step action="wait" data="3"/>
+      <!-- 截图记录报价列表页面 -->
+      <test_step action="screenshot" data="quotation_list_page.png"/>
+    </test_case>
+    <post_process>
+      <test_step action="close"/>
+    </post_process>
+  </case>
+
+  <!-- 小李-发布新询价并查看报价 -->
+  <case id="cassmall_beta_quotation_publish_then_view" title="小李-发布询价并查看报价" execute="是" description="小李发布新询价后，进入报价列表查看" component_type="界面">
+    <pre_process>
+      <!-- 导航到登录页 -->
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="3"/>
+      <!-- 登录 -->
+      <test_step action="type" model="LoginPage" data="xiaoli_login"/>
+      <test_step action="wait" data="5"/>
+      <!-- 登录后跳转 market/portal -->
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/market/portal"/>
+      <test_step action="wait" data="2"/>
+    </pre_process>
+    <test_case>
+      <!-- 发布新询价 -->
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/agentBuy/"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="screenshot" data="quotation_pub_01_agentbuy.png"/>
+      <!-- 填写询价表单 -->
+      <test_step action="type" model="InquiryPage" data="I001"/>
+      <test_step action="wait" data="5"/>
+      <test_step action="screenshot" data="quotation_pub_02_inquiry_filled.png"/>
+      <!-- 发布询价后跳转报价列表 -->
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/market/inquirys"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="screenshot" data="quotation_pub_03_list_after_inquiry.png"/>
+    </test_case>
+    <post_process>
+      <test_step action="close"/>
+    </post_process>
+  </case>
+
+  <!-- 小李-从报价选购商品并进入购物车 -->
+  <case id="cassmall_beta_quotation_buy_flow" title="小李-从报价选购并进入购物车" execute="是" description="小李进入报价列表，点击选购，进入选购页，选择商品加入购物车" component_type="界面">
+    <pre_process>
+      <!-- 导航到登录页 -->
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login"/>
+      <test_step action="wait" data="3"/>
+      <!-- 登录 -->
+      <test_step action="type" model="LoginPage" data="xiaoli_login"/>
+      <test_step action="wait" data="5"/>
+      <!-- 登录后跳转 market/portal -->
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/market/portal"/>
+      <test_step action="wait" data="2"/>
+    </pre_process>
+    <test_case>
+      <!-- 进入报价列表 -->
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/market/inquirys"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="screenshot" data="quotation_buy_01_list.png"/>
+      <!-- 点击查看报价按钮（触发选购） -->
+      <test_step action="type" model="QuotationListPage" data="QL001"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="screenshot" data="quotation_buy_02_detail.png"/>
+      <!-- 选购商品加入购物车 -->
+      <test_step action="type" model="QuotationDetailPage" data="QD001"/>
+      <test_step action="wait" data="3"/>
+      <test_step action="screenshot" data="quotation_buy_03_after_add.png"/>
+    </test_case>
+    <post_process>
+      <test_step action="close"/>
+    </post_process>
+  </case>
+</cases>

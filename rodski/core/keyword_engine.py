@@ -1,4 +1,5 @@
 """关键字引擎 - 支持14个操作关键字（UI / API / DB / Code）"""
+import cv2
 import json
 import logging
 import subprocess
@@ -20,6 +21,7 @@ from core.exceptions import (
     is_retryable_error,
     is_critical_error,
 )
+from core.assertion.image_matcher import ImageMatcher
 from core.model_parser import ModelParser
 
 logger = logging.getLogger("rodski")
@@ -394,7 +396,7 @@ class KeywordEngine:
             )
         
         logger.info(f"输入: {locator} <- '{text}'")
-        result = self.driver.type(locator, text)
+        result = self.driver.type_locator(locator, text)
         if not result:
             raise DriverError(f"输入失败: {locator}")
         return result
@@ -418,17 +420,76 @@ class KeywordEngine:
         return ''
 
     @staticmethod
-    def _parse_locator_string(locator: str) -> tuple:
-        """解析 "type=value" 格式的定位器字符串
+    def _parse_kv_args(kv_string: str) -> Dict[str, str]:
+        """解析 key=value,key=value 格式的参数字符串
+
+        Args:
+            kv_string: 参数字符串，如 "type=image,reference=img/foo.png,threshold=0.85"
 
         Returns:
-            (locator_type, locator_value) 元组
+            {key: value, ...} 字典
+
+        注意:
+            value 中可以包含逗号（但不能包含等号），解析时以第一个 = 为界拆分 key 和 value。
+            element_bbox 的值格式为 x,y,w,h（4个整数），需特殊处理以保留逗号。
         """
-        if '=' in locator:
-            idx = locator.index('=')
-            return (locator[:idx].strip(), locator[idx + 1:].strip())
-        # 没有等号时默认当作 css
-        return ('css', locator.strip())
+        result = {}
+        if not kv_string.strip():
+            return result
+
+        # 用逗号分割，注意 value 中可能含有逗号
+        parts = []
+        current = ""
+        in_bracket = False
+        i = 0
+        while i < len(kv_string):
+            c = kv_string[i]
+            if c == '[':
+                in_bracket = True
+                current += c
+            elif c == ']':
+                in_bracket = False
+                current += c
+            elif c == ',' and not in_bracket:
+                parts.append(current.strip())
+                current = ""
+            else:
+                current += c
+            i += 1
+        if current.strip():
+            parts.append(current.strip())
+
+        # 二次合并：element_bbox=x,y,w,h 格式，4个整数用逗号分隔
+        # 合并策略：如果某个 part 只有数字（含负号），且前一个 part 是 element_bbox，
+        # 则将其视为 bbox 的一部分合并回来
+        merged_parts = []
+        skip_count = 0
+        for idx, part in enumerate(parts):
+            if skip_count > 0:
+                skip_count -= 1
+                continue
+            # 检查是否是 element_bbox 且后面跟数字（x,y,w,h 格式）
+            if part.startswith("element_bbox=") and idx + 3 < len(parts):
+                # 检查后续3个部分是否都是数字（bbox 的 y, w, h）
+                following = parts[idx + 1:idx + 4]
+                if all(p.strip().lstrip('-').isdigit() for p in following):
+                    # 合并为 element_bbox=x,y,w,h
+                    merged = ",".join([part] + following)
+                    merged_parts.append(merged)
+                    skip_count = 3
+                    continue
+            merged_parts.append(part)
+
+        for part in merged_parts:
+            if '=' not in part:
+                continue
+            # 找第一个 = 的位置（value 中不应有 =）
+            eq_idx = part.index('=')
+            key = part[:eq_idx].strip()
+            value = part[eq_idx + 1:].strip()
+            result[key] = value
+
+        return result
 
     def _execute_element_action(self, value: str, locator: str, element_name: str):
         """检查数据表值是否为 UI 动作关键字，是则执行对应操作。
@@ -440,28 +501,16 @@ class KeywordEngine:
 
         # 简单动作：值恰好等于关键字名
         if value_lower in self.ELEMENT_ACTIONS:
-            # 需要先通过 locator 解析获取元素坐标
-            locator_type, locator_value = self._parse_locator_string(locator)
-            element_info = {'type': locator_type, 'value': locator_value, 'locations': []}
-            bbox = self._try_locators(element_info)
-            if not bbox:
-                raise ElementNotFoundError(
-                    f"无法定位元素 '{element_name}'，所有定位器均失败",
-                    locator=locator
-                )
-            x1, y1, x2, y2 = bbox
-            cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
-
             action_map = {
-                'click': lambda: self.driver.click(cx, cy),
-                'double_click': lambda: self.driver.double_click(cx, cy),
-                'right_click': lambda: self.driver.right_click(cx, cy),
-                'hover': lambda: self.driver.hover(cx, cy),
-                'scroll': lambda: self.driver.scroll(0, 300),
+                'click': self.driver.click_locator,
+                'double_click': self.driver.double_click_locator,
+                'right_click': self.driver.right_click_locator,
+                'hover': self.driver.hover_locator,
+                'scroll': lambda loc: self.driver.scroll(0, 300),
             }
             fn = action_map[value_lower]
-            logger.debug(f"{element_name}: {value_lower} {locator} @ ({cx}, {cy})")
-            return (value_lower, element_name, fn())
+            logger.debug(f"{element_name}: {value_lower} {locator}")
+            return (value_lower, element_name, fn(locator))
 
         # 带参数的动作：key_press【按键】
         if value_lower.startswith('key_press'):
@@ -584,7 +633,7 @@ class KeywordEngine:
                     value = value[:-9]
                     display_value = '***'
                 logger.debug(f"{element_name}: {locator} <- '{display_value}'")
-                result = self.driver.type(locator, value)
+                result = self.driver.type_locator(locator, value)
                 operations.append(('type', element_name, result))
         
         failed_ops = [op for op in operations if not op[2]]
@@ -815,19 +864,209 @@ class KeywordEngine:
     def _kw_screenshot(self, params: Dict) -> bool:
         """截图"""
         path = params.get("path", "") or params.get("data", "") or "screenshot.png"
+        # 解析相对路径：相对于 module_dir（与 assert 关键字一致）
+        if self._module_dir:
+            path_obj = Path(path)
+            if not path_obj.is_absolute():
+                path = str(self._module_dir / path)
         logger.info(f"截图: {path}")
         return self.driver.screenshot(path)
 
     def _kw_assert(self, params: Dict) -> bool:
-        """断言（保留兼容）"""
-        locator = params.get("locator", "") or params.get("data", "")
-        expected = params.get("expected", "")
-        logger.info(f"断言: {locator} 包含 '{expected}'")
-        result = self.driver.assert_element(locator, expected)
-        self.store_return(result)
-        if not result:
-            logger.warning("断言失败")
-        return result
+        """图片/视频视觉断言
+
+        支持两种数据格式：
+        1. 直接格式（assert 关键字直接携带参数）:
+           assert[type=image,reference=img/expected_modal.png,threshold=0.85]
+
+        2. 数据引用格式（通过数据表间接引用）:
+           assert[type=video,reference=img/expected_frame.png,threshold=0.85,video_source=recording,position=middle]
+
+        参数说明（type=image）:
+        - type: 断言类型，image 或 video
+        - reference: 预期图片路径（相对于 images/assert/ 或绝对路径）
+        - threshold: 匹配度阈值，默认 0.8
+        - scope: 断言范围，full（全屏）或 element（元素区域），默认 full
+        - wait: 等待秒数，0=立即断言，>0=轮询等待，默认 0
+        - element_bbox: 元素区域，scope=element 时格式 x,y,w,h
+
+        参数说明（type=video）:
+        - type: 断言类型，固定为 video
+        - reference: 预期图片路径
+        - threshold: 匹配度阈值，默认 0.8
+        - video_source: 视频源，recording（内置录屏）或文件路径，默认 recording
+        - position: 关键帧位置，start/middle/end/any，默认 any
+        - time_range: 时间范围，start,end 格式（秒）
+        - wait: 等待秒数，0=立即断言，>0=轮询等待，默认 0
+        """
+        # 1. 获取断言参数字符串
+        raw_data = params.get("data", "") or params.get("assert_params", "")
+        if not raw_data:
+            raise InvalidParameterError(
+                keyword="assert",
+                param_name="data",
+                reason="assert 缺少参数，格式: assert[type=image,reference=...,threshold=...]"
+            )
+
+        # 2. 解析参数字符串
+        inner = raw_data.strip()
+        if inner.startswith("assert[") and inner.endswith("]"):
+            inner = inner[7:-1]  # 去掉 assert[...] 包装
+
+        parsed = self._parse_kv_args(inner)
+
+        # 3. 提取参数
+        assert_type = parsed.get("type", "image")
+
+        # 获取公共参数
+        reference = parsed.get("reference", "")
+        threshold = float(parsed.get("threshold", "0.8"))
+        scope = parsed.get("scope", "full")
+        wait = int(parsed.get("wait", "0"))
+        element_bbox_str = parsed.get("element_bbox", "")
+
+        # 解析 element_bbox
+        element_bbox = None
+        if scope == "element" and element_bbox_str:
+            parts = element_bbox_str.split(",")
+            if len(parts) == 4:
+                element_bbox = {
+                    "x": int(parts[0].strip()),
+                    "y": int(parts[1].strip()),
+                    "w": int(parts[2].strip()),
+                    "h": int(parts[3].strip()),
+                }
+
+        # 解析 reference 路径
+        module_dir = self._module_dir or (
+            self._case_file.parent.parent if self._case_file else None
+        )
+        if module_dir is None:
+            raise DriverError(
+                "assert 需要知道模块目录（module_dir）以定位 images/assert/ 目录"
+            )
+        module_dir = Path(module_dir)
+
+        ref_path = ImageMatcher.resolve_reference_path(Path(reference), module_dir)
+        if not ref_path.exists():
+            raise FileNotFoundError(f"预期图片不存在: {ref_path}")
+
+        # ── type=image ────────────────────────────────────────────
+        if assert_type == "image":
+            if not reference:
+                raise InvalidParameterError(
+                    keyword="assert",
+                    param_name="reference",
+                    reason="assert[type=image] 缺少必需参数: reference"
+                )
+
+            logger.info(
+                f"视觉断言: type={assert_type}, reference={reference}, "
+                f"threshold={threshold}, scope={scope}, wait={wait}"
+            )
+            screenshot_path = self.driver.take_screenshot()
+            if screenshot_path is None:
+                raise DriverError("截图失败，无法执行视觉断言")
+            screenshot = cv2.imread(screenshot_path)
+            if screenshot is None:
+                raise DriverError(f"无法读取截图文件: {screenshot_path}")
+
+            matcher = ImageMatcher()
+            result = matcher.match(
+                screenshot=screenshot,
+                reference=ref_path,
+                threshold=threshold,
+                scope=scope,
+                wait=wait,
+                element_bbox=element_bbox,
+            )
+
+            result["screenshot"] = None
+
+            if not result["matched"]:
+                saved_path = ImageMatcher.save_failure_screenshot(
+                    screenshot,
+                    Path(reference).name,
+                    failures_dir=module_dir / "images" / "assert" / "failures",
+                )
+                result["failure_screenshot"] = saved_path
+                logger.warning(
+                    f"图片断言失败: similarity={result['similarity']} < "
+                    f"threshold={threshold}, reference={reference}"
+                )
+                if saved_path:
+                    logger.info(f"失败截图已保存: {saved_path}")
+
+            self.store_return(result)
+            return result["matched"]
+
+        # ── type=video ─────────────────────────────────────────────
+        elif assert_type == "video":
+            if not reference:
+                raise InvalidParameterError(
+                    keyword="assert",
+                    param_name="reference",
+                    reason="assert[type=video] 缺少必需参数: reference"
+                )
+
+            video_source = parsed.get("video_source", "recording")
+            position = parsed.get("position", "any")
+            time_range_str = parsed.get("time_range", "")
+
+            # 解析 time_range: start,end 格式
+            time_range = None
+            if time_range_str:
+                parts = time_range_str.split(",")
+                if len(parts) == 2:
+                    time_range = {
+                        "start": float(parts[0].strip()),
+                        "end": float(parts[1].strip()),
+                    }
+
+            logger.info(
+                f"视频断言: type={assert_type}, reference={reference}, "
+                f"threshold={threshold}, video_source={video_source}, "
+                f"position={position}, wait={wait}"
+            )
+
+            analyzer = VideoAnalyzer()
+            result = analyzer.match(
+                video_source=video_source,
+                reference=ref_path,
+                threshold=threshold,
+                position=position,
+                time_range=time_range,
+                scope=scope,
+                element_bbox=element_bbox,
+                wait=wait,
+            )
+
+            if not result["matched"]:
+                # 尝试获取/保存录屏
+                recording_path = None
+                try:
+                    from core.recording import recorder as global_recorder
+                    case_id = getattr(self, '_case_file', 'unknown') or 'unknown'
+                    recording_path = global_recorder.get_video_path(str(case_id))
+                except Exception:
+                    pass
+
+                logger.warning(
+                    f"视频断言失败: similarity={result['similarity']} < "
+                    f"threshold={threshold}, reference={reference}, "
+                    f"frames_checked={result['total_frames_checked']}"
+                )
+                result["failure_recording"] = recording_path
+
+            self.store_return(result)
+            return result["matched"]
+
+        else:
+            raise InvalidParameterError(
+                keyword="assert",
+                param_name="type",
+                reason=f"暂不支持的断言类型: {assert_type}，目前仅支持 type=image 和 type=video"
+            )
 
     def _kw_verify(self, params: Dict) -> bool:
         """验证 - 与 type 对称的批量验证关键字

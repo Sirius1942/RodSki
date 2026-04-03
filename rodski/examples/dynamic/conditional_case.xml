@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  条件执行示例 - Conditional Execution Demo
+
+  演示如何根据变量条件选择性执行测试步骤。
+
+  用法:
+    ski run examples/dynamic/conditional_case.xml
+      或
+    ski run examples/dynamic/conditional_case.xml -v user_logged_in=true
+
+  条件表达式支持的操作符:
+    ==  !=  >  <  >=  <=  in  not in  and  or  not
+-->
+<cases>
+  <case id="demo_conditional_login"
+        title="条件执行登录演示"
+        execute="是"
+        description="根据 user_logged_in 变量条件决定执行路径"
+        component_type="界面">
+
+    <!--
+      动态变量定义：在 globalvalue 或通过 -v 传入
+      本例通过 step 的 data 属性模拟变量注入
+    -->
+
+    <test_case>
+      <!-- 步骤1: 导航到登录页 (无条件，始终执行) -->
+      <test_step action="navigate"
+                 model=""
+                 data="https://example.com/login"/>
+
+      <!-- 步骤2: 仅当 user_logged_in == false 时执行 (未登录分支) -->
+      <!-- condition="${user_logged_in} == false" -->
+      <test_step action="wait"
+                 model=""
+                 data="2"
+                 condition="${user_logged_in} == false"/>
+
+      <!-- 步骤3: 仅当 user_logged_in == true 时执行 (已登录分支) -->
+      <!-- condition="${user_logged_in} == true" -->
+      <test_step action="screenshot"
+                 model=""
+                 data="already_logged_in.png"
+                 condition="${user_logged_in} == true"/>
+
+      <!-- 步骤4: 条件组合 - 使用 and 操作符 -->
+      <!-- 仅当 user_logged_in == true AND browser == chrome 时执行 -->
+      <!-- condition="${user_logged_in} == true and ${browser} == chrome" -->
+      <test_step action="verify"
+                 model=""
+                 data="登录成功"
+                 condition="${user_logged_in} == true and ${browser} == chrome"/>
+
+      <!-- 步骤5: 使用 in 操作符 -->
+      <!-- 仅当 role in [admin, manager, user] 时执行 -->
+      <!-- condition="${role} in ['admin', 'manager', 'user']" -->
+      <test_step action="wait"
+                 model=""
+                 data="1"
+                 condition="${role} in ['admin', 'manager', 'user']"/>
+
+      <!-- 步骤6: 使用 not in 操作符 -->
+      <!-- 仅当 role 不在 [guest, banned] 中时执行 -->
+      <!-- condition="${role} not in ['guest', 'banned']" -->
+      <test_step action="screenshot"
+                 model=""
+                 data="authorized_user.png"
+                 condition="${role} not in ['guest', 'banned']"/>
+
+      <!-- 步骤7: 使用 != 操作符 -->
+      <!-- 仅当 environment != production 时执行 (非生产环境) -->
+      <test_step action="screenshot"
+                 model=""
+                 data="debug_mode.png"
+                 condition="${environment} != production"/>
+
+      <!-- 步骤8: 依赖 last_result 的条件执行 -->
+      <!-- 仅当上一步结果状态为 PASS 时执行 -->
+      <!-- condition="${last_result.status} == PASS" -->
+      <test_step action="wait"
+                 model=""
+                 data="1"
+                 condition="${last_result.status} == PASS"/>
+    </test_case>
+
+  </case>
+</cases>

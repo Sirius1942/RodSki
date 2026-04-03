@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+  <!-- 小李-创建采购订单并下单 -->
+  <case id="cassmall_beta_purchase_xiaoli" title="小李-创建采购订单并下单" execute="是" description="小李账号登录后，创建采购订单并确认下单">
+    <pre_process>
+      <test_step action="navigate" data="https://ec-hwbeta.casstime.com/passport/login#/merchant/home"/>
+      <test_step action="wait" data="2"/>
+    </pre_process>
+    <test_case>
+      <!-- 登录 -->
+      <test_step action="type" model="LoginPage" data="xiaoli_login"/>
+      <test_step action="wait" data="5"/>
+      <test_step action="screenshot" data="purchase_01_logged_in.png"/>
+      <!-- 等待页面稳定 -->
+      <test_step action="wait" data="3"/>
+      <test_step action="screenshot" data="purchase_02_explore.png"/>
+    </test_case>
+    <post_process>
+      <test_step action="close"/>
+    </post_process>
+  </case>
+</cases>

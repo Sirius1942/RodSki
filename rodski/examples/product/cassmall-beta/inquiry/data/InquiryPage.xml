@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datatable name="InquiryPage">
+  <!-- 小李发布询价 - 正常询价 -->
+  <row id="I001" remark="小李发布询价-正常询价">
+    <field name="vin">LSVAG4189ES123456</field>
+    <field name="needsName">发动机机油滤清器</field>
+    <field name="needQuantity">2</field>
+    <field name="qualityRemarks">需要原厂配件</field>
+    <field name="submitInquiry">click</field>
+  </row>
+
+  <!-- 小李发布询价 - 品牌+车型模式（无VIN） -->
+  <row id="I002" remark="小李发布询价-品牌车型模式">
+    <field name="vin"></field>
+    <field name="needsName">刹车片</field>
+    <field name="needQuantity">4</field>
+    <field name="qualityRemarks">请原装进口</field>
+    <field name="carBrand">宝马</field>
+    <field name="carModel">X5</field>
+    <field name="submitInquiry">click</field>
+  </row>
+</datatable>
