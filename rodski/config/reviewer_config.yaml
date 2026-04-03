@@ -1,34 +1,26 @@
-# LLM Configuration for Test Result Reviewer
-# 符合 OpenAI ChatGPT 接口标准
+# LLM Reviewer 配置
 
 # API 配置
-api_base: "https://api.openai.com/v1"
-api_key: "your-api-key-here"  # 或使用环境变量 OPENAI_API_KEY
-
-# 模型配置
-model: "gpt-4o"  # 或 gpt-4-turbo, gpt-3.5-turbo
-temperature: 0.1  # 低温度保证判断稳定性
+api_base: "http://code.casstime.ai"
+api_key: "sk-f3tf9sUywnTBNbkQesLsaEE5Abtz1vZX88Sqvqm5MG7cGg3w"
+model: "gpt-5.4"
+temperature: 0.1
 max_tokens: 2000
 
 # 审查配置
 review:
-  # 是否启用截图分析（需要 vision 模型）
   enable_vision: true
-
-  # 每次审查最多发送的截图数量
   max_screenshots: 10
-
-  # 审查提示词模板
   system_prompt: |
     你是一个专业的自动化测试结果审查员。
     你的任务是根据测试用例定义、执行日志和截图，判断测试是否真正成功。
-
+    
     判断标准：
     1. 所有步骤是否按预期执行
     2. 截图中的界面状态是否符合预期
     3. 是否有异常、错误或警告
     4. 最终结果是否达到测试目标
-
+    
     输出格式：
     {
       "verdict": "PASS|FAIL|SUSPICIOUS",

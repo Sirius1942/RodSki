@@ -7,15 +7,15 @@ provider: claude
 providers:
   claude:
     model: claude-opus-4-6
-    base_url: ""  # 可选代理地址
-    api_key_env: ANTHROPIC_API_KEY
+    base_url: "http://code.casstime.ai"  # 可选代理地址
+    api_key_env: sk-f3tf9sUywnTBNbkQesLsaEE5Abtz1vZX88Sqvqm5MG7cGg3w
     timeout: 10
     max_tokens: 1024
 
   openai:
-    model: gpt-4o
-    base_url: https://api.openai.com/v1
-    api_key_env: OPENAI_API_KEY
+    model: gpt-5.4
+    base_url: http://code.casstime.ai
+    api_key_env: sk-f3tf9sUywnTBNbkQesLsaEE5Abtz1vZX88Sqvqm5MG7cGg3w
     timeout: 10
     max_tokens: 2000
 

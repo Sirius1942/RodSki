@@ -17,6 +17,10 @@ DEFAULTS = {
     "auto_screenshot_on_failure": True,
     "auto_screenshot_on_step": True,
     "screenshot_dir": "screenshots",
+    "smart_wait_enabled": True,
+    "smart_wait_max_retries": 30,
+    "smart_wait_retry_interval": 0.3,
+    "smart_wait_log_retry": True,
 }
 
 VALID_KEYS = {

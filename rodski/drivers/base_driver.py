@@ -11,6 +11,7 @@ BaseDriver 定义统一的驱动接口，支持：
 - 统一接口：不同平台/驱动实现相同接口
 - 支持视觉定位：通过 locate_element 返回坐标，便于视觉定位集成
 """
+import time
 from abc import ABC, abstractmethod
 from typing import Tuple, Optional, Any
 
@@ -25,6 +26,14 @@ class BaseDriver(ABC):
     - x 向右递增，y 向下递增
     - 边界框格式：(x1, y1, x2, y2)，其中 (x1, y1) 为左上角，(x2, y2) 为右下角
     """
+
+    def __init__(self):
+        """初始化驱动基类"""
+        from rodski.core.config_manager import ConfigManager
+        from rodski.core.logger import Logger
+
+        self.config = ConfigManager()
+        self.logger = Logger(name=self.__class__.__name__)
 
     @abstractmethod
     def launch(self, **kwargs) -> None:
@@ -193,6 +202,59 @@ class BaseDriver(ABC):
 
     # ── 扩展方法（非抽象，子类可选覆盖）───────────────────────────────
 
+    def locate_element_with_retry(
+        self,
+        locator_type: str,
+        locator_value: str
+    ) -> Optional[Tuple[int, int, int, int]]:
+        """带智能等待的元素定位
+
+        实现智能等待机制：
+        - 首次立即尝试定位
+        - 失败后进入重试循环，直到超时或成功
+        - 每次重试间隔可配置
+
+        Args:
+            locator_type: 定位器类型
+            locator_value: 定位器值
+
+        Returns:
+            (x1, y1, x2, y2) 边界框坐标，未找到返回 None
+        """
+        # 读取配置参数
+        timeout = self.config.get('element_wait_timeout', 10)
+        retry_interval = self.config.get('element_retry_interval', 0.5)
+
+        # 首次立即尝试
+        self.logger.debug(f"定位元素: {locator_type}={locator_value}")
+        bbox = self.locate_element(locator_type, locator_value)
+        if bbox is not None:
+            self.logger.debug(f"元素定位成功: {bbox}")
+            return bbox
+
+        # 失败后进入重试循环
+        start_time = time.time()
+        retry_count = 0
+
+        while time.time() - start_time < timeout:
+            time.sleep(retry_interval)
+            retry_count += 1
+
+            self.logger.debug(
+                f"重试定位元素 (第 {retry_count} 次): {locator_type}={locator_value}"
+            )
+            bbox = self.locate_element(locator_type, locator_value)
+            if bbox is not None:
+                self.logger.debug(f"元素定位成功 (重试 {retry_count} 次): {bbox}")
+                return bbox
+
+        # 超时未找到
+        self.logger.warning(
+            f"元素定位超时 ({timeout}s, 重试 {retry_count} 次): "
+            f"{locator_type}={locator_value}"
+        )
+        return None
+
     def click_element(self, locator_type: str, locator_value: str) -> bool:
         """定位并点击元素（便捷方法）
 
@@ -203,7 +265,7 @@ class BaseDriver(ABC):
         Returns:
             成功返回 True，未找到元素返回 False
         """
-        bbox = self.locate_element(locator_type, locator_value)
+        bbox = self.locate_element_with_retry(locator_type, locator_value)
         if bbox is None:
             return False
         center_x = (bbox[0] + bbox[2]) // 2
@@ -227,7 +289,7 @@ class BaseDriver(ABC):
         Returns:
             成功返回 True，未找到元素返回 False
         """
-        bbox = self.locate_element(locator_type, locator_value)
+        bbox = self.locate_element_with_retry(locator_type, locator_value)
         if bbox is None:
             return False
         center_x = (bbox[0] + bbox[2]) // 2
@@ -249,7 +311,7 @@ class BaseDriver(ABC):
         Returns:
             元素文字内容，未找到返回 None
         """
-        bbox = self.locate_element(locator_type, locator_value)
+        bbox = self.locate_element_with_retry(locator_type, locator_value)
         if bbox is None:
             return None
         return self.get_text(bbox[0], bbox[1], bbox[2], bbox[3])
@@ -288,7 +350,7 @@ class BaseDriver(ABC):
         Returns:
             (x, y) 中心坐标，未找到返回 None
         """
-        bbox = self.locate_element(locator_type, locator_value)
+        bbox = self.locate_element_with_retry(locator_type, locator_value)
         if bbox is None:
             return None
         return ((bbox[0] + bbox[2]) // 2, (bbox[1] + bbox[3]) // 2)
