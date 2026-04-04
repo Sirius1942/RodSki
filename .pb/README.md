@@ -21,7 +21,7 @@ PhoenixBear 管理 RodSki 的所有迭代开发，涵盖需求、约束、设计
 > - **[design/CORE_DESIGN_CONSTRAINTS.md](design/CORE_DESIGN_CONSTRAINTS.md)** — 框架核心设计决策（关键字、目录结构、XML Schema、自检约束等）
 > - **[design/TEST_CASE_WRITING_GUIDE.md](design/TEST_CASE_WRITING_GUIDE.md)** — 用例编写规范（Case/Model/Data XML 格式）
 
-详见 [conventions/PROJECT_CONSTRAINTS.md](conventions/PROJECT_CONSTRAINTS.md#8-核心文档不可违反约束)
+详见 [design/CORE_DESIGN_CONSTRAINTS.md](design/CORE_DESIGN_CONSTRAINTS.md) 附录 A
 
 ## 目录索引
 
@@ -39,7 +39,7 @@ PhoenixBear 管理 RodSki 的所有迭代开发，涵盖需求、约束、设计
 
 ```bash
 # 核心设计约束
-cat phoenixbear/design/CORE_DESIGN_CONSTRAINTS.md
+cat .pb/design/CORE_DESIGN_CONSTRAINTS.md
 
 # 用例编写指南
 cat phoenixbear/design/TEST_CASE_WRITING_GUIDE.md
@@ -66,4 +66,4 @@ python selftest.py
 
 ---
 
-**最后更新**: 2026-04-02
+**最后更新**: 2026-04-05

@@ -25,7 +25,7 @@
 ### T7-003: Getting Started 文档完善
 **文件**: `docs/getting-started/`
 
-- `INSTALL.md` - 从源码/pip/Docker 安装
+- `INSTALL.md` - 从源码/pip 安装
 - `QUICKSTART.md` - 5 分钟快速入门（已有，移入目录）
 - `FIRST_TEST.md` - 编写第一个测试用例（从 `TEST_CASE_WRITING_GUIDE.md` 精简）
 **预计**: 4h | **Owner**: 待分配

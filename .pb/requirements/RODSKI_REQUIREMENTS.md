@@ -46,7 +46,7 @@ RodSki 是一套**文档与工具系统**，核心定位是**辅助 AI Agent 工
 - ⭐ 每个迭代的实现**绝对不能违反** `../design/CORE_DESIGN_CONSTRAINTS.md`
 - ⭐ 每个迭代的实现**绝对不能违反** `../design/TEST_CASE_WRITING_GUIDE.md`
 
-详见 `../conventions/PROJECT_CONSTRAINTS.md#8-核心文档不可违反约束`
+详见 `../design/CORE_DESIGN_CONSTRAINTS.md` 附录 A
 
 ---
 

@@ -111,7 +111,6 @@ git push origin v2.1.0
 - GitHub Actions 自动运行测试
 - 代码质量检查（Black, Flake8, Pylint）
 - 自动发布到 PyPI（tag触发）
-- Docker 镜像构建
 
 ## 注意事项
 

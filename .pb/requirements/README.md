@@ -16,4 +16,4 @@ RodSki 框架的需求管理文档目录。
 
 ---
 
-**关联规范**: [../conventions/PROJECT_CONSTRAINTS.md](../conventions/PROJECT_CONSTRAINTS.md)
+**关联规范**: [../design/CORE_DESIGN_CONSTRAINTS.md](../design/CORE_DESIGN_CONSTRAINTS.md)
