@@ -1,5 +1,7 @@
 # RodSki LLM 能力统一架构设计
 
+> **归档状态**: 已归档（2026-04-05）— 已被 `design/llm-unified-architecture.md` 取代。
+
 ## 一、现状与问题
 
 ### 1.1 现有 LLM 能力
