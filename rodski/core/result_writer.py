@@ -98,7 +98,7 @@ class ResultWriter:
         if self.current_run_dir:
             return
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        run_dir_name = f"run_{timestamp}"
+        run_dir_name = f"rodski_{timestamp}"
         self.current_run_dir = self.result_dir / run_dir_name
         self.current_run_dir.mkdir(parents=True, exist_ok=True)
         screenshots_dir = self.current_run_dir / "screenshots"

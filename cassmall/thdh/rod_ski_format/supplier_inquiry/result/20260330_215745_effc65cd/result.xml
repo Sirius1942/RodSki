@@ -1,7 +1,0 @@
-<?xml version="1.0" ?>
-<testresult>
-  <summary total="1" passed="1" failed="0" skipped="0" errors="0" pass_rate="100.0%" total_time="16.17s" average_time="16.17s" start_time="2026-03-30 21:58:01" end_time="2026-03-30 21:58:01"/>
-  <results>
-    <result case_id="cassmall_supplier_order" title="小辉查看订单" status="PASS" execution_time="16.166" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-03-30 21:58:01"/>
-  </results>
-</testresult>

@@ -1,5 +1,7 @@
 # RodSki Agent 自动化测试设计（OpenClaw 等）
 
+> **归档状态**: 已归档（2026-04-05）— OpenClaw Agent 设计方案，保留供参考，不作为当前开发依据。
+
 **版本**: v1.1  
 **日期**: 2026-03-24  
 **适用范围**: OpenClaw / 通用 AI Agent 与 RodSki 集成

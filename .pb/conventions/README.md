@@ -5,12 +5,12 @@
 ## 规范文档
 
 - [Git 工作流规范](GIT_WORKFLOW.md) - 分支管理、提交规范、发布流程
-- [项目约束](PROJECT_CONSTRAINTS.md) - 项目结构，开发约束，测试规范
-- [CI/CD 集成指南](CI_CD_GUIDE.md) - GitHub Actions、Docker、Jenkins、GitLab CI 集成
+- [核心设计约束](../../rodski/docs/CORE_DESIGN_CONSTRAINTS.md) - 项目结构、关键字设计、开发约束、测试规范
+- [CI/CD 集成指南](CI_CD_GUIDE.md) - GitHub Actions、Jenkins、GitLab CI 集成
 
 ## 核心约束
 
-> ⚠️ 本项目有 **绝对不可违反的核心约束**，详见 [PROJECT_CONSTRAINTS.md](PROJECT_CONSTRAINTS.md#8-核心文档不可违反约束)。
+> ⚠️ 本项目有 **绝对不可违反的核心约束**，详见 [CORE_DESIGN_CONSTRAINTS.md](../../rodski/docs/CORE_DESIGN_CONSTRAINTS.md) 附录 A。
 
 ## 使用方式
 
@@ -20,7 +20,7 @@
 # 功能设计
 
 遵循规范:
-- #[[file:../conventions/PROJECT_CONSTRAINTS.md]]
+- #[[file:../../rodski/docs/CORE_DESIGN_CONSTRAINTS.md]]
 - #[[file:../conventions/GIT_WORKFLOW.md]]
 ```
 
@@ -28,11 +28,11 @@
 
 每次开始新功能开发前：
 
-1. 阅读 [PROJECT_CONSTRAINTS.md](PROJECT_CONSTRAINTS.md) 中的核心约束条款
+1. 阅读 [CORE_DESIGN_CONSTRAINTS.md](../../rodski/docs/CORE_DESIGN_CONSTRAINTS.md) 中的核心约束条款
 2. 从 main 分支创建新的功能分支
 3. 确保设计符合项目约束
 4. 提交时遵循提交信息规范
 
 ---
 
-**最后更新**: 2026-04-02
+**最后更新**: 2026-04-05
