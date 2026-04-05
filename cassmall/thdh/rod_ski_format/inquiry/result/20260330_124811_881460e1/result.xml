@@ -1,7 +1,0 @@
-<?xml version="1.0" ?>
-<testresult>
-  <summary total="1" passed="1" failed="0" skipped="0" errors="0" pass_rate="100.0%" total_time="72.01s" average_time="72.01s" start_time="2026-03-30 12:49:23" end_time="2026-03-30 12:49:23"/>
-  <results>
-    <result case_id="cassmall_inquiry_with_verify" title="小李发布询价并验证" status="PASS" execution_time="72.014" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-03-30 12:49:23"/>
-  </results>
-</testresult>

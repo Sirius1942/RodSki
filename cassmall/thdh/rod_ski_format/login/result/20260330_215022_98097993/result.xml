@@ -1,7 +1,0 @@
-<?xml version="1.0" ?>
-<testresult>
-  <summary total="1" passed="1" failed="0" skipped="0" errors="0" pass_rate="100.0%" total_time="10.80s" average_time="10.80s" start_time="2026-03-30 21:50:33" end_time="2026-03-30 21:50:33"/>
-  <results>
-    <result case_id="cassmall_login_xiaohui" title="小辉账号登录（供应商）" status="PASS" execution_time="10.803" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-03-30 21:50:33"/>
-  </results>
-</testresult>
