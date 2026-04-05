@@ -18,10 +18,10 @@ PhoenixBear 管理 RodSki 的所有迭代开发，涵盖需求、约束、设计
 
 > ⚠️ 每个迭代的实现**绝对不能违反**以下两份文档：
 >
-> - **[design/CORE_DESIGN_CONSTRAINTS.md](design/CORE_DESIGN_CONSTRAINTS.md)** — 框架核心设计决策（关键字、目录结构、XML Schema、自检约束等）
-> - **[design/TEST_CASE_WRITING_GUIDE.md](design/TEST_CASE_WRITING_GUIDE.md)** — 用例编写规范（Case/Model/Data XML 格式）
+> - **[CORE_DESIGN_CONSTRAINTS.md](../rodski/docs/CORE_DESIGN_CONSTRAINTS.md)** — 框架核心设计决策（关键字、目录结构、XML Schema、自检约束等）
+> - **[TEST_CASE_WRITING_GUIDE.md](../rodski/docs/TEST_CASE_WRITING_GUIDE.md)** — 用例编写规范（Case/Model/Data XML 格式）
 
-详见 [design/CORE_DESIGN_CONSTRAINTS.md](design/CORE_DESIGN_CONSTRAINTS.md) 附录 A
+详见 [CORE_DESIGN_CONSTRAINTS.md](../rodski/docs/CORE_DESIGN_CONSTRAINTS.md) 附录 A
 
 ## 目录索引
 
@@ -39,10 +39,10 @@ PhoenixBear 管理 RodSki 的所有迭代开发，涵盖需求、约束、设计
 
 ```bash
 # 核心设计约束
-cat .pb/design/CORE_DESIGN_CONSTRAINTS.md
+cat rodski/docs/CORE_DESIGN_CONSTRAINTS.md
 
 # 用例编写指南
-cat phoenixbear/design/TEST_CASE_WRITING_GUIDE.md
+cat rodski/docs/TEST_CASE_WRITING_GUIDE.md
 ```
 
 ### 2. 创建新迭代
