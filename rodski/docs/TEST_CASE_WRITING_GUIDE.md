@@ -179,11 +179,11 @@ xmllint --noout --schema rodski/schemas/case.xsd product/DEMO/demo_site/case/dem
 | `assert` | 断言 |
 | `upload_file` | 上传文件 |
 | `clear` | 清空输入 |
-| `get_text` | 已废弃，请改用 `get` |
-| `get` | 双模式取值（CSS 选择器 → UI 文本；变量名 → 命名变量） |
+| `get_text` | **已废弃**，请改用 `get` |
+| `get` | 三模式取值：`get ModelName D001`（模型模式，推荐）/ `get #selector`（UI 选择器，低级补充）/ `get var_name`（命名访问） |
 | `evaluate` | 执行 JS 表达式（**仅 Web**，低优先级，结构化结果保留原类型） |
 | `send` | 发 HTTP 请求 |
-| `set` | 设置变量 |
+| `set` | 写入命名变量：`set \| key=value`，写入 context.named 并写入 history |
 | `DB` | 执行 SQL |
 | `run` | 执行 `fun/` 下脚本 |
 | `check` | 与 `verify` 等价（兼容） |

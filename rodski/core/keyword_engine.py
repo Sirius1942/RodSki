@@ -1331,9 +1331,69 @@ class KeywordEngine:
         logger.info(f"批量验证通过: {len(results)} 个字段全部匹配")
         return True
 
+    # 选择器前缀：含这些前缀的 data 视为 UI 选择器模式
+    _SELECTOR_PREFIXES = ("#", ".", "//", "css=", "xpath=", "id=", "text=")
+
     def _kw_get(self, params: Dict) -> bool:
-        """获取元素文本（兼容老 SKI 的 get 关键字）"""
-        return self._kw_get_text(params)
+        """三模式取值关键字
+
+        模式判断（按 model/data 格式）:
+        1. model 非空 + data 为 DataID → 模型模式：按模型元素定位读取文本，返回 dict
+        2. model 空 + data 含选择器前缀 → UI 选择器模式（低级补充）：直接读取元素文本
+        3. model 空 + data 为普通标识符 → 命名访问模式：从 context.named 读取
+        三种模式均写入 history。
+        """
+        model_name = params.get("model", "")
+        data = params.get("data", "") or params.get("locator", "")
+
+        # 模式 1: 模型模式
+        if model_name and data and self.model_parser and self.data_manager:
+            return self._get_model_mode(model_name, data)
+
+        # 模式 2: UI 选择器模式
+        if data and any(data.startswith(p) for p in self._SELECTOR_PREFIXES):
+            return self._get_selector_mode(data, params.get("var_name", ""))
+
+        # 模式 3: 命名访问模式
+        if data:
+            return self._get_named_mode(data)
+
+        raise InvalidParameterError(keyword="get", param_name="data", reason="缺少必需参数")
+
+    def _get_model_mode(self, model_name: str, data_ref: str) -> bool:
+        """模型模式：按模型元素定位，读取各元素文本，返回 dict"""
+        elements = self.model_parser.get_elements(model_name)
+        result = {}
+        for elem in elements:
+            locator = elem.get("value", "")
+            name = elem.get("name", locator)
+            try:
+                text = self.driver.get_text_locator(locator) if hasattr(self.driver, "get_text_locator") else self.driver.get_text(locator)
+                result[name] = text
+            except Exception as e:
+                logger.warning(f"get 模型模式: 元素 {name} 读取失败: {e}")
+                result[name] = None
+        logger.info(f"get 模型模式: {model_name} -> {result}")
+        self.store_return(result)
+        return True
+
+    def _get_selector_mode(self, locator: str, var_name: str = "") -> bool:
+        """UI 选择器模式（低级补充）：直接用选择器读取元素文本"""
+        logger.info(f"get UI选择器: {locator}")
+        text = self.driver.get_text_locator(locator) if hasattr(self.driver, "get_text_locator") else self.driver.get_text(locator)
+        if var_name:
+            self._variables[var_name] = text
+        self.store_return(text)
+        return True
+
+    def _get_named_mode(self, key: str) -> bool:
+        """命名访问模式：从 context.named 读取"""
+        if key not in self._context.named:
+            raise InvalidParameterError(keyword="get", param_name="data", reason=f"命名变量 '{key}' 不存在，请先用 set 写入")
+        value = self._context.named[key]
+        logger.info(f"get 命名访问: {key} = '{value}'")
+        self.store_return(value)
+        return True
 
     def _kw_clear(self, params: Dict) -> bool:
         """清空输入框"""
@@ -1346,44 +1406,11 @@ class KeywordEngine:
         return result
 
     def _kw_get_text(self, params: Dict) -> bool:
-        """获取文本
-
-        支持两种格式：
-        - 定位器格式: get_text | css=.inquiry-no
-        - 坐标格式: get_text | x1,y1,x2,y2
-        """
-        locator = params.get("locator", "") or params.get("data", "")
-        var_name = params.get("var_name", "")
-        logger.info(f"获取文本: {locator}")
-
-        text = None
-        # 判断是否为坐标格式（4个数字，逗号分隔）
-        is_coordinate = False
-        if locator:
-            parts = locator.replace('，', ',').split(',')
-            if len(parts) == 4:
-                try:
-                    [int(p.strip()) for p in parts]
-                    is_coordinate = True
-                except ValueError:
-                    pass
-
-        if is_coordinate:
-            parts = [int(p.strip()) for p in locator.replace('，', ',').split(',')]
-            text = self.driver.get_text(*parts)
-        elif hasattr(self.driver, 'get_text_locator'):
-            text = self.driver.get_text_locator(locator)
-        else:
-            text = self.driver.get_text(locator)
-
-        if text is not None:
-            logger.debug(f"获取到文本: '{text}'")
-            if var_name:
-                self._variables[var_name] = text
-            self.store_return(text)
-            return True
-        self.store_return(None)
-        return False
+        """[已废弃] 请改用 get 关键字"""
+        import warnings
+        warnings.warn("get_text 已废弃，请改用 get 关键字", DeprecationWarning, stacklevel=2)
+        logger.warning("get_text 已废弃，请改用 get 关键字")
+        return self._kw_get(params)
 
     def _kw_evaluate(self, params: Dict) -> bool:
         """在浏览器中执行 JavaScript 表达式并存储返回值
@@ -1432,14 +1459,21 @@ class KeywordEngine:
     # ── 高级关键字 ─────────────────────────────────────────────────
 
     def _kw_set(self, params: Dict) -> bool:
-        """设置变量"""
-        var_name = params.get("var_name", "")
-        value = params.get("value", "")
-        if not var_name:
-            raise InvalidParameterError(keyword="set", param_name="var_name", reason="缺少必需参数")
-        
-        logger.info(f"设置变量: {var_name} = '{value}'")
-        self._variables[var_name] = value
+        """写入命名变量到 context.named，并写入 history
+
+        格式: set | key=value_expr
+        value_expr 支持 ${Return[-1].field} 等已解析模板（由 data_resolver 在上游处理）
+        """
+        data = params.get("data", "") or params.get("value", "")
+        if not data or "=" not in data:
+            raise InvalidParameterError(keyword="set", param_name="data", reason="格式应为 key=value")
+        key, value = data.split("=", 1)
+        key = key.strip()
+        if not key:
+            raise InvalidParameterError(keyword="set", param_name="data", reason="key 不能为空")
+        logger.info(f"set: {key} = '{value}'")
+        self._context.named[key] = value
+        self.store_return(value)
         return True
 
     def _kw_run(self, params: Dict) -> bool:
