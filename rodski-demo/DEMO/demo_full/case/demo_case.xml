@@ -96,7 +96,7 @@
         </pre_process>
         <test_case>
             <test_step action="type" model="ReturnTest" data="R001"/>
-            <test_step action="get_text" model="" data="#username"/>
+            <test_step action="get" model="" data="#username"/>
             <test_step action="verify" model="ReturnTest" data="V001"/>
         </test_case>
         <post_process>
@@ -104,10 +104,95 @@
         </post_process>
     </case>
 
-    <!-- TC010: set变量测试 -->
-    <case execute="否" id="TC010" title="set变量测试" component_type="界面">
+    <!-- TC010: set/get命名访问测试 -->
+    <case execute="是" id="TC010" title="set/get命名访问测试" component_type="界面">
+        <pre_process>
+            <test_step action="navigate" model="" data="http://localhost:8000"/>
+            <test_step action="type" model="LoginForm" data="L001"/>
+            <test_step action="type" model="NavMenu" data="N001"/>
+        </pre_process>
         <test_case>
-            <test_step action="navigate" model="" data="about:blank"/>
+            <test_step action="type" model="TestForm" data="T001"/>
+            <test_step action="set" model="" data="first_result=${Return[-1]}"/>
+            <test_step action="type" model="TestForm" data="T002"/>
+            <test_step action="set" model="" data="second_result=${Return[-1]}"/>
+            <test_step action="get" model="" data="first_result"/>
+            <test_step action="verify" model="SetGetVerify" data="V001"/>
         </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <!-- TC011: get选择器模式测试 -->
+    <case execute="是" id="TC011" title="get选择器模式测试" component_type="界面">
+        <pre_process>
+            <test_step action="navigate" model="" data="http://localhost:8000"/>
+            <test_step action="type" model="LoginForm" data="L001"/>
+            <test_step action="type" model="NavMenu" data="N001"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="TestForm" data="T001"/>
+            <test_step action="get" model="" data="#formResult"/>
+            <test_step action="verify" model="GetVerify" data="V001"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <!-- TC012: evaluate结构化返回测试 -->
+    <case execute="否" id="TC012" title="evaluate结构化返回测试" component_type="界面">
+        <pre_process>
+            <test_step action="navigate" model="" data="http://localhost:8000"/>
+        </pre_process>
+        <test_case>
+            <test_step action="evaluate" model="" data="() => ({title: document.title})"/>
+            <test_step action="verify" model="EvaluateResult" data="V001"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <!-- TC013: AC12-001 type Auto Capture -->
+    <case execute="否" id="TC013" title="type Auto Capture测试" component_type="界面">
+        <pre_process>
+            <test_step action="navigate" model="" data="http://localhost:8000"/>
+            <test_step action="type" model="LoginForm" data="L001"/>
+            <test_step action="type" model="NavMenu" data="N001"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="DemoForm" data="F001"/>
+            <test_step action="verify" model="DemoFormVerify" data="V001"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <!-- TC014: AC12-003 send Auto Capture -->
+    <case execute="是" id="TC014" title="send Auto Capture测试" component_type="接口">
+        <test_case>
+            <test_step action="send" model="LoginAPICapture" data="D001"/>
+            <test_step action="verify" model="LoginAPICapture" data="V001"/>
+        </test_case>
+    </case>
+
+    <!-- TC015: AC13-001 Info模式日志 + execution_summary -->
+    <case execute="否" id="TC015" title="结构化日志验证" component_type="界面">
+        <pre_process>
+            <test_step action="navigate" model="" data="http://localhost:8000"/>
+            <test_step action="type" model="LoginForm" data="L001"/>
+            <test_step action="type" model="NavMenu" data="N001"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="TestForm" data="T001"/>
+            <test_step action="set" model="" data="saved_result=${Return[-1]}"/>
+            <test_step action="get" model="" data="saved_result"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
     </case>
 </cases>

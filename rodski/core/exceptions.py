@@ -271,6 +271,17 @@ class DriverStoppedError(DriverError):
         self.driver_type = driver_type
 
 
+class AutoCaptureError(ExecutionError):
+    """自动返回值提取失败"""
+    error_code = "SKI332"
+
+    def __init__(self, field: str, source: str, reason: str):
+        self.field = field
+        self.source = source
+        self.reason = reason
+        super().__init__(f"AutoCapture 失败: field={field}, source={source}, reason={reason}")
+
+
 class AssertionFailedError(ExecutionError):
     """断言失败"""
     error_code = "SKI331"

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datatable name="LoginAPICapture">
+    <row id="D001" remark="登录">
+        <field name="username">admin</field>
+        <field name="password">admin123</field>
+    </row>
+</datatable>

@@ -119,4 +119,82 @@
         <location type="id">formResult</location>
     </element>
 </model>
+
+<model name="SetGetVerify" servicename="">
+    <element name="value" type="web">
+        <type>text</type>
+        <location type="id">formResult</location>
+    </element>
+</model>
+
+<model name="GetVerify" servicename="">
+    <element name="result" type="web">
+        <type>text</type>
+        <location type="id">formResult</location>
+    </element>
+</model>
+
+<model name="EvaluateResult" servicename="">
+    <element name="title" type="web">
+        <type>text</type>
+        <location type="id">pageTitle</location>
+    </element>
+</model>
+
+<model name="DemoForm" servicename="">
+    <element name="username" type="web">
+        <type>input</type>
+        <location type="id">username</location>
+    </element>
+    <element name="submitBtn" type="web">
+        <type>button</type>
+        <location type="id">submitBtn</location>
+    </element>
+    <auto_capture trigger="type">
+        <field name="resultId">
+            <location type="id">resultId</location>
+        </field>
+    </auto_capture>
+</model>
+
+<model name="DemoFormVerify" servicename="">
+    <element name="resultId" type="web">
+        <type>text</type>
+        <location type="id">resultId</location>
+    </element>
+</model>
+
+<model name="DemoFormBadCapture" servicename="">
+    <element name="username" type="web">
+        <type>input</type>
+        <location type="id">username</location>
+    </element>
+    <element name="submitBtn" type="web">
+        <type>button</type>
+        <location type="id">submitBtn</location>
+    </element>
+    <auto_capture trigger="type">
+        <field name="nonExistentField">
+            <location type="id">nonExistentField</location>
+        </field>
+    </auto_capture>
+</model>
+
+<model name="LoginAPICapture" servicename="">
+    <element name="_method" type="interface">
+        <location type="static">POST</location>
+    </element>
+    <element name="_url" type="interface">
+        <location type="static">http://localhost:8000/api/login</location>
+    </element>
+    <element name="username" type="interface">
+        <location type="field">username</location>
+    </element>
+    <element name="password" type="interface">
+        <location type="field">password</location>
+    </element>
+    <auto_capture trigger="send">
+        <field name="token" path="data.token"/>
+    </auto_capture>
+</model>
 </models>

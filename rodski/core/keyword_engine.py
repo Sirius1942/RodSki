@@ -169,7 +169,8 @@ class KeywordEngine:
                 
                 # 成功日志
                 self._log_keyword_success(keyword, attempts, result)
-                
+                self._log_step_summary(keyword, resolved_params, result)
+
                 if attempts > 1:
                     self._record_retry(keyword, attempts - 1)
                 return result
@@ -243,6 +244,40 @@ class KeywordEngine:
         else:
             logger.debug(f"{keyword} 成功")
     
+    def _log_step_summary(self, keyword: str, params: Dict, result: Any) -> None:
+        """Info 模式：每步执行后输出结构化摘要行"""
+        model = params.get('model', '') or '-'
+        history = self._context.history
+        last = history[-1] if history else None
+
+        if isinstance(last, dict) and '_capture' in last:
+            return_source = 'auto_capture'
+            cap = last.get('_capture', {})
+            extra = f" capture={cap}"
+        elif keyword == 'evaluate':
+            return_source = 'evaluate'
+            extra = ''
+        elif keyword == 'get' and params.get('data', '') and not any(
+            params.get('data', '').startswith(p) for p in self._SELECTOR_PREFIXES
+        ):
+            return_source = 'get_named'
+            extra = ''
+        else:
+            return_source = 'keyword_result'
+            extra = ''
+
+        if keyword == 'set':
+            data = params.get('data', '')
+            if '=' in data:
+                extra += f" named_write={data.split('=', 1)[0].strip()}"
+
+        logger.info(f"[STEP] action={keyword} model={model} status=OK source={return_source}{extra}")
+
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(f"  history[{len(history)-1}]={repr(last)[:200]}")
+            if self._context.named:
+                logger.debug(f"  named={self._context.named}")
+
     def _should_retry(self, error_message: str, retry_on_errors: List[str]) -> bool:
         """检查错误是否应该重试"""
         error_lower = error_message.lower()
@@ -744,7 +779,50 @@ class KeywordEngine:
         
         # 存储解析后的实际使用值（Return[-1] 等已替换为真实值）
         self.store_return(resolved_values)
+
+        # Auto Capture
+        if self.model_parser:
+            ac_fields = self.model_parser.get_auto_capture(model_name, 'type')
+            if ac_fields:
+                capture = self._run_auto_capture_ui(model_name, ac_fields)
+                self.store_return(capture)
+
         return True
+
+    def _run_auto_capture_ui(self, model_name: str, fields: list) -> dict:
+        from core.exceptions import AutoCaptureError
+        result = {}
+        for f in fields:
+            loc_type = f.get('type', 'id')
+            loc_value = f.get('value', '')
+            name = f['name']
+            try:
+                if loc_type == 'id':
+                    locator = f"#{loc_value}"
+                elif loc_type == 'css':
+                    locator = loc_value
+                else:
+                    locator = f"{loc_type}={loc_value}"
+                text = self.driver.get_text_locator(locator) if hasattr(self.driver, 'get_text_locator') else self.driver.get_text(locator)
+                result[name] = text
+            except Exception as e:
+                raise AutoCaptureError(field=name, source=f"{loc_type}={loc_value}", reason=str(e))
+        return result
+
+    def _run_auto_capture_send(self, response: dict, fields: list) -> dict:
+        from core.exceptions import AutoCaptureError
+        result = {}
+        for f in fields:
+            name = f['name']
+            path = f.get('path', name)
+            try:
+                value = self._get_nested_return(response, path)
+                if value is None:
+                    raise KeyError(f"path '{path}' not found")
+                result[name] = value
+            except Exception as e:
+                raise AutoCaptureError(field=name, source=path, reason=str(e))
+        return result
 
     # ── 接口测试关键字 ─────────────────────────────────────────────
 
@@ -903,6 +981,15 @@ class KeywordEngine:
             logger.debug(f"响应文本(前500字): {response.text[:500]}")
 
         self.store_return(result_data)
+
+        # Auto Capture
+        if self.model_parser and model_name:
+            ac_fields = self.model_parser.get_auto_capture(model_name, 'send')
+            if ac_fields:
+                capture = self._run_auto_capture_send(result_data, ac_fields)
+                result_data['_capture'] = capture
+                self._context.history[-1] = result_data
+
         logger.info(f"HTTP {method} {url} → {response.status_code}")
         return True
 
