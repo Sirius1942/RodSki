@@ -23,6 +23,7 @@ from core.exceptions import (
 )
 from core.assertion.image_matcher import ImageMatcher
 from core.model_parser import ModelParser
+from core.runtime_context import RuntimeContext
 
 logger = logging.getLogger("rodski")
 
@@ -64,7 +65,7 @@ class KeywordEngine:
         self._driver_factory = driver_factory
         self._desktop_drivers: Dict[str, Any] = {}  # 按类型缓存的桌面驱动
         self._variables: Dict[str, Any] = {}
-        self._return_values: list = []
+        self._context = RuntimeContext()
         self.model_parser = model_parser
         self.data_manager = data_manager
         self.data_resolver = data_resolver
@@ -269,16 +270,11 @@ class KeywordEngine:
 
     def store_return(self, value: Any) -> None:
         """存储返回值"""
-        self._return_values.append(value)
+        self._context.append_history(value)
 
     def get_return(self, index: int) -> Any:
         """获取返回值，支持正负索引"""
-        if not self._return_values:
-            return None
-        try:
-            return self._return_values[index]
-        except IndexError:
-            return None
+        return self._context.get_history(index)
 
     def _get_nested_return(self, data: Any, path: str) -> Any:
         """从 Return 值中按点号路径获取嵌套字段
@@ -439,6 +435,7 @@ class KeywordEngine:
         """关闭浏览器"""
         logger.info("关闭浏览器")
         self.driver.close()
+        self.store_return(True)
         return True
 
     def _kw_type(self, params: Dict) -> bool:
@@ -918,6 +915,7 @@ class KeywordEngine:
         seconds = params.get("seconds") or params.get("data", "1.0")
         logger.info(f"等待: {seconds}秒")
         self.driver.wait(float(seconds))
+        self.store_return(True)
         return True
 
     def _kw_navigate(self, params: Dict) -> bool:
@@ -934,6 +932,7 @@ class KeywordEngine:
         result = self.driver.navigate(url)
         if not result:
             raise DriverError(f"导航失败: {url}")
+        self.store_return(True)
         return result
 
     def _kw_launch(self, params: Dict) -> bool:
@@ -949,9 +948,11 @@ class KeywordEngine:
         if model_name and data_ref and self.model_parser:
             driver_type = self.model_parser.get_model_driver_type(model_name)
             if driver_type == "web":
-                return self._execute_navigate(model_name, data_ref)
+                result = self._execute_navigate(model_name, data_ref)
             else:
-                return self._execute_desktop_launch(model_name, data_ref)
+                result = self._execute_desktop_launch(model_name, data_ref)
+            self.store_return(True)
+            return result
 
         # 单参数模式: launch app_path 或 launch url
         target = params.get("app_path") or params.get("url") or data_ref
@@ -965,10 +966,12 @@ class KeywordEngine:
         # 判断是 URL 还是应用路径
         if target.startswith(("http://", "https://")):
             logger.info(f"打开页面: {target}")
-            return self.driver.navigate(target)
+            result = self.driver.navigate(target)
         else:
             logger.info(f"启动应用: {target}")
-            return self.driver.launch(app_path=target)
+            result = self.driver.launch(app_path=target)
+        self.store_return(True)
+        return result
 
     def _execute_navigate(self, model_name: str, data_ref: str) -> bool:
         """执行 Web 导航"""
@@ -1339,6 +1342,7 @@ class KeywordEngine:
         result = self.driver.clear(locator)
         if not result:
             raise DriverError(f"清空失败: {locator}")
+        self.store_return(True)
         return result
 
     def _kw_get_text(self, params: Dict) -> bool:
@@ -1422,6 +1426,7 @@ class KeywordEngine:
         result = self.driver.upload_file(locator, file_path)
         if not result:
             raise DriverError(f"上传文件失败: {file_path}")
+        self.store_return(True)
         return result
 
     # ── 高级关键字 ─────────────────────────────────────────────────
