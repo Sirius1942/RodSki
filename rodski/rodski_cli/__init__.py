@@ -1,7 +1,7 @@
 """CLI 子命令模块"""
 import sys
 import argparse
-from rodski_cli import run, model, config, log, report
+from rodski_cli import run, model, config, log, report, docs
 
 VERSION = "3.1.0"
 
@@ -19,6 +19,7 @@ def main():
     config.setup_parser(subparsers)
     log.setup_parser(subparsers)
     report.setup_parser(subparsers)
+    docs.setup_parser(subparsers)
     
     args = parser.parse_args()
     
@@ -31,7 +32,8 @@ def main():
         "model": model.handle,
         "config": config.handle,
         "log": log.handle,
-        "report": report.handle
+        "report": report.handle,
+        "docs": docs.handle
     }
     
     try:

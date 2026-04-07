@@ -166,10 +166,12 @@ class ModelParser:
             loc_type = elem_node.get('type')
             loc_value = elem_node.get('value')
             if loc_type in VALID_LOCATOR_TYPES:
+                # field/static 类型属于接口驱动
+                elem_driver_type = DRIVER_TYPE_INTERFACE if loc_type in ('field', 'static') else DRIVER_TYPE_WEB
                 return {
                     'type': loc_type,
                     'value': loc_value,
-                    'driver_type': DRIVER_TYPE_WEB,
+                    'driver_type': elem_driver_type,
                     'element_type': '',
                     'interfacename': '',
                     'locations': [{'type': loc_type, 'value': loc_value, 'priority': 1}],

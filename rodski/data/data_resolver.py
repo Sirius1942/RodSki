@@ -43,20 +43,35 @@ class DataResolver:
         return text
 
     def _resolve_returns(self, text: str) -> str:
-        """解析 ${Return[index]} 引用
+        """解析 ${Return[index]} 和 ${Return[index].field.subfield} 引用
 
         支持格式:
-        - ${Return[-1]}  → 上一个步骤的返回值
-        - ${Return[-2]}  → 上上个步骤的返回值
-        - ${Return[0]}   → 第一个步骤的返回值
+        - ${Return[-1]}               → 上一个步骤的返回值（整体）
+        - ${Return[-1].code}          → 上一步返回值中的 code 字段
+        - ${Return[-1].data.inquiryId} → 上一步返回值中的嵌套字段
+        - ${Return[0]}                → 第一个步骤的返回值
         """
         if not self.return_provider:
             return text
-        pattern = r'\$\{Return\[(-?\d+)\]\}'
+        pattern = r'\$\{Return\[(-?\d+)\]((?:\.\w+)*)\}'
+
         def replacer(match):
             index = int(match.group(1))
+            path = match.group(2)  # e.g. ".data.inquiryId" or ""
             value = self.return_provider(index)
+            if value is None:
+                return match.group(0)
+            # Navigate nested fields via dot path
+            if path:
+                for key in path.split('.')[1:]:  # skip leading empty string
+                    if isinstance(value, dict):
+                        value = value.get(key)
+                    else:
+                        return match.group(0)
+                    if value is None:
+                        return match.group(0)
             return str(value) if value is not None else match.group(0)
+
         return re.sub(pattern, replacer, text)
 
     def _resolve_vars(self, text: str) -> str:

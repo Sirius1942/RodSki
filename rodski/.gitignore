@@ -53,3 +53,8 @@ screenshots/
 # DEMO 示例运行时生成
 examples/product/DEMO/demo_site/demo.db
 examples/product/DEMO/demo_site/result/
+
+# VitePress
+rodski_docs/site/node_modules/
+rodski_docs/site/.vitepress/cache/
+rodski_docs/dist/

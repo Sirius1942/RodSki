@@ -590,6 +590,27 @@ class PlaywrightDriver(BaseDriver):
             logger.warning(f"获取页面文本失败: {e}")
             return ""
 
+    def get_cookies(self, domain: str = "") -> dict:
+        """获取浏览器 cookies，返回 {name: value} 字典
+
+        Args:
+            domain: 可选，只获取指定域名的 cookies
+        """
+        if not self.page:
+            return {}
+        try:
+            context = self.page.context
+            cookies = context.cookies()
+            result = {}
+            for c in cookies:
+                if domain and domain not in c.get("domain", ""):
+                    continue
+                result[c["name"]] = c["value"]
+            return result
+        except Exception as e:
+            logger.warning(f"获取 cookies 失败: {e}")
+            return {}
+
     def close(self) -> None:
         """关闭驱动"""
         if self._is_closed:

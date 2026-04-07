@@ -57,12 +57,15 @@ class RestHelper:
         timeout: float = 30.0,
         max_retries: int = 3,
         use_session: bool = True,
+        cookies: Optional[Dict[str, str]] = None,
     ) -> requests.Response:
         """发送 HTTP 请求"""
         method = method.upper()
         kwargs: Dict[str, Any] = {"headers": headers, "timeout": timeout}
         if body is not None:
             kwargs["json"] = body
+        if cookies:
+            kwargs["cookies"] = cookies
 
         try:
             logger.debug(f"Sending {method} request to {url}")
