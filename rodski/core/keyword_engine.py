@@ -1405,17 +1405,17 @@ class KeywordEngine:
 
         logger.info(f"执行 JS: {expression[:200]}")
 
-        if not self.driver or not hasattr(self.driver, 'page'):
-            raise DriverError("evaluate 需要浏览器驱动支持")
+        from drivers.playwright_driver import PlaywrightDriver
+        if not isinstance(self.driver, PlaywrightDriver):
+            raise DriverError("evaluate 仅支持 Web 浏览器驱动（PlaywrightDriver）")
 
         try:
             result = self.driver.page.evaluate(expression)
         except Exception as e:
             raise DriverError(f"JavaScript 执行失败: {e}")
 
-        result_str = str(result) if result is not None else ""
-        logger.info(f"JS 结果: {result_str[:200]}")
-        self.store_return(result_str)
+        logger.info(f"JS 结果: {str(result)[:200]}")
+        self.store_return(result)
         return True
 
     def _kw_upload_file(self, params: Dict) -> bool:

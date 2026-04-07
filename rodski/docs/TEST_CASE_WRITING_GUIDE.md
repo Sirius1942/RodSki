@@ -179,8 +179,9 @@ xmllint --noout --schema rodski/schemas/case.xsd product/DEMO/demo_site/case/dem
 | `assert` | 断言 |
 | `upload_file` | 上传文件 |
 | `clear` | 清空输入 |
-| `get_text` | 取元素文本 |
-| `get` | 取文本（别名） |
+| `get_text` | 已废弃，请改用 `get` |
+| `get` | 双模式取值（CSS 选择器 → UI 文本；变量名 → 命名变量） |
+| `evaluate` | 执行 JS 表达式（**仅 Web**，低优先级，结构化结果保留原类型） |
 | `send` | 发 HTTP 请求 |
 | `set` | 设置变量 |
 | `DB` | 执行 SQL |
@@ -723,7 +724,7 @@ Return 引用**只应出现在数据表 XML 的 field 值中**，不要写在 Ca
 
 | 关键字 | 返回值内容 |
 |--------|-----------|
-| get / get_text | 元素文本 |
+| get / get_text | 元素文本（get_text 已废弃，请使用 get） |
 | verify | 批量验证时的实际值字典 |
 | assert | 断言结果 |
 | type（批量模式） | 本次输入使用的完整数据行 |
@@ -745,7 +746,9 @@ Return 引用**只应出现在数据表 XML 的 field 值中**，不要写在 Ca
 | **verify** | 批量验证（UI / 接口通用） | 模型名 | DataID（自动查 `模型名_verify` 表） |
 | **wait** | 等待指定秒数 | — | 秒数（如 `3`） |
 | **clear** | 清空输入框 | — | CSS 选择器 |
-| **get_text** / **get** | 获取元素文本 | — | CSS 选择器 |
+| **get** | 三模式取值：model+DataID → 模型元素文本（推荐）；CSS 选择器 → UI 元素文本（低级补充）；变量名 → 命名变量读取 | 模型名（可选） | DataID 或 CSS 选择器 或 变量名 |
+
+> **UI 元素取值推荐方式**：优先使用 `get ModelName DataID`（模型模式）或 `verify` + model + 数据表。`get #selector` 直接获取 UI 元素文本属于低级补充手段，不推荐在常规业务用例主链路中使用。
 | **screenshot** | 手动截图 | — | 文件路径 |
 | **upload_file** | 上传文件 | — | 文件路径 |
 
@@ -1295,8 +1298,8 @@ Return 引用只应写在**数据表 XML 的 field 值中**，不要直接写在
 | `wait` | 等待指定秒数 |
 | `upload_file` | 上传文件 |
 | `clear` | 清空输入框 |
-| `get_text` | 获取元素文本 |
-| `get` | `get_text` 的别名 |
+| `get_text` | 已废弃，请改用 `get` |
+| `get` | 双模式取值：CSS 选择器 → UI 元素文本（低级补充）；变量名 → 命名变量读取（主路径） |
 | `screenshot` | 手动截图 |
 
 ### B. 接口关键字
