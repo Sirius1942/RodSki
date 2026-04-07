@@ -1462,3 +1462,12 @@ test:
 ---
 
 *文档版本: v4.0 | 最后更新: 2026-04-05*
+
+## 统一运行时上下文约束（§10）
+
+- 每个 case 独立一个 `RuntimeContext`，不跨 case 共享
+- 所有关键字执行后必须写入 `history`（步骤链连续约束）
+- `named` 通过 `set` 写入，通过 `get`（命名访问模式）读取
+- `auto_capture` 是模型能力，规则定义在模型文件中，不在 case 步骤中声明
+- 返回值来源优先级：auto_capture > get_named > evaluate > keyword_result
+- `evaluate` 仅支持 Web 驱动，是低优先级逃生舱，不替代主路径能力

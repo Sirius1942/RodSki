@@ -514,3 +514,42 @@ else:
 
 **文档版本**: v2.0
 **最后更新**: 2026-04-05
+
+## execution_summary.json 消费说明
+
+每次 case 执行完成后，结果目录下生成 `execution_summary.json`，结构如下：
+
+```json
+{
+  "case": "TC001",
+  "steps": [
+    {
+      "index": 1,
+      "action": "type",
+      "model": "InquiryCreate",
+      "status": "ok",
+      "return_source": "auto_capture",
+      "return_value": {"inquiryNo": "XJ001"},
+      "named_writes": {}
+    }
+  ],
+  "context_snapshot": {
+    "named": {"inquiryNo": "XJ001"}
+  }
+}
+```
+
+### return_source 字段含义
+
+| 值 | 含义 |
+|----|------|
+| `keyword_result` | 关键字直接返回值（True/list/dict） |
+| `auto_capture` | 模型 auto_capture 规则自动提取 |
+| `get_named` | get 命名访问模式读取 context.named |
+| `evaluate` | evaluate JS 表达式返回值 |
+
+### AI Agent 判断用例质量的参考指标
+
+- `return_source=auto_capture` 比例越高，用例越符合框架推荐范式
+- `return_source=evaluate` 出现说明用了低优先级逃生舱，可建议改用 auto_capture
+- `context_snapshot.named` 为空说明用例未使用命名变量，可能存在步骤间数据传递问题
