@@ -211,3 +211,18 @@ class ResultWriter:
 
     def get_summary(self) -> ExecutionSummary:
         return self._summary
+
+
+def write_execution_summary(result_dir: Path, case_id: str, steps: list, context_named: dict) -> None:
+    """写入 execution_summary.json 到结果目录"""
+    import json
+    summary = {
+        "case": case_id,
+        "steps": steps,
+        "context_snapshot": {"named": context_named},
+    }
+    out_path = Path(result_dir) / "execution_summary.json"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(out_path, 'w', encoding='utf-8') as f:
+        json.dump(summary, f, ensure_ascii=False, indent=2, default=str)
+    logger.info(f"execution_summary.json 已写入: {out_path}")
