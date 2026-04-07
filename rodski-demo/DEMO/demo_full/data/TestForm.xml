@@ -5,6 +5,11 @@
         <field name="role">admin</field>
         <field name="submitBtn">click</field>
     </row>
+    <row id="T002">
+        <field name="username">testuser2</field>
+        <field name="role">user</field>
+        <field name="submitBtn">click</field>
+    </row>
     <row id="V001">
         <field name="formResult">提交成功</field>
     </row>

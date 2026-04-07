@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datatable name="DemoFormVerify_verify">
+    <row id="V001" remark="验证auto_capture提取resultId">
+        <field name="resultId">${Return[-1].resultId}</field>
+    </row>
+</datatable>

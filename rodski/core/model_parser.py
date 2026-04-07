@@ -80,7 +80,28 @@ class ModelParser:
                 if element_info:
                     elements[element_name] = element_info
             
+            # Parse auto_capture nodes
+            auto_capture_type = None
+            auto_capture_send = None
+            for ac_node in model_node.findall('auto_capture'):
+                trigger = ac_node.get('trigger', '')
+                fields = []
+                for field_node in ac_node.findall('field'):
+                    name = field_node.get('name', '')
+                    path = field_node.get('path', '')
+                    loc_node = field_node.find('location')
+                    if path:
+                        fields.append({'name': name, 'path': path})
+                    elif loc_node is not None:
+                        fields.append({'name': name, 'type': loc_node.get('type', 'id'), 'value': loc_node.text or ''})
+                if trigger == 'type':
+                    auto_capture_type = fields
+                elif trigger == 'send':
+                    auto_capture_send = fields
+
             models[model_name] = elements
+            models[model_name]['__auto_capture_type__'] = auto_capture_type
+            models[model_name]['__auto_capture_send__'] = auto_capture_send
         return models
 
     def _parse_element(self, elem_node) -> Optional[Dict]:
@@ -209,6 +230,11 @@ class ModelParser:
             'element_type': element.get('element_type', ''),
             'locations': element.get('locations', []),
         }
+
+    def get_auto_capture(self, model_name: str, trigger: str) -> list:
+        """返回模型的 auto_capture 规则列表，无则返回空列表"""
+        model = self.models.get(model_name, {})
+        return model.get(f'__auto_capture_{trigger}__') or []
 
     def get_model(self, model_name: str) -> Optional[Dict[str, Dict[str, str]]]:
         """获取整个模型的所有元素"""
