@@ -40,7 +40,7 @@ class KeywordEngine:
     
     SUPPORTED = [
         "close", "type", "verify", "wait", "navigate", "launch",
-        "assert",
+        "assert", "evaluate",
         "upload_file", "clear", "get_text", "get",
         "send", "set", "DB", "run",
     ]
@@ -62,6 +62,7 @@ class KeywordEngine:
                  module_dir: Optional[str] = None):
         self.driver = driver
         self._driver_factory = driver_factory
+        self._desktop_drivers: Dict[str, Any] = {}  # 按类型缓存的桌面驱动
         self._variables: Dict[str, Any] = {}
         self._return_values: list = []
         self.model_parser = model_parser
@@ -75,6 +76,46 @@ class KeywordEngine:
         # 初始化重试配置
         self._retry_config = {**self.DEFAULT_RETRY_CONFIG, **(retry_config or {})}
         self._retry_stats: Dict[str, List[int]] = {}
+
+    # ── 驱动自动路由 ──────────────────────────────────────────────
+
+    DESKTOP_DRIVER_TYPES = {"macos", "windows", "other"}
+
+    def _get_driver_for_type(self, driver_type: str) -> BaseDriver:
+        """根据 driver_type 返回对应的驱动实例
+
+        遵循设计约束：驱动类型由模型元素的 type 属性决定。
+        - web/interface → 使用 self.driver（PlaywrightDriver/InterfaceDriver）
+        - macos/windows/other → 懒加载创建 DesktopDriver 并缓存
+        """
+        if driver_type not in self.DESKTOP_DRIVER_TYPES:
+            return self.driver
+
+        # 已缓存则返回
+        if driver_type in self._desktop_drivers:
+            return self._desktop_drivers[driver_type]
+
+        # 尝试通过 driver_factory 创建
+        if self._driver_factory:
+            try:
+                desktop_driver = self._driver_factory(driver_type=driver_type)
+                self._desktop_drivers[driver_type] = desktop_driver
+                logger.info(f"自动创建桌面驱动: {driver_type}")
+                return desktop_driver
+            except Exception as e:
+                logger.warning(f"通过 driver_factory 创建桌面驱动失败: {e}")
+
+        # 回退：直接创建 DesktopDriver
+        try:
+            from drivers.desktop_driver import DesktopDriver
+            desktop_driver = DesktopDriver(target_platform=driver_type if driver_type != "other" else None)
+            self._desktop_drivers[driver_type] = desktop_driver
+            logger.info(f"直接创建桌面驱动: {driver_type}")
+            return desktop_driver
+        except ImportError:
+            raise DriverError(
+                "DesktopDriver 不可用，请确认 pyautogui 已安装: pip install pyautogui"
+            )
 
     @monitor_performance
     def execute(self, keyword: str, params: Dict[str, Any]) -> bool:
@@ -238,6 +279,30 @@ class KeywordEngine:
             return self._return_values[index]
         except IndexError:
             return None
+
+    def _get_nested_return(self, data: Any, path: str) -> Any:
+        """从 Return 值中按点号路径获取嵌套字段
+
+        Args:
+            data: Return 值（通常为 dict）
+            path: 字段路径，如 "data.inquiryId" 或 "code"
+        """
+        if not isinstance(data, dict):
+            return data
+        # 先尝试直接 key
+        if path in data:
+            return data[path]
+        # 再按点号路径导航
+        keys = path.split('.')
+        current = data
+        for key in keys:
+            if isinstance(current, dict):
+                current = current.get(key)
+            else:
+                return None
+            if current is None:
+                return None
+        return current
 
     # ── 多定位器支持 ─────────────────────────────────────────────
 
@@ -491,22 +556,23 @@ class KeywordEngine:
 
         return result
 
-    def _execute_element_action(self, value: str, locator: str, element_name: str):
+    def _execute_element_action(self, value: str, locator: str, element_name: str, driver=None):
         """检查数据表值是否为 UI 动作关键字，是则执行对应操作。
 
-        Returns:
-            (action_name, element_name, result) 或 None（表示不是动作，应当作文本输入）
+        Args:
+            driver: 指定驱动实例，默认使用 self.driver
         """
+        target_driver = driver or self.driver
         value_lower = value.strip().lower()
 
         # 简单动作：值恰好等于关键字名
         if value_lower in self.ELEMENT_ACTIONS:
             action_map = {
-                'click': self.driver.click_locator,
-                'double_click': self.driver.double_click_locator,
-                'right_click': self.driver.right_click_locator,
-                'hover': self.driver.hover_locator,
-                'scroll': lambda loc: self.driver.scroll(0, 300),
+                'click': target_driver.click_locator,
+                'double_click': target_driver.double_click_locator if hasattr(target_driver, 'double_click_locator') else target_driver.click_locator,
+                'right_click': target_driver.right_click_locator if hasattr(target_driver, 'right_click_locator') else target_driver.click_locator,
+                'hover': target_driver.hover_locator if hasattr(target_driver, 'hover_locator') else target_driver.click_locator,
+                'scroll': lambda loc: target_driver.scroll(0, 300),
             }
             fn = action_map[value_lower]
             logger.debug(f"{element_name}: {value_lower} {locator}")
@@ -519,7 +585,7 @@ class KeywordEngine:
                 logger.warning(f"{element_name}: key_press 缺少按键参数，格式应为 key_press【按键】")
                 return None
             logger.debug(f"{element_name}: 按键 '{key}'")
-            return ('key_press', element_name, self.driver.key_press(key))
+            return ('key_press', element_name, target_driver.key_press(key))
 
         # 带参数的动作：select【选项值】
         if value_lower.startswith('select'):
@@ -527,7 +593,7 @@ class KeywordEngine:
             if not select_value:
                 return None
             logger.debug(f"{element_name}: 选择 {locator} = '{select_value}'")
-            return ('select', element_name, self.driver.select(locator, select_value))
+            return ('select', element_name, target_driver.select(locator, select_value))
 
         # 带参数的动作：drag【目标定位器】
         if value_lower.startswith('drag'):
@@ -535,7 +601,7 @@ class KeywordEngine:
             if not target:
                 return None
             logger.debug(f"{element_name}: 拖拽 {locator} -> {target}")
-            return ('drag', element_name, self.driver.drag(locator, target))
+            return ('drag', element_name, target_driver.drag(locator, target))
 
         # 带参数的动作：scroll【x,y】
         if value_lower.startswith('scroll'):
@@ -544,7 +610,7 @@ class KeywordEngine:
             x = int(parts[0].strip()) if len(parts) > 0 and parts[0].strip() else 0
             y = int(parts[1].strip()) if len(parts) > 1 and parts[1].strip() else 300
             logger.debug(f"{element_name}: 滚动 ({x}, {y})")
-            return ('scroll', element_name, self.driver.scroll(x, y))
+            return ('scroll', element_name, target_driver.scroll(x, y))
 
         return None
 
@@ -618,23 +684,61 @@ class KeywordEngine:
                     continue
 
             resolved_values[element_name] = value
-            locator_type = element_info['type']
-            locator_value = element_info['value']
-            locator = f"{locator_type}={locator_value}"
 
-            # 尝试作为 UI 动作执行
-            action_result = self._execute_element_action(value, locator, element_name)
-            if action_result is not None:
-                operations.append(action_result)
-            else:
-                # 普通文本输入
-                display_value = value
-                if value.endswith('.Password'):
-                    value = value[:-9]
-                    display_value = '***'
-                logger.debug(f"{element_name}: {locator} <- '{display_value}'")
-                result = self.driver.type_locator(locator, value)
-                operations.append(('type', element_name, result))
+            # ── 根据 driver_type 选择驱动 ──
+            target_driver = self._get_driver_for_type(driver_type)
+
+            # ── 多定位器支持：从 locations 列表按 priority 依次尝试 ──
+            locations = element_info.get('locations', [])
+            if not locations:
+                locations = [{"type": element_info['type'], "value": element_info['value'], "priority": 1}]
+            sorted_locations = sorted(locations, key=lambda x: x.get("priority", 1))
+
+            op_done = False
+            last_error = None
+
+            for loc in sorted_locations:
+                locator_type = loc["type"]
+                locator_value = loc["value"]
+                locator = f"{locator_type}={locator_value}"
+
+                try:
+                    # 尝试作为 UI 动作执行
+                    action_result = self._execute_element_action(value, locator, element_name, driver=target_driver)
+                    if action_result is not None:
+                        operations.append(action_result)
+                        op_done = True
+                        logger.debug(f"  ↳ 定位器 {locator} 成功 (priority={loc.get('priority',1)})")
+                        break
+
+                    # 普通文本输入
+                    display_value = value
+                    input_value = value
+                    if input_value.endswith('.Password'):
+                        input_value = input_value[:-9]
+                        display_value = '***'
+                    logger.debug(f"{element_name}: {locator} <- '{display_value}'")
+                    result = target_driver.type_locator(locator, input_value)
+                    if result:
+                        operations.append(('type', element_name, True))
+                        op_done = True
+                        logger.debug(f"  ↳ 定位器 {locator} 成功 (priority={loc.get('priority',1)})")
+                        break
+                    else:
+                        operations.append(('type', element_name, False))
+                        logger.debug(f"  ↳ 定位器 {locator} 失败，尝试下一个...")
+                except Exception as e:
+                    last_error = e
+                    logger.debug(f"  ↳ 定位器 {locator} 异常: {e}，尝试下一个...")
+                    continue
+
+            if not op_done:
+                # 所有定位器都失败
+                tried = ", ".join(f"{l['type']}={l['value']}" for l in sorted_locations)
+                if last_error:
+                    raise DriverError(f"元素 '{element_name}' 所有定位器均失败 [{tried}]: {last_error}")
+                else:
+                    raise DriverError(f"元素 '{element_name}' 所有定位器均失败 [{tried}]")
         
         failed_ops = [op for op in operations if not op[2]]
         if failed_ops:
@@ -670,6 +774,20 @@ class KeywordEngine:
                 reason="send 需要 model_parser 和 data_manager（请通过 SKIExecutor 执行）"
             )
         return self._batch_send(model_name, data_ref)
+
+    @staticmethod
+    def _try_parse_json_value(value: str):
+        """尝试将字符串解析为 JSON 对象/数组，失败则返回原始字符串"""
+        if not isinstance(value, str):
+            return value
+        stripped = value.strip()
+        if stripped and stripped[0] in ('[', '{'):
+            try:
+                import json
+                return json.loads(stripped)
+            except (ValueError, TypeError):
+                pass
+        return value
 
     def _batch_send(self, model_name: str, data_ref: str) -> bool:
         """批量发送接口请求：从模型和数据表组装 HTTP 请求
@@ -736,7 +854,8 @@ class KeywordEngine:
                 elif value_upper == 'NONE':
                     continue
                 else:
-                    body[element_name] = value
+                    # 自动解析 JSON 格式的值（数组或对象）
+                    body[element_name] = self._try_parse_json_value(value)
 
         if not url:
             raise InvalidParameterError(
@@ -745,12 +864,21 @@ class KeywordEngine:
             )
 
         from api.rest_helper import RestHelper
+
+        # 从浏览器获取 cookies 以共享登录态
+        browser_cookies = None
+        if hasattr(self.driver, 'get_cookies'):
+            browser_cookies = self.driver.get_cookies()
+            if browser_cookies:
+                logger.debug(f"携带 {len(browser_cookies)} 个浏览器 cookies")
+
         try:
             if method in ('POST', 'PUT', 'PATCH'):
                 response = RestHelper.send_request(
                     method=method, url=url,
                     headers=headers or None,
                     body=body if body else None,
+                    cookies=browser_cookies,
                 )
             else:
                 if body:
@@ -760,6 +888,7 @@ class KeywordEngine:
                 response = RestHelper.send_request(
                     method=method, url=url,
                     headers=headers or None,
+                    cookies=browser_cookies,
                 )
         except Exception as e:
             raise DriverError(f"HTTP {method} 请求失败: {url} - {e}")
@@ -771,8 +900,10 @@ class KeywordEngine:
                 result_data.update(json_body)
             else:
                 result_data["body"] = json_body
+            logger.debug(f"响应体: {json_body}")
         except (ValueError, TypeError):
             result_data["body"] = response.text
+            logger.debug(f"响应文本(前500字): {response.text[:500]}")
 
         self.store_return(result_data)
         logger.info(f"HTTP {method} {url} → {response.status_code}")
@@ -1096,10 +1227,10 @@ class KeywordEngine:
         """批量验证：遍历模型元素，读取界面/接口实际值，与期望值比较
 
         数据引用格式: verify ModelName DataID
-        - 数据表名 = ModelName_verify（自动拼接）
+        - 数据表名 = ModelName_verify（自动拼接，若已含 _verify 则不重复拼接）
         - data_ref 直接就是 DataID
         """
-        table_name = f"{model_name}_verify"
+        table_name = f"{model_name}_verify" if not model_name.endswith("_verify") else model_name
         data_id = data_ref
 
         model = self.model_parser.get_model(model_name)
@@ -1167,7 +1298,9 @@ class KeywordEngine:
             else:
                 last_return = self.get_return(-1)
                 if isinstance(last_return, dict):
-                    actual_str = str(last_return.get(element_name, ""))
+                    # 支持嵌套字段: element value="data.inquiryId" → last_return["data"]["inquiryId"]
+                    actual_val = self._get_nested_return(last_return, locator_value or element_name)
+                    actual_str = str(actual_val) if actual_val is not None else ""
                 else:
                     actual_str = str(last_return) if last_return is not None else ""
 
@@ -1209,11 +1342,36 @@ class KeywordEngine:
         return result
 
     def _kw_get_text(self, params: Dict) -> bool:
-        """获取文本"""
+        """获取文本
+
+        支持两种格式：
+        - 定位器格式: get_text | css=.inquiry-no
+        - 坐标格式: get_text | x1,y1,x2,y2
+        """
         locator = params.get("locator", "") or params.get("data", "")
         var_name = params.get("var_name", "")
         logger.info(f"获取文本: {locator}")
-        text = self.driver.get_text(locator)
+
+        text = None
+        # 判断是否为坐标格式（4个数字，逗号分隔）
+        is_coordinate = False
+        if locator:
+            parts = locator.replace('，', ',').split(',')
+            if len(parts) == 4:
+                try:
+                    [int(p.strip()) for p in parts]
+                    is_coordinate = True
+                except ValueError:
+                    pass
+
+        if is_coordinate:
+            parts = [int(p.strip()) for p in locator.replace('，', ',').split(',')]
+            text = self.driver.get_text(*parts)
+        elif hasattr(self.driver, 'get_text_locator'):
+            text = self.driver.get_text_locator(locator)
+        else:
+            text = self.driver.get_text(locator)
+
         if text is not None:
             logger.debug(f"获取到文本: '{text}'")
             if var_name:
@@ -1222,6 +1380,39 @@ class KeywordEngine:
             return True
         self.store_return(None)
         return False
+
+    def _kw_evaluate(self, params: Dict) -> bool:
+        """在浏览器中执行 JavaScript 表达式并存储返回值
+
+        用法: evaluate | javascript_expression
+        表达式结果会自动 store_return，后续步骤通过 ${Return[-N]} 引用。
+        """
+        expression = params.get("expression", "") or params.get("data", "")
+        if not expression:
+            raise InvalidParameterError(
+                keyword="evaluate",
+                param_name="expression",
+                reason="缺少 JavaScript 表达式"
+            )
+
+        # 先解析表达式中的 Return 引用
+        if self.data_resolver:
+            expression = self.data_resolver.resolve_with_return(expression)
+
+        logger.info(f"执行 JS: {expression[:200]}")
+
+        if not self.driver or not hasattr(self.driver, 'page'):
+            raise DriverError("evaluate 需要浏览器驱动支持")
+
+        try:
+            result = self.driver.page.evaluate(expression)
+        except Exception as e:
+            raise DriverError(f"JavaScript 执行失败: {e}")
+
+        result_str = str(result) if result is not None else ""
+        logger.info(f"JS 结果: {result_str[:200]}")
+        self.store_return(result_str)
+        return True
 
     def _kw_upload_file(self, params: Dict) -> bool:
         """上传文件"""

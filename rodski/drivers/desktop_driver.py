@@ -585,6 +585,81 @@ class DesktopDriver(BaseDriver):
         pyautogui = self._get_pyautogui()
         return pyautogui.position()
 
+    # ── Locator 桥接方法（兼容 KeywordEngine._batch_type 调用） ──────────
+
+    def _parse_locator(self, locator: str) -> Tuple[str, str]:
+        """解析 locator 字符串为 (type, value)
+
+        支持格式:
+            "vision_bbox=100,200,150,250"  → ("vision_bbox", "100,200,150,250")
+            "vision=登录按钮"               → ("vision", "登录按钮")
+            "ocr=搜索"                      → ("ocr", "搜索")
+            "id=userName"                   → ("id", "userName")
+            "css=.btn"                      → ("css", ".btn")
+        """
+        if '=' in locator:
+            loc_type, loc_value = locator.split('=', 1)
+            return loc_type.strip(), loc_value.strip()
+        raise DriverError(f"无法解析 locator 格式: {locator}")
+
+    def _locator_to_center(self, locator: str) -> Optional[Tuple[int, int]]:
+        """将 locator 解析并定位，返回中心坐标 (x, y)"""
+        loc_type, loc_value = self._parse_locator(locator)
+
+        # vision_bbox 可以直接从坐标计算，不需要截图定位
+        if loc_type == 'vision_bbox':
+            parts = loc_value.split(',')
+            if len(parts) == 4:
+                x1, y1, x2, y2 = int(parts[0]), int(parts[1]), int(parts[2]), int(parts[3])
+                return ((x1 + x2) // 2, (y1 + y2) // 2)
+
+        # 其他类型通过 locate_element 定位
+        bbox = self.locate_element(loc_type, loc_value)
+        if bbox:
+            x1, y1, x2, y2 = bbox
+            return ((x1 + x2) // 2, (y1 + y2) // 2)
+        return None
+
+    def click_locator(self, locator: str, **kwargs) -> bool:
+        """点击元素（通过 locator 字符串）
+
+        兼容 KeywordEngine._batch_type 的 click 操作调用。
+        """
+        center = self._locator_to_center(locator)
+        if center is None:
+            return False
+        self.click(center[0], center[1])
+        return True
+
+    def type_locator(self, locator: str, text: str, **kwargs) -> bool:
+        """输入文本（通过 locator 字符串）
+
+        兼容 KeywordEngine._batch_type 的文本输入调用。
+        """
+        center = self._locator_to_center(locator)
+        if center is None:
+            return False
+        self.type_text(center[0], center[1], text)
+        return True
+
+    def screenshot(self, path: str, **kwargs) -> bool:
+        """截图并保存到指定路径"""
+        try:
+            pyautogui = self._get_pyautogui()
+            screenshot = pyautogui.screenshot()
+            # 确保目录存在
+            Path(path).parent.mkdir(parents=True, exist_ok=True)
+            screenshot.save(path)
+            logger.info(f"截图已保存: {path}")
+            return True
+        except Exception as e:
+            logger.error(f"截图失败: {e}")
+            return False
+
+    def navigate(self, url: str, **kwargs) -> bool:
+        """Desktop 驱动不支持 navigate，抛出明确错误"""
+        raise DriverError("DesktopDriver 不支持 navigate，请使用 launch 启动应用")
+
 
 class _PlaceholderVisionProvider:
     """占位视觉定位器

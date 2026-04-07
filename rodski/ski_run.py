@@ -25,8 +25,15 @@ from core.logger import Logger
 from drivers.playwright_driver import PlaywrightDriver
 
 
-def create_driver(headless: bool = False, browser: str = "chromium"):
-    """驱动工厂函数：创建新的 Playwright 驱动"""
+def create_driver(headless: bool = False, browser: str = "chromium", driver_type: str = "web"):
+    """驱动工厂函数：根据类型创建对应的驱动实例
+
+    驱动类型由模型元素的 type 属性决定（设计约束），
+    此函数由 KeywordEngine 按需调用。
+    """
+    if driver_type in ("macos", "windows"):
+        from drivers.desktop_driver import DesktopDriver
+        return DesktopDriver(target_platform=driver_type)
     return PlaywrightDriver(headless=headless, browser=browser)
 
 
@@ -92,7 +99,9 @@ def main():
     executor = SKIExecutor(
         str(case_path),
         driver,
-        driver_factory=lambda: create_driver(headless=args.headless, browser=args.browser),
+        driver_factory=lambda driver_type="web": create_driver(
+            headless=args.headless, browser=args.browser, driver_type=driver_type
+        ),
         module_dir=str(module_dir),
     )
     results = executor.execute_all_cases()

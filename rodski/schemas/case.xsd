@@ -120,6 +120,7 @@
       <xs:enumeration value="run"/>
       <xs:enumeration value="check"/>
       <xs:enumeration value="screenshot"/>
+      <xs:enumeration value="evaluate"/>
     </xs:restriction>
   </xs:simpleType>
 
