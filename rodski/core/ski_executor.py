@@ -26,7 +26,7 @@ from core.model_parser import ModelParser
 from core.data_table_parser import DataTableParser
 from core.global_value_parser import GlobalValueParser
 from core.case_parser import CaseParser
-from core.result_writer import ResultWriter
+from core.result_writer import ResultWriter, write_execution_summary
 from core.config_manager import ConfigManager
 from data.data_resolver import DataResolver
 from core.keyword_engine import KeywordEngine
@@ -148,10 +148,10 @@ class SKIExecutor:
         )
         self.keyword_engine.data_resolver = self.data_resolver
 
-        # 初始化动态执行器（与 keyword_engine 共享 _return_values）
+        # 初始化动态执行器（与 keyword_engine 共享 RuntimeContext.history）
         self.dynamic_executor = DynamicExecutor(
             self.data_resolver,
-            return_values=self.keyword_engine._return_values,
+            return_values=self.keyword_engine._context.history,
         )
 
         # 连接关键字引擎的变量存储到动态执行器
@@ -258,6 +258,7 @@ class SKIExecutor:
         """
         start = time.time()
         screenshot_path = None
+        self._current_case_steps_log = []
         resources_snapshot = self._snapshot_runtime_resources()
 
         # 保存当前 case 的 step_wait 配置（优先级高于全局配置）
@@ -314,6 +315,13 @@ class SKIExecutor:
                 component_type = case.get('component_type', '界面')
                 if self.auto_screenshot and not self._driver_closed and component_type == '界面':
                     screenshot_path = self._take_failure_screenshot(case['case_id'])
+                if self.result_writer.current_run_dir:
+                    write_execution_summary(
+                        self.result_writer.current_run_dir,
+                        case['case_id'],
+                        self._current_case_steps_log,
+                        dict(self.keyword_engine._context.named),
+                    )
                 return {
                     'case_id': case['case_id'],
                     'title': case.get('title', ''),
@@ -324,6 +332,13 @@ class SKIExecutor:
                 }
 
             if self._runtime_stopped_graceful:
+                if self.result_writer.current_run_dir:
+                    write_execution_summary(
+                        self.result_writer.current_run_dir,
+                        case['case_id'],
+                        self._current_case_steps_log,
+                        dict(self.keyword_engine._context.named),
+                    )
                 return {
                     'case_id': case['case_id'],
                     'title': case.get('title', ''),
@@ -333,6 +348,13 @@ class SKIExecutor:
                     'screenshot_path': '',
                 }
 
+            if self.result_writer.current_run_dir:
+                write_execution_summary(
+                    self.result_writer.current_run_dir,
+                    case['case_id'],
+                    self._current_case_steps_log,
+                    dict(self.keyword_engine._context.named),
+                )
             return {
                 'case_id': case['case_id'],
                 'title': case.get('title', ''),
@@ -497,6 +519,8 @@ class SKIExecutor:
         data = step['data']
 
         resolved_data = self.data_resolver.resolve(data)
+        history_before = len(self.keyword_engine._context.history)
+        named_before = dict(self.keyword_engine._context.named)
 
         if data and resolved_data != data:
             logger.debug(f"数据解析: '{data}' -> '{resolved_data}'")
@@ -511,6 +535,31 @@ class SKIExecutor:
         else:
             params = {'model': model, 'data': resolved_data}
             self.keyword_engine.execute(action, params)
+
+        history_after = self.keyword_engine._context.history
+        last_return = history_after[-1] if len(history_after) > history_before else None
+        named_after = dict(self.keyword_engine._context.named)
+        named_writes = {k: v for k, v in named_after.items() if named_before.get(k) != v}
+        if isinstance(last_return, dict) and '_capture' in last_return:
+            return_source = 'auto_capture'
+        elif action.lower() == 'type' and model and self.model_parser and self.model_parser.get_auto_capture(model, 'type'):
+            return_source = 'auto_capture'
+        elif action.lower() == 'evaluate':
+            return_source = 'evaluate'
+        elif action.lower() == 'get' and model == '' and resolved_data and not resolved_data.startswith(('#', '.', '//', 'css=', 'xpath=', 'id=', 'text=')):
+            return_source = 'get_named'
+        else:
+            return_source = 'keyword_result'
+        self._current_case_steps_log.append({
+            'index': len(self._current_case_steps_log) + 1,
+            'action': action,
+            'model': model,
+            'phase': step_type,
+            'status': 'ok',
+            'return_source': return_source,
+            'return_value': last_return,
+            'named_writes': named_writes,
+        })
 
         if action.lower() == 'close':
             self._driver_closed = True

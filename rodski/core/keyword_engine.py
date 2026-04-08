@@ -902,6 +902,8 @@ class KeywordEngine:
         body = {}
 
         for element_name, element_info in model.items():
+            if element_name.startswith('__'):
+                continue
             if element_name in data_row:
                 value = str(data_row[element_name])
                 if self.data_resolver:
@@ -1383,7 +1385,15 @@ class KeywordEngine:
             locator = f"{locator_type}={locator_value}"
 
             if driver_type == 'web':
-                actual = self.driver.get_text(locator)
+                if hasattr(self.driver, 'get_text_locator'):
+                    if locator_type == 'id':
+                        actual = self.driver.get_text_locator(f"#{locator_value}")
+                    elif locator_type == 'css':
+                        actual = self.driver.get_text_locator(locator_value)
+                    else:
+                        actual = self.driver.get_text_locator(locator)
+                else:
+                    actual = self.driver.get_text(locator)
                 actual_str = str(actual) if actual is not None else ""
             else:
                 last_return = self.get_return(-1)
@@ -1449,13 +1459,23 @@ class KeywordEngine:
 
     def _get_model_mode(self, model_name: str, data_ref: str) -> bool:
         """模型模式：按模型元素定位，读取各元素文本，返回 dict"""
-        elements = self.model_parser.get_elements(model_name)
+        model = self.model_parser.get_model(model_name) or {}
         result = {}
-        for elem in elements:
-            locator = elem.get("value", "")
-            name = elem.get("name", locator)
+        for name, elem in model.items():
+            if name.startswith('__'):
+                continue
+            locator_type = elem.get("type", "")
+            locator_value = elem.get("value", "")
             try:
-                text = self.driver.get_text_locator(locator) if hasattr(self.driver, "get_text_locator") else self.driver.get_text(locator)
+                if hasattr(self.driver, "get_text_locator"):
+                    if locator_type == 'id':
+                        text = self.driver.get_text_locator(f"#{locator_value}")
+                    elif locator_type == 'css':
+                        text = self.driver.get_text_locator(locator_value)
+                    else:
+                        text = self.driver.get_text_locator(f"{locator_type}={locator_value}")
+                else:
+                    text = self.driver.get_text(f"{locator_type}={locator_value}")
                 result[name] = text
             except Exception as e:
                 logger.warning(f"get 模型模式: 元素 {name} 读取失败: {e}")
@@ -1558,6 +1578,8 @@ class KeywordEngine:
         key = key.strip()
         if not key:
             raise InvalidParameterError(keyword="set", param_name="data", reason="key 不能为空")
+        if self.data_resolver:
+            value = self.data_resolver.resolve_with_return(value)
         logger.info(f"set: {key} = '{value}'")
         self._context.named[key] = value
         self.store_return(value)

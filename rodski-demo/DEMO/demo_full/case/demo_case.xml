@@ -104,6 +104,16 @@
         </post_process>
     </case>
 
+    <!-- TC009A: history连续性测试 -->
+    <case execute="是" id="TC009A" title="history连续性测试" component_type="界面">
+        <test_case>
+            <test_step action="navigate" model="" data="http://localhost:8000"/>
+            <test_step action="type" model="LoginForm" data="L001"/>
+            <test_step action="verify" model="Dashboard" data="V001"/>
+            <test_step action="close" model="" data=""/>
+        </test_case>
+    </case>
+
     <!-- TC010: set/get命名访问测试 -->
     <case execute="是" id="TC010" title="set/get命名访问测试" component_type="界面">
         <pre_process>
@@ -142,7 +152,7 @@
     </case>
 
     <!-- TC012: evaluate结构化返回测试 -->
-    <case execute="否" id="TC012" title="evaluate结构化返回测试" component_type="界面">
+    <case execute="是" id="TC012" title="evaluate结构化返回测试" component_type="界面">
         <pre_process>
             <test_step action="navigate" model="" data="http://localhost:8000"/>
         </pre_process>
@@ -155,8 +165,32 @@
         </post_process>
     </case>
 
+    <!-- TC012A: get不存在key报错测试 -->
+    <case execute="是" id="TC012A" title="get不存在key报错测试" component_type="界面">
+        <test_case>
+            <test_step action="get" model="" data="undefined_key"/>
+        </test_case>
+    </case>
+
+    <!-- TC012B: get模型模式测试 -->
+    <case execute="是" id="TC012B" title="get模型模式测试" component_type="界面">
+        <pre_process>
+            <test_step action="navigate" model="" data="http://localhost:8000"/>
+            <test_step action="type" model="LoginForm" data="L001"/>
+            <test_step action="type" model="NavMenu" data="N001"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="TestForm" data="T001"/>
+            <test_step action="get" model="GetModel" data="G001"/>
+            <test_step action="verify" model="GetModelVerify" data="V001"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
     <!-- TC013: AC12-001 type Auto Capture -->
-    <case execute="否" id="TC013" title="type Auto Capture测试" component_type="界面">
+    <case execute="是" id="TC013" title="type Auto Capture测试" component_type="界面">
         <pre_process>
             <test_step action="navigate" model="" data="http://localhost:8000"/>
             <test_step action="type" model="LoginForm" data="L001"/>
@@ -179,17 +213,32 @@
         </test_case>
     </case>
 
-    <!-- TC015: AC13-001 Info模式日志 + execution_summary -->
-    <case execute="否" id="TC015" title="结构化日志验证" component_type="界面">
+    <!-- TC014A: AC12-002 type Auto Capture失败 -->
+    <case execute="是" id="TC014A" title="type Auto Capture失败测试" component_type="界面">
         <pre_process>
             <test_step action="navigate" model="" data="http://localhost:8000"/>
             <test_step action="type" model="LoginForm" data="L001"/>
             <test_step action="type" model="NavMenu" data="N001"/>
         </pre_process>
         <test_case>
-            <test_step action="type" model="TestForm" data="T001"/>
-            <test_step action="set" model="" data="saved_result=${Return[-1]}"/>
-            <test_step action="get" model="" data="saved_result"/>
+            <test_step action="type" model="DemoFormBadCapture" data="F001"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <!-- TC015: AC13-001 Info模式日志 + execution_summary -->
+    <case execute="是" id="TC015" title="结构化日志验证" component_type="界面">
+        <pre_process>
+            <test_step action="navigate" model="" data="http://localhost:8000"/>
+            <test_step action="type" model="LoginForm" data="L001"/>
+            <test_step action="type" model="NavMenu" data="N001"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="DemoForm" data="F001"/>
+            <test_step action="set" model="" data="saved_id=${Return[-1].resultId}"/>
+            <test_step action="get" model="" data="saved_id"/>
         </test_case>
         <post_process>
             <test_step action="close" model="" data=""/>

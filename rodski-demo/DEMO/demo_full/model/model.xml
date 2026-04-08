@@ -197,4 +197,18 @@
         <field name="token" path="data.token"/>
     </auto_capture>
 </model>
+
+<model name="GetModel" servicename="">
+    <element name="formResult" type="web">
+        <type>text</type>
+        <location type="id">formResult</location>
+    </element>
+</model>
+
+<model name="GetModelVerify" servicename="">
+    <element name="formResult" type="web">
+        <type>text</type>
+        <location type="id">formResult</location>
+    </element>
+</model>
 </models>

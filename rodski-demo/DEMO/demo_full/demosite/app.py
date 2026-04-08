@@ -1,11 +1,17 @@
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 import uvicorn
 from pathlib import Path
 import sqlite3
 
 app = FastAPI()
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
 
 db_path = Path(__file__).parent.parent / "demo.db"
 
@@ -14,10 +20,15 @@ async def read_root():
     return FileResponse(Path(__file__).parent / "index.html")
 
 @app.post("/api/login")
-async def login(username: str, password: str):
-    if username == "admin" and password == "123456":
-        return {"success": True, "token": "demo_token_123", "message": "登录成功"}
-    return {"success": False, "message": "用户名或密码错误"}
+async def login(payload: LoginRequest):
+    if payload.username == "admin" and payload.password == "123456":
+        return {
+            "success": True,
+            "status": 200,
+            "data": {"token": "demo_token_123"},
+            "message": "登录成功"
+        }
+    return {"success": False, "status": 401, "message": "用户名或密码错误"}
 
 @app.get("/api/orders")
 async def get_orders():
