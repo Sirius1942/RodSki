@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datatable name="GetModelVerify_verify">
+    <row id="V001" remark="验证get模型模式返回dict">
+        <field name="formResult">${Return[-1].formResult}</field>
+    </row>
+</datatable>

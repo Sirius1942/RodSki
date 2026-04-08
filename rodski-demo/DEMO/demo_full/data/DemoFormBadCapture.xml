@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datatable name="DemoFormBadCapture">
+    <row id="F001" remark="触发错误auto_capture">
+        <field name="username">testuser</field>
+        <field name="submitBtn">click</field>
+    </row>
+</datatable>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases step_wait="500">
+    <case execute="是" id="TC015" title="结构化日志验证" component_type="界面">
+        <pre_process>
+            <test_step action="navigate" model="" data="http://localhost:8000"/>
+            <test_step action="type" model="LoginForm" data="L001"/>
+            <test_step action="type" model="NavMenu" data="N001"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="DemoForm" data="F001"/>
+            <test_step action="set" model="" data="saved_id=${Return[-1].resultId}"/>
+            <test_step action="get" model="" data="saved_id"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+</cases>

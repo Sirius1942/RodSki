@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datatable name="ReturnHistory_verify">
+    <row id="V001" remark="验证history连续性中的verify返回">
+        <field name="formResult">提交成功</field>
+    </row>
+</datatable>

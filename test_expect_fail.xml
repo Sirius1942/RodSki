@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+  <!-- 正常用例：预期成功 -->
+  <case execute="是" id="c001" title="正常登录" description="验证正常登录流程" component_type="界面">
+    <test_case>
+      <test_step action="set" model="" data="test_var|success"/>
+      <test_step action="get" model="" data="test_var"/>
+    </test_case>
+  </case>
+
+  <!-- 负面用例：预期失败（实际会失败） -->
+  <case execute="是" id="c002" title="非法操作" description="验证错误处理" component_type="界面" expect_fail="是">
+    <test_case>
+      <test_step action="assert" model="" data="nonexistent_element"/>
+    </test_case>
+  </case>
+
+  <!-- 负面用例：预期失败（但实际会成功） -->
+  <case execute="是" id="c003" title="应该失败但成功" description="测试反转逻辑" component_type="界面" expect_fail="是">
+    <test_case>
+      <test_step action="set" model="" data="test_var2|value"/>
+    </test_case>
+  </case>
+</cases>

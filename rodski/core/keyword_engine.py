@@ -22,7 +22,13 @@ from core.exceptions import (
     is_critical_error,
 )
 from core.assertion.image_matcher import ImageMatcher
-from core.model_parser import ModelParser
+from core.model_parser import (
+    ModelParser,
+    MODEL_TYPE_UI,
+    MODEL_TYPE_INTERFACE,
+    LEGACY_DRIVER_TYPE_WEB,
+    LEGACY_DRIVER_TYPE_INTERFACE,
+)
 from core.runtime_context import RuntimeContext
 
 logger = logging.getLogger("rodski")
@@ -670,10 +676,16 @@ class KeywordEngine:
         if not model:
             raise InvalidParameterError(
                 keyword="type",
-                param_name="model", 
+                param_name="model",
                 reason=f"模型不存在: '{model_name}'"
             )
-        
+        if self.model_parser.get_model_type(model_name) != MODEL_TYPE_UI:
+            raise InvalidParameterError(
+                keyword="type",
+                param_name="model",
+                reason=f"type 仅支持 UI 模型: '{model_name}'"
+            )
+
         if not data_row:
             raise InvalidParameterError(
                 keyword="type",
@@ -682,48 +694,36 @@ class KeywordEngine:
             )
 
         logger.info(f"批量输入: 模型={model_name}, DataID={data_id}")
-        
+
         operations = []
         resolved_values = {}
         for element_name, element_info in model.items():
+            if element_name.startswith('__'):
+                continue
             if element_name not in data_row:
                 continue
             value = str(data_row[element_name])
             if self.data_resolver:
                 value = self.data_resolver.resolve_with_return(value)
 
-            driver_type = element_info.get('driver_type', 'web')
             value_upper = value.strip().upper()
 
-            # BLANK: UI 跳过, 接口传空字符串
             if value_upper == 'BLANK':
-                if driver_type == 'web':
-                    logger.debug(f"{element_name}: BLANK → 跳过")
-                    resolved_values[element_name] = ''
-                    continue
-                else:
-                    value = ''
+                logger.debug(f"{element_name}: BLANK → 跳过")
+                resolved_values[element_name] = ''
+                continue
 
-            # NULL → 接口传 "null"; NONE → 接口传 "none"; UI 均跳过
             if value_upper in ('NULL', 'NONE'):
-                if driver_type == 'web':
-                    logger.debug(f"{element_name}: {value_upper} → 跳过")
-                    resolved_values[element_name] = None
-                    continue
-                else:
-                    mapped = value.lower()
-                    resolved_values[element_name] = mapped
-                    continue
+                logger.debug(f"{element_name}: {value_upper} → 跳过")
+                resolved_values[element_name] = None
+                continue
 
             resolved_values[element_name] = value
+            target_driver = self._get_driver_for_type(LEGACY_DRIVER_TYPE_WEB)
 
-            # ── 根据 driver_type 选择驱动 ──
-            target_driver = self._get_driver_for_type(driver_type)
-
-            # ── 多定位器支持：从 locations 列表按 priority 依次尝试 ──
             locations = element_info.get('locations', [])
             if not locations:
-                locations = [{"type": element_info['type'], "value": element_info['value'], "priority": 1}]
+                locations = [{"type": element_info['locator_type'], "value": element_info['locator_value'], "priority": 1}]
             sorted_locations = sorted(locations, key=lambda x: x.get("priority", 1))
 
             op_done = False
@@ -735,7 +735,6 @@ class KeywordEngine:
                 locator = f"{locator_type}={locator_value}"
 
                 try:
-                    # 尝试作为 UI 动作执行
                     action_result = self._execute_element_action(value, locator, element_name, driver=target_driver)
                     if action_result is not None:
                         operations.append(action_result)
@@ -743,7 +742,6 @@ class KeywordEngine:
                         logger.debug(f"  ↳ 定位器 {locator} 成功 (priority={loc.get('priority',1)})")
                         break
 
-                    # 普通文本输入
                     display_value = value
                     input_value = value
                     if input_value.endswith('.Password'):
@@ -765,22 +763,18 @@ class KeywordEngine:
                     continue
 
             if not op_done:
-                # 所有定位器都失败
                 tried = ", ".join(f"{l['type']}={l['value']}" for l in sorted_locations)
                 if last_error:
                     raise DriverError(f"元素 '{element_name}' 所有定位器均失败 [{tried}]: {last_error}")
-                else:
-                    raise DriverError(f"元素 '{element_name}' 所有定位器均失败 [{tried}]")
-        
+                raise DriverError(f"元素 '{element_name}' 所有定位器均失败 [{tried}]")
+
         failed_ops = [op for op in operations if not op[2]]
         if failed_ops:
             failed_names = [op[1] for op in failed_ops]
             raise DriverError(f"批量输入失败: {', '.join(failed_names)}")
-        
-        # 存储解析后的实际使用值（Return[-1] 等已替换为真实值）
+
         self.store_return(resolved_values)
 
-        # Auto Capture
         if self.model_parser:
             ac_fields = self.model_parser.get_auto_capture(model_name, 'type')
             if ac_fields:
@@ -847,6 +841,12 @@ class KeywordEngine:
                 keyword="send",
                 param_name="context",
                 reason="send 需要 model_parser 和 data_manager（请通过 SKIExecutor 执行）"
+            )
+        if self.model_parser.get_model_type(model_name) != MODEL_TYPE_INTERFACE:
+            raise InvalidParameterError(
+                keyword="send",
+                param_name="model",
+                reason=f"send 仅支持接口模型: '{model_name}'"
             )
         return self._batch_send(model_name, data_ref)
 
@@ -1035,8 +1035,15 @@ class KeywordEngine:
 
         # 批量模式: launch ModelName DataID
         if model_name and data_ref and self.model_parser:
+            model_type = self.model_parser.get_model_type(model_name)
+            if model_type == MODEL_TYPE_INTERFACE:
+                raise InvalidParameterError(
+                    keyword="launch",
+                    param_name="model",
+                    reason=f"launch 不支持接口模型: '{model_name}'"
+                )
             driver_type = self.model_parser.get_model_driver_type(model_name)
-            if driver_type == "web":
+            if driver_type == LEGACY_DRIVER_TYPE_WEB:
                 result = self._execute_navigate(model_name, data_ref)
             else:
                 result = self._execute_desktop_launch(model_name, data_ref)
@@ -1343,48 +1350,48 @@ class KeywordEngine:
 
         results = {}
         mismatches = []
+        model_type = self.model_parser.get_model_type(model_name)
 
         for element_name, element_info in model.items():
+            if element_name.startswith('__'):
+                continue
             if element_name not in data_row:
                 continue
 
             expected = str(data_row[element_name])
             if self.data_resolver:
                 expected = self.data_resolver.resolve_with_return(expected)
-            
-            driver_type = element_info.get('driver_type', 'web')
+
             expected_upper = expected.strip().upper()
 
             # BLANK: UI 跳过该字段不验证, 接口期望空字符串
             if expected_upper == 'BLANK':
-                if driver_type == 'web':
+                if model_type == MODEL_TYPE_UI:
                     logger.debug(f"{element_name}: BLANK → 跳过验证")
                     continue
-                else:
-                    expected = ''
+                expected = ''
 
             # NULL → 接口期望 "null"; NONE → 接口期望 "none"; UI 均跳过
             if expected_upper in ('NULL', 'NONE'):
-                if driver_type == 'web':
+                if model_type == MODEL_TYPE_UI:
                     logger.debug(f"{element_name}: {expected_upper} → 跳过验证")
                     continue
-                else:
-                    expected_mapped = expected.lower()
-                    last_return = self.get_return(-1)
-                    actual_val = last_return.get(element_name) if isinstance(last_return, dict) else last_return
-                    actual_str = str(actual_val) if actual_val is not None else "null"
-                    results[element_name] = actual_val
-                    matched = actual_str == expected_mapped or (expected_mapped == "null" and actual_val is None)
-                    if not matched:
-                        mismatches.append({'element': element_name, 'expected': expected_mapped, 'actual': actual_str})
-                    logger.debug(f"{element_name}: 实际={actual_str}, 期望={expected_mapped} → {'OK' if matched else 'FAIL'}")
-                    continue
+                expected_mapped = expected.lower()
+                last_return = self.get_return(-1)
+                actual_val = last_return.get(element_name) if isinstance(last_return, dict) else last_return
+                actual_str = str(actual_val) if actual_val is not None else "null"
+                results[element_name] = actual_val
+                matched = actual_str == expected_mapped or (expected_mapped == "null" and actual_val is None)
+                if not matched:
+                    mismatches.append({'element': element_name, 'expected': expected_mapped, 'actual': actual_str})
+                logger.debug(f"{element_name}: 实际={actual_str}, 期望={expected_mapped} → {'OK' if matched else 'FAIL'}")
+                continue
 
-            locator_type = element_info['type']
-            locator_value = element_info['value']
+            locator_type = element_info['locator_type']
+            locator_value = element_info['locator_value']
             locator = f"{locator_type}={locator_value}"
 
-            if driver_type == 'web':
+            if model_type == MODEL_TYPE_UI:
                 if hasattr(self.driver, 'get_text_locator'):
                     if locator_type == 'id':
                         actual = self.driver.get_text_locator(f"#{locator_value}")
@@ -1398,7 +1405,6 @@ class KeywordEngine:
             else:
                 last_return = self.get_return(-1)
                 if isinstance(last_return, dict):
-                    # 支持嵌套字段: element value="data.inquiryId" → last_return["data"]["inquiryId"]
                     actual_val = self._get_nested_return(last_return, locator_value or element_name)
                     actual_str = str(actual_val) if actual_val is not None else ""
                 else:
@@ -1459,13 +1465,15 @@ class KeywordEngine:
 
     def _get_model_mode(self, model_name: str, data_ref: str) -> bool:
         """模型模式：按模型元素定位，读取各元素文本，返回 dict"""
+        if self.model_parser.get_model_type(model_name) != MODEL_TYPE_UI:
+            raise InvalidParameterError(keyword="get", param_name="model", reason=f"get 模型模式仅支持 UI 模型: '{model_name}'")
         model = self.model_parser.get_model(model_name) or {}
         result = {}
         for name, elem in model.items():
             if name.startswith('__'):
                 continue
-            locator_type = elem.get("type", "")
-            locator_value = elem.get("value", "")
+            locator_type = elem.get("locator_type", "")
+            locator_value = elem.get("locator_value", "")
             try:
                 if hasattr(self.driver, "get_text_locator"):
                     if locator_type == 'id':

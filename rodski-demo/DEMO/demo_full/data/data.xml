@@ -84,6 +84,11 @@
             <field name="testSelect">select【选项2】</field>
             <field name="testBtn">click</field>
         </row>
+        <row id="T002">
+            <field name="testInput">第二次输入</field>
+            <field name="testSelect">select【选项1】</field>
+            <field name="testBtn">click</field>
+        </row>
     </datatable>
 
     <datatable name="TestForm_verify">
@@ -248,6 +253,80 @@
     <datatable name="UIActions_verify">
         <row id="V001">
             <field name="result">操作成功</field>
+        </row>
+    </datatable>
+
+
+    <!-- set/get 验证数据 -->
+    <datatable name="SetGetVerify_verify">
+        <row id="V001" remark="验证get读取first_result等于T001提交值">
+            <field name="value">${Return[-1]}</field>
+        </row>
+    </datatable>
+
+    <!-- get选择器模式验证 -->
+    <datatable name="GetVerify_verify">
+        <row id="V001" remark="验证get选择器模式结果写入history">
+            <field name="result">${Return[-1]}</field>
+        </row>
+    </datatable>
+
+    <!-- evaluate结构化返回验证 -->
+    <datatable name="EvaluateResult_verify">
+        <row id="V001" remark="验证evaluate返回title字段">
+            <field name="title">${Return[-1].title}</field>
+        </row>
+    </datatable>
+
+    <!-- get模型模式数据 -->
+    <datatable name="GetModel">
+        <row id="G001" remark="读取formResult">
+            <field name="formResult"></field>
+        </row>
+    </datatable>
+
+    <!-- get模型模式验证 -->
+    <datatable name="GetModelVerify_verify">
+        <row id="V001" remark="验证get模型模式返回dict">
+            <field name="formResult">${Return[-1].formResult}</field>
+        </row>
+    </datatable>
+
+    <!-- DemoForm Auto Capture数据 -->
+    <datatable name="DemoForm">
+        <row id="F001" remark="提交表单">
+            <field name="username">testuser</field>
+            <field name="submitBtn">click</field>
+        </row>
+    </datatable>
+
+    <!-- DemoForm Auto Capture验证 -->
+    <datatable name="DemoFormVerify_verify">
+        <row id="V001" remark="验证auto_capture提取resultId">
+            <field name="resultId">${Return[-1].resultId}</field>
+        </row>
+    </datatable>
+
+    <!-- DemoFormBadCapture数据 -->
+    <datatable name="DemoFormBadCapture">
+        <row id="F001" remark="触发错误auto_capture">
+            <field name="username">testuser</field>
+            <field name="submitBtn">click</field>
+        </row>
+    </datatable>
+
+    <!-- LoginAPICapture数据 -->
+    <datatable name="LoginAPICapture">
+        <row id="D001" remark="登录">
+            <field name="username">admin</field>
+            <field name="password">123456</field>
+        </row>
+    </datatable>
+
+    <!-- LoginAPICapture验证 -->
+    <datatable name="LoginAPICapture_verify">
+        <row id="V001" remark="验证send auto_capture提取token">
+            <field name="data.token">${Return[-1]._capture.token}</field>
         </row>
     </datatable>
 
