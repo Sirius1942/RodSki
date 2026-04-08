@@ -2,7 +2,7 @@
 
 规则：
 - 所有数据表合并到 data/data.xml
-- 所有 verify 数据表合并到 data/data_verify.xml
+- 所有 verify 数据表合并到 data/data_verify.xml（可选）
 - 全局变量独立在 data/globalvalue.xml
 
 XML 格式参见 schemas/data.xsd。
@@ -25,10 +25,11 @@ class DataTableParser:
         self.tables: Dict[str, Dict[str, Dict[str, Any]]] = {}
 
     def parse_all_tables(self) -> Dict[str, Dict[str, Dict[str, Any]]]:
-        """解析 data.xml 和 data_verify.xml 中的所有数据表"""
+        """解析 data 目录中的所有数据表"""
         self.tables = {}
         self._parse_file(self.data_file)
         self._parse_file(self.verify_file)
+
         return self.tables
 
     def _parse_file(self, file_path: Path) -> None:

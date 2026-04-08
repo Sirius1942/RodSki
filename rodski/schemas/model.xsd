@@ -28,10 +28,36 @@
   <!-- 模型类型 -->
   <xs:complexType name="ModelType">
     <xs:sequence>
-      <xs:element name="element" type="ElementType" minOccurs="0" maxOccurs="unbounded"/>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element name="element" type="ElementType"/>
+        <xs:element name="auto_capture" type="AutoCaptureType"/>
+      </xs:choice>
     </xs:sequence>
     <xs:attribute name="name" type="xs:string" use="required"/>
     <xs:attribute name="servicename" type="xs:string" use="optional" default=""/>
+  </xs:complexType>
+
+  <!-- 自动返回值提取 -->
+  <xs:complexType name="AutoCaptureType">
+    <xs:sequence>
+      <xs:element name="field" type="AutoCaptureFieldType" minOccurs="1" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="trigger" use="required">
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:enumeration value="type"/>
+          <xs:enumeration value="send"/>
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:attribute>
+  </xs:complexType>
+
+  <xs:complexType name="AutoCaptureFieldType">
+    <xs:sequence>
+      <xs:element name="location" type="LocationType" minOccurs="0" maxOccurs="1"/>
+    </xs:sequence>
+    <xs:attribute name="name" type="xs:string" use="required"/>
+    <xs:attribute name="path" type="xs:string" use="optional"/>
   </xs:complexType>
 
   <!-- 元素类型 - 支持完整格式和简化格式 -->

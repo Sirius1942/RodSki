@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <datatable name="LoginAPICapture_verify">
     <row id="V001" remark="验证send auto_capture提取token">
-        <field name="status">200</field>
+        <field name="data.token">${Return[-1]._capture.token}</field>
     </row>
 </datatable>

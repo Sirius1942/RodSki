@@ -112,25 +112,55 @@ class TestEmptyDirectory:
         assert tables == {}
 
 
-class TestSkipEmptyRows:
-    def test_skips_empty_id(self, tmp_path):
+class TestIgnoreLegacySplitFiles:
+    def test_ignores_legacy_split_data_files(self, tmp_path):
         d = tmp_path / "data"
         d.mkdir()
-        xml = '''<?xml version="1.0" encoding="UTF-8"?>
+
+        data_xml = '''<?xml version="1.0" encoding="UTF-8"?>
 <datatables>
-  <datatable name="Test">
-    <row id="T001">
-      <field name="val">ok</field>
-    </row>
-    <row id="">
-      <field name="val">skip</field>
-    </row>
-    <row id="T002">
-      <field name="val">also ok</field>
+  <datatable name="Login">
+    <row id="L001">
+      <field name="username">admin</field>
     </row>
   </datatable>
 </datatables>'''
-        (d / "data.xml").write_text(xml, encoding="utf-8")
+
+        legacy_xml = '''<?xml version="1.0" encoding="UTF-8"?>
+<datatable name="LegacyOnly">
+  <row id="X001">
+    <field name="value">should_not_load</field>
+  </row>
+</datatable>'''
+
+        (d / "data.xml").write_text(data_xml, encoding="utf-8")
+        (d / "LegacyOnly.xml").write_text(legacy_xml, encoding="utf-8")
+
         parser = DataTableParser(str(d))
         parser.parse_all_tables()
-        assert len(parser.tables["Test"]) == 2
+
+        assert "Login" in parser.tables
+        assert "LegacyOnly" not in parser.tables
+
+
+class TestOptionalVerifyFile:
+    def test_allows_missing_data_verify_xml(self, tmp_path):
+        d = tmp_path / "data"
+        d.mkdir()
+
+        data_xml = '''<?xml version="1.0" encoding="UTF-8"?>
+<datatables>
+  <datatable name="OnlyPrimary">
+    <row id="P001">
+      <field name="value">ok</field>
+    </row>
+  </datatable>
+</datatables>'''
+
+        (d / "data.xml").write_text(data_xml, encoding="utf-8")
+
+        parser = DataTableParser(str(d))
+        tables = parser.parse_all_tables()
+
+        assert "OnlyPrimary" in tables
+        assert parser.get_data("OnlyPrimary", "P001")["value"] == "ok"
