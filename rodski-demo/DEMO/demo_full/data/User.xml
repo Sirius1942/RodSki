@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<datatable name="User">
-    <row id="U001">
-        <field name="newUsername">testuser</field>
-        <field name="newEmail">test@example.com</field>
-        <field name="newRole">select【user】</field>
-        <field name="isActive">click</field>
-    </row>
-</datatable>

@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<datatable name="TestForm_verify">
-    <row id="V001">
-        <field name="formResult">提交成功</field>
-    </row>
-</datatable>

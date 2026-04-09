@@ -1,0 +1,7 @@
+<?xml version="1.0" ?>
+<testresult>
+  <summary total="1" passed="1" failed="0" skipped="0" errors="0" pass_rate="100.0%" total_time="8.28s" average_time="8.28s" start_time="2026-04-10 00:59:20" end_time="2026-04-10 00:59:20"/>
+  <results>
+    <result case_id="TC015" title="结构化日志验证" status="PASS" execution_time="8.283" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-04-10 00:59:20"/>
+  </results>
+</testresult>

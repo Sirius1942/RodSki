@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<datatable name="GetVerify_verify">
-    <row id="V001" remark="验证get选择器模式结果写入history">
-        <field name="result">${Return[-1]}</field>
-    </row>
-</datatable>

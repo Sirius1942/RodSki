@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<datatable name="ReturnTest_verify">
-    <row id="V001" remark="验证Return引用">
-        <field name="formResult">${Return[-1]}</field>
-    </row>
-</datatable>

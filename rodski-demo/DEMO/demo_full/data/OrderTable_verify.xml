@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<datatable name="OrderTable_verify">
-    <row id="V001">
-        <field name="order1_no">ORD202403230001</field>
-        <field name="order1_customer">张伟</field>
-        <field name="order1_amount">¥8999</field>
-        <field name="order1_status">已支付</field>
-    </row>
-</datatable>

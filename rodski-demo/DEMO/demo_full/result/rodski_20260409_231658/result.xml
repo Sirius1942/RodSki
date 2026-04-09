@@ -1,0 +1,9 @@
+<?xml version="1.0" ?>
+<testresult>
+  <summary total="2" passed="2" failed="0" skipped="0" errors="0" pass_rate="100.0%" total_time="2921.16s" average_time="1460.58s" start_time="2026-04-10 00:05:41" end_time="2026-04-10 00:05:41"/>
+  <results>
+    <result case_id="TC_EF001" title="非法登录测试" status="PASS" execution_time="501.583" retries="0" start_time="" end_time="" error_type="" error_message="[预期失败] [SKI312] 关键字 'type' 参数错误: data - 数据不存在: 表 'LoginForm' 中找不到 DataID='L002'
+  keyword: type" screenshot_path="" updated_at="2026-04-10 00:05:41"/>
+    <result case_id="TC_EF002" title="正常登录测试" status="PASS" execution_time="2419.577" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-04-10 00:05:41"/>
+  </results>
+</testresult>
