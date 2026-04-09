@@ -189,4 +189,52 @@
         <location type="id">loginError</location>
     </element>
 </model>
+
+<model name="LocatorTest_ID" type="ui" servicename="">
+    <element name="input" type="input">
+        <location type="id">input_by_id</location>
+    </element>
+    <element name="button" type="button">
+        <location type="id">btn_by_id</location>
+    </element>
+    <element name="result" type="text">
+        <location type="id">result</location>
+    </element>
+</model>
+
+<model name="LocatorTest_Name" type="ui" servicename="">
+    <element name="input" type="input">
+        <location type="name">input_by_name</location>
+    </element>
+    <element name="button" type="button">
+        <location type="name">btn_by_name</location>
+    </element>
+    <element name="result" type="text">
+        <location type="id">result</location>
+    </element>
+</model>
+
+<model name="LocatorTest_CSS" type="ui" servicename="">
+    <element name="input" type="input">
+        <location type="css">.input-css-test</location>
+    </element>
+    <element name="button" type="button">
+        <location type="css">.btn-css-test</location>
+    </element>
+    <element name="result" type="text">
+        <location type="id">result</location>
+    </element>
+</model>
+
+<model name="LocatorTest_XPath" type="ui" servicename="">
+    <element name="input" type="input">
+        <location type="xpath">//input[@data-testid='input-xpath']</location>
+    </element>
+    <element name="button" type="button">
+        <location type="xpath">//button[@data-testid='btn-xpath']</location>
+    </element>
+    <element name="result" type="text">
+        <location type="id">result</location>
+    </element>
+</model>
 </models>

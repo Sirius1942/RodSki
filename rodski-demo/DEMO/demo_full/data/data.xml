@@ -341,4 +341,57 @@
         </row>
     </datatable>
 
+    <!-- 定位器测试数据 -->
+    <datatable name="LocatorTest_ID">
+        <row id="L001" remark="ID定位器测试">
+            <field name="input">ID定位器测试内容</field>
+            <field name="button">click</field>
+        </row>
+    </datatable>
+
+    <datatable name="LocatorTest_ID_verify">
+        <row id="V001" remark="验证ID定位器结果">
+            <field name="result">测试结果: ID 定位器测试成功！</field>
+        </row>
+    </datatable>
+
+    <datatable name="LocatorTest_Name">
+        <row id="L001" remark="Name定位器测试">
+            <field name="input">Name定位器测试内容</field>
+            <field name="button">click</field>
+        </row>
+    </datatable>
+
+    <datatable name="LocatorTest_Name_verify">
+        <row id="V001" remark="验证Name定位器结果">
+            <field name="result">测试结果: Name 定位器测试成功！</field>
+        </row>
+    </datatable>
+
+    <datatable name="LocatorTest_CSS">
+        <row id="L001" remark="CSS定位器测试">
+            <field name="input">CSS定位器测试内容</field>
+            <field name="button">click</field>
+        </row>
+    </datatable>
+
+    <datatable name="LocatorTest_CSS_verify">
+        <row id="V001" remark="验证CSS定位器结果">
+            <field name="result">测试结果: CSS 定位器测试成功！</field>
+        </row>
+    </datatable>
+
+    <datatable name="LocatorTest_XPath">
+        <row id="L001" remark="XPath定位器测试">
+            <field name="input">XPath定位器测试内容</field>
+            <field name="button">click</field>
+        </row>
+    </datatable>
+
+    <datatable name="LocatorTest_XPath_verify">
+        <row id="V001" remark="验证XPath定位器结果">
+            <field name="result">测试结果: XPath 定位器测试成功！</field>
+        </row>
+    </datatable>
+
 </datatables>

@@ -17,7 +17,27 @@ db_path = Path(__file__).parent.parent / "demo.db"
 
 @app.get("/")
 async def read_root():
-    return FileResponse(Path(__file__).parent / "index.html")
+    return FileResponse(Path(__file__).parent / "templates" / "index.html")
+
+@app.get("/locator-test")
+async def locator_test():
+    return FileResponse(Path(__file__).parent / "templates" / "locator-test.html")
+
+@app.get("/upload")
+async def upload_page():
+    return FileResponse(Path(__file__).parent / "templates" / "upload.html")
+
+@app.get("/multi-window")
+async def multi_window():
+    return FileResponse(Path(__file__).parent / "templates" / "multi-window.html")
+
+@app.get("/iframe-test")
+async def iframe_test():
+    return FileResponse(Path(__file__).parent / "templates" / "iframe-test.html")
+
+@app.get("/iframe-content")
+async def iframe_content():
+    return FileResponse(Path(__file__).parent / "templates" / "iframe-content.html")
 
 @app.post("/api/login")
 async def login(payload: LoginRequest):
