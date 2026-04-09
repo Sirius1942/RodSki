@@ -214,7 +214,7 @@
     </case>
 
     <!-- TC014A: AC12-002 type Auto Capture失败 -->
-    <case execute="是" id="TC014A" title="type Auto Capture失败测试" component_type="界面" expect_fail="是">
+    <case execute="是" id="TC014A" title="type Auto Capture失败测试" component_type="界面">
         <pre_process>
             <test_step action="navigate" model="" data="http://localhost:8000"/>
             <test_step action="type" model="LoginForm" data="L001"/>
