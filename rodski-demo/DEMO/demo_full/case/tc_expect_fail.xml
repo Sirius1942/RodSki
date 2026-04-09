@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <cases step_wait="500">
-    <!-- TC_EF001: 预期失败用例 - 验证错误处理 -->
-    <case execute="是" id="TC_EF001" title="非法登录测试" description="验证错误密码被正确拒绝" component_type="界面" expect_fail="是">
+    <!-- TC_EF001: 错误处理验证用例 -->
+    <case execute="是" id="TC_EF001" title="非法登录测试" description="验证错误密码被正确拒绝" component_type="界面">
         <pre_process>
             <test_step action="navigate" model="" data="http://localhost:8000"/>
         </pre_process>
         <test_case>
-            <!-- 使用错误密码登录，预期会失败 -->
+            <!-- 使用错误密码登录 -->
             <test_step action="type" model="LoginForm" data="L002"/>
-            <!-- 验证错误提示，如果没有错误提示则此步骤会失败 -->
+            <!-- 验证错误提示正确显示 -->
             <test_step action="verify" model="ErrorMessage" data="V001"/>
         </test_case>
         <post_process>
