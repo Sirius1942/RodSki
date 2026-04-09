@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<cases>
+<cases step_wait="500">
     <!-- TC_EF001: 预期失败用例 - 验证错误处理 -->
     <case execute="是" id="TC_EF001" title="非法登录测试" description="验证错误密码被正确拒绝" component_type="界面" expect_fail="是">
         <pre_process>
