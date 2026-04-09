@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>定位器测试</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 30px;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 24px;
+        }
+        .section {
+            margin-bottom: 25px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        .section h3 {
+            color: #333;
+            margin-bottom: 12px;
+            font-size: 16px;
+        }
+        .section p {
+            color: #666;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+        input, textarea {
+            padding: 10px 14px;
+            width: 100%;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .xpath-test {
+            padding: 10px;
+            background: #fff;
+            border-radius: 6px;
+        }
+        .xpath-inner {
+            padding: 10px;
+        }
+        a {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 16px;
+            font-weight: 500;
+        }
+        a:hover { text-decoration: underline; }
+        button {
+            padding: 12px 24px;
+            margin-top: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: opacity 0.3s;
+        }
+        button:hover { opacity: 0.9; }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px solid #e0e0e0;
+            min-height: 40px;
+            font-size: 14px;
+            white-space: pre-wrap;
+        }
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 25px;
+            color: #667eea;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>定位器测试</h1>
+
+        <div class="section">
+            <h3>1. ID 定位</h3>
+            <p>通过 id 属性定位元素</p>
+            <input id="locatorId" placeholder="ID定位" />
+        </div>
+
+        <div class="section">
+            <h3>2. Class 定位</h3>
+            <p>通过 class 属性定位元素</p>
+            <input class="locator-class-input" placeholder="Class定位" />
+        </div>
+
+        <div class="section">
+            <h3>3. CSS 定位 (data 属性)</h3>
+            <p>通过 data-testid 属性定位元素</p>
+            <input data-testid="locator-css" placeholder="CSS定位" />
+        </div>
+
+        <div class="section">
+            <h3>4. XPath 定位</h3>
+            <p>通过 XPath 层级结构定位元素</p>
+            <div class="xpath-test">
+                <div class="xpath-inner">
+                    <input placeholder="XPath定位" />
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>5. Name 定位</h3>
+            <p>通过 name 属性定位元素</p>
+            <input name="locatorName" placeholder="Name定位" />
+        </div>
+
+        <div class="section">
+            <h3>6. Tag 定位</h3>
+            <p>通过标签类型定位元素</p>
+            <textarea id="locatorTextarea" placeholder="Tag定位" rows="3"></textarea>
+        </div>
+
+        <div class="section">
+            <h3>7. 文本定位</h3>
+            <p>通过文本内容定位元素</p>
+            <a id="textLink" href="javascript:void(0)">点击链接</a>
+        </div>
+
+        <button id="locatorSubmitBtn" onclick="collectValues()">提交全部</button>
+        <div id="locatorResult" class="result"></div>
+
+        <a href="/" class="back-link">返回首页</a>
+    </div>
+
+    <script>
+        function collectValues() {
+            const idVal = document.getElementById('locatorId').value;
+            const classVal = document.querySelector('.locator-class-input').value;
+            const cssVal = document.querySelector('[data-testid="locator-css"]').value;
+            const xpathVal = document.querySelector('.xpath-test .xpath-inner input').value;
+            const nameVal = document.querySelector('[name="locatorName"]').value;
+            const tagVal = document.getElementById('locatorTextarea').value;
+            const textVal = document.getElementById('textLink').textContent;
+
+            const result = [
+                `ID定位: ${idVal}`,
+                `Class定位: ${classVal}`,
+                `CSS定位: ${cssVal}`,
+                `XPath定位: ${xpathVal}`,
+                `Name定位: ${nameVal}`,
+                `Tag定位: ${tagVal}`,
+                `文本定位: ${textVal}`
+            ].join('\n');
+
+            document.getElementById('locatorResult').textContent = result;
+        }
+
+        document.getElementById('textLink').addEventListener('click', function() {
+            this.textContent = '链接已点击';
+        });
+    </script>
+</body>
+</html>

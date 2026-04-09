@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<globalvalue>
+    <group name="DefaultValue">
+        <var name="URL" value="http://localhost:8000"/>
+        <var name="BrowserType" value="chromium"/>
+        <var name="WaitTime" value="500"/>
+        <var name="Headless" value="True"/>
+    </group>
+    <group name="env">
+        <var name="base_url" value="http://localhost:8000"/>
+        <var name="api_base" value="http://localhost:8000/api"/>
+    </group>
+    <group name="sqlite_db">
+        <var name="type" value="sqlite"/>
+        <var name="database" value="demo.db"/>
+    </group>
+    <group name="mysql_db">
+        <var name="type" value="mysql"/>
+        <var name="host" value="localhost"/>
+        <var name="port" value="3306"/>
+        <var name="user" value="rodski"/>
+        <var name="password" value="rodski123"/>
+        <var name="database" value="rodski_demo"/>
+    </group>
+</globalvalue>

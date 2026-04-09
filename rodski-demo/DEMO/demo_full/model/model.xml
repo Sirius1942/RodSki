@@ -183,4 +183,10 @@
         <location type="id">formResult</location>
     </element>
 </model>
+
+<model name="ErrorMessage" type="ui" servicename="">
+    <element name="errorMsg" type="text">
+        <location type="id">loginError</location>
+    </element>
+</model>
 </models>

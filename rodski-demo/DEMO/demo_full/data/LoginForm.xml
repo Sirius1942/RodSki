@@ -5,4 +5,9 @@
         <field name="password">123456</field>
         <field name="loginBtn">click</field>
     </row>
+    <row id="L002">
+        <field name="username">admin</field>
+        <field name="password">wrongpassword</field>
+        <field name="loginBtn">click</field>
+    </row>
 </datatable>

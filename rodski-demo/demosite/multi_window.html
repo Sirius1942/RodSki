@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多窗口测试</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 500px;
+        }
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 24px;
+        }
+        .window-id {
+            text-align: center;
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 25px;
+            padding: 12px;
+            background: #f0f4ff;
+            border-radius: 8px;
+        }
+        input {
+            padding: 12px;
+            width: 100%;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+        input:focus { outline: none; border-color: #667eea; }
+        button {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: opacity 0.3s;
+        }
+        button:hover { opacity: 0.9; }
+        .result {
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px solid #e0e0e0;
+            min-height: 40px;
+            font-size: 14px;
+        }
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            color: #667eea;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .back-link:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>多窗口测试</h1>
+        <div id="windowId" class="window-id">主窗口</div>
+        <button id="openWindowBtn" onclick="openPopup()">打开弹出窗口</button>
+        <input type="text" id="mainInput" placeholder="在主窗口输入内容" />
+        <div id="mainResult" class="result"></div>
+        <a href="/" class="back-link">返回首页</a>
+    </div>
+
+    <script>
+        let popupWindow = null;
+
+        function openPopup() {
+            popupWindow = window.open(
+                '/multi-window/popup',
+                'popupWindow',
+                'width=500,height=400,left=200,top=200'
+            );
+        }
+
+        document.getElementById('mainInput').addEventListener('input', function() {
+            document.getElementById('mainResult').textContent = '主窗口输入: ' + this.value;
+        });
+
+        // Listen for messages from popup
+        window.addEventListener('message', function(event) {
+            document.getElementById('mainResult').textContent = '收到弹窗消息: ' + event.data;
+        });
+    </script>
+</body>
+</html>

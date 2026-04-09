@@ -166,7 +166,7 @@
     </case>
 
     <!-- TC012A: get不存在key报错测试 -->
-    <case execute="是" id="TC012A" title="get不存在key报错测试" component_type="界面">
+    <case execute="是" id="TC012A" title="get不存在key报错测试" component_type="界面" expect_fail="是">
         <test_case>
             <test_step action="get" model="" data="undefined_key"/>
         </test_case>
@@ -214,7 +214,7 @@
     </case>
 
     <!-- TC014A: AC12-002 type Auto Capture失败 -->
-    <case execute="是" id="TC014A" title="type Auto Capture失败测试" component_type="界面">
+    <case execute="是" id="TC014A" title="type Auto Capture失败测试" component_type="界面" expect_fail="是">
         <pre_process>
             <test_step action="navigate" model="" data="http://localhost:8000"/>
             <test_step action="type" model="LoginForm" data="L001"/>

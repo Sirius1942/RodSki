@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>弹出窗口</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 400px;
+        }
+        h1 {
+            color: #f5576c;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 22px;
+        }
+        .window-id {
+            text-align: center;
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 25px;
+            padding: 12px;
+            background: #fff0f3;
+            border-radius: 8px;
+        }
+        input {
+            padding: 12px;
+            width: 100%;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+        input:focus { outline: none; border-color: #f5576c; }
+        button {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: opacity 0.3s;
+        }
+        button:hover { opacity: 0.9; }
+        .result {
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px solid #e0e0e0;
+            min-height: 40px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>弹出窗口</h1>
+        <div id="windowId" class="window-id">弹出窗口</div>
+        <input type="text" id="popupInput" placeholder="在弹出窗口输入内容" />
+        <button id="popupBtn" onclick="submitPopup()">提交</button>
+        <div id="popupResult" class="result"></div>
+    </div>
+
+    <script>
+        function submitPopup() {
+            const value = document.getElementById('popupInput').value;
+            document.getElementById('popupResult').textContent = '弹窗提交: ' + value;
+
+            // Send message to parent window
+            if (window.opener) {
+                window.opener.postMessage(value, '*');
+            }
+        }
+    </script>
+</body>
+</html>

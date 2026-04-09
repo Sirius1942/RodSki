@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datatable name="ErrorMessage_verify">
+    <row id="V001">
+        <field name="errorMsg">用户名或密码错误</field>
+    </row>
+</datatable>
