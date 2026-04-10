@@ -8,7 +8,7 @@
     <!-- TC020: SQLite 查询订单 -->
     <case execute="是" id="TC020" title="SQLite查询订单" description="查询 orders 表前3行并验证" component_type="数据库">
         <test_case>
-            <test_step action="DB" model="QuerySQL" data="Q001"/>
+            <test_step action="DB" model="sqlite_db" data="QuerySQL.Q001"/>
             <test_step action="verify" model="QuerySQL" data="V001"/>
         </test_case>
     </case>
@@ -16,8 +16,8 @@
     <!-- TC021: SQLite 插入+验证 -->
     <case execute="是" id="TC021" title="SQLite插入并验证" description="插入订单后查询验证" component_type="数据库">
         <test_case>
-            <test_step action="DB" model="QuerySQL" data="Q002"/>
-            <test_step action="DB" model="QuerySQL" data="Q003"/>
+            <test_step action="DB" model="sqlite_db" data="QuerySQL.Q002"/>
+            <test_step action="DB" model="sqlite_db" data="QuerySQL.Q003"/>
             <test_step action="verify" model="QuerySQL" data="V002"/>
         </test_case>
     </case>
@@ -25,7 +25,7 @@
     <!-- TC022: SQLite 聚合查询 -->
     <case execute="是" id="TC022" title="SQLite聚合查询" description="COUNT(*) 验证行数" component_type="数据库">
         <test_case>
-            <test_step action="DB" model="QuerySQL" data="Q004"/>
+            <test_step action="DB" model="sqlite_db" data="QuerySQL.Q004"/>
             <test_step action="verify" model="QuerySQL" data="V003"/>
         </test_case>
     </case>
@@ -33,7 +33,7 @@
     <!-- TC023: MySQL 查询订单 (需要 MySQL 容器，默认不执行) -->
     <case execute="否" id="TC023" title="MySQL查询订单" description="MySQL 查询 orders 表" component_type="数据库">
         <test_case>
-            <test_step action="DB" model="QueryMySQL" data="Q001"/>
+            <test_step action="DB" model="mysql_db" data="QueryMySQL.Q001"/>
             <test_step action="verify" model="QueryMySQL" data="V001"/>
         </test_case>
     </case>
@@ -41,8 +41,8 @@
     <!-- TC024: MySQL 插入+验证 (需要 MySQL 容器，默认不执行) -->
     <case execute="否" id="TC024" title="MySQL插入并验证" description="MySQL 插入订单后查询验证" component_type="数据库">
         <test_case>
-            <test_step action="DB" model="QueryMySQL" data="Q002"/>
-            <test_step action="DB" model="QueryMySQL" data="Q003"/>
+            <test_step action="DB" model="mysql_db" data="QueryMySQL.Q002"/>
+            <test_step action="DB" model="mysql_db" data="QueryMySQL.Q003"/>
             <test_step action="verify" model="QueryMySQL" data="V002"/>
         </test_case>
     </case>

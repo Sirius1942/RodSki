@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  数据库模型文件 - v5.0+ 新语法
+
+  模型:
+  - QuerySQL: SQLite 数据库查询模型
+  - QueryMySQL: MySQL 数据库查询模型
+-->
+<models>
+
+    <!-- SQLite 查询模型 -->
+    <model name="QuerySQL" type="database" connection="sqlite_db" servicename="SQLite订单查询">
+        <!-- 查询模板定义 -->
+        <query name="list" remark="查询订单列表">
+            <sql>SELECT order_no, customer_name, total_amount FROM orders LIMIT :limit</sql>
+        </query>
+
+        <query name="insert" remark="插入订单">
+            <sql>INSERT INTO orders (order_no, customer_name, total_amount, status)
+                 VALUES (:order_no, :customer_name, :total_amount, :status)</sql>
+        </query>
+
+        <query name="get_by_id" remark="根据订单号查询">
+            <sql>SELECT * FROM orders WHERE order_no = :order_no</sql>
+        </query>
+
+        <query name="count" remark="统计订单数量">
+            <sql>SELECT COUNT(*) as total FROM orders</sql>
+        </query>
+
+        <!-- 结果字段定义（用于 verify） -->
+        <element name="order_no" type="database">
+            <location type="field">order_no</location>
+            <desc>订单号</desc>
+        </element>
+        <element name="customer_name" type="database">
+            <location type="field">customer_name</location>
+            <desc>客户姓名</desc>
+        </element>
+        <element name="total_amount" type="database">
+            <location type="field">total_amount</location>
+            <desc>订单金额</desc>
+        </element>
+        <element name="total" type="database">
+            <location type="field">total</location>
+            <desc>统计总数</desc>
+        </element>
+    </model>
+
+    <!-- MySQL 查询模型 -->
+    <model name="QueryMySQL" type="database" connection="mysql_db" servicename="MySQL订单查询">
+        <!-- 查询模板定义 -->
+        <query name="list" remark="查询订单列表">
+            <sql>SELECT order_no, customer_name, total_amount FROM orders LIMIT :limit</sql>
+        </query>
+
+        <query name="insert" remark="插入订单">
+            <sql>INSERT INTO orders (order_no, customer_name, total_amount, status)
+                 VALUES (:order_no, :customer_name, :total_amount, :status)</sql>
+        </query>
+
+        <query name="get_by_id" remark="根据订单号查询">
+            <sql>SELECT * FROM orders WHERE order_no = :order_no</sql>
+        </query>
+
+        <!-- 结果字段定义（用于 verify） -->
+        <element name="order_no" type="database">
+            <location type="field">order_no</location>
+            <desc>订单号</desc>
+        </element>
+        <element name="customer_name" type="database">
+            <location type="field">customer_name</location>
+            <desc>客户姓名</desc>
+        </element>
+        <element name="total_amount" type="database">
+            <location type="field">total_amount</location>
+            <desc>订单金额</desc>
+        </element>
+    </model>
+
+</models>

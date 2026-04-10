@@ -31,6 +31,7 @@
   <xs:complexType name="ModelType">
     <xs:sequence>
       <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element name="query" type="QueryType"/>
         <xs:element name="element" type="ElementType"/>
         <xs:element name="auto_capture" type="AutoCaptureType"/>
       </xs:choice>
@@ -38,6 +39,16 @@
     <xs:attribute name="name" type="xs:string" use="required"/>
     <xs:attribute name="type" type="ModelCategoryType" use="optional" default="ui"/>
     <xs:attribute name="servicename" type="xs:string" use="optional" default=""/>
+    <xs:attribute name="connection" type="xs:string" use="optional"/>
+  </xs:complexType>
+
+  <!-- 查询模板类型 (v5.0+ database 模型) -->
+  <xs:complexType name="QueryType">
+    <xs:sequence>
+      <xs:element name="sql" type="xs:string" minOccurs="1" maxOccurs="1"/>
+    </xs:sequence>
+    <xs:attribute name="name" type="xs:string" use="required"/>
+    <xs:attribute name="remark" type="xs:string" use="optional"/>
   </xs:complexType>
 
   <!-- 自动返回值提取 -->
@@ -85,6 +96,7 @@
     <xs:restriction base="xs:string">
       <xs:enumeration value="ui"/>
       <xs:enumeration value="interface"/>
+      <xs:enumeration value="database"/>
     </xs:restriction>
   </xs:simpleType>
 

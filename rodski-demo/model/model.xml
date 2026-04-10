@@ -1,0 +1,282 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  RodSki Demo 主模型文件 - v5.0+
+
+  包含:
+  - 数据库模型 (QuerySQL, QueryMySQL)
+  - 接口模型 (ReturnAPI, EvaluateResult, ErrorAPI, BadSQL)
+  - UI 模型 (QuickLogin, VisionLogin, WindowTest, etc.)
+-->
+<models>
+
+    <!-- ================================================================
+         数据库模型 (v5.0+ 新语法)
+         ================================================================ -->
+
+    <!-- SQLite 查询模型 -->
+    <model name="QuerySQL" type="database" connection="sqlite_db" servicename="SQLite订单查询">
+        <!-- 查询模板定义 -->
+        <query name="list" remark="查询订单列表">
+            <sql>SELECT order_no, customer_name, total_amount FROM orders LIMIT :limit</sql>
+        </query>
+
+        <query name="insert" remark="插入订单">
+            <sql>INSERT INTO orders (order_no, customer_name, total_amount, status)
+                 VALUES (:order_no, :customer_name, :total_amount, :status)</sql>
+        </query>
+
+        <query name="get_by_id" remark="根据订单号查询">
+            <sql>SELECT * FROM orders WHERE order_no = :order_no</sql>
+        </query>
+
+        <query name="count" remark="统计订单数量">
+            <sql>SELECT COUNT(*) as total FROM orders</sql>
+        </query>
+
+        <!-- 结果字段定义（用于 verify） -->
+        <element name="order_no" type="database">
+            <location type="field">order_no</location>
+            <desc>订单号</desc>
+        </element>
+        <element name="customer_name" type="database">
+            <location type="field">customer_name</location>
+            <desc>客户姓名</desc>
+        </element>
+        <element name="total_amount" type="database">
+            <location type="field">total_amount</location>
+            <desc>订单金额</desc>
+        </element>
+        <element name="total" type="database">
+            <location type="field">total</location>
+            <desc>统计总数</desc>
+        </element>
+    </model>
+
+    <!-- MySQL 查询模型 -->
+    <model name="QueryMySQL" type="database" connection="mysql_db" servicename="MySQL订单查询">
+        <!-- 查询模板定义 -->
+        <query name="list" remark="查询订单列表">
+            <sql>SELECT order_no, customer_name, total_amount FROM orders LIMIT :limit</sql>
+        </query>
+
+        <query name="insert" remark="插入订单">
+            <sql>INSERT INTO orders (order_no, customer_name, total_amount, status)
+                 VALUES (:order_no, :customer_name, :total_amount, :status)</sql>
+        </query>
+
+        <query name="get_by_id" remark="根据订单号查询">
+            <sql>SELECT * FROM orders WHERE order_no = :order_no</sql>
+        </query>
+
+        <!-- 结果字段定义（用于 verify） -->
+        <element name="order_no" type="database">
+            <location type="field">order_no</location>
+            <desc>订单号</desc>
+        </element>
+        <element name="customer_name" type="database">
+            <location type="field">customer_name</location>
+            <desc>客户姓名</desc>
+        </element>
+        <element name="total_amount" type="database">
+            <location type="field">total_amount</location>
+            <desc>订单金额</desc>
+        </element>
+    </model>
+
+    <!-- ================================================================
+         接口模型
+         ================================================================ -->
+
+    <!-- 接口返回值测试模型（用于 send 关键字） -->
+    <model name="ReturnAPI" type="interface" servicename="">
+        <element name="_method" type="interface">
+            <location type="static">POST</location>
+        </element>
+        <element name="_url" type="interface">
+            <location type="static">GlobalValue.DefaultValue.URL/api/login</location>
+        </element>
+        <element name="username" type="interface">
+            <location type="field">username</location>
+        </element>
+        <element name="password" type="interface">
+            <location type="field">password</location>
+        </element>
+    </model>
+
+    <!-- JS evaluate 验证模型 -->
+    <model name="EvaluateResult" type="ui" servicename="">
+        <element name="pageTitle" type="web">
+            <type>text</type>
+            <location type="id">pageTitle</location>
+            <desc>页面标题隐藏 div</desc>
+        </element>
+    </model>
+
+    <!-- 负面测试（不存在的 API 端点） -->
+    <model name="ErrorAPI" type="interface" servicename="">
+        <element name="_method" type="http_method">
+            <location type="static">POST</location>
+        </element>
+        <element name="_url" type="http_url">
+            <location type="static">http://localhost:8000/api/nonexistent</location>
+        </element>
+        <element name="dummy" type="field">
+            <location type="field">dummy</location>
+        </element>
+    </model>
+
+    <!-- 负面测试（错误的 SQL 查询） -->
+    <model name="BadSQL" type="interface" servicename="">
+        <element name="sql" type="field">
+            <location type="field">sql</location>
+        </element>
+    </model>
+
+    <!-- ================================================================
+         UI 模型
+         ================================================================ -->
+
+    <!-- QuickLogin — 快速登录（pre_process 公用） -->
+    <model name="QuickLogin" type="ui" servicename="">
+        <element name="loginUsername" type="input">
+            <location type="id">loginUsername</location>
+        </element>
+        <element name="loginPassword" type="input">
+            <location type="id">loginPassword</location>
+        </element>
+        <element name="loginBtn" type="button">
+            <location type="id">loginBtn</location>
+        </element>
+    </model>
+
+    <!-- QuickNav — 导航到功能测试页 -->
+    <model name="QuickNav" type="ui" servicename="">
+        <element name="navTest" type="link">
+            <location type="id">navTest</location>
+        </element>
+    </model>
+
+    <!-- UIActions — 高级 UI 操作（悬停、双击、右键、滚动、拖拽） -->
+    <model name="UIActions" type="ui" servicename="">
+        <element name="hoverBtn" type="button">
+            <location type="id">hoverBtn</location>
+        </element>
+        <element name="doubleClickBtn" type="button">
+            <location type="id">doubleClickBtn</location>
+        </element>
+        <element name="rightClickBtn" type="button">
+            <location type="id">rightClickBtn</location>
+        </element>
+        <element name="actionResult" type="text">
+            <location type="id">actionResult</location>
+        </element>
+        <element name="scrollArea" type="div">
+            <location type="id">scrollArea</location>
+        </element>
+        <element name="scrollTarget" type="div">
+            <location type="id">scrollTarget</location>
+        </element>
+        <element name="dragSource" type="div">
+            <location type="id">dragSource</location>
+        </element>
+        <element name="dropZone" type="div">
+            <location type="id">dropZone</location>
+        </element>
+    </model>
+
+    <!-- WindowTest — 多窗口测试（主窗口） -->
+    <model name="WindowTest" type="ui" servicename="">
+        <element name="windowId" type="text">
+            <location type="id">windowId</location>
+        </element>
+        <element name="openWindowBtn" type="button">
+            <location type="id">openWindowBtn</location>
+        </element>
+        <element name="mainInput" type="input">
+            <location type="id">mainInput</location>
+        </element>
+        <element name="mainResult" type="text">
+            <location type="id">mainResult</location>
+        </element>
+    </model>
+
+    <!-- PopupWindow — 多窗口测试（弹出窗口） -->
+    <model name="PopupWindow" type="ui" servicename="">
+        <element name="windowId" type="text">
+            <location type="id">windowId</location>
+        </element>
+        <element name="popupInput" type="input">
+            <location type="id">popupInput</location>
+        </element>
+        <element name="popupBtn" type="button">
+            <location type="id">popupBtn</location>
+        </element>
+        <element name="popupResult" type="text">
+            <location type="id">popupResult</location>
+        </element>
+    </model>
+
+    <!-- IframeOutside — iframe 外部元素 -->
+    <model name="IframeOutside" type="ui" servicename="">
+        <element name="outsideText" type="text">
+            <location type="id">outsideText</location>
+        </element>
+        <element name="contentFrame" type="iframe">
+            <location type="id">contentFrame</location>
+        </element>
+        <element name="outsideInput" type="input">
+            <location type="id">outsideInput</location>
+        </element>
+    </model>
+
+    <!-- IframeContent — iframe 内部元素 -->
+    <model name="IframeContent" type="ui" servicename="">
+        <element name="iframeInput" type="input">
+            <location type="id">iframeInput</location>
+        </element>
+        <element name="iframeBtn" type="button">
+            <location type="id">iframeBtn</location>
+        </element>
+        <element name="iframeResult" type="text">
+            <location type="id">iframeResult</location>
+        </element>
+    </model>
+
+    <!-- DesktopForm — 桌面应用（vision_bbox 坐标定位） -->
+    <model name="DesktopForm" type="ui" servicename="">
+        <element name="nameInput" type="input">
+            <location type="vision_bbox">150,200,400,230</location>
+        </element>
+        <element name="submitBtn" type="button">
+            <location type="vision_bbox">150,350,250,380</location>
+        </element>
+    </model>
+
+    <!-- VisionLogin — 视觉语义定位 -->
+    <model name="VisionLogin" type="ui" servicename="">
+        <element name="username" type="input">
+            <location type="vision">用户名输入框</location>
+        </element>
+        <element name="password" type="input">
+            <location type="vision">密码输入框</location>
+        </element>
+        <element name="loginBtn" type="button">
+            <location type="vision">登录按钮</location>
+        </element>
+    </model>
+
+    <!-- VisionOCR — OCR 文字识别定位 -->
+    <model name="VisionOCR" type="ui" servicename="">
+        <element name="title" type="text">
+            <location type="ocr">RodSki测试样例</location>
+        </element>
+    </model>
+
+    <!-- NonExistent — 负面测试（不存在的元素） -->
+    <model name="NonExistent" type="ui" servicename="">
+        <element name="fakeElement" type="input">
+            <location type="id">does-not-exist-element</location>
+        </element>
+    </model>
+
+</models>

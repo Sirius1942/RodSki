@@ -86,8 +86,8 @@ data/
 <!-- 引用验证数据 -->
 <test_step action="verify" model="LoginForm" data="V001"/>
 
-<!-- 引用数据库查询 -->
-<test_step action="DB" model="demo_db" data="QuerySQL.Q001"/>
+<!-- v5+ DB 新语法：model=数据库模型，data=数据行ID -->
+<test_step action="DB" model="QuerySQL" data="Q001"/>
 ```
 
 ### 数据表结构

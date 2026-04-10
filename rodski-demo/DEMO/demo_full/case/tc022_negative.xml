@@ -29,7 +29,7 @@
     <case execute="是" id="TC024" title="SQL语法错误测试" expect_fail="是" component_type="数据库">
         <test_case>
             <!-- 执行错误的SQL语句 - 预期失败 -->
-            <test_step action="DB" model="demo_db" data="ErrorSQL.E001"/>
+            <test_step action="DB" model="ErrorSQL" data="E001"/>
         </test_case>
     </case>
 </cases>

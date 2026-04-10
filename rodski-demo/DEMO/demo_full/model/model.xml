@@ -66,9 +66,31 @@
     </element>
 </model>
 
-<model name="QuerySQL" type="interface" servicename="">
-    <element name="sql" type="field">
-        <location type="field">sql</location>
+<model name="QuerySQL" type="database" connection="demo_db" servicename="">
+    <query name="list" remark="查询订单列表">
+        <sql>SELECT order_no, customer_name, total_amount FROM orders LIMIT :limit</sql>
+    </query>
+    <query name="insert" remark="插入订单">
+        <sql>INSERT INTO orders (order_no, customer_name, total_amount, status)
+             VALUES (:order_no, :customer_name, :total_amount, :status)</sql>
+    </query>
+    <query name="get_by_id" remark="根据订单号查询">
+        <sql>SELECT * FROM orders WHERE order_no = :order_no</sql>
+    </query>
+    <query name="count" remark="统计订单数量">
+        <sql>SELECT COUNT(*) as total FROM orders</sql>
+    </query>
+    <element name="order_no" type="database">
+        <location type="field">order_no</location>
+    </element>
+    <element name="customer_name" type="database">
+        <location type="field">customer_name</location>
+    </element>
+    <element name="total_amount" type="database">
+        <location type="field">total_amount</location>
+    </element>
+    <element name="total" type="database">
+        <location type="field">total</location>
     </element>
 </model>
 
@@ -361,9 +383,6 @@
     </element>
 </model>
 
-<model name="ErrorSQL" type="interface" servicename="">
-    <element name="sql" type="field">
-        <location type="field">sql</location>
-    </element>
+<model name="ErrorSQL" type="database" connection="demo_db" servicename="">
 </model>
 </models>
