@@ -1,0 +1,9 @@
+{
+  "case": "TC024",
+  "steps": [],
+  "context_snapshot": {
+    "named": {
+      "error_code": "${Return[-1].nonexistent_field}"
+    }
+  }
+}

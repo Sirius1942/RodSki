@@ -5,7 +5,7 @@ import logging
 import subprocess
 import sys
 import time
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Dict, Any, Optional, List, Tuple, Union
 from pathlib import Path
 from drivers.base_driver import BaseDriver
 from core.performance import monitor_performance
@@ -1673,42 +1673,147 @@ class KeywordEngine:
         return True
 
     def _kw_db(self, params: Dict) -> bool:
-        """数据库操作
-        
-        用例格式: DB | 连接变量名 | SQL数据引用或直接SQL
-        
+        """数据库操作 - v5.0 新语法
+
+        新语法格式: DB | 模型名 | 数据行ID
+
         执行流程:
-        1. model 字段 = GlobalValue 中的数据库连接配置组名 (如 cassdb)
-        2. data 字段 = 数据表引用 (如 QuerySQL.Q001) 或直接 SQL
-        3. 从 GlobalValue 读取连接配置: cassdb.type, cassdb.host, cassdb.port 等
-        4. 如果 data 是数据表引用，从数据表中读取 sql/operation/var_name
-        5. 建立连接 → 执行 SQL → store_return 保存结果
+        1. model 字段 = 数据模型名称 (如 OrderQuery)
+        2. data 字段 = 数据行 ID (如 Q001)
+        3. 从模型读取 connection 属性和 query 定义
+        4. 从数据表读取 query 名称和参数
+        5. 替换 SQL 中的 :param 占位符
+        6. 执行 SQL → 截断处理 → store_return 保存结果
+
+        ⚠️ 破坏性更新: 不兼容旧语法 (model=连接名, data=TableName.DataID)
         """
-        conn_var = params.get("model", "")
-        data_ref = params.get("data", "")
+        model_name = params.get("model", "")
+        data_id = params.get("data", "")
 
-        if not data_ref:
-            raise InvalidParameterError(keyword="DB", param_name="data", reason="缺少 SQL 或数据表引用")
+        if not model_name:
+            raise InvalidParameterError(
+                keyword="DB",
+                param_name="model",
+                reason="缺少模型名称。新语法: action='DB' model='模型名' data='数据ID'"
+            )
 
-        # 解析 SQL：从数据表读取 or 直接使用
-        sql, operation, var_name = self._resolve_db_sql(data_ref)
+        if not data_id:
+            raise InvalidParameterError(
+                keyword="DB",
+                param_name="data",
+                reason="缺少数据行 ID"
+            )
+
+        # 检测旧语法并报错
+        if '.' in data_id:
+            raise InvalidParameterError(
+                keyword="DB",
+                param_name="data",
+                reason=(
+                    f"检测到旧语法格式 '{data_id}'。\n"
+                    f"v5.0+ 不再支持旧语法，请迁移到新语法:\n"
+                    f"  旧: <test_step action='DB' model='sqlite_db' data='QuerySQL.Q001'/>\n"
+                    f"  新: <test_step action='DB' model='OrderQuery' data='Q001'/>\n"
+                    f"详见迁移文档: .pb/specs/db_keyword_design_v2.md"
+                )
+            )
+
+        # 1. 从 model_parser 读取模型
+        if not self.model_parser:
+            raise DriverError("ModelParser 未初始化")
+
+        db_model = self.model_parser.get_database_model(model_name)
+        if not db_model:
+            model_type = self.model_parser.get_model_type(model_name)
+            if model_type and model_type != 'database':
+                raise InvalidParameterError(
+                    keyword="DB",
+                    param_name="model",
+                    reason=f"模型 '{model_name}' 的类型是 '{model_type}'，不是 'database'。DB 关键字只能使用 type='database' 的模型。"
+                )
+            raise InvalidParameterError(
+                keyword="DB",
+                param_name="model",
+                reason=f"模型 '{model_name}' 不存在或不是 database 类型"
+            )
+
+        connection_name = db_model.get('connection', '')
+        if not connection_name:
+            raise InvalidParameterError(
+                keyword="DB",
+                param_name="model",
+                reason=f"模型 '{model_name}' 缺少 connection 属性"
+            )
+
+        queries = db_model.get('queries', {})
+
+        # 2. 从数据表读取数据
+        if not self.data_manager:
+            raise DriverError("DataManager 未初始化")
+
+        row_data = self.data_manager.get_data(model_name, data_id)
+        if not row_data:
+            raise InvalidParameterError(
+                keyword="DB",
+                param_name="data",
+                reason=f"数据表 '{model_name}' 中未找到数据行 '{data_id}'"
+            )
+
+        # 3. 获取 SQL（支持两种模式）
+        sql = None
+        operation = 'query'
+
+        # 模式1: 数据表中直接写 SQL
+        if 'sql' in row_data or 'SQL' in row_data:
+            sql = str(row_data.get('sql', '') or row_data.get('SQL', '')).strip()
+            operation = str(row_data.get('operation', '') or row_data.get('Operation', 'query')).strip().lower()
+
+        # 模式2: 数据表引用模型中的 query
+        elif 'query' in row_data:
+            query_name = str(row_data.get('query', '')).strip()
+            if not query_name:
+                raise InvalidParameterError(
+                    keyword="DB",
+                    param_name="data",
+                    reason=f"数据行 '{data_id}' 的 query 字段为空"
+                )
+
+            if query_name not in queries:
+                raise InvalidParameterError(
+                    keyword="DB",
+                    param_name="data",
+                    reason=f"模型 '{model_name}' 中未定义查询 '{query_name}'。可用查询: {list(queries.keys())}"
+                )
+
+            sql = queries[query_name]['sql']
+            # 根据 SQL 类型自动判断 operation
+            operation = 'query' if sql.strip().upper().startswith('SELECT') else 'execute'
 
         if not sql:
-            raise InvalidParameterError(keyword="DB", param_name="data", reason=f"无法解析 SQL: '{data_ref}'")
+            raise InvalidParameterError(
+                keyword="DB",
+                param_name="data",
+                reason=f"数据行 '{data_id}' 中未找到 'sql' 或 'query' 字段"
+            )
+
+        # 4. 替换参数化查询中的 :param
+        sql = self._replace_sql_params(sql, row_data)
 
         logger.info(f"DB {operation}: {sql[:80]}{'...' if len(sql) > 80 else ''}")
 
-        # 获取数据库连接
-        connection = self._get_db_connection(conn_var)
-
+        # 5. 获取数据库连接
+        connection = self._get_db_connection(connection_name)
         if not connection:
-            logger.error(f"无法建立数据库连接: {conn_var}")
-            raise DriverError(f"数据库连接失败: 连接变量 '{conn_var}' 未配置或连接失败")
+            raise DriverError(f"数据库连接失败: 连接配置 '{connection_name}' 未配置或连接失败")
 
+        # 6. 执行 SQL
         try:
             result = self._execute_db_sql(connection, operation, sql)
-            if var_name:
-                self._variables[var_name] = result
+
+            # 7. 大数据量截断处理
+            if operation == 'query' and isinstance(result, list):
+                result = self._truncate_result(result)
+
             self.store_return(result)
             logger.info(f"DB 操作成功 ({operation})")
             return True
@@ -1717,62 +1822,81 @@ class KeywordEngine:
             self.store_return(None)
             raise DriverError(f"SQL 执行失败: {e}")
 
-    def _resolve_db_sql(self, data_ref: str):
-        """解析 DB 的 data 字段，返回 (sql, operation, var_name)
-        
-        如果 data_ref 匹配 TableName.DataID 格式且数据表存在，从数据表读取:
-            - sql 列: 实际 SQL
-            - operation 列: query/execute (默认 query)
-            - var_name 列: 可选，结果存入变量
-        否则视为直接 SQL 语句。
-        
-        附带检查: 数据表对应的 .md 说明文件是否存在，不存在则自动创建空模板。
+    def _replace_sql_params(self, sql: str, params: Dict[str, Any]) -> str:
+        """替换 SQL 中的 :param 占位符
+
+        Args:
+            sql: SQL 语句，包含 :param 占位符
+            params: 参数字典
+
+        Returns:
+            替换后的 SQL
+
+        示例:
+            sql = "SELECT * FROM orders WHERE status = :status LIMIT :limit"
+            params = {"status": "completed", "limit": 10}
+            返回: "SELECT * FROM orders WHERE status = 'completed' LIMIT 10"
         """
-        if self.data_manager and '.' in data_ref:
-            parts = data_ref.split('.')
-            if len(parts) >= 2:
-                table_name, data_id = parts[0], parts[1]
-                self._ensure_sql_doc(table_name)
-                row = self.data_manager.get_data(table_name, data_id)
-                if row:
-                    sql = str(row.get('sql', '') or row.get('SQL', '')).strip()
-                    operation = str(row.get('operation', '') or row.get('Operation', 'query')).strip().lower()
-                    var_name = str(row.get('var_name', '') or row.get('VarName', '')).strip()
-                    if sql:
-                        return sql, operation or 'query', var_name
+        import re
 
-        # 直接 SQL
-        data_ref = data_ref.strip()
-        if data_ref.upper().startswith(('SELECT', 'INSERT', 'UPDATE', 'DELETE', 'CREATE', 'DROP', 'ALTER')):
-            is_query = data_ref.upper().startswith('SELECT')
-            return data_ref, 'query' if is_query else 'execute', ''
+        def replace_param(match):
+            param_name = match.group(1)
+            if param_name not in params:
+                raise InvalidParameterError(
+                    keyword="DB",
+                    param_name=param_name,
+                    reason=f"SQL 中引用了参数 ':{param_name}'，但数据表中未提供该参数"
+                )
 
-        return data_ref, 'query', ''
+            value = params[param_name]
 
-    def _ensure_sql_doc(self, table_name: str) -> None:
-        """检查 SQL 数据表的 .md 说明文件是否存在，不存在则创建空模板"""
-        if not self._module_dir and not self._case_file:
-            return
-        base_dir = self._module_dir or self._case_file.parent.parent
-        model_dir = base_dir / "model"
-        md_path = model_dir / f"{table_name}.md"
-        if md_path.exists():
-            return
-        try:
-            model_dir.mkdir(parents=True, exist_ok=True)
-            md_path.write_text(
-                f"# {table_name}\n\n"
-                f"## 用途\n\n（请补充该 SQL 数据表的用途说明）\n\n"
-                f"## 涉及表\n\n（请补充涉及的数据库表及关键字段）\n\n"
-                f"## SQL 说明\n\n"
-                f"| DataID | 用途 |\n"
-                f"|--------|------|\n"
-                f"| | |\n",
-                encoding="utf-8"
-            )
-            logger.warning(f"SQL 数据表 '{table_name}' 缺少说明文件，已创建模板: {md_path}")
-        except Exception as e:
-            logger.warning(f"无法创建 SQL 说明文件 {md_path}: {e}")
+            # None → NULL
+            if value is None or str(value).upper() == 'NULL':
+                return 'NULL'
+
+            # 数字类型不加引号
+            if isinstance(value, (int, float)):
+                return str(value)
+
+            # 字符串类型加单引号，并转义单引号
+            value_str = str(value).replace("'", "''")
+            return f"'{value_str}'"
+
+        # 匹配 :param_name 格式（参数名只能是字母、数字、下划线）
+        pattern = r':(\w+)'
+        result = re.sub(pattern, replace_param, sql)
+
+        return result
+
+    def _truncate_result(self, result: List[Dict], limit: int = 1000) -> Union[List[Dict], Dict]:
+        """截断查询结果
+
+        Args:
+            result: 查询结果列表
+            limit: 最大行数，默认 1000
+
+        Returns:
+            如果未超过限制，返回原结果
+            如果超过限制，返回截断后的结果（包含 _truncated 标记）
+        """
+        if not isinstance(result, list):
+            return result
+
+        total_rows = len(result)
+        if total_rows <= limit:
+            return result
+
+        # 截断并添加标记
+        logger.warning(f"查询结果超过 {limit} 行（实际 {total_rows} 行），已自动截断")
+
+        truncated_result = result[:limit]
+        # 添加元数据（作为特殊字段）
+        return {
+            '_truncated': True,
+            '_total_rows': total_rows,
+            '_limit': limit,
+            'data': truncated_result
+        }
 
     # ── 数据库连接管理 ──────────────────────────────────────────
 

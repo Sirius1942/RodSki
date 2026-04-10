@@ -1,0 +1,12 @@
+<?xml version="1.0" ?>
+<testresult>
+  <summary total="3" passed="2" failed="1" skipped="0" errors="0" pass_rate="66.7%" total_time="22.93s" average_time="7.64s" start_time="2026-04-10 08:50:29" end_time="2026-04-10 08:50:29"/>
+  <results>
+    <result case_id="TC022" title="元素不存在测试" status="PASS" execution_time="21.287" retries="0" start_time="" end_time="" error_type="" error_message="[预期失败] [SKI313] 关键字 'type' 重试 1 次后仍失败: [SKI302] 元素 'nonExistentElement' 所有定位器均失败 [id=thisElementDoesNotExist]: [SKI302] 输入失败: 元素未找到 id=thisElementDoesNotExist
+  locator: id=thisElementDoesNotExist
+  keyword: type" screenshot_path="" updated_at="2026-04-10 08:50:29"/>
+    <result case_id="TC023" title="接口错误响应测试" status="FAIL" execution_time="1.626" retries="0" start_time="" end_time="" error_type="" error_message="[预期失败但实际成功] 用例应该失败但通过了所有步骤" screenshot_path="" updated_at="2026-04-10 08:50:29"/>
+    <result case_id="TC024" title="SQL语法错误测试" status="PASS" execution_time="0.013" retries="0" start_time="" end_time="" error_type="" error_message="[预期失败] [SKI313] 关键字 'DB' 重试 1 次后仍失败: [SKI302] SQL 执行失败: near &quot;syntax&quot;: syntax error
+  keyword: DB" screenshot_path="" updated_at="2026-04-10 08:50:29"/>
+  </results>
+</testresult>

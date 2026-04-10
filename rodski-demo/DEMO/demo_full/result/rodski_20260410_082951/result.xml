@@ -1,0 +1,7 @@
+<?xml version="1.0" ?>
+<testresult>
+  <summary total="1" passed="1" failed="0" skipped="0" errors="0" pass_rate="100.0%" total_time="7.19s" average_time="7.19s" start_time="2026-04-10 08:29:59" end_time="2026-04-10 08:29:59"/>
+  <results>
+    <result case_id="TC016" title="定位器类型覆盖测试" status="PASS" execution_time="7.192" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-04-10 08:29:59"/>
+  </results>
+</testresult>

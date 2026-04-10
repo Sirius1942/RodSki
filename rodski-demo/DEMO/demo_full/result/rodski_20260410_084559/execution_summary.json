@@ -1,0 +1,38 @@
+{
+  "case": "TC021",
+  "steps": [
+    {
+      "index": 1,
+      "action": "navigate",
+      "model": "",
+      "phase": "用例",
+      "status": "ok",
+      "return_source": "keyword_result",
+      "return_value": true,
+      "named_writes": {}
+    },
+    {
+      "index": 2,
+      "action": "wait",
+      "model": "",
+      "phase": "用例",
+      "status": "ok",
+      "return_source": "keyword_result",
+      "return_value": true,
+      "named_writes": {}
+    },
+    {
+      "index": 3,
+      "action": "close",
+      "model": "",
+      "phase": "后处理",
+      "status": "ok",
+      "return_source": "keyword_result",
+      "return_value": true,
+      "named_writes": {}
+    }
+  ],
+  "context_snapshot": {
+    "named": {}
+  }
+}

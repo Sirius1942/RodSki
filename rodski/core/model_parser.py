@@ -1,7 +1,7 @@
 import xml.etree.ElementTree as ET
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union, Any
 
 from core.xml_schema_validator import RodskiXmlValidator
 
@@ -9,6 +9,7 @@ logger = logging.getLogger("rodski")
 
 MODEL_TYPE_UI = "ui"
 MODEL_TYPE_INTERFACE = "interface"
+MODEL_TYPE_DATABASE = "database"
 MODEL_TYPE_OTHER = "other"
 
 LEGACY_DRIVER_TYPE_WEB = "web"
@@ -54,6 +55,13 @@ class ModelParser:
                 </element>
             </model>
 
+        Database 格式：
+            <model name="OrderQuery" type="database" connection="sqlite_db">
+                <query name="list">
+                    <sql>SELECT * FROM orders WHERE status = :status LIMIT :limit</sql>
+                </query>
+            </model>
+
         老 SKI 格式 (带完整元数据):
             <model name="Login">
                 <element name="username" type="web">
@@ -66,9 +74,11 @@ class ModelParser:
             <element name="UsernameInput" type="id" value="username"/>
 
         解析后每个 model 包含:
-            - __model_type__: 模型类型 (ui/interface)
+            - __model_type__: 模型类型 (ui/interface/database)
             - __auto_capture_type__: type 的 auto_capture 规则
             - __auto_capture_send__: send 的 auto_capture 规则
+            - __connection__: database 类型的连接配置名 (仅 database 类型)
+            - __queries__: database 类型的查询定义 (仅 database 类型)
             - 其余 key 为元素定义
         """
         models = {}
@@ -80,6 +90,18 @@ class ModelParser:
             model_type = model_node.get('type', '').strip() or None
             elements = {}
             inferred_model_type = None
+
+            # 如果是 database 类型，解析查询定义
+            if model_type == MODEL_TYPE_DATABASE:
+                connection = model_node.get('connection', '').strip()
+                queries = self._parse_queries(model_node)
+                models[model_name] = elements
+                models[model_name]['__model_type__'] = MODEL_TYPE_DATABASE
+                models[model_name]['__connection__'] = connection
+                models[model_name]['__queries__'] = queries
+                models[model_name]['__auto_capture_type__'] = None
+                models[model_name]['__auto_capture_send__'] = None
+                continue
 
             for elem_node in model_node.findall('element'):
                 element_name = elem_node.get('name')
@@ -204,6 +226,35 @@ class ModelParser:
                 return 'field'
         return ''
 
+    def _parse_queries(self, model_node) -> Dict[str, Dict[str, str]]:
+        """解析 database 模型中的 query 定义
+
+        返回格式:
+        {
+            "list": {
+                "sql": "SELECT * FROM orders WHERE status = :status LIMIT :limit",
+                "remark": "查询订单列表"
+            }
+        }
+        """
+        queries = {}
+        for query_node in model_node.findall('query'):
+            query_name = query_node.get('name', '').strip()
+            if not query_name:
+                continue
+
+            sql_node = query_node.find('sql')
+            sql = (sql_node.text or '').strip() if sql_node is not None else ''
+            remark = query_node.get('remark', '').strip()
+
+            if sql:
+                queries[query_name] = {
+                    'sql': sql,
+                    'remark': remark
+                }
+
+        return queries
+
     def get_element(self, locator: str) -> Optional[Dict]:
         """通过 ModelName.ElementName 格式获取元素定位信息。"""
         if '.' not in locator:
@@ -263,3 +314,32 @@ class ModelParser:
         if not element:
             return []
         return element.get('locations', [])
+
+    def get_database_model(self, model_name: str) -> Optional[Dict[str, Any]]:
+        """获取 database 类型模型的完整信息
+
+        返回格式:
+        {
+            "type": "database",
+            "connection": "sqlite_db",
+            "queries": {
+                "list": {
+                    "sql": "SELECT ...",
+                    "remark": "查询列表"
+                }
+            }
+        }
+        """
+        model = self.models.get(model_name)
+        if not model:
+            return None
+
+        model_type = model.get('__model_type__')
+        if model_type != MODEL_TYPE_DATABASE:
+            return None
+
+        return {
+            'type': MODEL_TYPE_DATABASE,
+            'connection': model.get('__connection__', ''),
+            'queries': model.get('__queries__', {})
+        }

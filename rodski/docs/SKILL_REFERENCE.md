@@ -1,7 +1,7 @@
 # Skill 参考文档
 
-**版本**: v1.0
-**日期**: 2026-03-29
+**版本**: v2.0
+**日期**: 2026-04-10
 **目标读者**: AI Agent
 
 ---
@@ -274,6 +274,106 @@
 
 ---
 
+## 4. 数据库操作 Skill
+
+### 4.1 DB - 数据库查询和操作
+
+**用途**: 执行数据库查询、插入、更新、删除操作
+
+**语法**:
+```xml
+<test_step action="DB" model="DatabaseModel" data="DataRowID"/>
+```
+
+**参数**:
+- `model`: 数据库模型名称（`type="database"`）
+- `data`: 数据行 ID
+
+**模型定义**:
+```xml
+<model name="OrderQuery" type="database" connection="sqlite_db" servicename="订单查询">
+    <!-- 查询模板定义 -->
+    <query name="list" remark="查询订单列表">
+        <sql><![CDATA[
+            SELECT order_no, customer_name, total_amount
+            FROM orders
+            WHERE status = :status
+            LIMIT :limit
+        ]]></sql>
+        <params>
+            <param name="status" type="string" default="completed"/>
+            <param name="limit" type="int" default="10"/>
+        </params>
+    </query>
+    
+    <!-- 结果字段定义（用于 verify） -->
+    <element name="order_no" type="database">
+        <location type="field">order_no</location>
+        <desc>订单号</desc>
+    </element>
+</model>
+```
+
+**数据表结构（模板模式）**:
+```xml
+<datatable name="OrderQuery">
+    <row id="Q001" remark="查询已完成订单">
+        <field name="query">list</field>
+        <field name="status">completed</field>
+        <field name="limit">5</field>
+    </row>
+</datatable>
+```
+
+**数据表结构（直接 SQL 模式）**:
+```xml
+<datatable name="OrderQuery">
+    <row id="Q001" remark="查询订单">
+        <field name="sql"><![CDATA[
+            SELECT * FROM orders WHERE status = 'completed' LIMIT 5
+        ]]></field>
+        <field name="operation">query</field>
+    </row>
+</datatable>
+```
+
+**返回值**:
+- 查询操作：返回列表 `[{row1}, {row2}, ...]`，自动保存到 `${Return[-1]}`
+- 执行操作：返回 `{"affected_rows": N}`
+
+**示例**:
+```xml
+<!-- 查询订单 -->
+<test_step action="DB" model="OrderQuery" data="Q001"/>
+
+<!-- 验证结果 -->
+<test_step action="assert" condition="${len(Return[-1])} == 5"/>
+<test_step action="assert" condition="${Return[-1][0].order_no} == 'ORD001'"/>
+
+<!-- 插入订单 -->
+<test_step action="DB" model="OrderQuery" data="Q002"/>
+```
+
+**连接配置（GlobalValue）**:
+```xml
+<globalvalue>
+    <group name="sqlite_db">
+        <var name="type" value="sqlite"/>
+        <var name="database" value="demo.db"/>
+    </group>
+</globalvalue>
+```
+
+**注意事项**:
+- SQL 必须定义在模型或数据表中，不能在测试用例中直接写 SQL
+- 推荐使用模型定义查询模板，数据表只提供参数
+- 查询结果默认最多返回 1000 行，超出会自动截断
+- 参数化查询使用 `:param` 语法
+
+<!-- 待 iteration-21 完成后验证示例可运行性 -->
+
+---
+
 ## 5. 使用建议
 
 ### 5.1 Skill 选择策略
@@ -296,5 +396,5 @@
 
 ---
 
-**文档版本**: v1.0
-**最后更新**: 2026-03-29
+**文档版本**: v2.0
+**最后更新**: 2026-04-10
