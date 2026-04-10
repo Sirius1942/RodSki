@@ -355,6 +355,12 @@
     </element>
 </model>
 
+<model name="ErrorAPI_verify" type="interface" servicename="">
+    <element name="detail" type="field">
+        <location type="field">detail</location>
+    </element>
+</model>
+
 <model name="ErrorSQL" type="interface" servicename="">
     <element name="sql" type="field">
         <location type="field">sql</location>

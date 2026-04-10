@@ -1,22 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testcases>
+<cases step_wait="500">
     <!-- TC022: 元素不存在测试 -->
     <case execute="是" id="TC022" title="元素不存在测试" expect_fail="是" component_type="界面">
         <test_case>
             <!-- 导航到测试页面 -->
             <test_step action="navigate" model="" data="http://localhost:8000"/>
-            <test_step action="wait" model="" data="1000"/>
+            <test_step action="wait" model="" data="1"/>
 
             <!-- 尝试操作不存在的元素 - 预期失败 -->
             <test_step action="type" model="NonExistentModel" data="E001"/>
         </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
     </case>
 
     <!-- TC023: 接口错误响应测试 -->
     <case execute="是" id="TC023" title="接口错误响应测试" expect_fail="是" component_type="接口">
         <test_case>
-            <!-- 调用会返回错误的API - 预期失败 -->
+            <!-- 调用不存在的API端点，404会导致失败 - 预期失败 -->
             <test_step action="send" model="ErrorAPI" data="E001"/>
+            <!-- 尝试访问不存在的命名变量会导致失败 -->
+            <test_step action="get" model="" data="nonexistent_variable_that_does_not_exist"/>
         </test_case>
     </case>
 
@@ -24,7 +29,7 @@
     <case execute="是" id="TC024" title="SQL语法错误测试" expect_fail="是" component_type="数据库">
         <test_case>
             <!-- 执行错误的SQL语句 - 预期失败 -->
-            <test_step action="DB" model="ErrorSQL" data="E001" db_config="GlobalValue.demo_db"/>
+            <test_step action="DB" model="demo_db" data="ErrorSQL.E001"/>
         </test_case>
     </case>
-</testcases>
+</cases>

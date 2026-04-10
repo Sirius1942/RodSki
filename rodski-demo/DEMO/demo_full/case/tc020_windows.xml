@@ -7,7 +7,7 @@
         </pre_process>
         <test_case>
             <!-- 多窗口测试 -->
-            <test_step action="comment" model="" data="=== 多窗口切换测试 ==="/>
+            <!-- 多窗口切换测试 -->
 
             <!-- 打开新窗口 (假设页面有打开新窗口的按钮) -->
             <!-- <test_step action="type" model="WindowTest" data="W001"/> -->
@@ -25,7 +25,7 @@
             <!-- <test_step action="wait" model="" data="1"/> -->
 
             <!-- iframe测试 -->
-            <test_step action="comment" model="" data="=== iframe切换测试 ==="/>
+            <!-- iframe切换测试 -->
 
             <!-- 导航到包含iframe的页面 -->
             <!-- <test_step action="navigate" model="" data="http://localhost:8000/iframe-test"/> -->
@@ -49,7 +49,8 @@
             <!-- 再次返回主文档 -->
             <!-- <test_step action="run" model="" data="fun/switch_frame.py default"/> -->
 
-            <test_step action="comment" model="" data="TC020 测试完成 (需要配合实际页面启用)"/>
+            <!-- TC020 测试完成 (需要配合实际页面启用) -->
+            <test_step action="wait" model="" data="1"/>
         </test_case>
         <post_process>
             <test_step action="close" model="" data=""/>

@@ -503,6 +503,12 @@
         </row>
     </datatable>
 
+    <datatable name="ErrorAPI_verify">
+        <row id="E001" remark="期望的错误响应（实际不会匹配）">
+            <field name="detail">Expected error message that will not match</field>
+        </row>
+    </datatable>
+
     <datatable name="ErrorSQL">
         <row id="E001" remark="错误的SQL语句">
             <field name="sql">SELECT * FROM non_existent_table WHERE invalid syntax</field>
