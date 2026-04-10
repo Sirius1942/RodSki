@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases step_wait="500">
+    <!-- TC020: 多窗口和iframe测试 -->
+    <case execute="是" id="TC020" title="多窗口和iframe测试" component_type="界面">
+        <pre_process>
+            <test_step action="navigate" model="" data="http://localhost:8000"/>
+        </pre_process>
+        <test_case>
+            <!-- 多窗口测试 -->
+            <test_step action="comment" model="" data="=== 多窗口切换测试 ==="/>
+
+            <!-- 打开新窗口 (假设页面有打开新窗口的按钮) -->
+            <!-- <test_step action="type" model="WindowTest" data="W001"/> -->
+            <!-- <test_step action="wait" model="" data="2"/> -->
+
+            <!-- 切换到新窗口 (索引1) -->
+            <!-- <test_step action="run" model="" data="fun/switch_window.py 1"/> -->
+            <!-- <test_step action="wait" model="" data="1"/> -->
+
+            <!-- 验证新窗口内容 -->
+            <!-- <test_step action="verify" model="NewWindow" data="V001"/> -->
+
+            <!-- 切换回主窗口 (索引0) -->
+            <!-- <test_step action="run" model="" data="fun/switch_window.py 0"/> -->
+            <!-- <test_step action="wait" model="" data="1"/> -->
+
+            <!-- iframe测试 -->
+            <test_step action="comment" model="" data="=== iframe切换测试 ==="/>
+
+            <!-- 导航到包含iframe的页面 -->
+            <!-- <test_step action="navigate" model="" data="http://localhost:8000/iframe-test"/> -->
+            <!-- <test_step action="wait" model="" data="2"/> -->
+
+            <!-- 切换到iframe (通过name或id) -->
+            <!-- <test_step action="run" model="" data="fun/switch_frame.py contentFrame"/> -->
+            <!-- <test_step action="wait" model="" data="1"/> -->
+
+            <!-- 验证iframe内容 -->
+            <!-- <test_step action="verify" model="IframeContent" data="V001"/> -->
+
+            <!-- 返回主文档 -->
+            <!-- <test_step action="run" model="" data="fun/switch_frame.py default"/> -->
+            <!-- <test_step action="wait" model="" data="1"/> -->
+
+            <!-- 通过索引切换到第一个iframe -->
+            <!-- <test_step action="run" model="" data="fun/switch_frame.py 0"/> -->
+            <!-- <test_step action="wait" model="" data="1"/> -->
+
+            <!-- 再次返回主文档 -->
+            <!-- <test_step action="run" model="" data="fun/switch_frame.py default"/> -->
+
+            <test_step action="comment" model="" data="TC020 测试完成 (需要配合实际页面启用)"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+</cases>

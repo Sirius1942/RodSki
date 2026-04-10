@@ -276,4 +276,40 @@
         <location type="vision_bbox">100,300,400,330</location>
     </element>
 </model>
+
+<model name="WindowTest" type="ui" servicename="">
+    <element name="openWindowBtn" type="button">
+        <location type="id">openWindowBtn</location>
+    </element>
+    <element name="mainWindowTitle" type="text">
+        <location type="id">mainTitle</location>
+    </element>
+</model>
+
+<model name="NewWindow" type="ui" servicename="">
+    <element name="newWindowTitle" type="text">
+        <location type="id">newWindowTitle</location>
+    </element>
+    <element name="newWindowContent" type="text">
+        <location type="id">newWindowContent</location>
+    </element>
+</model>
+
+<model name="IframeTest" type="ui" servicename="">
+    <element name="mainContent" type="text">
+        <location type="id">mainContent</location>
+    </element>
+    <element name="iframeContainer" type="div">
+        <location type="id">iframeContainer</location>
+    </element>
+</model>
+
+<model name="IframeContent" type="ui" servicename="">
+    <element name="iframeTitle" type="text">
+        <location type="id">iframeTitle</location>
+    </element>
+    <element name="iframeText" type="text">
+        <location type="id">iframeText</location>
+    </element>
+</model>
 </models>

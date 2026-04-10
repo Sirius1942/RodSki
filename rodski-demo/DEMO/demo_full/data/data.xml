@@ -436,4 +436,32 @@
         </row>
     </datatable>
 
+    <!-- 多窗口测试数据 -->
+    <datatable name="WindowTest">
+        <row id="W001" remark="打开新窗口">
+            <field name="openWindowBtn">click</field>
+        </row>
+    </datatable>
+
+    <datatable name="NewWindow_verify">
+        <row id="V001" remark="验证新窗口内容">
+            <field name="newWindowTitle">新窗口标题</field>
+            <field name="newWindowContent">这是新窗口的内容</field>
+        </row>
+    </datatable>
+
+    <!-- iframe测试数据 -->
+    <datatable name="IframeTest">
+        <row id="I001" remark="主页面内容">
+            <field name="mainContent">主页面内容</field>
+        </row>
+    </datatable>
+
+    <datatable name="IframeContent_verify">
+        <row id="V001" remark="验证iframe内容">
+            <field name="iframeTitle">iframe标题</field>
+            <field name="iframeText">这是iframe中的内容</field>
+        </row>
+    </datatable>
+
 </datatables>
