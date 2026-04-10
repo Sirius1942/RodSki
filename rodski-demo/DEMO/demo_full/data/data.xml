@@ -394,4 +394,46 @@
         </row>
     </datatable>
 
+    <!-- 关键字覆盖测试数据 -->
+    <datatable name="KeywordTest">
+        <row id="K001" remark="clear测试 - 输入后清空">
+            <field name="username">待清空的内容</field>
+        </row>
+        <row id="K002" remark="type+verify测试">
+            <field name="username">关键字测试内容</field>
+            <field name="submitBtn">click</field>
+        </row>
+    </datatable>
+
+    <datatable name="KeywordTest_verify">
+        <row id="V001" remark="验证提交结果">
+            <field name="formResult">提交成功: 关键字测试内容</field>
+        </row>
+        <row id="V002" remark="验证get获取的文本">
+            <field name="formResult">${Return[-1]}</field>
+        </row>
+    </datatable>
+
+    <!-- 视觉定位测试数据 -->
+    <datatable name="VisionLogin">
+        <row id="L001" remark="vision语义定位登录">
+            <field name="username">admin</field>
+            <field name="password">123456</field>
+            <field name="loginBtn">click</field>
+        </row>
+    </datatable>
+
+    <datatable name="VisionCoordinate">
+        <row id="C001" remark="vision_bbox坐标定位">
+            <field name="username">坐标定位测试</field>
+            <field name="submitBtn">click</field>
+        </row>
+    </datatable>
+
+    <datatable name="VisionCoordinate_verify">
+        <row id="V001" remark="验证坐标定位结果">
+            <field name="formResult">提交成功: 坐标定位测试</field>
+        </row>
+    </datatable>
+
 </datatables>

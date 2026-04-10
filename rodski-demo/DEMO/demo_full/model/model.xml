@@ -237,4 +237,43 @@
         <location type="id">result</location>
     </element>
 </model>
+
+<model name="KeywordTest" type="ui" servicename="">
+    <element name="username" type="input">
+        <location type="id">username</location>
+    </element>
+    <element name="submitBtn" type="button">
+        <location type="id">submitBtn</location>
+    </element>
+    <element name="formResult" type="text">
+        <location type="id">formResult</location>
+    </element>
+    <element name="fileUpload" type="input">
+        <location type="id">fileUpload</location>
+    </element>
+</model>
+
+<model name="VisionLogin" type="ui" servicename="">
+    <element name="username" type="input">
+        <location type="vision">用户名输入框</location>
+    </element>
+    <element name="password" type="input">
+        <location type="vision">密码输入框</location>
+    </element>
+    <element name="loginBtn" type="button">
+        <location type="vision">登录按钮</location>
+    </element>
+</model>
+
+<model name="VisionCoordinate" type="ui" servicename="">
+    <element name="username" type="input">
+        <location type="vision_bbox">100,200,300,230</location>
+    </element>
+    <element name="submitBtn" type="button">
+        <location type="vision_bbox">150,250,250,280</location>
+    </element>
+    <element name="formResult" type="text">
+        <location type="vision_bbox">100,300,400,330</location>
+    </element>
+</model>
 </models>

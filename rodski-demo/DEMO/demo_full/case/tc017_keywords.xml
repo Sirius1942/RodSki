@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases step_wait="500">
+    <case execute="是" id="TC017" title="关键字完整覆盖测试" component_type="界面">
+        <pre_process>
+            <test_step action="navigate" model="" data="http://localhost:8000"/>
+            <test_step action="type" model="LoginForm" data="L001"/>
+            <test_step action="type" model="NavMenu" data="N001"/>
+        </pre_process>
+        <test_case>
+            <!-- wait - 等待测试 -->
+            <test_step action="wait" model="" data="2"/>
+
+            <!-- screenshot - 截图测试 -->
+            <test_step action="screenshot" model="" data="tc017_test.png"/>
+
+            <!-- clear - 清空输入测试 -->
+            <test_step action="type" model="KeywordTest" data="K001"/>
+            <test_step action="clear" model="" data="#username"/>
+
+            <!-- type + verify - 输入和验证测试 -->
+            <test_step action="type" model="KeywordTest" data="K002"/>
+            <test_step action="verify" model="KeywordTest" data="V001"/>
+
+            <!-- get - 获取文本测试 -->
+            <test_step action="get" model="" data="#formResult"/>
+            <test_step action="verify" model="KeywordTest" data="V002"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+</cases>
