@@ -2,6 +2,7 @@
 <globalvalue>
     <group name="DefaultValue">
         <var name="WaitTime" value="500"/>
+        <var name="URL" value="http://localhost:8000"/>
     </group>
     <group name="env">
         <var name="base_url" value="http://localhost:8000"/>
@@ -10,5 +11,9 @@
     <group name="demo_db">
         <var name="type" value="sqlite"/>
         <var name="database" value="/Users/sirius05/Documents/project/RodSki/rodski-demo/DEMO/demo_full/demo.db"/>
+    </group>
+    <group name="user">
+        <var name="test_email" value="test@example.com"/>
+        <var name="test_name" value="测试用户"/>
     </group>
 </globalvalue>

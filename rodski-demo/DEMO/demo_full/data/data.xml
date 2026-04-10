@@ -464,4 +464,49 @@
         </row>
     </datatable>
 
+    <!-- 复杂数据引用测试数据 -->
+    <datatable name="DataRefTest">
+        <row id="D001" remark="GlobalValue引用测试">
+            <field name="username">GlobalValue.user.test_name</field>
+            <field name="email">GlobalValue.user.test_email</field>
+            <field name="submitBtn">click</field>
+        </row>
+        <row id="D002" remark="Return引用测试">
+            <field name="username">${Return[-1]}</field>
+            <field name="email">test2@example.com</field>
+            <field name="submitBtn">click</field>
+        </row>
+    </datatable>
+
+    <datatable name="DataRefVerify">
+        <row id="V001" remark="验证GlobalValue引用">
+            <field name="formResult">提交成功: 测试用户</field>
+        </row>
+        <row id="V002" remark="验证Return引用">
+            <field name="formResult">${Return[-1]}</field>
+        </row>
+        <row id="V003" remark="验证set/get变量">
+            <field name="savedValue">${Return[-1]}</field>
+        </row>
+    </datatable>
+
+    <!-- 负面测试数据 -->
+    <datatable name="NonExistentModel">
+        <row id="E001" remark="尝试操作不存在的元素">
+            <field name="nonExistentElement">这个元素不存在</field>
+        </row>
+    </datatable>
+
+    <datatable name="ErrorAPI">
+        <row id="E001" remark="触发API错误">
+            <field name="test_field">error_trigger</field>
+        </row>
+    </datatable>
+
+    <datatable name="ErrorSQL">
+        <row id="E001" remark="错误的SQL语句">
+            <field name="sql">SELECT * FROM non_existent_table WHERE invalid syntax</field>
+        </row>
+    </datatable>
+
 </datatables>

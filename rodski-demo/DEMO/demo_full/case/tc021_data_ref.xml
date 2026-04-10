@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testcases>
+    <case execute="是" id="TC021" title="复杂数据引用测试" component_type="界面">
+        <test_case>
+            <!-- 1. 使用 GlobalValue 引用导航到测试页面 -->
+            <test_step action="navigate" model="" data="GlobalValue.DefaultValue.URL"/>
+            <test_step action="wait" model="" data="1000"/>
+
+            <!-- 2. 测试 GlobalValue 引用 - 填写表单 -->
+            <test_step action="type" model="DataRefTest" data="D001"/>
+            <test_step action="verify" model="DataRefVerify" data="V001"/>
+
+            <!-- 3. 获取表单结果并保存到变量 -->
+            <test_step action="get" model="DataRefTest" data="formResult"/>
+            <test_step action="set" model="" data="savedResult=${Return[-1]}"/>
+
+            <!-- 4. 使用 Return 引用 - 将上一步的结果作为输入 -->
+            <test_step action="clear" model="DataRefTest" data="username"/>
+            <test_step action="get" model="" data="savedResult"/>
+            <test_step action="type" model="DataRefTest.username" data="${Return[-1]}"/>
+            <test_step action="type" model="DataRefTest.email" data="return_test@example.com"/>
+            <test_step action="type" model="DataRefTest.submitBtn" data="click"/>
+
+            <!-- 5. 验证 set/get 变量访问 -->
+            <test_step action="get" model="" data="savedResult"/>
+            <test_step action="verify" model="DataRefVerify" data="V003"/>
+
+            <!-- 6. 测试嵌套 Return 引用 -->
+            <test_step action="get" model="DataRefTest" data="formResult"/>
+            <test_step action="set" model="" data="finalResult=${Return[-1]}"/>
+            <test_step action="get" model="" data="finalResult"/>
+            <test_step action="verify" model="DataRefVerify" data="V002"/>
+        </test_case>
+    </case>
+</testcases>

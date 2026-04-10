@@ -312,4 +312,52 @@
         <location type="id">iframeText</location>
     </element>
 </model>
+
+<model name="DataRefTest" type="ui" servicename="">
+    <element name="username" type="input">
+        <location type="id">username</location>
+    </element>
+    <element name="email" type="input">
+        <location type="id">email</location>
+    </element>
+    <element name="submitBtn" type="button">
+        <location type="id">submitBtn</location>
+    </element>
+    <element name="formResult" type="text">
+        <location type="id">formResult</location>
+    </element>
+</model>
+
+<model name="DataRefVerify" type="ui" servicename="">
+    <element name="formResult" type="text">
+        <location type="id">formResult</location>
+    </element>
+    <element name="savedValue" type="text">
+        <location type="id">formResult</location>
+    </element>
+</model>
+
+<model name="NonExistentModel" type="ui" servicename="">
+    <element name="nonExistentElement" type="input">
+        <location type="id">thisElementDoesNotExist</location>
+    </element>
+</model>
+
+<model name="ErrorAPI" type="interface" servicename="">
+    <element name="_method" type="http_method">
+        <location type="static">POST</location>
+    </element>
+    <element name="_url" type="http_url">
+        <location type="static">http://localhost:8000/api/error</location>
+    </element>
+    <element name="test_field" type="field">
+        <location type="field">test_field</location>
+    </element>
+</model>
+
+<model name="ErrorSQL" type="interface" servicename="">
+    <element name="sql" type="field">
+        <location type="field">sql</location>
+    </element>
+</model>
 </models>
