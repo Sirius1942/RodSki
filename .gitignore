@@ -53,3 +53,7 @@ CassMall_examples.zip
 
 # 项目文档（不要忽略）
 !.pb/
+
+# RodSki demo 运行产物（不纳入版本控制）
+rodski-demo/**/result/
+rodski-demo/**/result/**
