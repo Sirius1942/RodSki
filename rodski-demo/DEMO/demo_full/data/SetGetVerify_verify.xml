@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<datatable name="SetGetVerify_verify">
-    <row id="V001" remark="验证get读取first_result等于T001提交值">
-        <field name="value">${Return[-1]}</field>
-    </row>
-</datatable>

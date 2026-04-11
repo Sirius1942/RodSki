@@ -29,7 +29,7 @@ class TestWriteResult:
         rw = ResultWriter(result_dir)
         rw.write_result({"case_id": "TC001", "title": "登录测试", "status": "PASS", "execution_time": 1.23})
 
-        result_files = list(Path(result_dir).glob("result_*.xml"))
+        result_files = list(Path(result_dir).glob("rodski_*/result.xml"))
         assert len(result_files) == 1
 
         tree = ET.parse(result_files[0])
@@ -56,7 +56,7 @@ class TestWriteResult:
             "error": "Element not found",
         })
 
-        result_files = list(Path(result_dir).glob("result_*.xml"))
+        result_files = list(Path(result_dir).glob("rodski_*/result.xml"))
         tree = ET.parse(result_files[0])
         root = tree.getroot()
 
@@ -74,7 +74,7 @@ class TestBatchWrite:
         ]
         rw.write_results(results)
 
-        result_files = list(Path(result_dir).glob("result_*.xml"))
+        result_files = list(Path(result_dir).glob("rodski_*/result.xml"))
         tree = ET.parse(result_files[0])
         root = tree.getroot()
 
@@ -90,7 +90,7 @@ class TestBatchWrite:
     def test_empty_list_no_file(self, result_dir):
         rw = ResultWriter(result_dir)
         rw.write_results([])
-        result_files = list(Path(result_dir).glob("result_*.xml"))
+        result_files = list(Path(result_dir).glob("rodski_*/result.xml"))
         assert len(result_files) == 0
 
 
@@ -116,7 +116,7 @@ class TestXMLValidity:
         rw = ResultWriter(result_dir)
         rw.write_result({"case_id": "TC001", "status": "PASS"})
 
-        result_files = list(Path(result_dir).glob("result_*.xml"))
+        result_files = list(Path(result_dir).glob("rodski_*/result.xml"))
         content = result_files[0].read_text(encoding="utf-8")
         assert '<?xml version="1.0" ?>' in content
 

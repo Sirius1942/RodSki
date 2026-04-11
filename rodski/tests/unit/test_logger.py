@@ -21,10 +21,11 @@ class TestLogger:
         assert "test error" in content
         assert "ERROR" in content
 
-    def test_debug_not_shown_at_info_level(self, logger):
+    def test_debug_shown_in_file_at_default_file_level(self, logger):
+        """file_level 默认 DEBUG，文件中应记录 DEBUG 消息"""
         logger.debug("hidden debug")
         content = logger.get_latest_log()
-        assert "hidden debug" not in content
+        assert "hidden debug" in content
 
     def test_debug_shown_at_debug_level(self, logger):
         logger.set_level("DEBUG")

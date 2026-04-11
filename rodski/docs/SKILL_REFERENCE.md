@@ -112,6 +112,8 @@
 </row>
 ```
 
+> 注意：接口/DB 模型的 _verify 数据表禁止使用 ${Return[-1]}，详见 CORE_DESIGN_CONSTRAINTS 4.3 节。
+
 ---
 
 ### 1.5 wait - 等待

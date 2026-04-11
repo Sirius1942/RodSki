@@ -170,8 +170,8 @@ class TestOmniClientInputFormats:
         """支持 PIL.Image.Image 作为输入。"""
         try:
             from PIL import Image
-            img_path = _make_tiny_png(tmp_path / "shot.png")
-            pil_img = Image.open(img_path)
+            # 直接创建 1x1 白色 PIL 图像，避免懒加载 broken data stream 问题
+            pil_img = Image.new("RGB", (1, 1), color=(255, 255, 255))
             elements = [{"type": "icon", "content": "search", "bbox": [0.2, 0.3, 0.4, 0.5]}]
 
             with patch("vision.omni_client.requests.post", return_value=_fake_response(elements)):
@@ -280,14 +280,15 @@ class TestOmniClientHealthCheck:
 
     def test_health_check_success_via_parse_endpoint(self):
         """无 /health 端点时通过 parse 端点健康检查成功。"""
-        mock_get_resp = Mock()
-        mock_get_resp.status_code = 404  # /health not found
+        import requests as _req
 
         mock_post_resp = Mock()
         mock_post_resp.status_code = 200
 
         def get_side_effect(*args, **kwargs):
-            raise Exception("Connection refused")
+            # 必须抛出 requests.RequestException 的子类，
+            # 因为 health_check() 通过 except requests.RequestException 捕获
+            raise _req.ConnectionError("Connection refused")
 
         def post_side_effect(*args, **kwargs):
             return mock_post_resp
@@ -315,9 +316,9 @@ class TestOmniClientDefaults:
     """OmniClient 默认值和行为测试。"""
 
     def test_default_url(self):
-        """默认 URL 设置正确。"""
+        """默认 URL 设置正确（含尾斜杠，因为默认值以 /parse/ 结尾）。"""
         client = OmniClient()
-        assert client.url == "http://localhost:8001/parse"
+        assert client.url == "http://localhost:8001/parse/"
 
     def test_default_timeout(self):
         """默认超时设置为 10 秒。"""

@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<data>
-    <table name="LoginPage">
-        <row id="URL001">
-            <field name="url">file://{{ TEST_DIR }}/fun/test_page.html</field>
-        </row>
-    </table>
-</data>

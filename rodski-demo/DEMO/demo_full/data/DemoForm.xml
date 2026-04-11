@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<datatable name="DemoForm">
-    <row id="F001" remark="提交表单">
-        <field name="username">testuser</field>
-        <field name="submitBtn">click</field>
-    </row>
-</datatable>

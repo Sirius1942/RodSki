@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<datatable name="SearchPage">
-  <row id="S001" remark="搜索操作">
-    <field name="searchInput">RodSki 测试框架</field>
-    <field name="searchBtn">click</field>
-  </row>
-</datatable>

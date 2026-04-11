@@ -168,9 +168,10 @@ class TestCLIBackwardCompatibility:
         assert "RodSki" in r.stdout
 
     def test_version_still_works(self):
+        from cli_main import VERSION
         r = run_cli("--version")
         assert r.returncode == 0
-        assert "2.0.1" in r.stdout
+        assert VERSION in r.stdout
 
     def test_no_args_still_works(self):
         r = run_cli()

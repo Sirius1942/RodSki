@@ -28,33 +28,11 @@
         </row>
     </datatable>
 
-    <datatable name="Login_verify">
-        <row id="V001">
-            <field name="loginMessage">登录成功</field>
-        </row>
-        <row id="V002">
-            <field name="loginMessage">登录失败</field>
-        </row>
-    </datatable>
-
-    <datatable name="ErrorMessage_verify">
-        <row id="V001">
-            <field name="errorMsg">用户名或密码错误</field>
-        </row>
-    </datatable>
-
     <!-- API测试数据 -->
     <datatable name="LoginAPI">
         <row id="D001">
             <field name="username">admin</field>
             <field name="password">123456</field>
-        </row>
-    </datatable>
-
-    <datatable name="LoginAPI_verify">
-        <row id="V001">
-            <field name="success">true</field>
-            <field name="token">demo_token_123</field>
         </row>
     </datatable>
 
@@ -64,24 +42,12 @@
         </row>
     </datatable>
 
-    <datatable name="OrderAPI_verify">
-        <row id="V001">
-            <field name="status">success</field>
-        </row>
-    </datatable>
-
     <!-- 表单数据 -->
     <datatable name="Form">
         <row id="F001">
             <field name="name">张三</field>
             <field name="email">GlobalValue.user.test_email</field>
             <field name="comment">这是测试备注</field>
-        </row>
-    </datatable>
-
-    <datatable name="Form_verify">
-        <row id="V001">
-            <field name="formResult">提交成功: 张三</field>
         </row>
     </datatable>
 
@@ -102,12 +68,6 @@
         </row>
     </datatable>
 
-    <datatable name="TestForm_verify">
-        <row id="V001">
-            <field name="result">测试成功</field>
-        </row>
-    </datatable>
-
     <!-- 导航和看板数据 -->
     <datatable name="NavMenu">
         <row id="N001">
@@ -116,13 +76,6 @@
     </datatable>
 
     <datatable name="Dashboard">
-        <row id="V001">
-            <field name="totalOrders">3</field>
-            <field name="completedOrders">2</field>
-        </row>
-    </datatable>
-
-    <datatable name="Dashboard_verify">
         <row id="V001">
             <field name="totalOrders">3</field>
             <field name="completedOrders">2</field>
@@ -140,18 +93,6 @@
         </row>
     </datatable>
 
-    <datatable name="Order_verify">
-        <row id="V001">
-            <field name="orderStatus">已创建</field>
-        </row>
-    </datatable>
-
-    <datatable name="OrderTable_verify">
-        <row id="V001">
-            <field name="orderCount">3</field>
-        </row>
-    </datatable>
-
     <!-- 产品数据 -->
     <datatable name="Product">
         <row id="P001">
@@ -160,23 +101,11 @@
         </row>
     </datatable>
 
-    <datatable name="Product_verify">
-        <row id="V001">
-            <field name="productName">iPhone 15</field>
-        </row>
-    </datatable>
-
     <!-- 用户数据 -->
     <datatable name="User">
         <row id="U001">
             <field name="username">testuser</field>
             <field name="email">test@example.com</field>
-        </row>
-    </datatable>
-
-    <datatable name="User_verify">
-        <row id="V001">
-            <field name="username">testuser</field>
         </row>
     </datatable>
 
@@ -190,6 +119,10 @@
             <field name="query">insert</field>
             <field name="order_no">TEST001</field>
             <field name="customer_name">测试用户</field>
+            <field name="customer_phone">13800138999</field>
+            <field name="product_name">测试商品</field>
+            <field name="quantity">1</field>
+            <field name="price">999.00</field>
             <field name="total_amount">999.00</field>
             <field name="status">pending</field>
         </row>
@@ -199,20 +132,6 @@
         </row>
         <row id="Q004" remark="统计订单数量">
             <field name="query">count</field>
-        </row>
-    </datatable>
-
-    <datatable name="QuerySQL_verify">
-        <row id="V001" remark="验证查询结果不为空">
-            <field name="order_no">${Return[-1][0].order_no}</field>
-        </row>
-        <row id="V002" remark="验证插入的订单">
-            <field name="order_no">TEST001</field>
-            <field name="customer_name">测试用户</field>
-            <field name="total_amount">999.00</field>
-        </row>
-        <row id="V003" remark="验证统计结果">
-            <field name="total">${Return[-1][0].total}</field>
         </row>
     </datatable>
 
@@ -226,6 +145,10 @@
             <field name="query">insert</field>
             <field name="order_no">MYSQL_TEST001</field>
             <field name="customer_name">MySQL测试用户</field>
+            <field name="customer_phone">13800139000</field>
+            <field name="product_name">MySQL测试商品</field>
+            <field name="quantity">2</field>
+            <field name="price">999.50</field>
             <field name="total_amount">1999.00</field>
             <field name="status">pending</field>
         </row>
@@ -235,26 +158,9 @@
         </row>
     </datatable>
 
-    <datatable name="QueryMySQL_verify">
-        <row id="V001" remark="验证查询结果不为空">
-            <field name="order_no">${Return[-1][0].order_no}</field>
-        </row>
-        <row id="V002" remark="验证插入的订单">
-            <field name="order_no">MYSQL_TEST001</field>
-            <field name="customer_name">MySQL测试用户</field>
-            <field name="total_amount">1999.00</field>
-        </row>
-    </datatable>
-
     <datatable name="QueryDB">
         <row id="Q001">
             <field name="sql">SELECT * FROM orders LIMIT 5</field>
-        </row>
-    </datatable>
-
-    <datatable name="QueryDB_verify">
-        <row id="V001">
-            <field name="count">5</field>
         </row>
     </datatable>
 
@@ -265,21 +171,9 @@
         </row>
     </datatable>
 
-    <datatable name="QueryOrder_verify">
-        <row id="V001">
-            <field name="status">completed</field>
-        </row>
-    </datatable>
-
     <datatable name="QueryUser">
         <row id="Q001">
             <field name="userId">U001</field>
-        </row>
-    </datatable>
-
-    <datatable name="QueryUser_verify">
-        <row id="V001">
-            <field name="username">admin</field>
         </row>
     </datatable>
 
@@ -291,45 +185,11 @@
         </row>
     </datatable>
 
-    <datatable name="ReturnTest_verify">
-        <row id="V001">
-            <field name="result">${Return[-1]}</field>
-        </row>
-    </datatable>
-
     <!-- UI动作测试数据 -->
     <datatable name="UIActions">
         <row id="A001">
             <field name="clickBtn">click</field>
             <field name="inputText">测试输入</field>
-        </row>
-    </datatable>
-
-    <datatable name="UIActions_verify">
-        <row id="V001">
-            <field name="result">操作成功</field>
-        </row>
-    </datatable>
-
-
-    <!-- set/get 验证数据 -->
-    <datatable name="SetGetVerify_verify">
-        <row id="V001" remark="验证get读取first_result等于T001提交值">
-            <field name="value">${Return[-1]}</field>
-        </row>
-    </datatable>
-
-    <!-- get选择器模式验证 -->
-    <datatable name="GetVerify_verify">
-        <row id="V001" remark="验证get选择器模式结果写入history">
-            <field name="result">${Return[-1]}</field>
-        </row>
-    </datatable>
-
-    <!-- evaluate结构化返回验证 -->
-    <datatable name="EvaluateResult_verify">
-        <row id="V001" remark="验证evaluate返回title字段">
-            <field name="title">${Return[-1].title}</field>
         </row>
     </datatable>
 
@@ -340,25 +200,11 @@
         </row>
     </datatable>
 
-    <!-- get模型模式验证 -->
-    <datatable name="GetModelVerify_verify">
-        <row id="V001" remark="验证get模型模式返回dict">
-            <field name="formResult">${Return[-1].formResult}</field>
-        </row>
-    </datatable>
-
     <!-- DemoForm Auto Capture数据 -->
     <datatable name="DemoForm">
         <row id="F001" remark="提交表单">
             <field name="username">testuser</field>
             <field name="submitBtn">click</field>
-        </row>
-    </datatable>
-
-    <!-- DemoForm Auto Capture验证 -->
-    <datatable name="DemoFormVerify_verify">
-        <row id="V001" remark="验证auto_capture提取resultId">
-            <field name="resultId">${Return[-1].resultId}</field>
         </row>
     </datatable>
 
@@ -378,24 +224,11 @@
         </row>
     </datatable>
 
-    <!-- LoginAPICapture验证 -->
-    <datatable name="LoginAPICapture_verify">
-        <row id="V001" remark="验证send auto_capture提取token">
-            <field name="data.token">${Return[-1]._capture.token}</field>
-        </row>
-    </datatable>
-
     <!-- 定位器测试数据 -->
     <datatable name="LocatorTest_ID">
         <row id="L001" remark="ID定位器测试">
             <field name="input">ID定位器测试内容</field>
             <field name="button">click</field>
-        </row>
-    </datatable>
-
-    <datatable name="LocatorTest_ID_verify">
-        <row id="V001" remark="验证ID定位器结果">
-            <field name="result">测试结果: ID 定位器测试成功！</field>
         </row>
     </datatable>
 
@@ -406,12 +239,6 @@
         </row>
     </datatable>
 
-    <datatable name="LocatorTest_Name_verify">
-        <row id="V001" remark="验证Name定位器结果">
-            <field name="result">测试结果: Name 定位器测试成功！</field>
-        </row>
-    </datatable>
-
     <datatable name="LocatorTest_CSS">
         <row id="L001" remark="CSS定位器测试">
             <field name="input">CSS定位器测试内容</field>
@@ -419,22 +246,10 @@
         </row>
     </datatable>
 
-    <datatable name="LocatorTest_CSS_verify">
-        <row id="V001" remark="验证CSS定位器结果">
-            <field name="result">测试结果: CSS 定位器测试成功！</field>
-        </row>
-    </datatable>
-
     <datatable name="LocatorTest_XPath">
         <row id="L001" remark="XPath定位器测试">
             <field name="input">XPath定位器测试内容</field>
             <field name="button">click</field>
-        </row>
-    </datatable>
-
-    <datatable name="LocatorTest_XPath_verify">
-        <row id="V001" remark="验证XPath定位器结果">
-            <field name="result">测试结果: XPath 定位器测试成功！</field>
         </row>
     </datatable>
 
@@ -446,15 +261,6 @@
         <row id="K002" remark="type+verify测试">
             <field name="username">关键字测试内容</field>
             <field name="submitBtn">click</field>
-        </row>
-    </datatable>
-
-    <datatable name="KeywordTest_verify">
-        <row id="V001" remark="验证提交结果">
-            <field name="formResult">提交成功: 关键字测试内容</field>
-        </row>
-        <row id="V002" remark="验证get获取的文本">
-            <field name="formResult">${Return[-1]}</field>
         </row>
     </datatable>
 
@@ -474,12 +280,6 @@
         </row>
     </datatable>
 
-    <datatable name="VisionCoordinate_verify">
-        <row id="V001" remark="验证坐标定位结果">
-            <field name="formResult">提交成功: 坐标定位测试</field>
-        </row>
-    </datatable>
-
     <!-- 多窗口测试数据 -->
     <datatable name="WindowTest">
         <row id="W001" remark="打开新窗口">
@@ -487,24 +287,10 @@
         </row>
     </datatable>
 
-    <datatable name="NewWindow_verify">
-        <row id="V001" remark="验证新窗口内容">
-            <field name="newWindowTitle">新窗口标题</field>
-            <field name="newWindowContent">这是新窗口的内容</field>
-        </row>
-    </datatable>
-
     <!-- iframe测试数据 -->
     <datatable name="IframeTest">
         <row id="I001" remark="主页面内容">
             <field name="mainContent">主页面内容</field>
-        </row>
-    </datatable>
-
-    <datatable name="IframeContent_verify">
-        <row id="V001" remark="验证iframe内容">
-            <field name="iframeTitle">iframe标题</field>
-            <field name="iframeText">这是iframe中的内容</field>
         </row>
     </datatable>
 
@@ -544,12 +330,6 @@
     <datatable name="ErrorAPI">
         <row id="E001" remark="触发API错误">
             <field name="test_field">error_trigger</field>
-        </row>
-    </datatable>
-
-    <datatable name="ErrorAPI_verify">
-        <row id="E001" remark="期望的错误响应（实际不会匹配）">
-            <field name="detail">Expected error message that will not match</field>
         </row>
     </datatable>
 

@@ -41,9 +41,9 @@ RodSki 的用例由三部分组成：
 
 这三者的协作方式：
 
-- **type（UI 写入）**：关键字 `type` + 模型 `Login` + 数据 `L001` → 框架遍历 Login 模型的每个元素，从 Login.xml 取对应字段的值，逐一输入到界面
-- **send（接口请求）**：关键字 `send` + 模型 `LoginAPI` + 数据 `D001` → 框架从 LoginAPI 模型获取请求方式和 URL，从 LoginAPI.xml 取字段值，发送 HTTP 请求
-- **verify（验证）**：关键字 `verify` + 模型 `Login` + 数据 `V001` → 框架遍历 Login 模型的每个元素，从界面/接口读取实际值，与 Login_verify.xml 的期望值逐字段比较
+- **type（UI 写入）**：关键字 `type` + 模型 `Login` + 数据 `L001` → 框架遍历 Login 模型的每个元素，从 `data.xml` 的 Login 表取对应字段的值，逐一输入到界面
+- **send（接口请求）**：关键字 `send` + 模型 `LoginAPI` + 数据 `D001` → 框架从 LoginAPI 模型获取请求方式和 URL，从 `data.xml` 的 LoginAPI 表取字段值，发送 HTTP 请求
+- **verify（验证）**：关键字 `verify` + 模型 `Login` + 数据 `V001` → 框架遍历 Login 模型的每个元素，从界面/接口读取实际值，与 `data_verify.xml` 的 Login_verify 表的期望值逐字段比较
 
 **关键规则：模型元素 name = 数据表字段 name**。这是整个框架运转的基础。
 
@@ -66,9 +66,8 @@ product/                           ← 产品根目录（最顶层）
         │       └── gen_phone.py
         ├── data/                  ← 数据 XML + 全局变量
         │   ├── globalvalue.xml    ← 全局变量（固定文件名）
-        │   ├── Login.xml          ← 数据表（与模型同名）
-        │   ├── Login_verify.xml   ← 验证数据表
-        │   └── QuerySQL.xml       ← SQL 数据表
+        │   ├── data.xml           ← 所有输入数据表（固定文件名）
+        │   └── data_verify.xml    ← 所有验证数据表（可选，固定文件名）
         └── result/                ← 测试结果（框架自动生成）
             └── result_20260321_100000.xml
 ```
@@ -79,8 +78,8 @@ product/                           ← 产品根目录（最顶层）
 |---------|--------|------|
 | Case Sheet | case/*.xml | `case/` 目录 |
 | GlobalValue Sheet | globalvalue.xml | `data/` 目录 |
-| 数据表 Sheet（如 Login） | {模型名}.xml | `data/` 目录 |
-| 验证数据表 Sheet（如 Login_verify） | {模型名}_verify.xml | `data/` 目录 |
+| 数据表 Sheet（如 Login） | 合并到 `data/data.xml` 中的 datatable | `data/` 目录 |
+| 验证数据表 Sheet（如 Login_verify） | 合并到 `data/data_verify.xml` 中的 datatable | `data/` 目录 |
 | TestResult Sheet | result_*.xml | `result/` 目录 |
 | model.xml | model.xml（不变） | `model/` 目录 |
 
@@ -92,7 +91,7 @@ product/                           ← 产品根目录（最顶层）
 |----------|--------|--------|------------------|
 | `case.xsd` | `<cases>` | 人工 | 每个 `<case>` **必须且仅有 1 个** `<test_case>` 容器，其内 **至少 1 个** `<test_step>`；`<pre_process>` / `<post_process>` 各 **0～1 个**容器，内为 **0～n 个** `<test_step>`。`execute` 只能是 `是` \| `否`。`component_type`（可选）只能是 `界面` \| `接口` \| `数据库`。每个 `test_step` 的 `action` 为 `ActionType` 枚举（见 [3.5](#35-action-与-casexsd-枚举一致)）。 |
 | `model.xsd` | `<models>` | 人工 | `<model>` 须 `name`；`<element>` 须 `name`。支持**完整格式**（子节点 `<type>` / `<location>` / `<desc>`）与**简化格式**（`element` 上 `type`+`value`，此时 `type` 为定位类型）。`DriverType` / `LocatorType` 取值见 [4.2](#42-元素属性说明)、[4.3](#43-定位类型)。接口保留元素名：`_method`、`_url`、`_header_*`（与数据字段一一对应）。 |
-| `data.xsd` | `<datatable>` | 人工 | `datatable@name` **必须与文件名一致**（不含 `.xml`）。每个 `<row>` 须 `id`（DataID）；**同一数据表内** `row@id` **全局唯一**（XSD `xs:unique`）。每行至少一个 `<field>`，`field@name` 须与对应模型元素 `name` 一致。验证表文件名为 `{模型名}_verify.xml`。 |
+| `data.xsd` | `<datatable>` / `<datatables>` | 人工 | `datatable@name` **必须与模型名一致**。每个 `<row>` 须 `id`（DataID）；**同一数据表内** `row@id` **全局唯一**（XSD `xs:unique`）。每行至少一个 `<field>`，`field@name` 须与对应模型元素 `name` 一致。验证数据表名为 `{模型名}_verify`，放入 `data_verify.xml`（或 `data.xml`）。 |
 | `globalvalue.xsd` | `<globalvalue>` | 人工 | 每个 `<group>` 须 `name`；**所有 group 的 `name` 全局唯一**。每组内至少一个 `<var>`，每个 `var` 须同时具备 `name` 与 `value`；**同一 group 内** `var@name` **唯一**（XSD `xs:unique`）。引用格式：`GlobalValue.组名.变量名`。 |
 | `result.xsd` | `<testresult>` | **框架生成** | 手工一般无需编写；结构见 [附录：测试结果 XML](#附录测试结果-xmlresultxsd)。 |
 
@@ -402,7 +401,7 @@ model.xml 元素 name  ===  数据表 XML 的 field name
 ```
 
 ```xml
-<!-- data/Login.xml -->
+<!-- data.xml 中的 Login 表 -->
 <datatable name="Login">
   <row id="L001" remark="有效">
     <field name="username">admin</field>     ← name 与 model 一致
@@ -442,7 +441,7 @@ model.xml 元素 name  ===  数据表 XML 的 field name
 
 ### 5.1 文件格式
 
-每个数据表是一个独立的 XML 文件，存放在 `data/` 目录下。**文件名 = 数据表名**（不含 .xml 后缀）。
+所有数据表合并到 `data/data.xml`（输入数据）和 `data/data_verify.xml`（验证数据）中。**`datatable@name` 必须与模型名一致**。
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -463,7 +462,7 @@ model.xml 元素 name  ===  数据表 XML 的 field name
 
 | 属性/元素 | 必需 | 说明 |
 |-----------|------|------|
-| `datatable.name` | 是 | 数据表名，**必须与文件名一致**（与 `data.xsd` 文档说明一致） |
+| `datatable.name` | 是 | 数据表名，**必须与模型名一致** |
 | `row.id` | 是 | DataID（数据行唯一标识） |
 | **同一表内 `row.id` 唯一** | 是 | **XSD 约束**（`xs:unique`）：任意两行不得重复同一 `id` |
 | `row.remark` | 否 | 备注说明（框架不使用） |
@@ -472,12 +471,12 @@ model.xml 元素 name  ===  数据表 XML 的 field name
 
 ### 5.3 数据表命名与引用规则
 
-> **核心规则**：模型名 = 数据表文件名，强制一致。数据列只写 DataID，不写表名。
+> **核心规则**：模型名 = `datatable@name`，强制一致。数据列只写 DataID，不写表名。
 
 | 关键字 | Case 写法 | 数据文件（自动推导） |
 |--------|-----------|---------------------|
-| `type` | `type Login L001` | `data/Login.xml` |
-| `verify` | `verify Login V001` | `data/Login_verify.xml` |
+| `type` | `type Login L001` | `data.xml` 中的 `Login` 表 |
+| `verify` | `verify Login V001` | `data_verify.xml` 中的 `Login_verify` 表 |
 
 ### 5.4 批量输入时的特殊值
 
@@ -530,7 +529,7 @@ model.xml 元素 name  ===  数据表 XML 的 field name
 #### 示例：含动作关键字的数据表
 
 ```xml
-<!-- data/Login.xml -->
+<!-- data.xml 中的 Login 表 -->
 <datatable name="Login">
   <row id="L001" remark="管理员登录">
     <field name="username">admin</field>
@@ -557,7 +556,7 @@ Case XML 写 `type Login L001` 时，框架遍历 Login 模型：
 DB 关键字使用的 SQL 也放在数据 XML 中：
 
 ```xml
-<!-- data/QuerySQL.xml -->
+<!-- data.xml 中的 QuerySQL 表 -->
 <datatable name="QuerySQL">
   <row id="Q001" remark="查询总数">
     <field name="sql">SELECT COUNT(*) as cnt FROM items</field>
@@ -703,10 +702,10 @@ Return 引用**只应出现在数据表 XML 的 field 值中**，不要写在 Ca
 正确做法：
 
 ```xml
-<!-- data/VerifyData.xml -->
-<datatable name="VerifyData">
-  <row id="V001" remark="验证订单">
-    <field name="orderNo">${Return[-1]}</field>
+<!-- data_verify.xml 中的 UI 验证表 -->
+<datatable name="OrderDetail_verify">
+  <row id="V001" remark="验证订单号">
+    <field name="orderNo">ORD-20260411-001</field>
   </row>
 </datatable>
 ```
@@ -714,13 +713,28 @@ Return 引用**只应出现在数据表 XML 的 field 值中**，不要写在 Ca
 ```xml
 <!-- Case XML：verify 作为 test_case 内一步 -->
 <test_case>
-  <test_step action="verify" model="OrderDetail" data="VerifyData.V001"/>
+  <test_step action="verify" model="OrderDetail" data="V001"/>
 </test_case>
 ```
 
+> **注意**：如果 verify 的模型是 UI 模型，期望值可以引用 `${Return[-N]}`（跨源比对）；但接口/DB 模型的 `_verify` 表**禁止**使用 `${Return[-1]}`，详见 [7.4 节](#74-verify-数据表中禁止自引用)。
+
 **与动态步骤（规划）**：若未来支持「CLI/运行时插入步骤」，`${Return[-1]}` 仍表示**固定步骤**管线中的「上一步」；**不要**在数据表中用 `${Return}` 引用仅由动态步骤产生的数据。详见 **[§10](#10-固定与动态测试步骤规划)** 与《核心设计约束》第 8 节。
 
-### 7.4 哪些关键字会产生 Return 值
+### 7.4 verify 数据表中禁止自引用
+
+接口和数据库模型的 `_verify` 数据表中**禁止**使用 `${Return[-1]}`。
+
+原因：verify 对接口/DB 模型自动从 `Return[-1]` 读取实际值。如果期望值也引用 `Return[-1]`，
+等于自己跟自己比较，断言永远通过，无法发现问题。
+
+| 场景 | 期望值 | 结论 |
+|------|--------|------|
+| 接口/DB verify + `${Return[-1]}` | 自引用 | **禁止** |
+| 接口/DB verify + 字面值 `"demo_token"` | 真正断言 | **正确** |
+| UI verify + `${Return[-2].token}` | 跨源比对 | **允许** |
+
+### 7.5 哪些关键字会产生 Return 值
 
 | 关键字 | 返回值内容 |
 |--------|-----------|
@@ -766,18 +780,18 @@ Return 引用**只应出现在数据表 XML 的 field 值中**，不要写在 Ca
 | 适用场景 | PC Web / 移动端 | REST API 接口 | UI 验证 + 接口验证 |
 | model 属性 | UI 模型名（必填） | 接口模型名（必填） | 模型名（必填） |
 | data 属性 | DataID | DataID | DataID |
-| 数据文件 | `{模型名}.xml` | `{模型名}.xml` | `{模型名}_verify.xml` |
+| 数据文件 | `data.xml` 中的 `{模型名}` 表 | `data.xml` 中的 `{模型名}` 表 | `data_verify.xml` 中的 `{模型名}_verify` 表 |
 | 匹配规则 | 元素 name = field name | 元素 name = field name | 元素 name = field name |
 
-> **数据表命名规则**：模型名 = 数据表文件名（强制一致）。data 属性只写 `DataID`，不写表名前缀。
+> **数据表命名规则**：模型名 = `datatable@name`（强制一致）。所有数据表合并到 `data.xml` / `data_verify.xml` 中。data 属性只写 `DataID`，不写表名前缀。
 
 #### 接口测试：send + verify
 
 接口测试不再使用独立 HTTP 关键字，而是通过 **send / verify** 批量模式完成：
 
 1. **接口模型**：在 model.xml 中定义接口元素，包含 `_method`（请求方式）、`_url`（请求地址）、`_header_*`（请求头）以及接口字段
-2. **send 发送请求**：`send LoginAPI D001` → 从 `LoginAPI` 模型获取请求方式和 URL，从 `LoginAPI.xml` 取值，发送 HTTP 请求
-3. **verify 验证响应**：`verify LoginAPI V001` → 从 `LoginAPI_verify.xml` 取期望值，与 send 的响应比较
+2. **send 发送请求**：`send LoginAPI D001` → 从 `LoginAPI` 模型获取请求方式和 URL，从 `data.xml` 的 `LoginAPI` 表取值，发送 HTTP 请求
+3. **verify 验证响应**：`verify LoginAPI V001` → 从 `data_verify.xml` 的 `LoginAPI_verify` 表取期望值，与 send 的响应比较
 
 **接口模型元素命名约定**：
 
@@ -807,7 +821,7 @@ Return 引用**只应出现在数据表 XML 的 field 值中**，不要写在 Ca
 </model>
 ```
 
-**数据文件 `data/LoginAPI.xml`**：
+**数据表（`data.xml` 中的 `LoginAPI` 表）**：
 
 ```xml
 <datatable name="LoginAPI">
@@ -818,7 +832,7 @@ Return 引用**只应出现在数据表 XML 的 field 值中**，不要写在 Ca
 </datatable>
 ```
 
-**验证数据文件 `data/LoginAPI_verify.xml`**：
+**验证数据表（`data_verify.xml` 中的 `LoginAPI_verify` 表）**：
 
 ```xml
 <datatable name="LoginAPI_verify">
@@ -918,9 +932,8 @@ product/DEMO/demo_site/
 │   └── demo_case.xml
 ├── data/
 │   ├── globalvalue.xml
-│   ├── Login.xml
-│   ├── Login_verify.xml
-│   └── QuerySQL.xml
+│   ├── data.xml
+│   └── data_verify.xml
 ├── fun/
 └── result/
 ```
@@ -963,28 +976,32 @@ product/DEMO/demo_site/
 </globalvalue>
 ```
 
-### 9.4 Login.xml（数据表）
+### 9.4 data.xml（数据表）
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<datatable name="Login">
-  <row id="L001" remark="管理员">
-    <field name="username">admin</field>
-    <field name="password">admin123</field>
-    <field name="loginBtn">click</field>
-  </row>
-</datatable>
+<datatables>
+  <datatable name="Login">
+    <row id="L001" remark="管理员">
+      <field name="username">admin</field>
+      <field name="password">admin123</field>
+      <field name="loginBtn">click</field>
+    </row>
+  </datatable>
+</datatables>
 ```
 
-### 9.5 Login_verify.xml（验证数据表）
+### 9.5 data_verify.xml（验证数据表）
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<datatable name="Login_verify">
-  <row id="V001" remark="验证管理员登录">
-    <field name="welcome_text">欢迎, admin</field>
-  </row>
-</datatable>
+<datatables>
+  <datatable name="Login_verify">
+    <row id="V001" remark="验证管理员登录">
+      <field name="welcome_text">欢迎, admin</field>
+    </row>
+  </datatable>
+</datatables>
 ```
 
 ### 9.6 demo_case.xml（用例）
@@ -1112,7 +1129,7 @@ python ski_run.py product/DEMO/demo_site/
 <test_step action="type" model="LoginPage" data="L001"/>
 ```
 
-**data/LoginPage.xml**：
+**data.xml 中的 LoginPage 表**：
 ```xml
 <row id="L001">
   <field name="username">admin</field>
@@ -1271,7 +1288,7 @@ Return 引用只应写在**数据表 XML 的 field 值中**，不要直接写在
 
 ### Q6: 数据引用不生效？
 
-1. 检查数据文件名是否正确（必须与 datatable name 一致）
+1. 检查 `datatable@name` 是否与模型名一致
 2. 检查 DataID（row id）是否存在
 3. 引用格式：`表名.DataID`（整行）或 `表名.DataID.字段名`（单字段）
 

@@ -1358,7 +1358,18 @@ class KeywordEngine:
             if element_name not in data_row:
                 continue
 
-            expected = str(data_row[element_name])
+            raw_expected = str(data_row[element_name])
+
+            # 自引用检测：非 UI 模型的 verify 数据中不应使用 ${Return[-1]}
+            if model_type != MODEL_TYPE_UI and '${Return[-1]}' in raw_expected:
+                logger.warning(
+                    f"[空校验警告] {element_name}: 期望值 '{raw_expected}' "
+                    f"引用了 Return[-1]，但 verify 在接口/DB 模式下实际值也取自 "
+                    f"Return[-1]，这会导致自己跟自己比较，断言永远通过。"
+                    f"请改为具体的期望字面值。"
+                )
+
+            expected = raw_expected
             if self.data_resolver:
                 expected = self.data_resolver.resolve_with_return(expected)
 
