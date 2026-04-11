@@ -198,11 +198,23 @@ class PlaywrightDriver(BaseDriver):
             self._handle_error("click", f"({x}, {y})", e)
             return False
 
+    def click_at(self, x: int, y: int) -> None:
+        """点击指定坐标（BaseDriver 接口）"""
+        self._check_driver_alive()
+        try:
+            self.page.mouse.click(x, y)
+        except Exception as e:
+            self._handle_error("click_at", f"({x}, {y})", e)
+
     def type_text(self, x: int, y: int, text: str) -> None:
-        """在指定坐标输入文字（BaseDriver 接口）"""
+        """在指定坐标输入文字（BaseDriver 接口，与 click(x,y) 风格一致）"""
         self._check_driver_alive()
         self.page.mouse.click(x, y)
         self.page.keyboard.type(text)
+
+    def type_text_at(self, x: int, y: int, text: str) -> None:
+        """在指定坐标输入文字（BaseDriver 接口）"""
+        self.type_text(x, y, text)
 
     def get_text(self, x1: int, y1: int, x2: int, y2: int) -> str:
         """获取指定区域的文字（BaseDriver 接口）"""
@@ -569,6 +581,14 @@ class PlaywrightDriver(BaseDriver):
         except Exception as e:
             self._handle_error("get_text_locator", locator, e)
             return None
+
+    def get_text_in_bbox(self, x1: int, y1: int, x2: int, y2: int) -> str:
+        """获取指定区域的文字（BaseDriver 接口 - 视觉定位专用）
+
+        Note: Playwright 原生不支持 OCR，需要外部 OCR 服务支持。
+        """
+        self._check_driver_alive()
+        raise NotImplementedError("get_text_in_bbox 需要 OCR 支持（如 pytesseract）")
 
     def upload_file(self, locator: str, file_path: str) -> bool:
         """上传文件"""

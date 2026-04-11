@@ -90,8 +90,8 @@ class BaseDriver(ABC):
         pass
 
     @abstractmethod
-    def click(self, x: int, y: int) -> None:
-        """点击指定坐标
+    def click_at(self, x: int, y: int) -> None:
+        """点击指定坐标（视觉定位专用）
 
         Args:
             x: x 坐标
@@ -103,8 +103,8 @@ class BaseDriver(ABC):
         pass
 
     @abstractmethod
-    def type_text(self, x: int, y: int, text: str) -> None:
-        """在指定坐标输入文字
+    def type_text_at(self, x: int, y: int, text: str) -> None:
+        """在指定坐标输入文字（视觉定位专用）
 
         先点击坐标位置获取焦点，然后输入文字。
 
@@ -119,8 +119,8 @@ class BaseDriver(ABC):
         pass
 
     @abstractmethod
-    def get_text(self, x1: int, y1: int, x2: int, y2: int) -> str:
-        """获取指定区域的文字
+    def get_text_in_bbox(self, x1: int, y1: int, x2: int, y2: int) -> str:
+        """获取指定区域的文字（视觉定位专用）
 
         Args:
             x1: 左上角 x 坐标
@@ -137,11 +137,11 @@ class BaseDriver(ABC):
         pass
 
     @abstractmethod
-    def take_screenshot(self) -> str:
-        """截图，返回截图路径
+    def take_screenshot(self, path: str) -> None:
+        """截图到指定路径
 
-        Returns:
-            截图文件的绝对路径
+        Args:
+            path: 截图保存路径
 
         Raises:
             DriverError: 截图失败时抛出
@@ -270,7 +270,7 @@ class BaseDriver(ABC):
             return False
         center_x = (bbox[0] + bbox[2]) // 2
         center_y = (bbox[1] + bbox[3]) // 2
-        self.click(center_x, center_y)
+        self.click_at(center_x, center_y)
         return True
 
     def type_at_element(
@@ -294,7 +294,7 @@ class BaseDriver(ABC):
             return False
         center_x = (bbox[0] + bbox[2]) // 2
         center_y = (bbox[1] + bbox[3]) // 2
-        self.type_text(center_x, center_y, text)
+        self.type_text_at(center_x, center_y, text)
         return True
 
     def get_element_text(
@@ -314,7 +314,7 @@ class BaseDriver(ABC):
         bbox = self.locate_element_with_retry(locator_type, locator_value)
         if bbox is None:
             return None
-        return self.get_text(bbox[0], bbox[1], bbox[2], bbox[3])
+        return self.get_text_in_bbox(bbox[0], bbox[1], bbox[2], bbox[3])
 
     def wait(self, seconds: float) -> None:
         """等待指定秒数
