@@ -1,0 +1,27 @@
+<?xml version="1.0" ?>
+<testresult>
+  <summary total="19" passed="17" failed="2" skipped="0" errors="0" pass_rate="89.5%" total_time="80.72s" average_time="4.25s" start_time="2026-04-07 22:14:07" end_time="2026-04-07 22:14:07"/>
+  <results>
+    <result case_id="TC001" title="Web登录测试" status="PASS" execution_time="1.909" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-04-07 22:14:07"/>
+    <result case_id="TC002" title="看板数据验证" status="PASS" execution_time="2.53" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-04-07 22:14:07"/>
+    <result case_id="TC003" title="功能测试页操作" status="PASS" execution_time="3.699" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-04-07 22:14:07"/>
+    <result case_id="TC004" title="API登录接口测试" status="PASS" execution_time="1.166" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-04-07 22:14:07"/>
+    <result case_id="TC005" title="API查询订单" status="PASS" execution_time="1.083" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-04-07 22:14:07"/>
+    <result case_id="TC006" title="数据库查询订单" status="PASS" execution_time="1.08" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-04-07 22:14:07"/>
+    <result case_id="TC007" title="代码生成测试数据" status="PASS" execution_time="0.584" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-04-07 22:14:07"/>
+    <result case_id="TC008" title="UI动作关键字测试" status="PASS" execution_time="3.895" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-04-07 22:14:07"/>
+    <result case_id="TC009" title="Return引用测试" status="PASS" execution_time="4.19" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-04-07 22:14:07"/>
+    <result case_id="TC009A" title="history连续性测试" status="PASS" execution_time="2.487" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-04-07 22:14:07"/>
+    <result case_id="TC010" title="set/get命名访问测试" status="PASS" execution_time="5.985" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-04-07 22:14:07"/>
+    <result case_id="TC011" title="get选择器模式测试" status="PASS" execution_time="4.219" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-04-07 22:14:07"/>
+    <result case_id="TC012" title="evaluate结构化返回测试" status="PASS" execution_time="2.56" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-04-07 22:14:07"/>
+    <result case_id="TC012A" title="get不存在key报错测试" status="FAIL" execution_time="0.052" retries="0" start_time="" end_time="" error_type="" error_message="[SKI312] 关键字 'get' 参数错误: data - 命名变量 'undefined_key' 不存在，请先用 set 写入
+  keyword: get" screenshot_path="screenshots/TC012A_20260407_221321_failure.png" updated_at="2026-04-07 22:14:07"/>
+    <result case_id="TC012B" title="get模型模式测试" status="PASS" execution_time="4.243" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-04-07 22:14:07"/>
+    <result case_id="TC013" title="type Auto Capture测试" status="PASS" execution_time="3.684" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-04-07 22:14:07"/>
+    <result case_id="TC014" title="send Auto Capture测试" status="FAIL" execution_time="0.004" retries="0" start_time="" end_time="" error_type="" error_message="[SKI313] 关键字 'send' 重试 1 次后仍失败: [SKI332] AutoCapture 失败: field=token, source=data.token, reason=&quot;path 'data.token' not found&quot;
+  keyword: send" screenshot_path="" updated_at="2026-04-07 22:14:07"/>
+    <result case_id="TC014A" title="type Auto Capture失败测试" status="PASS" execution_time="33.107" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-04-07 22:14:07"/>
+    <result case_id="TC015" title="结构化日志验证" status="PASS" execution_time="4.243" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-04-07 22:14:07"/>
+  </results>
+</testresult>

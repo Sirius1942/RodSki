@@ -43,8 +43,13 @@ rodski/product/
 # OpenClaw
 .openclaw/
 
+# 本地归档（不纳入版本控制）
+.claude.zip
+.pb.zip
+
 # CassMall 业务测试用例（不纳入版本控制）
 CassMall_examples/
+CassMall_examples.zip
 
 # 项目文档（不要忽略）
 !.pb/

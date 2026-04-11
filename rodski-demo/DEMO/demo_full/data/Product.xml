@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<datatable name="Product">
-    <row id="P001">
-        <field name="newProductName">无线耳机</field>
-        <field name="productCategory">select【electronics】</field>
-        <field name="newProductPrice">299</field>
-        <field name="newProductStock">80</field>
-    </row>
-</datatable>

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iframe 测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .parent-section {
+            background-color: #e8f5e9;
+            padding: 20px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        .parent-section h3 {
+            margin-top: 0;
+            color: #2e7d32;
+        }
+        input[type="text"] {
+            width: 300px;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .iframe-container {
+            margin: 20px 0;
+            border: 2px solid #4CAF50;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        iframe {
+            width: 100%;
+            height: 400px;
+            border: none;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #fff3e0;
+            border-radius: 4px;
+            display: none;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #4CAF50;
+            text-decoration: none;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>iframe 测试页面</h1>
+
+        <div class="parent-section">
+            <h3>父页面区域</h3>
+            <p>这是父页面的内容区域</p>
+            <input type="text" id="parent-input" placeholder="父页面输入框">
+            <button id="parent-btn" onclick="parentAction()">父页面按钮</button>
+        </div>
+
+        <h3>嵌入的 iframe</h3>
+        <div class="iframe-container">
+            <iframe id="test-iframe" name="test-iframe" src="/iframe-content"></iframe>
+        </div>
+
+        <div id="result"></div>
+
+        <a href="/" class="back-link">← 返回首页</a>
+    </div>
+
+    <script>
+        function parentAction() {
+            const input = document.getElementById('parent-input');
+            const result = document.getElementById('result');
+            result.style.display = 'block';
+            result.innerHTML = `<strong>父页面操作:</strong> 输入内容 "${input.value}"`;
+        }
+
+        // 监听来自 iframe 的消息
+        window.addEventListener('message', function(event) {
+            const result = document.getElementById('result');
+            result.style.display = 'block';
+            result.innerHTML = `<strong>收到 iframe 消息:</strong> ${event.data}`;
+        });
+    </script>
+</body>
+</html>

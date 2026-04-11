@@ -1,153 +1,152 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <models>
-<model name="LoginForm" servicename="">
-    <element name="username" type="web">
-        <type>input</type>
+<model name="LoginForm" type="ui" servicename="">
+    <element name="username" type="input">
         <location type="id">loginUsername</location>
     </element>
-    <element name="password" type="web">
-        <type>input</type>
+    <element name="password" type="input">
         <location type="id">loginPassword</location>
     </element>
-    <element name="loginBtn" type="web">
-        <type>button</type>
+    <element name="loginBtn" type="button">
         <location type="id">loginBtn</location>
     </element>
 </model>
 
-<model name="Dashboard" servicename="">
-    <element name="totalOrders" type="web">
-        <type>text</type>
+<model name="Dashboard" type="ui" servicename="">
+    <element name="totalOrders" type="text">
         <location type="id">totalOrders</location>
     </element>
-    <element name="completedOrders" type="web">
-        <type>text</type>
+    <element name="completedOrders" type="text">
         <location type="id">completedOrders</location>
     </element>
 </model>
 
-<model name="NavMenu" servicename="">
-    <element name="testLink" type="web">
-        <type>link</type>
+<model name="NavMenu" type="ui" servicename="">
+    <element name="testLink" type="link">
         <location type="id">navTest</location>
     </element>
 </model>
 
-<model name="TestForm" servicename="">
-    <element name="username" type="web">
-        <type>input</type>
+<model name="TestForm" type="ui" servicename="">
+    <element name="username" type="input">
         <location type="id">username</location>
     </element>
-    <element name="role" type="web">
-        <type>select</type>
+    <element name="role" type="select">
         <location type="id">role</location>
     </element>
-    <element name="submitBtn" type="web">
-        <type>button</type>
+    <element name="submitBtn" type="button">
         <location type="id">submitBtn</location>
     </element>
-    <element name="formResult" type="web">
-        <type>text</type>
+    <element name="formResult" type="text">
         <location type="id">formResult</location>
     </element>
 </model>
 
-<model name="LoginAPI" servicename="">
-    <element name="_method" type="interface">
+<model name="LoginAPI" type="interface" servicename="">
+    <element name="_method" type="http_method">
         <location type="static">POST</location>
     </element>
-    <element name="_url" type="interface">
+    <element name="_url" type="http_url">
         <location type="static">http://localhost:8000/api/login</location>
     </element>
-    <element name="username" type="interface">
+    <element name="username" type="field">
         <location type="field">username</location>
     </element>
-    <element name="password" type="interface">
+    <element name="password" type="field">
         <location type="field">password</location>
     </element>
 </model>
 
-<model name="OrderAPI" servicename="">
-    <element name="_method" type="interface">
+<model name="OrderAPI" type="interface" servicename="">
+    <element name="_method" type="http_method">
         <location type="static">GET</location>
     </element>
-    <element name="_url" type="interface">
+    <element name="_url" type="http_url">
         <location type="static">http://localhost:8000/api/orders</location>
     </element>
 </model>
 
-<model name="QuerySQL" servicename="">
-    <element name="sql" type="field">
-        <location type="field">sql</location>
+<model name="QuerySQL" type="database" connection="demo_db" servicename="">
+    <query name="list" remark="查询订单列表">
+        <sql>SELECT order_no, customer_name, total_amount FROM orders LIMIT :limit</sql>
+    </query>
+    <query name="insert" remark="插入订单">
+        <sql>INSERT INTO orders (order_no, customer_name, total_amount, status)
+             VALUES (:order_no, :customer_name, :total_amount, :status)</sql>
+    </query>
+    <query name="get_by_id" remark="根据订单号查询">
+        <sql>SELECT * FROM orders WHERE order_no = :order_no</sql>
+    </query>
+    <query name="count" remark="统计订单数量">
+        <sql>SELECT COUNT(*) as total FROM orders</sql>
+    </query>
+    <element name="order_no" type="database">
+        <location type="field">order_no</location>
+    </element>
+    <element name="customer_name" type="database">
+        <location type="field">customer_name</location>
+    </element>
+    <element name="total_amount" type="database">
+        <location type="field">total_amount</location>
+    </element>
+    <element name="total" type="database">
+        <location type="field">total</location>
     </element>
 </model>
 
-<model name="UIActions" servicename="">
-    <element name="hoverBtn" type="web">
-        <type>button</type>
+<model name="UIActions" type="ui" servicename="">
+    <element name="hoverBtn" type="button">
         <location type="id">hoverBtn</location>
     </element>
-    <element name="doubleClickBtn" type="web">
-        <type>button</type>
+    <element name="doubleClickBtn" type="button">
         <location type="id">doubleClickBtn</location>
     </element>
-    <element name="rightClickBtn" type="web">
-        <type>button</type>
+    <element name="rightClickBtn" type="button">
         <location type="id">rightClickBtn</location>
     </element>
-    <element name="actionResult" type="web">
-        <type>text</type>
+    <element name="actionResult" type="text">
         <location type="id">actionResult</location>
     </element>
-    <element name="scrollArea" type="web">
-        <type>div</type>
+    <element name="scrollArea" type="div">
         <location type="id">scrollArea</location>
     </element>
-    <element name="dragSource" type="web">
-        <type>div</type>
+    <element name="dragSource" type="div">
         <location type="id">dragSource</location>
     </element>
 </model>
 
-<model name="ReturnTest" servicename="">
-    <element name="username" type="web">
-        <type>input</type>
+<model name="ReturnTest" type="ui" servicename="">
+    <element name="username" type="input">
         <location type="id">username</location>
     </element>
-    <element name="formResult" type="web">
-        <type>text</type>
+    <element name="formResult" type="text">
         <location type="id">formResult</location>
     </element>
 </model>
 
-<model name="SetGetVerify" servicename="">
-    <element name="value" type="web">
-        <type>text</type>
+<model name="SetGetVerify" type="ui" servicename="">
+    <element name="value" type="text">
         <location type="id">formResult</location>
     </element>
 </model>
 
-<model name="GetVerify" servicename="">
-    <element name="result" type="web">
-        <type>text</type>
+<model name="GetVerify" type="ui" servicename="">
+    <element name="result" type="text">
         <location type="id">formResult</location>
     </element>
 </model>
 
-<model name="EvaluateResult" servicename="">
-    <element name="title" type="web">
-        <type>text</type>
+<model name="EvaluateResult" type="ui" servicename="">
+    <element name="title" type="text">
         <location type="id">pageTitle</location>
     </element>
 </model>
 
-<model name="DemoForm" servicename="">
-    <element name="username" type="web">
-        <type>input</type>
+<model name="DemoForm" type="ui" servicename="">
+    <element name="username" type="input">
         <location type="id">username</location>
     </element>
-    <element name="submitBtn" type="web">
-        <type>button</type>
+    <element name="submitBtn" type="button">
         <location type="id">submitBtn</location>
     </element>
     <auto_capture trigger="type">
@@ -157,20 +156,17 @@
     </auto_capture>
 </model>
 
-<model name="DemoFormVerify" servicename="">
-    <element name="resultId" type="web">
-        <type>text</type>
+<model name="DemoFormVerify" type="ui" servicename="">
+    <element name="resultId" type="text">
         <location type="id">resultId</location>
     </element>
 </model>
 
-<model name="DemoFormBadCapture" servicename="">
-    <element name="username" type="web">
-        <type>input</type>
+<model name="DemoFormBadCapture" type="ui" servicename="">
+    <element name="username" type="input">
         <location type="id">username</location>
     </element>
-    <element name="submitBtn" type="web">
-        <type>button</type>
+    <element name="submitBtn" type="button">
         <location type="id">submitBtn</location>
     </element>
     <auto_capture trigger="type">
@@ -180,17 +176,17 @@
     </auto_capture>
 </model>
 
-<model name="LoginAPICapture" servicename="">
-    <element name="_method" type="interface">
+<model name="LoginAPICapture" type="interface" servicename="">
+    <element name="_method" type="http_method">
         <location type="static">POST</location>
     </element>
-    <element name="_url" type="interface">
+    <element name="_url" type="http_url">
         <location type="static">http://localhost:8000/api/login</location>
     </element>
-    <element name="username" type="interface">
+    <element name="username" type="field">
         <location type="field">username</location>
     </element>
-    <element name="password" type="interface">
+    <element name="password" type="field">
         <location type="field">password</location>
     </element>
     <auto_capture trigger="send">
@@ -198,17 +194,195 @@
     </auto_capture>
 </model>
 
-<model name="GetModel" servicename="">
-    <element name="formResult" type="web">
-        <type>text</type>
+<model name="GetModel" type="ui" servicename="">
+    <element name="formResult" type="text">
         <location type="id">formResult</location>
     </element>
 </model>
 
-<model name="GetModelVerify" servicename="">
-    <element name="formResult" type="web">
-        <type>text</type>
+<model name="GetModelVerify" type="ui" servicename="">
+    <element name="formResult" type="text">
         <location type="id">formResult</location>
     </element>
+</model>
+
+<model name="ErrorMessage" type="ui" servicename="">
+    <element name="errorMsg" type="text">
+        <location type="id">loginError</location>
+    </element>
+</model>
+
+<model name="LocatorTest_ID" type="ui" servicename="">
+    <element name="input" type="input">
+        <location type="id">input_by_id</location>
+    </element>
+    <element name="button" type="button">
+        <location type="id">btn_by_id</location>
+    </element>
+    <element name="result" type="text">
+        <location type="id">result</location>
+    </element>
+</model>
+
+<model name="LocatorTest_Name" type="ui" servicename="">
+    <element name="input" type="input">
+        <location type="name">input_by_name</location>
+    </element>
+    <element name="button" type="button">
+        <location type="name">btn_by_name</location>
+    </element>
+    <element name="result" type="text">
+        <location type="id">result</location>
+    </element>
+</model>
+
+<model name="LocatorTest_CSS" type="ui" servicename="">
+    <element name="input" type="input">
+        <location type="css">.input-css-test</location>
+    </element>
+    <element name="button" type="button">
+        <location type="css">.btn-css-test</location>
+    </element>
+    <element name="result" type="text">
+        <location type="id">result</location>
+    </element>
+</model>
+
+<model name="LocatorTest_XPath" type="ui" servicename="">
+    <element name="input" type="input">
+        <location type="xpath">//input[@data-testid='input-xpath']</location>
+    </element>
+    <element name="button" type="button">
+        <location type="xpath">//button[@data-testid='btn-xpath']</location>
+    </element>
+    <element name="result" type="text">
+        <location type="id">result</location>
+    </element>
+</model>
+
+<model name="KeywordTest" type="ui" servicename="">
+    <element name="username" type="input">
+        <location type="id">username</location>
+    </element>
+    <element name="submitBtn" type="button">
+        <location type="id">submitBtn</location>
+    </element>
+    <element name="formResult" type="text">
+        <location type="id">formResult</location>
+    </element>
+    <element name="fileUpload" type="input">
+        <location type="id">fileUpload</location>
+    </element>
+</model>
+
+<model name="VisionLogin" type="ui" servicename="">
+    <element name="username" type="input">
+        <location type="vision">用户名输入框</location>
+    </element>
+    <element name="password" type="input">
+        <location type="vision">密码输入框</location>
+    </element>
+    <element name="loginBtn" type="button">
+        <location type="vision">登录按钮</location>
+    </element>
+</model>
+
+<model name="VisionCoordinate" type="ui" servicename="">
+    <element name="username" type="input">
+        <location type="vision_bbox">100,200,300,230</location>
+    </element>
+    <element name="submitBtn" type="button">
+        <location type="vision_bbox">150,250,250,280</location>
+    </element>
+    <element name="formResult" type="text">
+        <location type="vision_bbox">100,300,400,330</location>
+    </element>
+</model>
+
+<model name="WindowTest" type="ui" servicename="">
+    <element name="openWindowBtn" type="button">
+        <location type="id">openWindowBtn</location>
+    </element>
+    <element name="mainWindowTitle" type="text">
+        <location type="id">mainTitle</location>
+    </element>
+</model>
+
+<model name="NewWindow" type="ui" servicename="">
+    <element name="newWindowTitle" type="text">
+        <location type="id">newWindowTitle</location>
+    </element>
+    <element name="newWindowContent" type="text">
+        <location type="id">newWindowContent</location>
+    </element>
+</model>
+
+<model name="IframeTest" type="ui" servicename="">
+    <element name="mainContent" type="text">
+        <location type="id">mainContent</location>
+    </element>
+    <element name="iframeContainer" type="div">
+        <location type="id">iframeContainer</location>
+    </element>
+</model>
+
+<model name="IframeContent" type="ui" servicename="">
+    <element name="iframeTitle" type="text">
+        <location type="id">iframeTitle</location>
+    </element>
+    <element name="iframeText" type="text">
+        <location type="id">iframeText</location>
+    </element>
+</model>
+
+<model name="DataRefTest" type="ui" servicename="">
+    <element name="username" type="input">
+        <location type="id">username</location>
+    </element>
+    <element name="email" type="input">
+        <location type="id">email</location>
+    </element>
+    <element name="submitBtn" type="button">
+        <location type="id">submitBtn</location>
+    </element>
+    <element name="formResult" type="text">
+        <location type="id">formResult</location>
+    </element>
+</model>
+
+<model name="DataRefVerify" type="ui" servicename="">
+    <element name="formResult" type="text">
+        <location type="id">formResult</location>
+    </element>
+    <element name="savedValue" type="text">
+        <location type="id">formResult</location>
+    </element>
+</model>
+
+<model name="NonExistentModel" type="ui" servicename="">
+    <element name="nonExistentElement" type="input">
+        <location type="id">thisElementDoesNotExist</location>
+    </element>
+</model>
+
+<model name="ErrorAPI" type="interface" servicename="">
+    <element name="_method" type="http_method">
+        <location type="static">POST</location>
+    </element>
+    <element name="_url" type="http_url">
+        <location type="static">http://localhost:8000/api/error</location>
+    </element>
+    <element name="test_field" type="field">
+        <location type="field">test_field</location>
+    </element>
+</model>
+
+<model name="ErrorAPI_verify" type="interface" servicename="">
+    <element name="detail" type="field">
+        <location type="field">detail</location>
+    </element>
+</model>
+
+<model name="ErrorSQL" type="database" connection="demo_db" servicename="">
 </model>
 </models>

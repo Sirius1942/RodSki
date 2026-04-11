@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iframe测试</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 30px;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 24px;
+        }
+        .section {
+            margin-bottom: 25px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .section h3 {
+            color: #333;
+            margin-bottom: 12px;
+        }
+        .outside-text {
+            font-size: 16px;
+            color: #333;
+            padding: 12px;
+            background: #e8f4fd;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        iframe {
+            border: 2px solid #667eea;
+            border-radius: 8px;
+        }
+        input {
+            padding: 12px;
+            width: 100%;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        input:focus { outline: none; border-color: #667eea; }
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 25px;
+            color: #667eea;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .back-link:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>iframe测试</h1>
+
+        <div class="section">
+            <h3>外部内容</h3>
+            <div id="outsideText" class="outside-text">iframe外部内容</div>
+        </div>
+
+        <div class="section">
+            <h3>嵌入 iframe</h3>
+            <iframe id="contentFrame" src="/iframe-content" width="100%" height="300"></iframe>
+        </div>
+
+        <div class="section">
+            <h3>iframe 下方内容</h3>
+            <input type="text" id="outsideInput" placeholder="iframe外部输入框" />
+        </div>
+
+        <a href="/" class="back-link">返回首页</a>
+    </div>
+</body>
+</html>

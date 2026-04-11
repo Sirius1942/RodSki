@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases step_wait="500">
+    <case execute="是" id="TC016" title="定位器类型覆盖测试" component_type="界面">
+        <pre_process>
+            <test_step action="navigate" model="" data="http://localhost:8000/locator-test"/>
+        </pre_process>
+        <test_case>
+            <!-- ID定位器测试 -->
+            <test_step action="type" model="LocatorTest_ID" data="L001"/>
+            <test_step action="verify" model="LocatorTest_ID" data="V001"/>
+
+            <!-- Name定位器测试 -->
+            <test_step action="type" model="LocatorTest_Name" data="L001"/>
+            <test_step action="verify" model="LocatorTest_Name" data="V001"/>
+
+            <!-- CSS定位器测试 -->
+            <test_step action="type" model="LocatorTest_CSS" data="L001"/>
+            <test_step action="verify" model="LocatorTest_CSS" data="V001"/>
+
+            <!-- XPath定位器测试 -->
+            <test_step action="type" model="LocatorTest_XPath" data="L001"/>
+            <test_step action="verify" model="LocatorTest_XPath" data="V001"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+</cases>

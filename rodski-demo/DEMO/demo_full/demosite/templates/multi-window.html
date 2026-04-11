@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多窗口测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .window-info {
+            background-color: #e3f2fd;
+            padding: 20px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        .window-info h3 {
+            margin-top: 0;
+            color: #1976d2;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .button-group {
+            margin: 20px 0;
+        }
+        #window-list {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #4CAF50;
+            text-decoration: none;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>多窗口测试页面</h1>
+
+        <div class="window-info">
+            <h3>当前窗口信息</h3>
+            <p><strong>窗口名称:</strong> <span id="window-name">主窗口</span></p>
+            <p><strong>窗口标识:</strong> <span id="window-id">main-window</span></p>
+            <p><strong>URL:</strong> <span id="window-url"></span></p>
+        </div>
+
+        <div class="button-group">
+            <h3>打开新窗口</h3>
+            <button id="open-window-1" onclick="openNewWindow('window1')">打开窗口 1</button>
+            <button id="open-window-2" onclick="openNewWindow('window2')">打开窗口 2</button>
+            <button id="open-blank" onclick="openBlankWindow()">打开空白窗口</button>
+        </div>
+
+        <div id="window-list">
+            <h3>已打开的窗口</h3>
+            <p id="opened-windows">暂无</p>
+        </div>
+
+        <a href="/" class="back-link">← 返回首页</a>
+    </div>
+
+    <script>
+        let openedWindows = [];
+
+        // 更新当前窗口信息
+        document.getElementById('window-url').textContent = window.location.href;
+
+        // 检查是否是子窗口
+        const urlParams = new URLSearchParams(window.location.search);
+        const windowName = urlParams.get('window');
+        if (windowName) {
+            document.getElementById('window-name').textContent = `子窗口 ${windowName}`;
+            document.getElementById('window-id').textContent = windowName;
+            document.body.style.backgroundColor = '#fff3e0';
+        }
+
+        function openNewWindow(windowId) {
+            const width = 600;
+            const height = 400;
+            const left = window.screenX + 50;
+            const top = window.screenY + 50;
+
+            const newWindow = window.open(
+                `/multi-window?window=${windowId}`,
+                windowId,
+                `width=${width},height=${height},left=${left},top=${top}`
+            );
+
+            if (newWindow) {
+                openedWindows.push({
+                    id: windowId,
+                    window: newWindow
+                });
+                updateWindowList();
+            } else {
+                alert('无法打开新窗口，请检查浏览器弹窗设置');
+            }
+        }
+
+        function openBlankWindow() {
+            const newWindow = window.open('about:blank', '_blank');
+            if (newWindow) {
+                newWindow.document.write(`
+                    <html>
+                    <head><title>空白窗口</title></head>
+                    <body style="font-family: Arial; padding: 20px;">
+                        <h1>这是一个空白窗口</h1>
+                        <p>窗口标识: blank-window</p>
+                    </body>
+                    </html>
+                `);
+            }
+        }
+
+        function updateWindowList() {
+            const list = document.getElementById('opened-windows');
+            if (openedWindows.length === 0) {
+                list.textContent = '暂无';
+            } else {
+                list.innerHTML = openedWindows.map(w =>
+                    `<div>窗口 ID: ${w.id} - ${w.window.closed ? '已关闭' : '打开中'}</div>`
+                ).join('');
+            }
+        }
+
+        // 定期检查窗口状态
+        setInterval(updateWindowList, 1000);
+    </script>
+</body>
+</html>

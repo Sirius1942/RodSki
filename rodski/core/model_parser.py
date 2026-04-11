@@ -1,17 +1,27 @@
 import xml.etree.ElementTree as ET
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union, Any
 
 from core.xml_schema_validator import RodskiXmlValidator
 
 logger = logging.getLogger("rodski")
 
+MODEL_TYPE_UI = "ui"
+MODEL_TYPE_INTERFACE = "interface"
+MODEL_TYPE_DATABASE = "database"
+MODEL_TYPE_OTHER = "other"
 
-# 驱动类型常量，对应老 SKI 中 element 的 type 属性
-DRIVER_TYPE_WEB = "web"
-DRIVER_TYPE_INTERFACE = "interface"
-DRIVER_TYPE_OTHER = "other"
+LEGACY_DRIVER_TYPE_WEB = "web"
+LEGACY_DRIVER_TYPE_INTERFACE = "interface"
+LEGACY_DRIVER_TYPE_OTHER = "other"
+LEGACY_DRIVER_TYPES = {
+    LEGACY_DRIVER_TYPE_WEB,
+    LEGACY_DRIVER_TYPE_INTERFACE,
+    LEGACY_DRIVER_TYPE_OTHER,
+    "windows",
+    "macos",
+}
 
 # 有效的定位器类型
 VALID_LOCATOR_TYPES = [
@@ -38,48 +48,71 @@ class ModelParser:
     def _parse_models(self) -> Dict[str, Dict[str, Dict]]:
         """解析所有模型，兼容老 SKI 格式和简化格式
 
-        老 SKI 格式 (带完整元数据):
-            <element name="username" interfacename="" group="" type="web">
-                <type>input</type>
-                <location type="id" item="">usernameInput</location>
-            </element>
+        新格式：
+            <model name="Login" type="ui">
+                <element name="username" type="input">
+                    <location type="id">usernameInput</location>
+                </element>
+            </model>
 
-        简化格式:
+        Database 格式：
+            <model name="OrderQuery" type="database" connection="sqlite_db">
+                <query name="list">
+                    <sql>SELECT * FROM orders WHERE status = :status LIMIT :limit</sql>
+                </query>
+            </model>
+
+        老 SKI 格式 (带完整元数据):
+            <model name="Login">
+                <element name="username" type="web">
+                    <type>input</type>
+                    <location type="id">usernameInput</location>
+                </element>
+            </model>
+
+        旧版简化格式:
             <element name="UsernameInput" type="id" value="username"/>
 
-        简化格式（locator 属性）:
-            <element name="searchBtn" locator="vision:搜索按钮"/>
-
-        多定位器格式:
-            <element name="loginBtn" type="web">
-                <type>button</type>
-                <location type="id" priority="1">loginBtn</location>
-                <location type="ocr" priority="2">登录</location>
-            </element>
-
-        解析后每个 element 包含:
-            - type: 主定位器类型 (id/xpath/css/vision/ocr/...)
-            - value: 主定位器值
-            - driver_type: 驱动类型 (web/interface/other)，用于关键字路由
-            - element_type: 元素 UI 类型 (input/button/select/...)
-            - interfacename: 接口名称（interface 类型时使用）
-            - locations: 多定位器列表，按 priority 排序
+        解析后每个 model 包含:
+            - __model_type__: 模型类型 (ui/interface/database)
+            - __auto_capture_type__: type 的 auto_capture 规则
+            - __auto_capture_send__: send 的 auto_capture 规则
+            - __connection__: database 类型的连接配置名 (仅 database 类型)
+            - __queries__: database 类型的查询定义 (仅 database 类型)
+            - 其余 key 为元素定义
         """
         models = {}
         for model_node in self.root.findall('model'):
             model_name = model_node.get('name')
             if not model_name:
                 continue
+
+            model_type = model_node.get('type', '').strip() or None
             elements = {}
+            inferred_model_type = None
+
+            # 如果是 database 类型，解析查询定义
+            if model_type == MODEL_TYPE_DATABASE:
+                connection = model_node.get('connection', '').strip()
+                queries = self._parse_queries(model_node)
+                models[model_name] = elements
+                models[model_name]['__model_type__'] = MODEL_TYPE_DATABASE
+                models[model_name]['__connection__'] = connection
+                models[model_name]['__queries__'] = queries
+                models[model_name]['__auto_capture_type__'] = None
+                models[model_name]['__auto_capture_send__'] = None
+                continue
+
             for elem_node in model_node.findall('element'):
                 element_name = elem_node.get('name')
                 if not element_name:
                     continue
-                
-                element_info = self._parse_element(elem_node)
+
+                element_info = self._parse_element(elem_node, model_type)
                 if element_info:
+                    inferred_model_type = inferred_model_type or element_info.get('model_type')
                     elements[element_name] = element_info
-            
+
             # Parse auto_capture nodes
             auto_capture_type = None
             auto_capture_send = None
@@ -100,64 +133,39 @@ class ModelParser:
                     auto_capture_send = fields
 
             models[model_name] = elements
+            models[model_name]['__model_type__'] = model_type or inferred_model_type or MODEL_TYPE_UI
             models[model_name]['__auto_capture_type__'] = auto_capture_type
             models[model_name]['__auto_capture_send__'] = auto_capture_send
         return models
 
-    def _parse_element(self, elem_node) -> Optional[Dict]:
-        """解析单个 element 节点
-
-        支持三种格式：
-        1. 老 SKI 完整格式（带 location 子节点）：
-           <element name="username" type="web">
-               <type>input</type>
-               <location type="id" priority="1">username</location>
-               <location type="ocr" priority="2">用户名</location>
-           </element>
-
-        2. 简化格式（type+value 属性）：
-           <element name="username" type="id" value="username"/>
-
-        3. 简化格式（locator 属性，冒号分隔）：
-           <element name="searchBtn" locator="vision:搜索按钮"/>
-
-        返回结构：
-            {
-                'type': 主定位器类型（向后兼容）,
-                'value': 主定位器值（向后兼容）,
-                'driver_type': 驱动类型,
-                'element_type': 元素 UI 类型,
-                'interfacename': 接口名称,
-                'locations': [
-                    {'type': 'id', 'value': 'username', 'priority': 1},
-                    {'type': 'ocr', 'value': '用户名', 'priority': 2}
-                ]
-            }
-        """
-        # 检查 locator 属性格式（简化格式3：locator="vision:搜索按钮"）
+    def _parse_element(self, elem_node, declared_model_type: Optional[str] = None) -> Optional[Dict]:
+        """解析单个 element 节点。"""
         locator_attr = elem_node.get('locator')
+        raw_type = (elem_node.get('type') or '').strip()
+        legacy_driver_type = raw_type if raw_type in LEGACY_DRIVER_TYPES else ''
+        type_node = elem_node.find('type')
+        child_type = (type_node.text or '').strip() if type_node is not None and type_node.text else ''
+
         if locator_attr and ':' in locator_attr:
             locator_type, locator_value = locator_attr.split(':', 1)
             locator_type = locator_type.strip()
             locator_value = locator_value.strip()
             if locator_type in VALID_LOCATOR_TYPES:
+                model_type = declared_model_type or self._infer_model_type(legacy_driver_type, locator_type)
                 return {
                     'type': locator_type,
                     'value': locator_value,
-                    'driver_type': elem_node.get('type', DRIVER_TYPE_WEB),
-                    'element_type': '',
+                    'locator_type': locator_type,
+                    'locator_value': locator_value,
+                    'model_type': model_type,
+                    'element_type': child_type or self._infer_element_type(raw_type, locator_type, model_type),
                     'interfacename': elem_node.get('interfacename', ''),
                     'locations': [{'type': locator_type, 'value': locator_value, 'priority': 1}],
                 }
 
-        # 检查多个 location 子节点
         location_nodes = elem_node.findall('location')
-
         if location_nodes:
-            # 老 SKI 完整格式 - 支持多定位器
-            type_node = elem_node.find('type')
             locations = []
-
             for loc in location_nodes:
                 loc_type = loc.get('type', 'id')
                 loc_value = (loc.text or '').strip()
@@ -169,51 +177,86 @@ class ModelParser:
                         'priority': loc_priority,
                     })
 
-            # 按 priority 从小到大排序
             locations.sort(key=lambda x: x['priority'])
-
             if locations:
+                primary = locations[0]
+                model_type = declared_model_type or self._infer_model_type(legacy_driver_type, primary['type'])
                 return {
-                    'type': locations[0]['type'],  # 主定位器（向后兼容）
-                    'value': locations[0]['value'],  # 主定位器值（向后兼容）
-                    'driver_type': elem_node.get('type', DRIVER_TYPE_WEB),
-                    'element_type': (type_node.text or '').strip() if type_node is not None else '',
+                    'type': primary['type'],
+                    'value': primary['value'],
+                    'locator_type': primary['type'],
+                    'locator_value': primary['value'],
+                    'model_type': model_type,
+                    'element_type': child_type or self._infer_element_type(raw_type, primary['type'], model_type),
                     'interfacename': elem_node.get('interfacename', ''),
                     'locations': locations,
                 }
 
-        elif elem_node.get('type') and elem_node.get('value'):
-            # 简化格式：type 是定位器类型，value 是定位器值
-            loc_type = elem_node.get('type')
+        if raw_type and elem_node.get('value'):
+            loc_type = raw_type
             loc_value = elem_node.get('value')
             if loc_type in VALID_LOCATOR_TYPES:
-                # field/static 类型属于接口驱动
-                elem_driver_type = DRIVER_TYPE_INTERFACE if loc_type in ('field', 'static') else DRIVER_TYPE_WEB
+                model_type = declared_model_type or self._infer_model_type('', loc_type)
                 return {
                     'type': loc_type,
                     'value': loc_value,
-                    'driver_type': elem_driver_type,
-                    'element_type': '',
+                    'locator_type': loc_type,
+                    'locator_value': loc_value,
+                    'model_type': model_type,
+                    'element_type': child_type or self._infer_element_type('', loc_type, model_type),
                     'interfacename': '',
                     'locations': [{'type': loc_type, 'value': loc_value, 'priority': 1}],
                 }
         return None
 
-    def get_element(self, locator: str) -> Optional[Dict]:
-        """通过 ModelName.ElementName 格式获取元素定位信息
+    def _infer_model_type(self, legacy_driver_type: str, locator_type: str) -> str:
+        if legacy_driver_type == LEGACY_DRIVER_TYPE_INTERFACE:
+            return MODEL_TYPE_INTERFACE
+        if locator_type in ('field', 'static'):
+            return MODEL_TYPE_INTERFACE
+        return MODEL_TYPE_UI
 
-        返回：
-            {
-                'locator_type': 主定位器类型,
-                'locator_value': 主定位器值,
-                'driver_type': 驱动类型,
-                'element_type': 元素 UI 类型,
-                'locations': [  # 多定位器列表（按 priority 排序）
-                    {'type': 'id', 'value': 'username', 'priority': 1},
-                    {'type': 'ocr', 'value': '用户名', 'priority': 2}
-                ]
+    def _infer_element_type(self, raw_type: str, locator_type: str, model_type: str) -> str:
+        if raw_type and raw_type not in LEGACY_DRIVER_TYPES and raw_type not in VALID_LOCATOR_TYPES:
+            return raw_type
+        if model_type == MODEL_TYPE_INTERFACE:
+            if locator_type == 'static':
+                return 'static'
+            if locator_type == 'field':
+                return 'field'
+        return ''
+
+    def _parse_queries(self, model_node) -> Dict[str, Dict[str, str]]:
+        """解析 database 模型中的 query 定义
+
+        返回格式:
+        {
+            "list": {
+                "sql": "SELECT * FROM orders WHERE status = :status LIMIT :limit",
+                "remark": "查询订单列表"
             }
+        }
         """
+        queries = {}
+        for query_node in model_node.findall('query'):
+            query_name = query_node.get('name', '').strip()
+            if not query_name:
+                continue
+
+            sql_node = query_node.find('sql')
+            sql = (sql_node.text or '').strip() if sql_node is not None else ''
+            remark = query_node.get('remark', '').strip()
+
+            if sql:
+                queries[query_name] = {
+                    'sql': sql,
+                    'remark': remark
+                }
+
+        return queries
+
+    def get_element(self, locator: str) -> Optional[Dict]:
+        """通过 ModelName.ElementName 格式获取元素定位信息。"""
         if '.' not in locator:
             return None
         model_name, element_name = locator.split('.', 1)
@@ -224,9 +267,9 @@ class ModelParser:
         if not element:
             return None
         return {
-            'locator_type': element['type'],
-            'locator_value': element['value'],
-            'driver_type': element.get('driver_type', DRIVER_TYPE_WEB),
+            'locator_type': element['locator_type'],
+            'locator_value': element['locator_value'],
+            'model_type': element.get('model_type', self.get_model_type(model_name)),
             'element_type': element.get('element_type', ''),
             'locations': element.get('locations', []),
         }
@@ -237,48 +280,66 @@ class ModelParser:
         return model.get(f'__auto_capture_{trigger}__') or []
 
     def get_model(self, model_name: str) -> Optional[Dict[str, Dict[str, str]]]:
-        """获取整个模型的所有元素"""
+        """获取整个模型的所有元素。"""
         return self.models.get(model_name)
+
+    def get_model_type(self, model_name: str) -> str:
+        model = self.models.get(model_name)
+        if not model:
+            return MODEL_TYPE_UI
+        return model.get('__model_type__', MODEL_TYPE_UI)
 
     def merge_models(self, models: Dict[str, Dict[str, Dict[str, str]]]) -> None:
         """合并运行时注入的模型（如 insert 附带的临时 model 片段）。"""
         for model_name, elements in models.items():
             if model_name not in self.models:
-                self.models[model_name] = {}
+                self.models[model_name] = {'__model_type__': MODEL_TYPE_UI}
             self.models[model_name].update(elements)
 
     def get_model_driver_type(self, model_name: str) -> str:
-        """获取模型的主要驱动类型（取第一个元素的 driver_type）"""
-        model = self.models.get(model_name)
-        if not model:
-            return DRIVER_TYPE_WEB
-        for element in model.values():
-            return element.get('driver_type', DRIVER_TYPE_WEB)
-        return DRIVER_TYPE_WEB
+        """兼容旧接口：根据模型类型返回主要执行类型。"""
+        model_type = self.get_model_type(model_name)
+        if model_type == MODEL_TYPE_INTERFACE:
+            return LEGACY_DRIVER_TYPE_INTERFACE
+        return LEGACY_DRIVER_TYPE_WEB
 
     @staticmethod
     def is_vision_locator(locator_type: str) -> bool:
-        """判断是否是视觉定位器类型
-
-        Args:
-            locator_type: 定位器类型字符串
-
-        Returns:
-            True 如果是 vision/ocr/vision_bbox 类型
-        """
+        """判断是否是视觉定位器类型。"""
         return locator_type in VISION_LOCATOR_TYPES
 
     def get_locations(self, locator: str) -> List[Dict[str, Union[str, int]]]:
-        """获取元素的所有定位器（按 priority 排序）
-
-        Args:
-            locator: ModelName.ElementName 格式的定位器
-
-        Returns:
-            按 priority 排序的定位器列表，每个元素包含 type/value/priority
-            如果元素不存在返回空列表
-        """
+        """获取元素的所有定位器（按 priority 排序）。"""
         element = self.get_element(locator)
         if not element:
             return []
         return element.get('locations', [])
+
+    def get_database_model(self, model_name: str) -> Optional[Dict[str, Any]]:
+        """获取 database 类型模型的完整信息
+
+        返回格式:
+        {
+            "type": "database",
+            "connection": "sqlite_db",
+            "queries": {
+                "list": {
+                    "sql": "SELECT ...",
+                    "remark": "查询列表"
+                }
+            }
+        }
+        """
+        model = self.models.get(model_name)
+        if not model:
+            return None
+
+        model_type = model.get('__model_type__')
+        if model_type != MODEL_TYPE_DATABASE:
+            return None
+
+        return {
+            'type': MODEL_TYPE_DATABASE,
+            'connection': model.get('__connection__', ''),
+            'queries': model.get('__queries__', {})
+        }

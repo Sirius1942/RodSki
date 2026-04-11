@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases step_wait="500">
+    <!-- TC_EF001: 错误处理验证用例 -->
+    <case execute="是" id="TC_EF001" title="非法登录测试" description="验证错误密码被正确拒绝" component_type="界面">
+        <pre_process>
+            <test_step action="navigate" model="" data="http://localhost:8000"/>
+        </pre_process>
+        <test_case>
+            <!-- 使用错误密码登录 -->
+            <test_step action="type" model="LoginForm" data="L002"/>
+            <!-- 验证错误提示正确显示 -->
+            <test_step action="verify" model="ErrorMessage" data="V001"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <!-- TC_EF002: 正常用例 - 对比参照 -->
+    <case execute="是" id="TC_EF002" title="正常登录测试" description="验证正确密码可以登录" component_type="界面">
+        <pre_process>
+            <test_step action="navigate" model="" data="http://localhost:8000"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="LoginForm" data="L001"/>
+            <test_step action="verify" model="Dashboard" data="V001"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+</cases>

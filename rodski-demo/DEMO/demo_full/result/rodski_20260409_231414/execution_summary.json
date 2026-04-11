@@ -1,0 +1,55 @@
+{
+  "case": "TC_EF002",
+  "steps": [
+    {
+      "index": 1,
+      "action": "navigate",
+      "model": "",
+      "phase": "预处理",
+      "status": "ok",
+      "return_source": "keyword_result",
+      "return_value": true,
+      "named_writes": {}
+    },
+    {
+      "index": 2,
+      "action": "type",
+      "model": "LoginForm",
+      "phase": "用例",
+      "status": "ok",
+      "return_source": "keyword_result",
+      "return_value": {
+        "username": "admin",
+        "password": "123456",
+        "loginBtn": "click"
+      },
+      "named_writes": {}
+    },
+    {
+      "index": 3,
+      "action": "verify",
+      "model": "Dashboard",
+      "phase": "用例",
+      "status": "ok",
+      "return_source": "keyword_result",
+      "return_value": {
+        "totalOrders": "3",
+        "completedOrders": "2"
+      },
+      "named_writes": {}
+    },
+    {
+      "index": 4,
+      "action": "close",
+      "model": "",
+      "phase": "后处理",
+      "status": "ok",
+      "return_source": "keyword_result",
+      "return_value": true,
+      "named_writes": {}
+    }
+  ],
+  "context_snapshot": {
+    "named": {}
+  }
+}

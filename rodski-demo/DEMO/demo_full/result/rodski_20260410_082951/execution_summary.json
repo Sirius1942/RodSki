@@ -1,0 +1,128 @@
+{
+  "case": "TC016",
+  "steps": [
+    {
+      "index": 1,
+      "action": "navigate",
+      "model": "",
+      "phase": "预处理",
+      "status": "ok",
+      "return_source": "keyword_result",
+      "return_value": true,
+      "named_writes": {}
+    },
+    {
+      "index": 2,
+      "action": "type",
+      "model": "LocatorTest_ID",
+      "phase": "用例",
+      "status": "ok",
+      "return_source": "keyword_result",
+      "return_value": {
+        "input": "ID定位器测试内容",
+        "button": "click"
+      },
+      "named_writes": {}
+    },
+    {
+      "index": 3,
+      "action": "verify",
+      "model": "LocatorTest_ID",
+      "phase": "用例",
+      "status": "ok",
+      "return_source": "keyword_result",
+      "return_value": {
+        "result": "测试结果: ID 定位器测试成功！输入的内容: ID定位器测试内容"
+      },
+      "named_writes": {}
+    },
+    {
+      "index": 4,
+      "action": "type",
+      "model": "LocatorTest_Name",
+      "phase": "用例",
+      "status": "ok",
+      "return_source": "keyword_result",
+      "return_value": {
+        "input": "Name定位器测试内容",
+        "button": "click"
+      },
+      "named_writes": {}
+    },
+    {
+      "index": 5,
+      "action": "verify",
+      "model": "LocatorTest_Name",
+      "phase": "用例",
+      "status": "ok",
+      "return_source": "keyword_result",
+      "return_value": {
+        "result": "测试结果: Name 定位器测试成功！输入的内容: Name定位器测试内容"
+      },
+      "named_writes": {}
+    },
+    {
+      "index": 6,
+      "action": "type",
+      "model": "LocatorTest_CSS",
+      "phase": "用例",
+      "status": "ok",
+      "return_source": "keyword_result",
+      "return_value": {
+        "input": "CSS定位器测试内容",
+        "button": "click"
+      },
+      "named_writes": {}
+    },
+    {
+      "index": 7,
+      "action": "verify",
+      "model": "LocatorTest_CSS",
+      "phase": "用例",
+      "status": "ok",
+      "return_source": "keyword_result",
+      "return_value": {
+        "result": "测试结果: CSS 定位器测试成功！输入的内容: CSS定位器测试内容"
+      },
+      "named_writes": {}
+    },
+    {
+      "index": 8,
+      "action": "type",
+      "model": "LocatorTest_XPath",
+      "phase": "用例",
+      "status": "ok",
+      "return_source": "keyword_result",
+      "return_value": {
+        "input": "XPath定位器测试内容",
+        "button": "click"
+      },
+      "named_writes": {}
+    },
+    {
+      "index": 9,
+      "action": "verify",
+      "model": "LocatorTest_XPath",
+      "phase": "用例",
+      "status": "ok",
+      "return_source": "keyword_result",
+      "return_value": {
+        "result": "测试结果: XPath 定位器测试成功！输入的内容: XPath定位器测试内容"
+      },
+      "named_writes": {}
+    },
+    {
+      "index": 10,
+      "action": "close",
+      "model": "",
+      "phase": "后处理",
+      "status": "ok",
+      "return_source": "keyword_result",
+      "return_value": true,
+      "named_writes": {}
+    }
+  ],
+  "context_snapshot": {
+    "named": {}
+  }
+}

@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<datatable name="Product_verify">
-    <row id="V001">
-        <field name="productMessage">商品添加成功</field>
-    </row>
-</datatable>

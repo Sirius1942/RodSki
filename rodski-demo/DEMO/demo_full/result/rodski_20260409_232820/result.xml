@@ -1,0 +1,8 @@
+<?xml version="1.0" ?>
+<testresult>
+  <summary total="2" passed="2" failed="0" skipped="0" errors="0" pass_rate="100.0%" total_time="8.16s" average_time="4.08s" start_time="2026-04-09 23:28:29" end_time="2026-04-09 23:28:29"/>
+  <results>
+    <result case_id="TC_EF001" title="非法登录测试" status="PASS" execution_time="4.078" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-04-09 23:28:29"/>
+    <result case_id="TC_EF002" title="正常登录测试" status="PASS" execution_time="4.08" retries="0" start_time="" end_time="" error_type="" error_message="" screenshot_path="" updated_at="2026-04-09 23:28:29"/>
+  </results>
+</testresult>

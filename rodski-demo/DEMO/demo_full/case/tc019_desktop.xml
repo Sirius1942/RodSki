@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases step_wait="500">
+    <!-- TC019: 桌面应用自动化测试 (需要桌面环境) -->
+    <case execute="否" id="TC019" title="桌面应用自动化测试" component_type="界面">
+        <test_case>
+            <!-- Windows 示例: 启动记事本 -->
+            <!-- <test_step action="launch" model="" data="notepad.exe"/> -->
+
+            <!-- macOS 示例: 启动文本编辑器 -->
+            <!-- <test_step action="launch" model="" data="open -a TextEdit"/> -->
+
+            <!-- 等待应用启动 -->
+            <test_step action="wait" model="" data="2"/>
+
+            <!-- 输入文本 -->
+            <test_step action="run" model="desktop_ops" data="type_text.py Hello_RodSki"/>
+            <test_step action="wait" model="" data="1"/>
+
+            <!-- 全选文本 -->
+            <test_step action="run" model="desktop_ops" data="key_combo.py ctrl+a"/>
+            <test_step action="wait" model="" data="0.5"/>
+
+            <!-- 复制文本 -->
+            <test_step action="run" model="desktop_ops" data="key_combo.py ctrl+c"/>
+            <test_step action="wait" model="" data="0.5"/>
+
+            <!-- 关闭应用 (Windows: Alt+F4, macOS: Cmd+Q) -->
+            <!-- Windows: -->
+            <!-- <test_step action="run" model="desktop_ops" data="key_combo.py alt+f4"/> -->
+
+            <!-- macOS: -->
+            <!-- <test_step action="run" model="desktop_ops" data="key_combo.py command+q"/> -->
+
+            <!-- 鼠标点击示例 (坐标需要根据实际屏幕调整) -->
+            <!-- <test_step action="run" model="desktop_ops" data="mouse_click.py 100 200 left"/> -->
+        </test_case>
+    </case>
+</cases>

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases step_wait="500">
+    <case execute="是" id="TC021" title="复杂数据引用测试" component_type="界面">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.DefaultValue.URL"/>
+            <test_step action="type" model="LoginForm" data="L001"/>
+            <test_step action="type" model="NavMenu" data="N001"/>
+        </pre_process>
+        <test_case>
+            <!-- 1. 测试 GlobalValue 引用 -->
+            <test_step action="type" model="TestForm" data="T001"/>
+
+            <!-- 2. 获取表单结果并保存到变量 -->
+            <test_step action="get" model="TestForm" data="formResult"/>
+            <test_step action="set" model="" data="savedResult=${Return[-1]}"/>
+
+            <!-- 3. 使用 set/get 变量访问 -->
+            <test_step action="get" model="" data="savedResult"/>
+            <test_step action="verify" model="TestForm" data="V001"/>
+
+            <!-- 4. 测试嵌套 Return 引用 -->
+            <test_step action="get" model="TestForm" data="formResult"/>
+            <test_step action="set" model="" data="finalResult=${Return[-1]}"/>
+            <test_step action="get" model="" data="finalResult"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+</cases>

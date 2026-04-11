@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文件上传测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .upload-area {
+            border: 2px dashed #4CAF50;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            margin: 20px 0;
+            background-color: #f9f9f9;
+        }
+        input[type="file"] {
+            margin: 20px 0;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 30px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        #upload-result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            display: none;
+        }
+        .success {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
+        .error {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+        .file-info {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #e3f2fd;
+            border-radius: 4px;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #4CAF50;
+            text-decoration: none;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>文件上传测试页面</h1>
+
+        <div class="upload-area">
+            <h3>选择要上传的文件</h3>
+            <input type="file" id="file-input" name="upload_file" accept="*/*">
+            <div class="file-info" id="file-info" style="display: none;"></div>
+            <button id="upload-btn" onclick="uploadFile()" disabled>上传文件</button>
+        </div>
+
+        <div id="upload-result"></div>
+
+        <a href="/" class="back-link">← 返回首页</a>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('file-input');
+        const uploadBtn = document.getElementById('upload-btn');
+        const fileInfo = document.getElementById('file-info');
+        const uploadResult = document.getElementById('upload-result');
+
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                fileInfo.style.display = 'block';
+                fileInfo.innerHTML = `
+                    <strong>已选择文件:</strong><br>
+                    文件名: ${file.name}<br>
+                    文件大小: ${(file.size / 1024).toFixed(2)} KB<br>
+                    文件类型: ${file.type || '未知'}
+                `;
+                uploadBtn.disabled = false;
+            } else {
+                fileInfo.style.display = 'none';
+                uploadBtn.disabled = true;
+            }
+        });
+
+        function uploadFile() {
+            const file = fileInput.files[0];
+            if (!file) {
+                showResult('请先选择文件', false);
+                return;
+            }
+
+            // 模拟上传过程
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = '上传中...';
+
+            setTimeout(() => {
+                showResult(`文件 "${file.name}" 上传成功！`, true);
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = '上传文件';
+            }, 1000);
+        }
+
+        function showResult(message, success) {
+            uploadResult.style.display = 'block';
+            uploadResult.className = success ? 'success' : 'error';
+            uploadResult.innerHTML = `<strong>${success ? '成功' : '失败'}:</strong> ${message}`;
+        }
+    </script>
+</body>
+</html>

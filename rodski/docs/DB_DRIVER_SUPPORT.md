@@ -1,5 +1,22 @@
 # RodSki 数据库驱动支持
 
+**版本**: v5.0+  
+**最后更新**: 2026-04-10
+
+---
+
+## 快速开始
+
+RodSki 通过 DB 关键字支持多种数据库操作。使用步骤：
+
+1. 在 GlobalValue 中配置数据库连接
+2. 创建 `type="database"` 的模型，指定 `connection` 属性
+3. 在测试用例中使用 `action="DB"` 执行查询
+
+详细使用指南请参考：[DB_USAGE_GUIDE.md](./DB_USAGE_GUIDE.md)
+
+---
+
 ## 当前支持的数据库
 
 RodSki 通过 `keyword_engine.py` 中的 `_create_connection` 方法支持以下数据库：
@@ -142,9 +159,52 @@ elif db_type == 'oracle':
 
 ---
 
+## 使用示例
+
+### 基本用法
+
+```xml
+<!-- 1. GlobalValue 配置连接 -->
+<globalvalue>
+    <group name="sqlite_db">
+        <var name="type" value="sqlite"/>
+        <var name="database" value="demo.db"/>
+    </group>
+</globalvalue>
+
+<!-- 2. 模型定义 -->
+<model name="OrderQuery" type="database" connection="sqlite_db">
+    <query name="list">
+        <sql>SELECT * FROM orders LIMIT :limit</sql>
+    </query>
+</model>
+
+<!-- 3. 测试用例 -->
+<test_step action="DB" model="OrderQuery" data="Q001"/>
+
+<!-- 4. 数据表 -->
+<datatable name="OrderQuery">
+    <row id="Q001">
+        <field name="query">list</field>
+        <field name="limit">10</field>
+    </row>
+</datatable>
+```
+
+<!-- 待 iteration-21 完成后验证 -->
+
+---
+
 ## 代码位置
 
 - **连接创建：** `rodski/core/keyword_engine.py` → `_create_connection()`
 - **连接获取：** `rodski/core/keyword_engine.py` → `_get_db_connection()`
 - **SQL执行：** `rodski/core/keyword_engine.py` → `_execute_db_sql()`
 - **DB关键字：** `rodski/core/keyword_engine.py` → `_kw_db()`
+
+---
+
+## 相关文档
+
+- [DB_USAGE_GUIDE.md](./DB_USAGE_GUIDE.md) - 数据库使用指南
+- [SKILL_REFERENCE.md](./SKILL_REFERENCE.md) - DB 关键字语法参考

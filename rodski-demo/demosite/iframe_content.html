@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iframe内部页面</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #fafbff;
+            padding: 25px;
+        }
+        h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 18px;
+        }
+        input {
+            padding: 10px 14px;
+            width: 100%;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 12px;
+        }
+        input:focus { outline: none; border-color: #667eea; }
+        button {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: opacity 0.3s;
+        }
+        button:hover { opacity: 0.9; }
+        .result {
+            margin-top: 15px;
+            padding: 12px;
+            background: #f0f4ff;
+            border-radius: 8px;
+            border: 2px solid #d0d8f0;
+            min-height: 30px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <h2>iframe内部页面</h2>
+    <input type="text" id="iframeInput" placeholder="在iframe内输入内容" />
+    <button id="iframeBtn" onclick="showResult()">提交</button>
+    <div id="iframeResult" class="result"></div>
+
+    <script>
+        function showResult() {
+            const value = document.getElementById('iframeInput').value;
+            document.getElementById('iframeResult').textContent = 'iframe提交: ' + value;
+        }
+    </script>
+</body>
+</html>

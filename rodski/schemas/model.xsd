@@ -10,9 +10,11 @@
       核心约束：
       1. element 的 name 属性必须与数据表中的 field name 完全一致（区分大小写）
       2. model 的 name 属性 = 数据表文件名（强制一致）
-      3. 接口模型中 _method/_url/_header_* 为保留元素名
-      4. 支持完整格式（带 location 子节点）和简化格式（type+value 属性）
-      5. 支持多定位器格式，按 priority 依次尝试，失败自动切换
+      3. model 的 type 表示模型类型（ui / interface）
+      4. element 的 type 表示元素类型，location 的 type 表示定位/取值类型
+      5. 接口模型中 _method/_url/_header_* 为保留元素名
+      6. 支持完整格式（带 location 子节点）和旧版简化格式（type+value 属性）
+      7. 支持多定位器格式，按 priority 依次尝试，失败自动切换
     </xs:documentation>
   </xs:annotation>
 
@@ -29,12 +31,24 @@
   <xs:complexType name="ModelType">
     <xs:sequence>
       <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element name="query" type="QueryType"/>
         <xs:element name="element" type="ElementType"/>
         <xs:element name="auto_capture" type="AutoCaptureType"/>
       </xs:choice>
     </xs:sequence>
     <xs:attribute name="name" type="xs:string" use="required"/>
+    <xs:attribute name="type" type="ModelCategoryType" use="optional" default="ui"/>
     <xs:attribute name="servicename" type="xs:string" use="optional" default=""/>
+    <xs:attribute name="connection" type="xs:string" use="optional"/>
+  </xs:complexType>
+
+  <!-- 查询模板类型 (v5.0+ database 模型) -->
+  <xs:complexType name="QueryType">
+    <xs:sequence>
+      <xs:element name="sql" type="xs:string" minOccurs="1" maxOccurs="1"/>
+    </xs:sequence>
+    <xs:attribute name="name" type="xs:string" use="required"/>
+    <xs:attribute name="remark" type="xs:string" use="optional"/>
   </xs:complexType>
 
   <!-- 自动返回值提取 -->
@@ -60,7 +74,7 @@
     <xs:attribute name="path" type="xs:string" use="optional"/>
   </xs:complexType>
 
-  <!-- 元素类型 - 支持完整格式和简化格式 -->
+  <!-- 元素类型 - 支持完整格式和旧版简化格式 -->
   <xs:complexType name="ElementType">
     <xs:sequence>
       <xs:element name="type" type="xs:string" minOccurs="0" maxOccurs="1"/>
@@ -69,7 +83,7 @@
       <xs:element name="desc" type="xs:string" minOccurs="0" maxOccurs="1"/>
     </xs:sequence>
     <xs:attribute name="name" type="xs:string" use="required"/>
-    <xs:attribute name="type" type="DriverType" use="optional"/>
+    <xs:attribute name="type" type="xs:string" use="optional"/>
     <xs:attribute name="value" type="xs:string" use="optional"/>
     <xs:attribute name="locator" type="xs:string" use="optional"/>
     <xs:attribute name="desc" type="xs:string" use="optional"/>
@@ -77,34 +91,21 @@
     <xs:attribute name="group" type="xs:string" use="optional" default=""/>
   </xs:complexType>
 
+  <!-- 模型类别枚举 -->
+  <xs:simpleType name="ModelCategoryType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="ui"/>
+      <xs:enumeration value="interface"/>
+      <xs:enumeration value="database"/>
+    </xs:restriction>
+  </xs:simpleType>
+
   <!-- 定位信息类型（支持 priority 属性用于多定位器） -->
   <xs:complexType name="LocationType" mixed="true">
     <xs:attribute name="type" type="LocatorType" use="required"/>
     <xs:attribute name="item" type="xs:string" use="optional" default=""/>
     <xs:attribute name="priority" type="xs:positiveInteger" use="optional" default="1"/>
   </xs:complexType>
-
-  <!-- 驱动类型枚举 -->
-  <xs:simpleType name="DriverType">
-    <xs:restriction base="xs:string">
-      <xs:enumeration value="web"/>
-      <xs:enumeration value="interface"/>
-      <xs:enumeration value="other"/>
-      <!-- 简化格式中 type 也可以是定位类型 -->
-      <xs:enumeration value="id"/>
-      <xs:enumeration value="class"/>
-      <xs:enumeration value="css"/>
-      <xs:enumeration value="xpath"/>
-      <xs:enumeration value="text"/>
-      <xs:enumeration value="tag"/>
-      <xs:enumeration value="name"/>
-      <xs:enumeration value="static"/>
-      <xs:enumeration value="field"/>
-      <!-- 桌面平台驱动类型 -->
-      <xs:enumeration value="windows"/>
-      <xs:enumeration value="macos"/>
-    </xs:restriction>
-  </xs:simpleType>
 
   <!-- 定位类型枚举 -->
   <xs:simpleType name="LocatorType">

@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<datatable name="QueryOrder">
-    <row id="Q001">
-        <field name="sql">SELECT * FROM orders WHERE order_no='ORD202403230001'</field>
-    </row>
-    <row id="Q002">
-        <field name="sql">SELECT SUM(total_amount) as total_sales FROM orders WHERE status='completed'</field>
-    </row>
-</datatable>

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iframe 内容页</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #e3f2fd;
+            margin: 0;
+        }
+        .iframe-content {
+            background: white;
+            padding: 20px;
+            border-radius: 4px;
+        }
+        h2 {
+            color: #1976d2;
+            margin-top: 0;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #2196F3;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px 5px 5px 0;
+        }
+        button:hover {
+            background-color: #1976d2;
+        }
+        #iframe-result {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #fff3e0;
+            border-radius: 4px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="iframe-content">
+        <h2>iframe 内容区域</h2>
+        <p>这是 iframe 内部的内容</p>
+
+        <input type="text" id="iframe-input" name="iframe_input" placeholder="iframe 内输入框">
+        <button id="iframe-btn" onclick="iframeAction()">iframe 按钮</button>
+        <button onclick="sendToParent()">发送消息到父页面</button>
+
+        <div id="iframe-result"></div>
+    </div>
+
+    <script>
+        function iframeAction() {
+            const input = document.getElementById('iframe-input');
+            const result = document.getElementById('iframe-result');
+            result.style.display = 'block';
+            result.innerHTML = `<strong>iframe 操作:</strong> 输入内容 "${input.value}"`;
+        }
+
+        function sendToParent() {
+            const input = document.getElementById('iframe-input');
+            const message = input.value || 'Hello from iframe!';
+            window.parent.postMessage(message, '*');
+        }
+    </script>
+</body>
+</html>

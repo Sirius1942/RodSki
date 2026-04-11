@@ -64,6 +64,7 @@ class CaseParser:
                 'title': case_node.get('title', ''),
                 'description': case_node.get('description', ''),
                 'component_type': case_node.get('component_type', ''),
+                'expect_fail': case_node.get('expect_fail', '否').strip(),
                 'step_wait': step_wait_ms,
                 'metadata': self._parse_metadata(case_node.find('metadata')),
                 'pre_process': self._parse_phase_steps(case_node.find('pre_process')),

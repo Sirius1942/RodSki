@@ -5,7 +5,7 @@ import logging
 import subprocess
 import sys
 import time
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Dict, Any, Optional, List, Tuple, Union
 from pathlib import Path
 from drivers.base_driver import BaseDriver
 from core.performance import monitor_performance
@@ -22,7 +22,13 @@ from core.exceptions import (
     is_critical_error,
 )
 from core.assertion.image_matcher import ImageMatcher
-from core.model_parser import ModelParser
+from core.model_parser import (
+    ModelParser,
+    MODEL_TYPE_UI,
+    MODEL_TYPE_INTERFACE,
+    LEGACY_DRIVER_TYPE_WEB,
+    LEGACY_DRIVER_TYPE_INTERFACE,
+)
 from core.runtime_context import RuntimeContext
 
 logger = logging.getLogger("rodski")
@@ -670,10 +676,16 @@ class KeywordEngine:
         if not model:
             raise InvalidParameterError(
                 keyword="type",
-                param_name="model", 
+                param_name="model",
                 reason=f"模型不存在: '{model_name}'"
             )
-        
+        if self.model_parser.get_model_type(model_name) != MODEL_TYPE_UI:
+            raise InvalidParameterError(
+                keyword="type",
+                param_name="model",
+                reason=f"type 仅支持 UI 模型: '{model_name}'"
+            )
+
         if not data_row:
             raise InvalidParameterError(
                 keyword="type",
@@ -682,48 +694,36 @@ class KeywordEngine:
             )
 
         logger.info(f"批量输入: 模型={model_name}, DataID={data_id}")
-        
+
         operations = []
         resolved_values = {}
         for element_name, element_info in model.items():
+            if element_name.startswith('__'):
+                continue
             if element_name not in data_row:
                 continue
             value = str(data_row[element_name])
             if self.data_resolver:
                 value = self.data_resolver.resolve_with_return(value)
 
-            driver_type = element_info.get('driver_type', 'web')
             value_upper = value.strip().upper()
 
-            # BLANK: UI 跳过, 接口传空字符串
             if value_upper == 'BLANK':
-                if driver_type == 'web':
-                    logger.debug(f"{element_name}: BLANK → 跳过")
-                    resolved_values[element_name] = ''
-                    continue
-                else:
-                    value = ''
+                logger.debug(f"{element_name}: BLANK → 跳过")
+                resolved_values[element_name] = ''
+                continue
 
-            # NULL → 接口传 "null"; NONE → 接口传 "none"; UI 均跳过
             if value_upper in ('NULL', 'NONE'):
-                if driver_type == 'web':
-                    logger.debug(f"{element_name}: {value_upper} → 跳过")
-                    resolved_values[element_name] = None
-                    continue
-                else:
-                    mapped = value.lower()
-                    resolved_values[element_name] = mapped
-                    continue
+                logger.debug(f"{element_name}: {value_upper} → 跳过")
+                resolved_values[element_name] = None
+                continue
 
             resolved_values[element_name] = value
+            target_driver = self._get_driver_for_type(LEGACY_DRIVER_TYPE_WEB)
 
-            # ── 根据 driver_type 选择驱动 ──
-            target_driver = self._get_driver_for_type(driver_type)
-
-            # ── 多定位器支持：从 locations 列表按 priority 依次尝试 ──
             locations = element_info.get('locations', [])
             if not locations:
-                locations = [{"type": element_info['type'], "value": element_info['value'], "priority": 1}]
+                locations = [{"type": element_info['locator_type'], "value": element_info['locator_value'], "priority": 1}]
             sorted_locations = sorted(locations, key=lambda x: x.get("priority", 1))
 
             op_done = False
@@ -735,7 +735,6 @@ class KeywordEngine:
                 locator = f"{locator_type}={locator_value}"
 
                 try:
-                    # 尝试作为 UI 动作执行
                     action_result = self._execute_element_action(value, locator, element_name, driver=target_driver)
                     if action_result is not None:
                         operations.append(action_result)
@@ -743,7 +742,6 @@ class KeywordEngine:
                         logger.debug(f"  ↳ 定位器 {locator} 成功 (priority={loc.get('priority',1)})")
                         break
 
-                    # 普通文本输入
                     display_value = value
                     input_value = value
                     if input_value.endswith('.Password'):
@@ -765,22 +763,18 @@ class KeywordEngine:
                     continue
 
             if not op_done:
-                # 所有定位器都失败
                 tried = ", ".join(f"{l['type']}={l['value']}" for l in sorted_locations)
                 if last_error:
                     raise DriverError(f"元素 '{element_name}' 所有定位器均失败 [{tried}]: {last_error}")
-                else:
-                    raise DriverError(f"元素 '{element_name}' 所有定位器均失败 [{tried}]")
-        
+                raise DriverError(f"元素 '{element_name}' 所有定位器均失败 [{tried}]")
+
         failed_ops = [op for op in operations if not op[2]]
         if failed_ops:
             failed_names = [op[1] for op in failed_ops]
             raise DriverError(f"批量输入失败: {', '.join(failed_names)}")
-        
-        # 存储解析后的实际使用值（Return[-1] 等已替换为真实值）
+
         self.store_return(resolved_values)
 
-        # Auto Capture
         if self.model_parser:
             ac_fields = self.model_parser.get_auto_capture(model_name, 'type')
             if ac_fields:
@@ -847,6 +841,12 @@ class KeywordEngine:
                 keyword="send",
                 param_name="context",
                 reason="send 需要 model_parser 和 data_manager（请通过 SKIExecutor 执行）"
+            )
+        if self.model_parser.get_model_type(model_name) != MODEL_TYPE_INTERFACE:
+            raise InvalidParameterError(
+                keyword="send",
+                param_name="model",
+                reason=f"send 仅支持接口模型: '{model_name}'"
             )
         return self._batch_send(model_name, data_ref)
 
@@ -1035,8 +1035,15 @@ class KeywordEngine:
 
         # 批量模式: launch ModelName DataID
         if model_name and data_ref and self.model_parser:
+            model_type = self.model_parser.get_model_type(model_name)
+            if model_type == MODEL_TYPE_INTERFACE:
+                raise InvalidParameterError(
+                    keyword="launch",
+                    param_name="model",
+                    reason=f"launch 不支持接口模型: '{model_name}'"
+                )
             driver_type = self.model_parser.get_model_driver_type(model_name)
-            if driver_type == "web":
+            if driver_type == LEGACY_DRIVER_TYPE_WEB:
                 result = self._execute_navigate(model_name, data_ref)
             else:
                 result = self._execute_desktop_launch(model_name, data_ref)
@@ -1343,48 +1350,48 @@ class KeywordEngine:
 
         results = {}
         mismatches = []
+        model_type = self.model_parser.get_model_type(model_name)
 
         for element_name, element_info in model.items():
+            if element_name.startswith('__'):
+                continue
             if element_name not in data_row:
                 continue
 
             expected = str(data_row[element_name])
             if self.data_resolver:
                 expected = self.data_resolver.resolve_with_return(expected)
-            
-            driver_type = element_info.get('driver_type', 'web')
+
             expected_upper = expected.strip().upper()
 
             # BLANK: UI 跳过该字段不验证, 接口期望空字符串
             if expected_upper == 'BLANK':
-                if driver_type == 'web':
+                if model_type == MODEL_TYPE_UI:
                     logger.debug(f"{element_name}: BLANK → 跳过验证")
                     continue
-                else:
-                    expected = ''
+                expected = ''
 
             # NULL → 接口期望 "null"; NONE → 接口期望 "none"; UI 均跳过
             if expected_upper in ('NULL', 'NONE'):
-                if driver_type == 'web':
+                if model_type == MODEL_TYPE_UI:
                     logger.debug(f"{element_name}: {expected_upper} → 跳过验证")
                     continue
-                else:
-                    expected_mapped = expected.lower()
-                    last_return = self.get_return(-1)
-                    actual_val = last_return.get(element_name) if isinstance(last_return, dict) else last_return
-                    actual_str = str(actual_val) if actual_val is not None else "null"
-                    results[element_name] = actual_val
-                    matched = actual_str == expected_mapped or (expected_mapped == "null" and actual_val is None)
-                    if not matched:
-                        mismatches.append({'element': element_name, 'expected': expected_mapped, 'actual': actual_str})
-                    logger.debug(f"{element_name}: 实际={actual_str}, 期望={expected_mapped} → {'OK' if matched else 'FAIL'}")
-                    continue
+                expected_mapped = expected.lower()
+                last_return = self.get_return(-1)
+                actual_val = last_return.get(element_name) if isinstance(last_return, dict) else last_return
+                actual_str = str(actual_val) if actual_val is not None else "null"
+                results[element_name] = actual_val
+                matched = actual_str == expected_mapped or (expected_mapped == "null" and actual_val is None)
+                if not matched:
+                    mismatches.append({'element': element_name, 'expected': expected_mapped, 'actual': actual_str})
+                logger.debug(f"{element_name}: 实际={actual_str}, 期望={expected_mapped} → {'OK' if matched else 'FAIL'}")
+                continue
 
-            locator_type = element_info['type']
-            locator_value = element_info['value']
+            locator_type = element_info['locator_type']
+            locator_value = element_info['locator_value']
             locator = f"{locator_type}={locator_value}"
 
-            if driver_type == 'web':
+            if model_type == MODEL_TYPE_UI:
                 if hasattr(self.driver, 'get_text_locator'):
                     if locator_type == 'id':
                         actual = self.driver.get_text_locator(f"#{locator_value}")
@@ -1398,7 +1405,6 @@ class KeywordEngine:
             else:
                 last_return = self.get_return(-1)
                 if isinstance(last_return, dict):
-                    # 支持嵌套字段: element value="data.inquiryId" → last_return["data"]["inquiryId"]
                     actual_val = self._get_nested_return(last_return, locator_value or element_name)
                     actual_str = str(actual_val) if actual_val is not None else ""
                 else:
@@ -1459,13 +1465,15 @@ class KeywordEngine:
 
     def _get_model_mode(self, model_name: str, data_ref: str) -> bool:
         """模型模式：按模型元素定位，读取各元素文本，返回 dict"""
+        if self.model_parser.get_model_type(model_name) != MODEL_TYPE_UI:
+            raise InvalidParameterError(keyword="get", param_name="model", reason=f"get 模型模式仅支持 UI 模型: '{model_name}'")
         model = self.model_parser.get_model(model_name) or {}
         result = {}
         for name, elem in model.items():
             if name.startswith('__'):
                 continue
-            locator_type = elem.get("type", "")
-            locator_value = elem.get("value", "")
+            locator_type = elem.get("locator_type", "")
+            locator_value = elem.get("locator_value", "")
             try:
                 if hasattr(self.driver, "get_text_locator"):
                     if locator_type == 'id':
@@ -1665,42 +1673,147 @@ class KeywordEngine:
         return True
 
     def _kw_db(self, params: Dict) -> bool:
-        """数据库操作
-        
-        用例格式: DB | 连接变量名 | SQL数据引用或直接SQL
-        
+        """数据库操作 - v5.0 新语法
+
+        新语法格式: DB | 模型名 | 数据行ID
+
         执行流程:
-        1. model 字段 = GlobalValue 中的数据库连接配置组名 (如 cassdb)
-        2. data 字段 = 数据表引用 (如 QuerySQL.Q001) 或直接 SQL
-        3. 从 GlobalValue 读取连接配置: cassdb.type, cassdb.host, cassdb.port 等
-        4. 如果 data 是数据表引用，从数据表中读取 sql/operation/var_name
-        5. 建立连接 → 执行 SQL → store_return 保存结果
+        1. model 字段 = 数据模型名称 (如 OrderQuery)
+        2. data 字段 = 数据行 ID (如 Q001)
+        3. 从模型读取 connection 属性和 query 定义
+        4. 从数据表读取 query 名称和参数
+        5. 替换 SQL 中的 :param 占位符
+        6. 执行 SQL → 截断处理 → store_return 保存结果
+
+        ⚠️ 破坏性更新: 不兼容旧语法 (model=连接名, data=TableName.DataID)
         """
-        conn_var = params.get("model", "")
-        data_ref = params.get("data", "")
+        model_name = params.get("model", "")
+        data_id = params.get("data", "")
 
-        if not data_ref:
-            raise InvalidParameterError(keyword="DB", param_name="data", reason="缺少 SQL 或数据表引用")
+        if not model_name:
+            raise InvalidParameterError(
+                keyword="DB",
+                param_name="model",
+                reason="缺少模型名称。新语法: action='DB' model='模型名' data='数据ID'"
+            )
 
-        # 解析 SQL：从数据表读取 or 直接使用
-        sql, operation, var_name = self._resolve_db_sql(data_ref)
+        if not data_id:
+            raise InvalidParameterError(
+                keyword="DB",
+                param_name="data",
+                reason="缺少数据行 ID"
+            )
+
+        # 检测旧语法并报错
+        if '.' in data_id:
+            raise InvalidParameterError(
+                keyword="DB",
+                param_name="data",
+                reason=(
+                    f"检测到旧语法格式 '{data_id}'。\n"
+                    f"v5.0+ 不再支持旧语法，请迁移到新语法:\n"
+                    f"  旧: <test_step action='DB' model='sqlite_db' data='QuerySQL.Q001'/>\n"
+                    f"  新: <test_step action='DB' model='OrderQuery' data='Q001'/>\n"
+                    f"详见迁移文档: .pb/specs/db_keyword_design_v2.md"
+                )
+            )
+
+        # 1. 从 model_parser 读取模型
+        if not self.model_parser:
+            raise DriverError("ModelParser 未初始化")
+
+        db_model = self.model_parser.get_database_model(model_name)
+        if not db_model:
+            model_type = self.model_parser.get_model_type(model_name)
+            if model_type and model_type != 'database':
+                raise InvalidParameterError(
+                    keyword="DB",
+                    param_name="model",
+                    reason=f"模型 '{model_name}' 的类型是 '{model_type}'，不是 'database'。DB 关键字只能使用 type='database' 的模型。"
+                )
+            raise InvalidParameterError(
+                keyword="DB",
+                param_name="model",
+                reason=f"模型 '{model_name}' 不存在或不是 database 类型"
+            )
+
+        connection_name = db_model.get('connection', '')
+        if not connection_name:
+            raise InvalidParameterError(
+                keyword="DB",
+                param_name="model",
+                reason=f"模型 '{model_name}' 缺少 connection 属性"
+            )
+
+        queries = db_model.get('queries', {})
+
+        # 2. 从数据表读取数据
+        if not self.data_manager:
+            raise DriverError("DataManager 未初始化")
+
+        row_data = self.data_manager.get_data(model_name, data_id)
+        if not row_data:
+            raise InvalidParameterError(
+                keyword="DB",
+                param_name="data",
+                reason=f"数据表 '{model_name}' 中未找到数据行 '{data_id}'"
+            )
+
+        # 3. 获取 SQL（支持两种模式）
+        sql = None
+        operation = 'query'
+
+        # 模式1: 数据表中直接写 SQL
+        if 'sql' in row_data or 'SQL' in row_data:
+            sql = str(row_data.get('sql', '') or row_data.get('SQL', '')).strip()
+            operation = str(row_data.get('operation', '') or row_data.get('Operation', 'query')).strip().lower()
+
+        # 模式2: 数据表引用模型中的 query
+        elif 'query' in row_data:
+            query_name = str(row_data.get('query', '')).strip()
+            if not query_name:
+                raise InvalidParameterError(
+                    keyword="DB",
+                    param_name="data",
+                    reason=f"数据行 '{data_id}' 的 query 字段为空"
+                )
+
+            if query_name not in queries:
+                raise InvalidParameterError(
+                    keyword="DB",
+                    param_name="data",
+                    reason=f"模型 '{model_name}' 中未定义查询 '{query_name}'。可用查询: {list(queries.keys())}"
+                )
+
+            sql = queries[query_name]['sql']
+            # 根据 SQL 类型自动判断 operation
+            operation = 'query' if sql.strip().upper().startswith('SELECT') else 'execute'
 
         if not sql:
-            raise InvalidParameterError(keyword="DB", param_name="data", reason=f"无法解析 SQL: '{data_ref}'")
+            raise InvalidParameterError(
+                keyword="DB",
+                param_name="data",
+                reason=f"数据行 '{data_id}' 中未找到 'sql' 或 'query' 字段"
+            )
+
+        # 4. 替换参数化查询中的 :param
+        sql = self._replace_sql_params(sql, row_data)
 
         logger.info(f"DB {operation}: {sql[:80]}{'...' if len(sql) > 80 else ''}")
 
-        # 获取数据库连接
-        connection = self._get_db_connection(conn_var)
-
+        # 5. 获取数据库连接
+        connection = self._get_db_connection(connection_name)
         if not connection:
-            logger.error(f"无法建立数据库连接: {conn_var}")
-            raise DriverError(f"数据库连接失败: 连接变量 '{conn_var}' 未配置或连接失败")
+            raise DriverError(f"数据库连接失败: 连接配置 '{connection_name}' 未配置或连接失败")
 
+        # 6. 执行 SQL
         try:
             result = self._execute_db_sql(connection, operation, sql)
-            if var_name:
-                self._variables[var_name] = result
+
+            # 7. 大数据量截断处理
+            if operation == 'query' and isinstance(result, list):
+                result = self._truncate_result(result)
+
             self.store_return(result)
             logger.info(f"DB 操作成功 ({operation})")
             return True
@@ -1709,62 +1822,81 @@ class KeywordEngine:
             self.store_return(None)
             raise DriverError(f"SQL 执行失败: {e}")
 
-    def _resolve_db_sql(self, data_ref: str):
-        """解析 DB 的 data 字段，返回 (sql, operation, var_name)
-        
-        如果 data_ref 匹配 TableName.DataID 格式且数据表存在，从数据表读取:
-            - sql 列: 实际 SQL
-            - operation 列: query/execute (默认 query)
-            - var_name 列: 可选，结果存入变量
-        否则视为直接 SQL 语句。
-        
-        附带检查: 数据表对应的 .md 说明文件是否存在，不存在则自动创建空模板。
+    def _replace_sql_params(self, sql: str, params: Dict[str, Any]) -> str:
+        """替换 SQL 中的 :param 占位符
+
+        Args:
+            sql: SQL 语句，包含 :param 占位符
+            params: 参数字典
+
+        Returns:
+            替换后的 SQL
+
+        示例:
+            sql = "SELECT * FROM orders WHERE status = :status LIMIT :limit"
+            params = {"status": "completed", "limit": 10}
+            返回: "SELECT * FROM orders WHERE status = 'completed' LIMIT 10"
         """
-        if self.data_manager and '.' in data_ref:
-            parts = data_ref.split('.')
-            if len(parts) >= 2:
-                table_name, data_id = parts[0], parts[1]
-                self._ensure_sql_doc(table_name)
-                row = self.data_manager.get_data(table_name, data_id)
-                if row:
-                    sql = str(row.get('sql', '') or row.get('SQL', '')).strip()
-                    operation = str(row.get('operation', '') or row.get('Operation', 'query')).strip().lower()
-                    var_name = str(row.get('var_name', '') or row.get('VarName', '')).strip()
-                    if sql:
-                        return sql, operation or 'query', var_name
+        import re
 
-        # 直接 SQL
-        data_ref = data_ref.strip()
-        if data_ref.upper().startswith(('SELECT', 'INSERT', 'UPDATE', 'DELETE', 'CREATE', 'DROP', 'ALTER')):
-            is_query = data_ref.upper().startswith('SELECT')
-            return data_ref, 'query' if is_query else 'execute', ''
+        def replace_param(match):
+            param_name = match.group(1)
+            if param_name not in params:
+                raise InvalidParameterError(
+                    keyword="DB",
+                    param_name=param_name,
+                    reason=f"SQL 中引用了参数 ':{param_name}'，但数据表中未提供该参数"
+                )
 
-        return data_ref, 'query', ''
+            value = params[param_name]
 
-    def _ensure_sql_doc(self, table_name: str) -> None:
-        """检查 SQL 数据表的 .md 说明文件是否存在，不存在则创建空模板"""
-        if not self._module_dir and not self._case_file:
-            return
-        base_dir = self._module_dir or self._case_file.parent.parent
-        model_dir = base_dir / "model"
-        md_path = model_dir / f"{table_name}.md"
-        if md_path.exists():
-            return
-        try:
-            model_dir.mkdir(parents=True, exist_ok=True)
-            md_path.write_text(
-                f"# {table_name}\n\n"
-                f"## 用途\n\n（请补充该 SQL 数据表的用途说明）\n\n"
-                f"## 涉及表\n\n（请补充涉及的数据库表及关键字段）\n\n"
-                f"## SQL 说明\n\n"
-                f"| DataID | 用途 |\n"
-                f"|--------|------|\n"
-                f"| | |\n",
-                encoding="utf-8"
-            )
-            logger.warning(f"SQL 数据表 '{table_name}' 缺少说明文件，已创建模板: {md_path}")
-        except Exception as e:
-            logger.warning(f"无法创建 SQL 说明文件 {md_path}: {e}")
+            # None → NULL
+            if value is None or str(value).upper() == 'NULL':
+                return 'NULL'
+
+            # 数字类型不加引号
+            if isinstance(value, (int, float)):
+                return str(value)
+
+            # 字符串类型加单引号，并转义单引号
+            value_str = str(value).replace("'", "''")
+            return f"'{value_str}'"
+
+        # 匹配 :param_name 格式（参数名只能是字母、数字、下划线）
+        pattern = r':(\w+)'
+        result = re.sub(pattern, replace_param, sql)
+
+        return result
+
+    def _truncate_result(self, result: List[Dict], limit: int = 1000) -> Union[List[Dict], Dict]:
+        """截断查询结果
+
+        Args:
+            result: 查询结果列表
+            limit: 最大行数，默认 1000
+
+        Returns:
+            如果未超过限制，返回原结果
+            如果超过限制，返回截断后的结果（包含 _truncated 标记）
+        """
+        if not isinstance(result, list):
+            return result
+
+        total_rows = len(result)
+        if total_rows <= limit:
+            return result
+
+        # 截断并添加标记
+        logger.warning(f"查询结果超过 {limit} 行（实际 {total_rows} 行），已自动截断")
+
+        truncated_result = result[:limit]
+        # 添加元数据（作为特殊字段）
+        return {
+            '_truncated': True,
+            '_total_rows': total_rows,
+            '_limit': limit,
+            'data': truncated_result
+        }
 
     # ── 数据库连接管理 ──────────────────────────────────────────
 

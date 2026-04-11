@@ -59,8 +59,8 @@
     <!-- TC006: 数据库查询 -->
     <case execute="是" id="TC006" title="数据库查询订单" component_type="数据库">
         <test_case>
-            <test_step action="DB" model="demo_db" data="QuerySQL.Q001"/>
-            <test_step action="DB" model="demo_db" data="QuerySQL.Q002"/>
+            <test_step action="DB" model="QuerySQL" data="Q001"/>
+            <test_step action="DB" model="QuerySQL" data="Q002"/>
         </test_case>
     </case>
 
@@ -166,7 +166,7 @@
     </case>
 
     <!-- TC012A: get不存在key报错测试 -->
-    <case execute="是" id="TC012A" title="get不存在key报错测试" component_type="界面">
+    <case execute="是" id="TC012A" title="get不存在key报错测试" component_type="界面" expect_fail="是">
         <test_case>
             <test_step action="get" model="" data="undefined_key"/>
         </test_case>

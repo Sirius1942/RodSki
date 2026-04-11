@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>定位器测试页面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #4CAF50;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px 5px 5px 0;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e8f5e9;
+            border-radius: 4px;
+            display: none;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #4CAF50;
+            text-decoration: none;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>定位器类型测试页面</h1>
+
+        <div class="test-section">
+            <h3>ID 定位器测试</h3>
+            <input type="text" id="input_by_id" placeholder="通过 ID 定位的输入框">
+            <button id="btn_by_id" onclick="testLocator('ID')">测试 ID 定位</button>
+        </div>
+
+        <div class="test-section">
+            <h3>Name 定位器测试</h3>
+            <input type="text" name="input_by_name" placeholder="通过 Name 定位的输入框">
+            <button name="btn_by_name" onclick="testLocator('Name')">测试 Name 定位</button>
+        </div>
+
+        <div class="test-section">
+            <h3>CSS 定位器测试</h3>
+            <input type="text" class="input-css-test" placeholder="通过 CSS 定位的输入框">
+            <button class="btn-css-test" onclick="testLocator('CSS')">测试 CSS 定位</button>
+        </div>
+
+        <div class="test-section">
+            <h3>XPath 定位器测试</h3>
+            <input type="text" data-testid="input-xpath" placeholder="通过 XPath 定位的输入框">
+            <button data-testid="btn-xpath" onclick="testLocator('XPath')">测试 XPath 定位</button>
+        </div>
+
+        <div id="result"></div>
+
+        <a href="/" class="back-link">← 返回首页</a>
+    </div>
+
+    <script>
+        function testLocator(type) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = `<strong>测试结果:</strong> ${type} 定位器测试成功！`;
+
+            // 根据不同的定位器类型获取输入框的值
+            let inputValue = '';
+            switch(type) {
+                case 'ID':
+                    inputValue = document.getElementById('input_by_id').value;
+                    break;
+                case 'Name':
+                    inputValue = document.querySelector('input[name="input_by_name"]').value;
+                    break;
+                case 'CSS':
+                    inputValue = document.querySelector('.input-css-test').value;
+                    break;
+                case 'XPath':
+                    inputValue = document.querySelector('input[data-testid="input-xpath"]').value;
+                    break;
+            }
+
+            if (inputValue) {
+                resultDiv.innerHTML += `<br>输入的内容: ${inputValue}`;
+            }
+        }
+    </script>
+</body>
+</html>

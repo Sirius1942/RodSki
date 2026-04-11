@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  数据引用测试用例 (TC025-TC027)
+  覆盖: GlobalValue 引用、Return 值链、Set/Get 命名变量
+-->
+<cases>
+
+    <!-- TC025: GlobalValue URL 引用 -->
+    <case execute="是" id="TC025" title="GlobalValue引用导航" description="使用 GlobalValue 变量导航到 URL" component_type="界面">
+        <test_case>
+            <test_step action="navigate" model="" data="GlobalValue.DefaultValue.URL"/>
+            <test_step action="wait" model="" data="1"/>
+            <test_step action="verify" model="EvaluateResult" data="V001"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <!-- TC026: Return 值链（接口调用 + set 捕获） -->
+    <case execute="是" id="TC026" title="Return值链测试" description="发送接口请求并用 set 捕获返回值" component_type="接口">
+        <test_case>
+            <test_step action="send" model="ReturnAPI" data="D001"/>
+            <test_step action="set" model="" data="login_result=${Return[-1]}"/>
+            <test_step action="get" model="" data="login_result"/>
+        </test_case>
+    </case>
+
+    <!-- TC027: Set/Get 命名变量 -->
+    <case execute="是" id="TC027" title="Set/Get命名变量" description="设置和获取命名变量" component_type="接口">
+        <test_case>
+            <test_step action="set" model="" data="myvar=hello_world"/>
+            <test_step action="set" model="" data="mynum=42"/>
+            <test_step action="get" model="" data="myvar"/>
+            <test_step action="get" model="" data="mynum"/>
+        </test_case>
+    </case>
+
+</cases>

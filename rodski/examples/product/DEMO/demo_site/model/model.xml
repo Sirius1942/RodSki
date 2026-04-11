@@ -1,36 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <models>
-  <model name="Login" servicename="">
-    <element name="username" type="web">
-      <type>input</type>
+  <model name="Login" type="ui" servicename="">
+    <element name="username" type="input">
       <location type="id">username</location>
     </element>
-    <element name="password" type="web">
-      <type>input</type>
+    <element name="password" type="input">
       <location type="id">password</location>
     </element>
-    <element name="loginBtn" type="web">
-      <type>button</type>
+    <element name="loginBtn" type="button">
       <location type="xpath">//a[text()='Logout']</location>
     </element>
   </model>
-  <model name="HomePage" servicename="">
-    <element name="logoutBtn" type="web">
-      <type>link</type>
+  <model name="HomePage" type="ui" servicename="">
+    <element name="logoutBtn" type="link">
       <location type="xpath">//a[text()='Logout']</location>
     </element>
   </model>
-  <model name="LoginAPI" servicename="">
-    <element name="_method" type="interface">
-      <type>http_method</type>
+  <model name="LoginAPI" type="interface" servicename="">
+    <element name="_method" type="http_method">
       <location type="static">POST</location>
     </element>
-    <element name="_url" type="interface">
-      <type>http_url</type>
+    <element name="_url" type="http_url">
       <location type="static">https://example.com/api/login</location>
     </element>
-    <element name="username" type="interface">
-      <type>string</type>
+    <element name="username" type="field">
       <location type="field">username</location>
     </element>
   </model>

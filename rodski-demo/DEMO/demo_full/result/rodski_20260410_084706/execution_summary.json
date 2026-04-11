@@ -1,0 +1,151 @@
+{
+  "case": "TC021",
+  "steps": [
+    {
+      "index": 1,
+      "action": "navigate",
+      "model": "",
+      "phase": "预处理",
+      "status": "ok",
+      "return_source": "keyword_result",
+      "return_value": true,
+      "named_writes": {}
+    },
+    {
+      "index": 2,
+      "action": "type",
+      "model": "LoginForm",
+      "phase": "预处理",
+      "status": "ok",
+      "return_source": "keyword_result",
+      "return_value": {
+        "username": "admin",
+        "password": "123456",
+        "loginBtn": "click"
+      },
+      "named_writes": {}
+    },
+    {
+      "index": 3,
+      "action": "type",
+      "model": "NavMenu",
+      "phase": "预处理",
+      "status": "ok",
+      "return_source": "keyword_result",
+      "return_value": {
+        "testLink": "click"
+      },
+      "named_writes": {}
+    },
+    {
+      "index": 4,
+      "action": "type",
+      "model": "TestForm",
+      "phase": "用例",
+      "status": "ok",
+      "return_source": "keyword_result",
+      "return_value": {},
+      "named_writes": {}
+    },
+    {
+      "index": 5,
+      "action": "get",
+      "model": "TestForm",
+      "phase": "用例",
+      "status": "ok",
+      "return_source": "keyword_result",
+      "return_value": {
+        "username": "",
+        "role": "\n                        选择角色\n                        管理员\n                        用户\n                    ",
+        "submitBtn": "提交",
+        "formResult": ""
+      },
+      "named_writes": {}
+    },
+    {
+      "index": 6,
+      "action": "set",
+      "model": "",
+      "phase": "用例",
+      "status": "ok",
+      "return_source": "keyword_result",
+      "return_value": "{'username': '', 'role': '\\n                        选择角色\\n                        管理员\\n                        用户\\n                    ', 'submitBtn': '提交', 'formResult': ''}",
+      "named_writes": {
+        "savedResult": "{'username': '', 'role': '\\n                        选择角色\\n                        管理员\\n                        用户\\n                    ', 'submitBtn': '提交', 'formResult': ''}"
+      }
+    },
+    {
+      "index": 7,
+      "action": "get",
+      "model": "",
+      "phase": "用例",
+      "status": "ok",
+      "return_source": "get_named",
+      "return_value": "{'username': '', 'role': '\\n                        选择角色\\n                        管理员\\n                        用户\\n                    ', 'submitBtn': '提交', 'formResult': ''}",
+      "named_writes": {}
+    },
+    {
+      "index": 8,
+      "action": "verify",
+      "model": "TestForm",
+      "phase": "用例",
+      "status": "ok",
+      "return_source": "keyword_result",
+      "return_value": {},
+      "named_writes": {}
+    },
+    {
+      "index": 9,
+      "action": "get",
+      "model": "TestForm",
+      "phase": "用例",
+      "status": "ok",
+      "return_source": "keyword_result",
+      "return_value": {
+        "username": "",
+        "role": "\n                        选择角色\n                        管理员\n                        用户\n                    ",
+        "submitBtn": "提交",
+        "formResult": ""
+      },
+      "named_writes": {}
+    },
+    {
+      "index": 10,
+      "action": "set",
+      "model": "",
+      "phase": "用例",
+      "status": "ok",
+      "return_source": "keyword_result",
+      "return_value": "{'username': '', 'role': '\\n                        选择角色\\n                        管理员\\n                        用户\\n                    ', 'submitBtn': '提交', 'formResult': ''}",
+      "named_writes": {
+        "finalResult": "{'username': '', 'role': '\\n                        选择角色\\n                        管理员\\n                        用户\\n                    ', 'submitBtn': '提交', 'formResult': ''}"
+      }
+    },
+    {
+      "index": 11,
+      "action": "get",
+      "model": "",
+      "phase": "用例",
+      "status": "ok",
+      "return_source": "get_named",
+      "return_value": "{'username': '', 'role': '\\n                        选择角色\\n                        管理员\\n                        用户\\n                    ', 'submitBtn': '提交', 'formResult': ''}",
+      "named_writes": {}
+    },
+    {
+      "index": 12,
+      "action": "close",
+      "model": "",
+      "phase": "后处理",
+      "status": "ok",
+      "return_source": "keyword_result",
+      "return_value": true,
+      "named_writes": {}
+    }
+  ],
+  "context_snapshot": {
+    "named": {
+      "savedResult": "{'username': '', 'role': '\\n                        选择角色\\n                        管理员\\n                        用户\\n                    ', 'submitBtn': '提交', 'formResult': ''}",
+      "finalResult": "{'username': '', 'role': '\\n                        选择角色\\n                        管理员\\n                        用户\\n                    ', 'submitBtn': '提交', 'formResult': ''}"
+    }
+  }
+}

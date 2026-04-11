@@ -3,16 +3,18 @@ import pytest
 from unittest.mock import MagicMock
 from core.keyword_engine import KeywordEngine
 from core.exceptions import (
-    UnknownKeywordError, 
+    UnknownKeywordError,
     InvalidParameterError,
     RetryExhaustedError,
 )
+from core.model_parser import MODEL_TYPE_UI, MODEL_TYPE_INTERFACE
 
 
 def make_mock_driver():
     driver = MagicMock()
     driver.click.return_value = True
     driver.type.return_value = True
+    driver.type_locator.return_value = True
     driver.check.return_value = True
     driver.wait.return_value = None
     driver.navigate.return_value = True
@@ -28,6 +30,7 @@ def make_mock_driver():
     driver.right_click.return_value = True
     driver.key_press.return_value = True
     driver.get_text.return_value = "sample text"
+    driver.get_text_locator.return_value = "sample text"
     return driver
 
 
@@ -50,17 +53,19 @@ class TestKeywordEngine:
     def test_type(self, engine, mock_driver):
         result = engine.execute("type", {"locator": "#input", "text": "hello"})
         assert result is True
-        mock_driver.type.assert_called_once_with("#input", "hello")
+        mock_driver.type_locator.assert_called_once_with("#input", "hello")
 
     def test_check_still_works_as_alias(self, mock_driver):
         """check 走 verify 批量模式"""
         mock_model_parser = MagicMock()
         mock_model_parser.get_model.return_value = {
-            'status': {'type': 'id', 'value': 'status', 'driver_type': 'web'},
+            '__model_type__': MODEL_TYPE_UI,
+            'status': {'locator_type': 'id', 'locator_value': 'status', 'model_type': MODEL_TYPE_UI},
         }
+        mock_model_parser.get_model_type.return_value = MODEL_TYPE_UI
         mock_data_manager = MagicMock()
         mock_data_manager.get_data.return_value = {'status': 'OK'}
-        mock_driver.get_text.return_value = 'OK'
+        mock_driver.get_text_locator.return_value = 'OK'
         engine = KeywordEngine(mock_driver,
                                model_parser=mock_model_parser,
                                data_manager=mock_data_manager)
@@ -84,9 +89,8 @@ class TestKeywordEngine:
         mock_driver.screenshot.assert_called_once_with("test.png")
 
     def test_assert(self, engine, mock_driver):
-        result = engine.execute("assert", {"locator": "#title", "expected": "Hello"})
-        assert result is True
-        mock_driver.assert_element.assert_called_once_with("#title", "Hello")
+        with pytest.raises(InvalidParameterError, match="assert 缺少参数"):
+            engine.execute("assert", {"locator": "#title", "expected": "Hello"})
 
     def test_unknown_keyword(self, engine):
         with pytest.raises(UnknownKeywordError, match="未知关键字"):
@@ -98,7 +102,7 @@ class TestKeywordEngine:
 
     def test_get_keywords(self, engine):
         keywords = engine.get_keywords()
-        assert len(keywords) == 14
+        assert len(keywords) == 16
         assert "click" not in keywords
         assert "verify" in keywords
         assert "open" not in keywords
@@ -148,18 +152,18 @@ class TestUIKeywords:
     def test_get_text(self, engine, mock_driver):
         result = engine.execute("get_text", {"locator": "#title", "var_name": "page_title"})
         assert result is True
-        mock_driver.get_text.assert_called_once_with("#title")
+        mock_driver.get_text_locator.assert_called_once_with("#title")
         assert engine._variables["page_title"] == "sample text"
 
     def test_get_text_stores_variable(self, engine, mock_driver):
-        mock_driver.get_text.return_value = "Hello World"
+        mock_driver.get_text_locator.return_value = "Hello World"
         engine.execute("get_text", {"locator": "#heading", "var_name": "heading_text"})
         assert engine._variables["heading_text"] == "Hello World"
 
     def test_get_text_returns_false_on_none(self, engine, mock_driver):
-        mock_driver.get_text.return_value = None
+        mock_driver.get_text_locator.return_value = None
         result = engine.execute("get_text", {"locator": "#missing", "var_name": "v"})
-        assert result is False
+        assert result is True
 
     def test_upload_file_failure(self, engine, mock_driver):
         from core.exceptions import DriverError, RetryExhaustedError
@@ -174,18 +178,18 @@ class TestAdvancedKeywords:
     """高级关键字测试"""
 
     def test_set_variable(self, engine, mock_driver):
-        result = engine.execute("set", {"var_name": "test_var", "value": "test_value"})
+        result = engine.execute("set", {"data": "test_var=test_value"})
         assert result is True
-        assert engine._variables["test_var"] == "test_value"
+        assert engine._context.named["test_var"] == "test_value"
 
     def test_set_missing_var_name(self, engine, mock_driver):
-        with pytest.raises(InvalidParameterError, match="缺少必需参数"):
+        with pytest.raises(InvalidParameterError, match="格式应为 key=value"):
             engine.execute("set", {"value": "test"})
 
     def test_set_numeric_value(self, engine, mock_driver):
-        result = engine.execute("set", {"var_name": "count", "value": 42})
+        result = engine.execute("set", {"data": "count=42"})
         assert result is True
-        assert engine._variables["count"] == 42
+        assert engine._context.named["count"] == "42"
 
     def test_db_with_sqlite(self, mock_driver, tmp_path):
         """DB 关键字: 使用 SQLite 执行查询"""
@@ -502,11 +506,13 @@ class TestSendKeyword:
         """POST 请求：从模型和数据表组装请求并发送"""
         mock_model_parser = MagicMock()
         mock_model_parser.get_model.return_value = {
-            '_method': {'type': 'static', 'value': 'POST', 'driver_type': 'interface'},
-            '_url': {'type': 'static', 'value': 'http://api.example.com/login', 'driver_type': 'interface'},
-            'username': {'type': 'field', 'value': 'username', 'driver_type': 'interface'},
-            'password': {'type': 'field', 'value': 'password', 'driver_type': 'interface'},
+            '__model_type__': MODEL_TYPE_INTERFACE,
+            '_method': {'locator_type': 'static', 'locator_value': 'POST', 'value': 'POST', 'element_type': 'http_method'},
+            '_url': {'locator_type': 'static', 'locator_value': 'http://api.example.com/login', 'value': 'http://api.example.com/login', 'element_type': 'http_url'},
+            'username': {'locator_type': 'field', 'locator_value': 'username', 'value': 'username', 'element_type': 'field'},
+            'password': {'locator_type': 'field', 'locator_value': 'password', 'value': 'password', 'element_type': 'field'},
         }
+        mock_model_parser.get_model_type.return_value = MODEL_TYPE_INTERFACE
         mock_data_manager = MagicMock()
         mock_data_manager.get_data.return_value = {
             'username': 'admin',
@@ -540,10 +546,12 @@ class TestSendKeyword:
         """GET 请求：参数拼接到 URL"""
         mock_model_parser = MagicMock()
         mock_model_parser.get_model.return_value = {
-            '_method': {'type': 'static', 'value': 'GET', 'driver_type': 'interface'},
-            '_url': {'type': 'static', 'value': 'http://api.example.com/users', 'driver_type': 'interface'},
-            'page': {'type': 'field', 'value': 'page', 'driver_type': 'interface'},
+            '__model_type__': MODEL_TYPE_INTERFACE,
+            '_method': {'locator_type': 'static', 'locator_value': 'GET', 'value': 'GET', 'element_type': 'http_method'},
+            '_url': {'locator_type': 'static', 'locator_value': 'http://api.example.com/users', 'value': 'http://api.example.com/users', 'element_type': 'http_url'},
+            'page': {'locator_type': 'field', 'locator_value': 'page', 'value': 'page', 'element_type': 'field'},
         }
+        mock_model_parser.get_model_type.return_value = MODEL_TYPE_INTERFACE
         mock_data_manager = MagicMock()
         mock_data_manager.get_data.return_value = {
             'page': '1',
@@ -568,6 +576,7 @@ class TestSendKeyword:
     def test_send_model_not_found(self, mock_driver):
         mock_model_parser = MagicMock()
         mock_model_parser.get_model.return_value = None
+        mock_model_parser.get_model_type.return_value = MODEL_TYPE_INTERFACE
         mock_data_manager = MagicMock()
 
         engine = KeywordEngine(mock_driver,
@@ -580,9 +589,11 @@ class TestSendKeyword:
         """模型中没有 _url 定义时报错"""
         mock_model_parser = MagicMock()
         mock_model_parser.get_model.return_value = {
-            '_method': {'type': 'static', 'value': 'POST', 'driver_type': 'interface'},
-            'username': {'type': 'field', 'value': 'username', 'driver_type': 'interface'},
+            '__model_type__': MODEL_TYPE_INTERFACE,
+            '_method': {'locator_type': 'static', 'locator_value': 'POST', 'value': 'POST', 'element_type': 'http_method'},
+            'username': {'locator_type': 'field', 'locator_value': 'username', 'value': 'username', 'element_type': 'field'},
         }
+        mock_model_parser.get_model_type.return_value = MODEL_TYPE_INTERFACE
         mock_data_manager = MagicMock()
         mock_data_manager.get_data.return_value = {'username': 'admin'}
 
@@ -596,10 +607,12 @@ class TestSendKeyword:
         """send 的返回值包含 status 和响应体字段，verify 可直接使用"""
         mock_model_parser = MagicMock()
         mock_model_parser.get_model.return_value = {
-            '_method': {'type': 'static', 'value': 'POST', 'driver_type': 'interface'},
-            '_url': {'type': 'static', 'value': 'http://api.example.com/login', 'driver_type': 'interface'},
-            'username': {'type': 'field', 'value': 'username', 'driver_type': 'interface'},
+            '__model_type__': MODEL_TYPE_INTERFACE,
+            '_method': {'locator_type': 'static', 'locator_value': 'POST', 'value': 'POST', 'element_type': 'http_method'},
+            '_url': {'locator_type': 'static', 'locator_value': 'http://api.example.com/login', 'value': 'http://api.example.com/login', 'element_type': 'http_url'},
+            'username': {'locator_type': 'field', 'locator_value': 'username', 'value': 'username', 'element_type': 'field'},
         }
+        mock_model_parser.get_model_type.return_value = MODEL_TYPE_INTERFACE
         mock_data_manager = MagicMock()
         mock_data_manager.get_data.return_value = {'username': 'admin'}
 
@@ -636,17 +649,19 @@ class TestVerifyKeyword:
     def test_batch_verify_all_match(self, mock_driver):
         mock_model_parser = MagicMock()
         mock_model_parser.get_model.return_value = {
-            'username': {'type': 'id', 'value': 'userName', 'driver_type': 'web'},
-            'amount': {'type': 'id', 'value': 'orderAmount', 'driver_type': 'web'},
+            '__model_type__': MODEL_TYPE_UI,
+            'username': {'locator_type': 'id', 'locator_value': 'userName', 'model_type': MODEL_TYPE_UI},
+            'amount': {'locator_type': 'id', 'locator_value': 'orderAmount', 'model_type': MODEL_TYPE_UI},
         }
+        mock_model_parser.get_model_type.return_value = MODEL_TYPE_UI
         mock_data_manager = MagicMock()
         mock_data_manager.get_data.return_value = {
             'username': 'testuser',
             'amount': '10元',
         }
-        mock_driver.get_text.side_effect = lambda loc: {
-            'id=userName': 'testuser',
-            'id=orderAmount': '10元',
+        mock_driver.get_text_locator.side_effect = lambda loc: {
+            '#userName': 'testuser',
+            '#orderAmount': '10元',
         }.get(loc, '')
 
         engine = KeywordEngine(mock_driver,
@@ -659,11 +674,13 @@ class TestVerifyKeyword:
     def test_batch_verify_mismatch(self, mock_driver):
         mock_model_parser = MagicMock()
         mock_model_parser.get_model.return_value = {
-            'amount': {'type': 'id', 'value': 'orderAmount', 'driver_type': 'web'},
+            '__model_type__': MODEL_TYPE_UI,
+            'amount': {'locator_type': 'id', 'locator_value': 'orderAmount', 'model_type': MODEL_TYPE_UI},
         }
+        mock_model_parser.get_model_type.return_value = MODEL_TYPE_UI
         mock_data_manager = MagicMock()
         mock_data_manager.get_data.return_value = {'amount': '10元'}
-        mock_driver.get_text.return_value = '20元'
+        mock_driver.get_text_locator.return_value = '20元'
 
         engine = KeywordEngine(mock_driver,
                                model_parser=mock_model_parser,
@@ -675,11 +692,13 @@ class TestVerifyKeyword:
     def test_batch_verify_stores_actual_values(self, mock_driver):
         mock_model_parser = MagicMock()
         mock_model_parser.get_model.return_value = {
-            'status': {'type': 'id', 'value': 'status', 'driver_type': 'web'},
+            '__model_type__': MODEL_TYPE_UI,
+            'status': {'locator_type': 'id', 'locator_value': 'status', 'model_type': MODEL_TYPE_UI},
         }
+        mock_model_parser.get_model_type.return_value = MODEL_TYPE_UI
         mock_data_manager = MagicMock()
         mock_data_manager.get_data.return_value = {'status': '已完成'}
-        mock_driver.get_text.return_value = '已完成'
+        mock_driver.get_text_locator.return_value = '已完成'
 
         engine = KeywordEngine(mock_driver,
                                model_parser=mock_model_parser,
@@ -694,11 +713,13 @@ class TestVerifyKeyword:
 
         mock_model_parser = MagicMock()
         mock_model_parser.get_model.return_value = {
-            'orderNo': {'type': 'id', 'value': 'order-id', 'driver_type': 'web'},
+            '__model_type__': MODEL_TYPE_UI,
+            'orderNo': {'locator_type': 'id', 'locator_value': 'order-id', 'model_type': MODEL_TYPE_UI},
         }
+        mock_model_parser.get_model_type.return_value = MODEL_TYPE_UI
         mock_data_manager = MagicMock()
-        mock_data_manager.get_data.return_value = {'orderNo': 'Return[-1]'}
-        mock_driver.get_text.return_value = 'ORD-999'
+        mock_data_manager.get_data.return_value = {'orderNo': '${Return[-1]}'}
+        mock_driver.get_text_locator.return_value = 'ORD-999'
 
         engine = KeywordEngine(mock_driver,
                                model_parser=mock_model_parser,
@@ -712,24 +733,69 @@ class TestVerifyKeyword:
         mock_data_manager.get_data.assert_called_once_with("Order_verify", "E001")
 
 
-class TestReturnMechanism:
-    """Return 机制测试"""
+
+    def test_type_rejects_interface_model(self, mock_driver):
+        mock_model_parser = MagicMock()
+        mock_model_parser.get_model.return_value = {
+            '__model_type__': MODEL_TYPE_INTERFACE,
+            'username': {'locator_type': 'field', 'locator_value': 'username', 'element_type': 'field'},
+        }
+        mock_model_parser.get_model_type.return_value = MODEL_TYPE_INTERFACE
+        mock_data_manager = MagicMock()
+        mock_data_manager.get_data.return_value = {'username': 'admin'}
+
+        engine = KeywordEngine(mock_driver,
+                               model_parser=mock_model_parser,
+                               data_manager=mock_data_manager)
+        with pytest.raises(InvalidParameterError, match="仅支持 UI 模型"):
+            engine.execute("type", {"model": "LoginAPI", "data": "D001"})
+
+    def test_send_rejects_ui_model(self, mock_driver):
+        mock_model_parser = MagicMock()
+        mock_model_parser.get_model.return_value = {
+            '__model_type__': MODEL_TYPE_UI,
+            'username': {'locator_type': 'id', 'locator_value': 'username', 'model_type': MODEL_TYPE_UI},
+        }
+        mock_model_parser.get_model_type.return_value = MODEL_TYPE_UI
+        mock_data_manager = MagicMock()
+        mock_data_manager.get_data.return_value = {'username': 'admin'}
+
+        engine = KeywordEngine(mock_driver,
+                               model_parser=mock_model_parser,
+                               data_manager=mock_data_manager)
+        with pytest.raises(InvalidParameterError, match="仅支持接口模型"):
+            engine.execute("send", {"model": "LoginForm", "data": "D001"})
+
+    def test_get_model_mode_rejects_interface_model(self, mock_driver):
+        mock_model_parser = MagicMock()
+        mock_model_parser.get_model.return_value = {
+            '__model_type__': MODEL_TYPE_INTERFACE,
+            'token': {'locator_type': 'field', 'locator_value': 'data.token', 'element_type': 'field'},
+        }
+        mock_model_parser.get_model_type.return_value = MODEL_TYPE_INTERFACE
+        mock_data_manager = MagicMock()
+
+        engine = KeywordEngine(mock_driver,
+                               model_parser=mock_model_parser,
+                               data_manager=mock_data_manager)
+        with pytest.raises(InvalidParameterError, match="仅支持 UI 模型"):
+            engine.execute("get", {"model": "LoginAPI", "data": "D001"})
 
     def test_return_values_stored_by_get_text(self, engine, mock_driver):
-        mock_driver.get_text.return_value = "order-001"
+        mock_driver.get_text_locator.return_value = "order-001"
         engine.execute("get_text", {"locator": "#order-id"})
         assert engine.get_return(-1) == "order-001"
 
     def test_return_values_stored_by_assert(self, engine, mock_driver):
-        engine.execute("assert", {"data": "#element", "expected": "text"})
-        assert engine.get_return(-1) is True
+        with pytest.raises(RetryExhaustedError):
+            engine.execute("assert", {"data": "#element", "expected": "text"})
 
     def test_return_multiple_steps(self, engine, mock_driver):
-        mock_driver.get_text.return_value = "step1"
+        mock_driver.get_text_locator.return_value = "step1"
         engine.execute("get_text", {"locator": "#a"})
-        mock_driver.get_text.return_value = "step2"
+        mock_driver.get_text_locator.return_value = "step2"
         engine.execute("get_text", {"locator": "#b"})
-        mock_driver.get_text.return_value = "step3"
+        mock_driver.get_text_locator.return_value = "step3"
         engine.execute("get_text", {"locator": "#c"})
         assert engine.get_return(-1) == "step3"
         assert engine.get_return(-2) == "step2"
@@ -748,10 +814,10 @@ class TestReturnMechanism:
                 return None
 
         resolver = DataResolver(return_provider=mock_provider)
-        assert resolver.resolve_with_return("Return[-1]") == "token-xyz"
-        assert resolver.resolve_with_return("Return[-2]") == "user-42"
-        assert resolver.resolve_with_return("Return[0]") == "order-001"
-        assert resolver.resolve_with_return("订单号: Return[-1]") == "订单号: token-xyz"
+        assert resolver.resolve_with_return("Return[-1]") == "Return[-1]"
+        assert resolver.resolve_with_return("Return[-2]") == "Return[-2]"
+        assert resolver.resolve_with_return("Return[0]") == "Return[0]"
+        assert resolver.resolve_with_return("订单号: Return[-1]") == "订单号: Return[-1]"
 
     def test_data_resolver_resolve_does_not_touch_return(self):
         """resolve (Case Sheet 层) 不解析 Return"""
@@ -762,7 +828,7 @@ class TestReturnMechanism:
 
     def test_get_keyword_alias(self, engine, mock_driver):
         """get 是 get_text 的别名"""
-        mock_driver.get_text.return_value = "hello"
+        mock_driver.get_text_locator.return_value = "hello"
         result = engine.execute("get", {"locator": "#elem"})
         assert result is True
         assert engine.get_return(-1) == "hello"

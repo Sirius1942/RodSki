@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文件上传测试</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 500px;
+        }
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 24px;
+        }
+        .upload-area {
+            border: 2px dashed #e0e0e0;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 20px;
+            transition: border-color 0.3s;
+        }
+        .upload-area:hover {
+            border-color: #667eea;
+        }
+        input[type="file"] {
+            margin: 15px 0;
+            font-size: 14px;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: opacity 0.3s;
+        }
+        button:hover { opacity: 0.9; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px solid #e0e0e0;
+            min-height: 40px;
+            font-size: 14px;
+            word-break: break-all;
+        }
+        .result.success { border-color: #28a745; background: #d4edda; }
+        .result.error { border-color: #dc3545; background: #f8d7da; }
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            color: #667eea;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .back-link:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>文件上传测试</h1>
+        <div class="upload-area">
+            <p>选择要上传的文件</p>
+            <input type="file" id="fileInput" name="file" />
+        </div>
+        <button id="uploadBtn" onclick="uploadFile()">上传文件</button>
+        <div id="uploadResult" class="result"></div>
+        <a href="/" class="back-link">返回首页</a>
+    </div>
+
+    <script>
+        function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            const resultDiv = document.getElementById('uploadResult');
+            const btn = document.getElementById('uploadBtn');
+
+            if (!fileInput.files || fileInput.files.length === 0) {
+                resultDiv.textContent = '请先选择文件';
+                resultDiv.className = 'result error';
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            btn.disabled = true;
+            btn.textContent = '上传中...';
+            resultDiv.textContent = '';
+            resultDiv.className = 'result';
+
+            fetch('/api/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    resultDiv.textContent = `上传成功！文件名: ${data.filename}, 大小: ${data.size} 字节`;
+                    resultDiv.className = 'result success';
+                } else {
+                    resultDiv.textContent = '上传失败: ' + (data.message || '未知错误');
+                    resultDiv.className = 'result error';
+                }
+            })
+            .catch(err => {
+                resultDiv.textContent = '上传出错: ' + err.message;
+                resultDiv.className = 'result error';
+            })
+            .finally(() => {
+                btn.disabled = false;
+                btn.textContent = '上传文件';
+            });
+        }
+    </script>
+</body>
+</html>

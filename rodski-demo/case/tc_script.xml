@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  脚本执行与高级关键字测试用例 (TC028-TC030)
+  覆盖: run 执行 Python、evaluate JS、wait + screenshot
+-->
+<cases>
+
+    <!-- TC028: 运行 Python 脚本 -->
+    <case execute="是" id="TC028" title="运行Python脚本" description="执行 gen_data.py 并验证返回值" component_type="界面">
+        <test_case>
+            <test_step action="run" model="data_gen" data="gen_data.py"/>
+        </test_case>
+    </case>
+
+    <!-- TC029: Evaluate JS 表达式 -->
+    <case execute="是" id="TC029" title="Evaluate JS表达式" description="在浏览器中执行 JS 获取页面标题" component_type="界面">
+        <pre_process>
+            <test_step action="navigate" model="" data="http://localhost:8000"/>
+            <test_step action="wait" model="" data="1"/>
+        </pre_process>
+        <test_case>
+            <test_step action="evaluate" model="" data="document.title"/>
+            <test_step action="verify" model="EvaluateResult" data="V001"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <!-- TC030: Wait + Screenshot -->
+    <case execute="是" id="TC030" title="Wait和Screenshot" description="导航后等待并截图" component_type="界面">
+        <pre_process>
+            <test_step action="navigate" model="" data="http://localhost:8000"/>
+        </pre_process>
+        <test_case>
+            <test_step action="wait" model="" data="2"/>
+            <test_step action="screenshot" model="" data="wait_test.png"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+</cases>

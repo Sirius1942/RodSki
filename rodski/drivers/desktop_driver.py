@@ -200,11 +200,11 @@ class DesktopDriver(BaseDriver):
         self._invalidate_screenshot_cache()
         logger.info("DesktopDriver 已关闭")
 
-    def take_screenshot(self, path: str) -> None:
-        """截图到指定路径
+    def take_screenshot(self) -> str:
+        """全屏截图
 
-        Args:
-            path: 截图保存路径
+        Returns:
+            截图文件的绝对路径
 
         Raises:
             DriverError: 截图失败
@@ -214,15 +214,24 @@ class DesktopDriver(BaseDriver):
         pyautogui = self._get_pyautogui()
 
         try:
-            # 截图并保存到指定路径
+            # 创建临时文件
+            temp_dir = tempfile.gettempdir()
+            timestamp = int(time.time() * 1000)
+            screenshot_path = os.path.join(
+                temp_dir,
+                f"rodski_desktop_{timestamp}.png"
+            )
+
+            # 截图
             screenshot = pyautogui.screenshot()
-            screenshot.save(path)
+            screenshot.save(screenshot_path)
 
             # 更新缓存
-            self._screenshot_cache = path
+            self._screenshot_cache = screenshot_path
             self._screenshot_cache_time = time.time()
 
-            logger.debug(f"截图成功: {path}")
+            logger.debug(f"截图成功: {screenshot_path}")
+            return screenshot_path
 
         except Exception as e:
             raise DriverError(f"截图失败: {e}", cause=e)
@@ -308,8 +317,8 @@ class DesktopDriver(BaseDriver):
                 "请等待 RodSki 视觉定位模块发布。"
             )
 
-    def click_at(self, x: int, y: int) -> None:
-        """点击指定坐标（视觉定位专用）
+    def click(self, x: int, y: int) -> None:
+        """点击指定坐标
 
         Args:
             x: x 坐标
@@ -328,8 +337,8 @@ class DesktopDriver(BaseDriver):
         except Exception as e:
             raise DriverError(f"点击失败: ({x}, {y})", cause=e)
 
-    def type_text_at(self, x: int, y: int, text: str) -> None:
-        """在指定坐标输入文字（视觉定位专用）
+    def type_text(self, x: int, y: int, text: str) -> None:
+        """在指定坐标输入文字
 
         先点击坐标位置获取焦点，然后输入文字。
 
@@ -392,8 +401,8 @@ class DesktopDriver(BaseDriver):
             # 回退到 pyautogui，虽然不支持中文但至少尝试
             self._get_pyautogui().typewrite(text)
 
-    def get_text_in_bbox(self, x1: int, y1: int, x2: int, y2: int) -> str:
-        """获取指定区域的文字（视觉定位专用）
+    def get_text(self, x1: int, y1: int, x2: int, y2: int) -> str:
+        """获取指定区域的文字
 
         使用 OCR 提取区域内的文字。
 

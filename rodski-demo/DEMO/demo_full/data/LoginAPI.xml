@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<datatable name="LoginAPI">
-    <row id="D001">
-        <field name="username">admin</field>
-        <field name="password">123456</field>
-    </row>
-</datatable>

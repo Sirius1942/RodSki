@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<datatable name="ReturnTest">
-    <row id="R001" remark="输入测试数据">
-        <field name="username">testuser123</field>
-    </row>
-</datatable>

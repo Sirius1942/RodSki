@@ -322,6 +322,20 @@ class SKIExecutor:
                         self._current_case_steps_log,
                         dict(self.keyword_engine._context.named),
                     )
+
+                # expect_fail 逻辑：预期失败的用例实际失败时标记为 PASS
+                expect_fail = case.get('expect_fail', '否').strip()
+                if expect_fail == '是':
+                    logger.info(f"用例 {case['case_id']} 预期失败且实际失败 → 标记为 PASS")
+                    return {
+                        'case_id': case['case_id'],
+                        'title': case.get('title', ''),
+                        'status': 'PASS',
+                        'execution_time': round(time.time() - start, 3),
+                        'error': f"[预期失败] {str(err)}",
+                        'screenshot_path': screenshot_path or '',
+                    }
+
                 return {
                     'case_id': case['case_id'],
                     'title': case.get('title', ''),
@@ -355,6 +369,19 @@ class SKIExecutor:
                     self._current_case_steps_log,
                     dict(self.keyword_engine._context.named),
                 )
+
+            # expect_fail 逻辑：预期失败的用例实际成功时标记为 FAIL
+            expect_fail = case.get('expect_fail', '否').strip()
+            if expect_fail == '是':
+                logger.warning(f"用例 {case['case_id']} 预期失败但实际成功 → 标记为 FAIL")
+                return {
+                    'case_id': case['case_id'],
+                    'title': case.get('title', ''),
+                    'status': 'FAIL',
+                    'execution_time': round(time.time() - start, 3),
+                    'error': '[预期失败但实际成功] 用例应该失败但通过了所有步骤',
+                }
+
             return {
                 'case_id': case['case_id'],
                 'title': case.get('title', ''),
