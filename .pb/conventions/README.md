@@ -12,6 +12,12 @@
 
 > ⚠️ 本项目有 **绝对不可违反的核心约束**，详见 [CORE_DESIGN_CONSTRAINTS.md](../../rodski/docs/CORE_DESIGN_CONSTRAINTS.md) 附录 A。
 
+## 示例目录约定
+
+- `rodski-demo/` 是项目正式示例，必须纳入仓库管理
+- `rodski-demo/` 的内容以 `rodski/docs/TEST_CASE_WRITING_GUIDE.md` 为准，承担示例、示范和验收基线作用
+- `rodski/examples/` 已废弃，后续不再新增或维护
+
 ## 使用方式
 
 ### 在迭代文档中引用

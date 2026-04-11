@@ -35,6 +35,7 @@
 - `phoenixbear/`
 - `.kiro/`
 - `rodski/.kiro/`
+- `rodski/examples/` — 已废弃，示例统一放在 `rodski-demo/`
 
 ## 项目结构
 
@@ -44,9 +45,16 @@ RodSki/
 ├── rodski/
 │   ├── docs/               # 框架文档（AI Agent 必读）
 │   └── ...                 # 核心框架代码
+├── rodski-demo/            # 框架官方示例（基于 TEST_CASE_WRITING_GUIDE.md）
 ├── cassmall/               # 业务测试用例
 └── CLAUDE.md               # 本文件
 ```
+
+### 示例目录规则
+
+- **`rodski-demo/`** 是 RodSki 唯一的示例目录，需纳入版本管理
+- `rodski-demo/` 中的用例和结构严格遵循 `rodski/docs/TEST_CASE_WRITING_GUIDE.md`
+- ❌ `rodski/examples/` 已废弃，不再使用
 
 ## 开发约定
 
