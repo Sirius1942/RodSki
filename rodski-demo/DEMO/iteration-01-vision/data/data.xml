@@ -7,9 +7,4 @@
             <field name="loginBtn">click</field>
         </row>
     </datatable>
-    <datatable name="LoginPage_verify">
-        <row id="V001">
-            <field name="welcomeMsg">欢迎</field>
-        </row>
-    </datatable>
 </datatables>

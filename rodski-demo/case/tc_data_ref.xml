@@ -3,7 +3,7 @@
   数据引用测试用例 (TC025-TC027)
   覆盖: GlobalValue 引用、Return 值链、Set/Get 命名变量
 -->
-<cases>
+<cases step_wait="500">
 
     <!-- TC025: GlobalValue URL 引用 -->
     <case execute="是" id="TC025" title="GlobalValue引用导航" description="使用 GlobalValue 变量导航到 URL" component_type="界面">

@@ -15,9 +15,11 @@ class Logger:
         self.console_level = console_level or level
         self.file_level = file_level
         self.file_handler = None
+        self.log_dir = None
 
         if log_dir:
-            self.set_log_dir(Path(log_dir))
+            self.log_dir = Path(log_dir)
+            self.set_log_dir(self.log_dir)
 
         if console:
             ch = logging.StreamHandler(sys.stdout)
@@ -40,6 +42,7 @@ class Logger:
 
     def set_log_dir(self, log_dir: Path) -> None:
         """动态设置日志目录（用于与结果目录同步）"""
+        self.log_dir = Path(log_dir)
         if self.file_handler:
             self.logger.removeHandler(self.file_handler)
             self.file_handler.close()

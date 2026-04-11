@@ -3,7 +3,7 @@
   脚本执行与高级关键字测试用例 (TC028-TC030)
   覆盖: run 执行 Python、evaluate JS、wait + screenshot
 -->
-<cases>
+<cases step_wait="500">
 
     <!-- TC028: 运行 Python 脚本 -->
     <case execute="是" id="TC028" title="运行Python脚本" description="执行 gen_data.py 并验证返回值" component_type="界面">

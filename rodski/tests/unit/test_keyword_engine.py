@@ -191,8 +191,8 @@ class TestAdvancedKeywords:
         assert result is True
         assert engine._context.named["count"] == "42"
 
-    def test_db_with_sqlite(self, mock_driver, tmp_path):
-        """DB 关键字: 使用 SQLite 执行查询"""
+    def test_db_query_success(self, mock_driver, tmp_path):
+        """DB 关键字: 模型驱动模式查询成功"""
         import sqlite3
         db_path = str(tmp_path / "test.db")
         conn = sqlite3.connect(db_path)
@@ -201,18 +201,38 @@ class TestAdvancedKeywords:
         conn.commit()
         conn.close()
 
+        mock_model_parser = MagicMock()
+        mock_model_parser.get_database_model.return_value = {
+            'type': 'database',
+            'connection': 'testdb',
+            'queries': {
+                'list_users': {
+                    'sql': 'SELECT * FROM users',
+                    'remark': '查询用户列表',
+                }
+            },
+        }
+        mock_model_parser.get_model_type.return_value = 'database'
+
+        mock_data_manager = MagicMock()
+        mock_data_manager.get_data.return_value = {
+            'query': 'list_users',
+        }
+
         engine = KeywordEngine(
             mock_driver,
-            global_vars={'testdb': {'type': 'sqlite', 'database': db_path}}
+            model_parser=mock_model_parser,
+            data_manager=mock_data_manager,
+            global_vars={'testdb': {'type': 'sqlite', 'database': db_path}},
         )
-        result = engine.execute("DB", {"model": "testdb", "data": "SELECT * FROM users"})
+        result = engine.execute("DB", {"model": "QuerySQL", "data": "Q001"})
         assert result is True
         ret = engine.get_return(-1)
         assert len(ret) == 1
         assert ret[0]['name'] == 'alice'
 
-    def test_db_execute(self, mock_driver, tmp_path):
-        """DB 关键字: 执行 INSERT"""
+    def test_db_execute_insert(self, mock_driver, tmp_path):
+        """DB 关键字: 模型驱动模式执行 INSERT（通过数据行的 sql 字段）"""
         import sqlite3
         db_path = str(tmp_path / "test.db")
         conn = sqlite3.connect(db_path)
@@ -220,27 +240,45 @@ class TestAdvancedKeywords:
         conn.commit()
         conn.close()
 
+        mock_model_parser = MagicMock()
+        mock_model_parser.get_database_model.return_value = {
+            'type': 'database',
+            'connection': 'testdb',
+            'queries': {},
+        }
+        mock_model_parser.get_model_type.return_value = 'database'
+
+        mock_data_manager = MagicMock()
+        mock_data_manager.get_data.return_value = {
+            'sql': "INSERT INTO logs VALUES ('hello')",
+            'operation': 'execute',
+        }
+
         engine = KeywordEngine(
             mock_driver,
-            global_vars={'testdb': {'type': 'sqlite', 'database': db_path}}
+            model_parser=mock_model_parser,
+            data_manager=mock_data_manager,
+            global_vars={'testdb': {'type': 'sqlite', 'database': db_path}},
         )
-        result = engine.execute("DB", {"model": "testdb", "data": "INSERT INTO logs VALUES ('hello')"})
+        result = engine.execute("DB", {"model": "LogModel", "data": "E001"})
         assert result is True
         ret = engine.get_return(-1)
         assert ret['affected_rows'] == 1
 
-    def test_db_missing_data(self, engine, mock_driver):
-        with pytest.raises(InvalidParameterError, match="SQL"):
-            engine.execute("DB", {"model": "testdb"})
+    def test_db_missing_data_param(self, engine, mock_driver):
+        """DB 关键字: 缺少 data 参数时报错"""
+        with pytest.raises(InvalidParameterError, match="缺少数据行 ID"):
+            engine.execute("DB", {"model": "QuerySQL"})
 
-    def test_db_missing_connection(self, engine, mock_driver):
-        """连接变量不存在时应报错"""
+    def test_db_missing_model_parser(self, mock_driver):
+        """DB 关键字: 没有 model_parser 时报错"""
         from core.exceptions import DriverError, RetryExhaustedError
+        engine = KeywordEngine(mock_driver)
         with pytest.raises((DriverError, RetryExhaustedError)):
-            engine.execute("DB", {"model": "nonexistent", "data": "SELECT 1"})
+            engine.execute("DB", {"model": "QuerySQL", "data": "Q001"})
 
-    def test_db_with_data_table(self, mock_driver, tmp_path):
-        """DB 关键字: 从数据表读取 SQL"""
+    def test_db_with_sql_in_data_row(self, mock_driver, tmp_path):
+        """DB 关键字: 从数据行的 sql 字段直接获取 SQL"""
         import sqlite3
         db_path = str(tmp_path / "test.db")
         conn = sqlite3.connect(db_path)
@@ -249,21 +287,30 @@ class TestAdvancedKeywords:
         conn.commit()
         conn.close()
 
+        mock_model_parser = MagicMock()
+        mock_model_parser.get_database_model.return_value = {
+            'type': 'database',
+            'connection': 'testdb',
+            'queries': {},
+        }
+        mock_model_parser.get_model_type.return_value = 'database'
+
         mock_data_manager = MagicMock()
         mock_data_manager.get_data.return_value = {
             'sql': "SELECT price FROM items WHERE id=1",
             'operation': 'query',
-            'var_name': 'item_price',
         }
 
         engine = KeywordEngine(
             mock_driver,
+            model_parser=mock_model_parser,
             data_manager=mock_data_manager,
-            global_vars={'testdb': {'type': 'sqlite', 'database': db_path}}
+            global_vars={'testdb': {'type': 'sqlite', 'database': db_path}},
         )
-        result = engine.execute("DB", {"model": "testdb", "data": "ItemSQL.Q001"})
+        result = engine.execute("DB", {"model": "ItemQuery", "data": "Q001"})
         assert result is True
-        assert engine._variables['item_price'][0]['price'] == '10元'
+        ret = engine.get_return(-1)
+        assert ret[0]['price'] == '10元'
 
 
 class TestRetryMechanism:

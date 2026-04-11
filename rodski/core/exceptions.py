@@ -271,6 +271,11 @@ class DriverStoppedError(DriverError):
         self.driver_type = driver_type
 
 
+class DiagnosisTimeoutError(ExecutionError):
+    """诊断超时错误"""
+    error_code = "SKI340"
+
+
 class AutoCaptureError(ExecutionError):
     """自动返回值提取失败"""
     error_code = "SKI332"

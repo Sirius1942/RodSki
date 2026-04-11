@@ -3,7 +3,7 @@
   数据库测试用例 (TC020-TC024)
   覆盖: SQLite 查询、插入、聚合 + MySQL 查询、插入
 -->
-<cases>
+<cases step_wait="500">
 
     <!-- TC020: SQLite 查询订单 -->
     <case execute="是" id="TC020" title="SQLite查询订单" description="查询 orders 表前3行并验证" component_type="数据库">

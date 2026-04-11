@@ -61,21 +61,21 @@ class TestPlaywrightDriver:
     @patch('playwright.sync_api.sync_playwright')
     def test_check_visible(self, mock_pw):
         driver = self._create_driver(mock_pw)
-        driver.page.is_visible = Mock(return_value=True)
+        driver.page.wait_for_selector = Mock(return_value=True)
 
         assert driver.check("#element") == True
 
     @patch('playwright.sync_api.sync_playwright')
     def test_check_not_visible(self, mock_pw):
         driver = self._create_driver(mock_pw)
-        driver.page.is_visible = Mock(return_value=False)
+        driver.page.wait_for_selector = Mock(side_effect=Exception("Timeout waiting for selector"))
 
         assert driver.check("#element") == False
 
     @patch('playwright.sync_api.sync_playwright')
     def test_check_error(self, mock_pw):
         driver = self._create_driver(mock_pw)
-        driver.page.is_visible = Mock(side_effect=Exception("Error"))
+        driver.page.wait_for_selector = Mock(side_effect=Exception("Error"))
 
         assert driver.check("#element") == False
 

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datatables>
+    <datatable name="LoginPage_verify">
+        <row id="V001">
+            <field name="welcomeMsg">欢迎</field>
+        </row>
+    </datatable>
+</datatables>

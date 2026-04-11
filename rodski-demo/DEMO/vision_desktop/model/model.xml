@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <models>
   <!-- 记事本应用模型 - 演示 Desktop 平台视觉定位 -->
-  <model name="NotepadApp" driver_type="windows">
+  <model name="NotepadApp">
     <!-- 应用路径（静态数据） -->
     <element name="appPath" locator="static:notepad.exe"/>
   </model>
 
-  <model name="NotepadPage" driver_type="windows">
+  <model name="NotepadPage">
     <!-- 文本编辑区 - 语义定位 -->
     <element name="textArea" locator="vision:文本编辑区域"/>
 
@@ -29,11 +29,11 @@
   </model>
 
   <!-- 计算器应用模型 - 扩展示例 -->
-  <model name="CalculatorApp" driver_type="windows">
+  <model name="CalculatorApp">
     <element name="appPath" locator="static:calc.exe"/>
   </model>
 
-  <model name="CalculatorPage" driver_type="windows">
+  <model name="CalculatorPage">
     <element name="display" locator="vision:计算器显示屏"/>
     <element name="btnClear" locator="vision:清除按钮"/>
     <element name="btnEquals" locator="vision:等于按钮"/>

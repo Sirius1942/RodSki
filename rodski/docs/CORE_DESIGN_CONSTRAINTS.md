@@ -294,6 +294,48 @@ RodSki 支持 12 种定位器类型，分为传统定位器和视觉定位器两
 
 **暂停 / 插入**不改变上述「固定管线」语义：`${Return[-1]}` 仍指「最近一次完成执行的固定步骤」的返回值（插入步是否入栈见 8.4；若未入栈，则与插入前一致）。
 
+### 4.3 verify 数据表中 ${Return} 的使用限制
+
+**禁止：接口/DB 模型的 _verify 表中使用 ${Return[-1]}**
+
+verify 对接口和数据库模型的实际值**自动从 Return[-1] 提取**（按模型元素的 locator 字段匹配）。
+如果期望值也写 ${Return[-1]}，则期望值和实际值取自同一数据源，比较结果永远相等，
+断言失去验证价值（"空校验"）。
+
+```xml
+<!-- 禁止：接口/DB verify 的期望值引用 Return[-1]（自己比自己） -->
+<datatable name="LoginAPI_verify">
+  <row id="V001">
+    <field name="token">${Return[-1].token}</field>    <!-- 空校验 -->
+  </row>
+</datatable>
+
+<!-- 正确：写明具体的期望字面值 -->
+<datatable name="LoginAPI_verify">
+  <row id="V001">
+    <field name="token">demo_token_123</field>         <!-- 真正断言 -->
+  </row>
+</datatable>
+```
+
+**允许：UI 模型的 _verify 表中引用 ${Return[-N]}（N >= 2 或跨模型）**
+
+UI verify 的实际值从页面元素读取（不从 Return 取），期望值引用前序步骤的
+Return 做跨源比对，这是合法的断言。
+
+```xml
+<!-- 允许：UI verify 的期望值引用前序步骤结果做跨源比对 -->
+<datatable name="PageDisplay_verify">
+  <row id="V001">
+    <field name="displayToken">${Return[-2].token}</field>  <!-- 页面值 vs 接口值 -->
+  </row>
+</datatable>
+```
+
+**判断规则**：
+- verify 模型的 `__model_type__` 为 `interface` 或 `database` → 禁止 `${Return[-1]}`
+- verify 模型的 `__model_type__` 为 `ui` → 允许（实际值来源不同）
+
 ---
 
 ## 5. 当前关键字清单（15 个）

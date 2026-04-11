@@ -10,7 +10,7 @@
     </group>
     <group name="demo_db">
         <var name="type" value="sqlite"/>
-        <var name="database" value="/Users/sirius05/Documents/project/RodSki/rodski-demo/DEMO/demo_full/demo.db"/>
+        <var name="database" value="/Users/sirius05/Documents/project/RodSki/rodski-demo/demo.db"/>
     </group>
     <group name="user">
         <var name="test_email" value="test@example.com"/>

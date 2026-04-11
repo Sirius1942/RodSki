@@ -165,8 +165,10 @@ class TestLLMAnalyzerAnalyze(unittest.TestCase):
     """Test the public analyze() method with mocked LLM calls."""
 
     def _make_analyzer(self):
+        # 强制走 legacy 路径（禁用新 LLM 架构），使 _cfg / _call_llm 可用
         with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}, clear=False):
-            return LLMAnalyzer()
+            with patch.dict(sys.modules, {"rodski.llm": None}):
+                return LLMAnalyzer()
 
     def test_analyze_returns_enhanced_elements(self):
         analyzer = self._make_analyzer()
@@ -204,8 +206,10 @@ class TestLLMAnalyzerClaudeIntegration(unittest.TestCase):
     """Test _call_llm dispatches correctly to Claude, mocking anthropic library."""
 
     def test_call_llm_claude_dispatches_and_parses(self):
+        # 强制走 legacy 路径以确保 _cfg / _call_llm 可用
         with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}, clear=False):
-            analyzer = LLMAnalyzer({"provider": "claude"})
+            with patch.dict(sys.modules, {"rodski.llm": None}):
+                analyzer = LLMAnalyzer({"provider": "claude"})
 
         fake_response_text = json.dumps(SAMPLE_LABELS)
         mock_content = MagicMock()

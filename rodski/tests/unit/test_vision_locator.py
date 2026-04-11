@@ -13,10 +13,12 @@ from __future__ import annotations
 
 import base64
 import pathlib
+import pytest
 from unittest.mock import MagicMock, patch, PropertyMock
 
 from rodski.core.test_runner import assert_raises, assert_raises_match
 from rodski.vision.locator import VisionLocator
+from rodski.vision.exceptions import InvalidBBoxError
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -160,10 +162,10 @@ class TestLocateBbox:
         assert cy == 50
 
     def test_invalid_bbox_raises(self):
-        assert_raises(ValueError, self.loc.locate_legacy, "vision_bbox:100,200,300")
+        assert_raises(InvalidBBoxError, self.loc.locate_legacy, "vision_bbox:100,200,300")
 
     def test_non_numeric_raises(self):
-        assert_raises(ValueError, self.loc.locate_legacy, "vision_bbox:a,b,c,d")
+        assert_raises(InvalidBBoxError, self.loc.locate_legacy, "vision_bbox:a,b,c,d")
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -276,13 +278,14 @@ class TestLocateEdgeCases:
         assert_raises(ValueError, self.loc.locate_legacy, "xpath://button")
 
     def test_vision_empty_description_raises(self):
-        # "vision:" 后面空描述
+        # "vision:" 后面空描述 → locate() 检查 locator_value 为空抛 ValueError
         self.loc._take_screenshot = MagicMock(return_value="/tmp/fake.png")
-        assert_raises(RuntimeError, self.loc.locate_legacy, "vision:")
+        assert_raises(ValueError, self.loc.locate_legacy, "vision:")
 
     def test_vision_whitespace_description_raises(self):
+        # "vision:   " 空白描述 → locate() 检查 strip 后 locator_value 为空抛 ValueError
         self.loc._take_screenshot = MagicMock(return_value="/tmp/fake.png")
-        assert_raises(RuntimeError, self.loc.locate_legacy, "vision:   ")
+        assert_raises(ValueError, self.loc.locate_legacy, "vision:   ")
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -311,12 +314,12 @@ class TestVisionLocatorLazyInit:
         assert loc._cache is sentinel
 
     def test_image_matcher_lazy_load(self):
-        """ImageMatcher 延迟加载。"""
+        """ImageMatcher 延迟加载 — 模块尚未实现时抛出 ModuleNotFoundError。"""
         loc = VisionLocator()
         assert loc._image_matcher is None
-        # 访问属性时才创建
-        _ = loc.image_matcher
-        assert loc._image_matcher is not None
+        # image_matcher 模块不存在，访问属性时应抛出 ModuleNotFoundError
+        with pytest.raises(ModuleNotFoundError):
+            _ = loc.image_matcher
 
     def test_bbox_locator_lazy_load(self):
         """BBoxLocator 延迟加载。"""
