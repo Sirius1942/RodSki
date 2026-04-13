@@ -1,4 +1,9 @@
-"""DataResolver JSON 支持测试"""
+"""DataResolver JSON 支持测试
+
+测试 data/data_resolver.py 中的 JSON 格式数据解析。
+覆盖：JSON 字段自动解析（数组/对象）、嵌套 JSON 引用、
+      JSON 路径提取（$.key.subkey 格式）。
+"""
 import pytest
 import json
 from pathlib import Path

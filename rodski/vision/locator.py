@@ -1,13 +1,12 @@
 """VisionLocator — 视觉定位器统一入口。
 
-解析 model.xml 中 element 的 ``locator`` 属性，返回屏幕坐标边界框 ``(x1, y1, x2, y2)``。
+通过 ``locate(locator_type, locator_value, screenshot)`` API 返回屏幕坐标边界框。
 
-支持三种定位器格式：
+支持的定位器类型（通过 model.xml ``<location type="...">`` 定义）：
 
-* ``vision:<描述>``    — 截图 → OmniParser → LLM 语义分析 → 匹配 → 边界框
-* ``vision:<模板图片路径>`` — 图片模板匹配 → 边界框（延迟加载 ImageMatcher）
-* ``ocr:<文字内容>`` — OCR 文字识别定位 → 边界框（延迟加载 OCRLocator）
-* ``vision_bbox:x1,y1,x2,y2`` — 直接解析坐标字符串
+* ``vision``      — 截图 → OmniParser → LLM 语义分析 → 匹配 → 边界框
+* ``ocr``         — OCR 文字识别定位 → 边界框
+* ``vision_bbox`` — 直接解析坐标字符串
 
 依赖 vision_config.yaml（位于 rodski/config/），缺失时使用内置默认值。
 """
@@ -320,11 +319,21 @@ class VisionLocator:
         return self.bbox_locator.locate(bbox_str)
 
     # ------------------------------------------------------------------
-    # Legacy API - 向后兼容
+    # Legacy API - 已废弃，请使用 locate(type, value, screenshot)
     # ------------------------------------------------------------------
 
     def is_vision_locator(self, locator_str: str) -> bool:
-        """判断字符串是否是视觉定位器（vision:/ocr:/vision_bbox: 前缀）。"""
+        """判断字符串是否是视觉定位器（vision:/ocr:/vision_bbox: 前缀）。
+
+        .. deprecated:: v5.4.0
+            请使用 ``ModelParser.is_vision_locator(type_str)`` 替代。
+        """
+        import warnings
+        warnings.warn(
+            "VisionLocator.is_vision_locator() 已废弃，请使用 ModelParser.is_vision_locator(type_str)",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if not locator_str:
             return False
         s = locator_str.strip()
@@ -337,7 +346,8 @@ class VisionLocator:
     def locate_legacy(self, locator_str: str, driver=None) -> Tuple[int, int]:
         """解析 locator 字符串，返回 (cx, cy) 中心坐标。
 
-        这是向后兼容的旧 API，内部调用新的 locate() 方法。
+        .. deprecated:: v5.4.0
+            请使用 ``locate(locator_type, locator_value, screenshot)`` 替代。
 
         Args:
             locator_str: 形如 ``"vision:登录按钮"`` 或
@@ -352,6 +362,12 @@ class VisionLocator:
             ValueError: locator_str 格式不合法或无法解析。
             RuntimeError: OmniParser / LLM 调用失败，或未找到匹配元素。
         """
+        import warnings
+        warnings.warn(
+            "locate_legacy() 已废弃，请使用 locate(locator_type, locator_value, screenshot)",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         s = locator_str.strip() if locator_str else ""
         if not s:
             raise ValueError("locator_str must not be empty")
@@ -395,12 +411,11 @@ class VisionLocator:
             f"Expected 'vision:<desc>', 'ocr:<text>', or 'vision_bbox:x1,y1,x2,y2'."
         )
 
-    # 保持向后兼容：locate_legacy 作为默认 locate 方法
-    # 新代码应使用新的 locate(type, value, screenshot) API
     def locate_with_driver(self, locator_str: str, driver=None) -> Tuple[int, int]:
         """解析 locator 字符串，返回 (cx, cy) 中心坐标。
 
-        这是向后兼容的 API，与 locate_legacy 相同。
+        .. deprecated:: v5.4.0
+            请使用 ``locate(locator_type, locator_value, screenshot)`` 替代。
         """
         return self.locate_legacy(locator_str, driver)
 

@@ -3,72 +3,150 @@
   <!-- 登录页模型（来自 login 模块） -->
   <model name="LoginPage">
     <!-- 账号登录 Tab -->
-    <element name="accountTab" type="css" value="span[type=PASSWORD]" desc="账号登录页签"/>
+    <element name="accountTab">
+      <location type="css">span[type=PASSWORD]</location>
+      <desc>账号登录页签</desc>
+    </element>
     <!-- 用户名输入框 -->
-    <element name="username" type="css" value="#userName" desc="用户名输入框"/>
+    <element name="username">
+      <location type="css">#userName</location>
+      <desc>用户名输入框</desc>
+    </element>
     <!-- 密码输入框 -->
-    <element name="password" type="css" value="#password" desc="密码输入框"/>
+    <element name="password">
+      <location type="css">#password</location>
+      <desc>密码输入框</desc>
+    </element>
     <!-- 同意协议复选框（label 标签） -->
-    <element name="agreeCheckbox" type="css" value="label.br-checkbox" desc="同意协议复选框"/>
+    <element name="agreeCheckbox">
+      <location type="css">label.br-checkbox</location>
+      <desc>同意协议复选框</desc>
+    </element>
     <!-- 登录按钮 -->
-    <element name="loginBtn" type="css" value=".btn-submit" desc="登录按钮"/>
+    <element name="loginBtn">
+      <location type="css">.btn-submit</location>
+      <desc>登录按钮</desc>
+    </element>
   </model>
 
   <!-- 供应商首页模型 -->
   <model name="SupplierHomePage">
     <!-- 询价单管理入口 -->
-    <element name="inquiryManage" type="xpath" value="//*[contains(text(),'询价单管理')]" desc="询价单管理"/>
+    <element name="inquiryManage">
+      <location type="xpath">//*[contains(text(),'询价单管理')]</location>
+      <desc>询价单管理</desc>
+    </element>
     <!-- 商品管理入口 -->
-    <element name="productManage" type="xpath" value="//*[contains(text(),'商品管理')]" desc="商品管理"/>
+    <element name="productManage">
+      <location type="xpath">//*[contains(text(),'商品管理')]</location>
+      <desc>商品管理</desc>
+    </element>
     <!-- 订单管理入口 -->
-    <element name="orderManage" type="xpath" value="//*[contains(text(),'订单管理')]" desc="订单管理"/>
+    <element name="orderManage">
+      <location type="xpath">//*[contains(text(),'订单管理')]</location>
+      <desc>订单管理</desc>
+    </element>
     <!-- 报价管理入口 -->
-    <element name="quoteManage" type="xpath" value="//*[contains(text(),'报价管理')]" desc="报价管理"/>
+    <element name="quoteManage">
+      <location type="xpath">//*[contains(text(),'报价管理')]</location>
+      <desc>报价管理</desc>
+    </element>
   </model>
 
   <!-- 询价单管理页（供应商-收到维修厂的询价） -->
   <model name="SupplierInquiryPage">
     <!-- 询价单列表 -->
-    <element name="inquiryList" type="css" value=".inquiry-list,[class*='inquiry']" desc="询价单列表"/>
+    <element name="inquiryList">
+      <location type="css">.inquiry-list,[class*='inquiry']</location>
+      <desc>询价单列表</desc>
+    </element>
     <!-- 询价单号 -->
-    <element name="inquiryNo" type="css" value="[class*='inquiry-no']" desc="询价单号"/>
+    <element name="inquiryNo">
+      <location type="css">[class*='inquiry-no']</location>
+      <desc>询价单号</desc>
+    </element>
     <!-- 询价商品 -->
-    <element name="inquiryProduct" type="css" value="[class*='product']" desc="询价商品"/>
+    <element name="inquiryProduct">
+      <location type="css">[class*='product']</location>
+      <desc>询价商品</desc>
+    </element>
     <!-- 立即报价按钮 -->
-    <element name="quoteNow" type="xpath" value="//*[contains(text(),'立即报价')]" desc="立即报价"/>
+    <element name="quoteNow">
+      <location type="xpath">//*[contains(text(),'立即报价')]</location>
+      <desc>立即报价</desc>
+    </element>
     <!-- 查看详情 -->
-    <element name="viewDetail" type="xpath" value="//*[contains(text(),'查看详情')]" desc="查看详情"/>
+    <element name="viewDetail">
+      <location type="xpath">//*[contains(text(),'查看详情')]</location>
+      <desc>查看详情</desc>
+    </element>
   </model>
 
   <!-- 商品管理页（供应商-维护商品和库存） -->
   <model name="ProductManagePage">
     <!-- 商品列表 -->
-    <element name="productList" type="css" value=".product-list,[class*='product']" desc="商品列表"/>
+    <element name="productList">
+      <location type="css">.product-list,[class*='product']</location>
+      <desc>商品列表</desc>
+    </element>
     <!-- 新增商品 -->
-    <element name="addProduct" type="xpath" value="//*[contains(text(),'新增商品')]" desc="新增商品"/>
+    <element name="addProduct">
+      <location type="xpath">//*[contains(text(),'新增商品')]</location>
+      <desc>新增商品</desc>
+    </element>
     <!-- 编辑商品 -->
-    <element name="editProduct" type="xpath" value="//*[contains(text(),'编辑')]" desc="编辑商品"/>
+    <element name="editProduct">
+      <location type="xpath">//*[contains(text(),'编辑')]</location>
+      <desc>编辑商品</desc>
+    </element>
     <!-- 商品名称 -->
-    <element name="productName" type="css" value="input[placeholder*='商品名称']" desc="商品名称输入"/>
+    <element name="productName">
+      <location type="css">input[placeholder*='商品名称']</location>
+      <desc>商品名称输入</desc>
+    </element>
     <!-- 商品编码 -->
-    <element name="productCode" type="css" value="input[placeholder*='编码']" desc="商品编码输入"/>
+    <element name="productCode">
+      <location type="css">input[placeholder*='编码']</location>
+      <desc>商品编码输入</desc>
+    </element>
     <!-- 库存数量 -->
-    <element name="stockQty" type="css" value="input[placeholder*='库存']" desc="库存数量"/>
+    <element name="stockQty">
+      <location type="css">input[placeholder*='库存']</location>
+      <desc>库存数量</desc>
+    </element>
     <!-- 单价 -->
-    <element name="price" type="css" value="input[placeholder*='价格']" desc="单价输入"/>
+    <element name="price">
+      <location type="css">input[placeholder*='价格']</location>
+      <desc>单价输入</desc>
+    </element>
     <!-- 保存按钮 -->
-    <element name="saveBtn" type="xpath" value="//*[contains(text(),'保存')]" desc="保存按钮"/>
+    <element name="saveBtn">
+      <location type="xpath">//*[contains(text(),'保存')]</location>
+      <desc>保存按钮</desc>
+    </element>
   </model>
 
   <!-- 报价页（供应商-对询价单报价） -->
   <model name="QuotePage">
     <!-- 报价输入框 -->
-    <element name="quotePrice" type="css" value="input[placeholder*='报价']" desc="报价输入"/>
+    <element name="quotePrice">
+      <location type="css">input[placeholder*='报价']</location>
+      <desc>报价输入</desc>
+    </element>
     <!-- 数量输入 -->
-    <element name="quantity" type="css" value="input[type='number']" desc="数量输入"/>
+    <element name="quantity">
+      <location type="css">input[type='number']</location>
+      <desc>数量输入</desc>
+    </element>
     <!-- 提交报价 -->
-    <element name="submitQuote" type="xpath" value="//*[contains(text(),'提交报价')]" desc="提交报价"/>
+    <element name="submitQuote">
+      <location type="xpath">//*[contains(text(),'提交报价')]</location>
+      <desc>提交报价</desc>
+    </element>
     <!-- 取消报价 -->
-    <element name="cancelQuote" type="xpath" value="//*[contains(text(),'取消')]" desc="取消报价"/>
+    <element name="cancelQuote">
+      <location type="xpath">//*[contains(text(),'取消')]</location>
+      <desc>取消报价</desc>
+    </element>
   </model>
 </models>

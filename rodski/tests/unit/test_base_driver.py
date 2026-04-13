@@ -1,4 +1,9 @@
-"""BaseDriver 单元测试"""
+"""BaseDriver 单元测试
+
+测试 drivers/base_driver.py 中的驱动基类。
+覆盖：抽象方法定义（不可实例化）、smart_wait 机制（§13）、
+      type_locator 定位器解析、screenshot 路径处理。
+"""
 from typing import Optional, Tuple
 from drivers.base_driver import BaseDriver
 from core.test_runner import assert_raises

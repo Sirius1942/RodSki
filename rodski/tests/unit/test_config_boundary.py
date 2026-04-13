@@ -1,4 +1,9 @@
-"""config_manager 边界和异常测试"""
+"""config_manager 边界和异常测试
+
+测试 core/config_manager.py 的边界条件和异常路径。
+覆盖：无效配置文件、缺失配置文件、类型不匹配、
+      环境变量覆盖、默认值回退。
+"""
 import pytest
 import os
 from core.config_manager import ConfigManager

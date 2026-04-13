@@ -3,16 +3,34 @@
   <!-- 订单页面模型 -->
   <model name="PurchaseOrder">
     <!-- 采购订单 - 新建/提交按钮 -->
-    <element name="newOrderBtn" type="ocr" value="新建采购订单" desc="新建采购订单按钮"/>
+    <element name="newOrderBtn">
+      <location type="ocr">新建采购订单</location>
+      <desc>新建采购订单按钮</desc>
+    </element>
     <!-- 商品搜索 -->
-    <element name="productSearch" type="css" value="input[placeholder*='商品'],input[placeholder*='搜索']" desc="商品搜索"/>
+    <element name="productSearch">
+      <location type="css">input[placeholder*='商品'],input[placeholder*='搜索']</location>
+      <desc>商品搜索</desc>
+    </element>
     <!-- 数量输入 -->
-    <element name="quantity" type="css" value="input[type='number']" desc="数量输入"/>
+    <element name="quantity">
+      <location type="css">input[type='number']</location>
+      <desc>数量输入</desc>
+    </element>
     <!-- 提交订单 -->
-    <element name="submitBtn" type="ocr" value="提交" desc="提交按钮"/>
+    <element name="submitBtn">
+      <location type="ocr">提交</location>
+      <desc>提交按钮</desc>
+    </element>
     <!-- 订单号（结果） -->
-    <element name="orderNo" type="ocr" value="订单号" desc="订单号"/>
+    <element name="orderNo">
+      <location type="ocr">订单号</location>
+      <desc>订单号</desc>
+    </element>
     <!-- 确认下单按钮 -->
-    <element name="confirmOrder" type="ocr" value="确认下单" desc="确认下单"/>
+    <element name="confirmOrder">
+      <location type="ocr">确认下单</location>
+      <desc>确认下单</desc>
+    </element>
   </model>
 </models>

@@ -40,6 +40,7 @@ class AIScreenshotVerifier:
         api_key_env: str = "ANTHROPIC_API_KEY",
         base_url: str = "",
         timeout: int = 30,
+        llm_client=None,
     ):
         self.model_provider = model_provider
         self.model_name = model_name
@@ -47,6 +48,7 @@ class AIScreenshotVerifier:
         self.base_url = base_url
         self.timeout = timeout
         self._client = None
+        self._llm_client = llm_client
 
     def _get_client(self):
         """获取 LLM 客户端（延迟初始化）"""
@@ -115,6 +117,24 @@ class AIScreenshotVerifier:
         Returns:
             (is_pass, reason) - 验证是否通过及原因说明
         """
+        # 优先使用统一 LLMClient 能力（新路径）
+        if self._llm_client is not None:
+            return self._verify_via_capability(screenshot_path, expected)
+
+        # 回退到直接 SDK 调用（旧路径，过渡期保留）
+        return self._verify_via_direct_sdk(screenshot_path, expected)
+
+    def _verify_via_capability(self, screenshot_path: str, expected: str) -> tuple[bool, str]:
+        """通过 LLMClient screenshot_verifier 能力执行验证"""
+        try:
+            capability = self._llm_client.get_capability("screenshot_verifier")
+            return capability.verify(screenshot_path, expected)
+        except Exception as e:
+            logger.warning(f"LLMClient 能力调用失败，回退到直接 SDK: {e}")
+            return self._verify_via_direct_sdk(screenshot_path, expected)
+
+    def _verify_via_direct_sdk(self, screenshot_path: str, expected: str) -> tuple[bool, str]:
+        """直接使用 SDK 执行验证（旧路径）"""
         import os
         from pathlib import Path
 

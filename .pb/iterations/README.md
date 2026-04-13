@@ -1,82 +1,67 @@
-# 迭代14-19 规划总结
+# 迭代规划总览
 
-**规划完成日期**: 2026-04-09  
-**规划状态**: ✅ 已完成
+**最近更新**: 2026-04-13
 
 ---
 
-## 规划概览
+## 已完成迭代
 
-已将原迭代14-15的大任务（29.5h）成功拆分成6个小迭代，总计26h。
+| 迭代 | 版本 | 状态 | 主要内容 |
+|------|------|------|----------|
+| iteration-14 ~ 19 | v4.6.0 ~ v4.11.0 | ✅ 已完成 | P0修复、清理、demosite、关键字、视觉定位、负面测试 |
+| iteration-20 | v5.0.0 | ✅ 已完成 | DB 关键字重写 |
+| iteration-21 | v5.1.0 | ✅ 已完成 | DB demo 迁移 |
+| iteration-22 | v5.2.0 | ✅ 已完成 | 文档更新 |
+| iteration-23 | v5.3.1 | ✅ 已完成 | 数据文件组织修正 |
+| iteration-24 | v5.3.1 | ✅ 已完成 | verify 空校验修复 |
+| iteration-25 | v5.3.1 | ✅ 已完成 | 框架文档修正 |
+
+---
+
+## 架构改进迭代 (iteration-26 ~ 29)
+
+**规划来源**: `.pb/requirements/architecture_improvement_v6.md`  
+**总体规划**: `.pb/iterations/iteration-26-29-plan.md`  
+**目标**: 将 RodSki 收敛为"面向 AI Agent 的确定性执行引擎 + 活文档协议层"
 
 | 迭代 | 版本 | 工时 | 状态 | 主要内容 |
 |------|------|------|------|----------|
-| iteration-14 | v4.6.0 | 3h | 📋 待开始 | P0问题修复 |
-| iteration-15 | v4.7.0 | 4h | 📋 待开始 | 清理与文档 |
-| iteration-16 | v4.8.0 | 5h | 📋 待开始 | demosite扩展 + 定位器测试 |
-| iteration-17 | v4.9.0 | 4h | 📋 待开始 | 关键字覆盖 + 视觉定位 |
-| iteration-18 | v4.10.0 | 4.5h | 📋 待开始 | 桌面自动化 + 多窗口 |
-| iteration-19 | v4.11.0 | 5.5h | 📋 待开始 | 复杂引用 + 负面测试 + 文档 |
+| iteration-26 | v5.4.0 | 5h | 📋 待开始 | 契约统一（代码）+ Excel 移除 + Agent 示例归档 |
+| iteration-27 | v5.5.0 | 4h | 📋 待开始 | 文档契约统一（定位器 + Excel） |
+| iteration-28 | v5.6.0 | 5h | 📋 待开始 | LLM 统一服务层（capabilities + config 合并） |
+| iteration-29 | v5.7.0 | 4h | 📋 待开始 | 定位叙事统一（README + AGENT_INTEGRATION 重写） |
 
----
+**合计**: 18h
 
-## 已创建的文档
+### 迭代依赖
 
-### 总体规划
-- `.pb/iterations/iteration-14-19-plan.md` - 总体规划文档
+```
+iteration-26 → iteration-27 → iteration-28 → iteration-29
+```
 
-### 各迭代文档
-每个迭代都包含：
-- `README.md` - 迭代概述和目标
-- `tasks.md` - 详细任务清单（iteration-14, 15）
-- `record.md` - 实施记录模板（iteration-14）
-- `acceptance_tests.md` - 验收测试（iteration-14）
+### 下一步
 
----
-
-## 下一步行动
-
-### 立即开始 iteration-14
+从 iteration-26 开始执行：
 
 ```bash
-# 1. 创建分支
-git checkout main
-git pull
-git checkout -b release/v4.6.0
-
-# 2. 开始执行任务
-# 参考 .pb/iterations/iteration-14/README.md
-# 参考 .pb/iterations/iteration-14/tasks.md
-
-# 3. 完成后合并
-git checkout main
-git merge release/v4.6.0
-git tag v4.6.0
-git push origin main --tags
+git checkout main && git pull
+git checkout -b release/v5.4.0
+# 参考 .pb/iterations/iteration-26/tasks.md
 ```
 
 ---
 
 ## 关键原则
 
-1. **按顺序执行** - 不要跳过或并行
-2. **每个迭代独立交付** - 完成后立即发布版本
-3. **任务失败立即停止** - 记录问题，调整计划
-4. **文档同步更新** - 每个迭代都要更新 record.md
-5. **回归测试必做** - 确保无回归问题
+1. **按顺序执行** — 不要跳过或并行
+2. **每个迭代独立交付** — 完成后立即发布版本
+3. **任务失败立即停止** — 记录问题，调整计划
+4. **文档同步更新** — 每个迭代都要更新 record.md
+5. **回归测试必做** — 确保无回归问题
 
 ---
 
-## 备份说明
+## 历史规划
 
-原迭代14和15的文档已备份到：
-- `.pb/iterations/iteration-14.backup/`
-- `.pb/iterations/iteration-15.backup/`
-
----
-
-## 参考文档
-
-- `.pb/iterations/iteration-14-19-plan.md` - 详细规划
-- `rodski/docs/TEST_CASE_WRITING_GUIDE.md` - 用例编写指南
-- `rodski/docs/CORE_DESIGN_CONSTRAINTS.md` - 核心设计约束
+- `.pb/iterations/iteration-14-19-plan.md` — 迭代 14-19 总体规划
+- `.pb/iterations/iteration-26-29-plan.md` — 迭代 26-29 架构改进规划

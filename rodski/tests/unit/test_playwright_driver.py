@@ -1,4 +1,10 @@
-"""Playwright 驱动单元测试"""
+"""Playwright 驱动单元测试
+
+测试 drivers/playwright_driver.py 中的 Playwright Web 驱动。
+覆盖：初始化（chromium/firefox/headless）、navigate、type/type_locator、
+      click、get_text、screenshot、close、assert_element。
+所有 Playwright API 调用通过 mock 隔离。
+"""
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 from drivers.playwright_driver import PlaywrightDriver

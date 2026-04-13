@@ -51,7 +51,7 @@ RodSki 的用例由三部分组成：
 
 ## 2. 目录结构
 
-v3.0 版本使用 XML 文件替代 Excel，每个测试模块按如下固定结构组织：
+v3.0 版本使用 XML 文件组织用例，每个测试模块按如下固定结构组织：
 
 ```
 product/                           ← 产品根目录（最顶层）
@@ -72,16 +72,18 @@ product/                           ← 产品根目录（最顶层）
             └── result_20260321_100000.xml
 ```
 
-### 2.1 原 Excel 到 XML 的映射
+### 2.1 XML 文件与目录映射
 
-| 原 Excel | 新 XML | 位置 |
-|---------|--------|------|
-| Case Sheet | case/*.xml | `case/` 目录 |
-| GlobalValue Sheet | globalvalue.xml | `data/` 目录 |
-| 数据表 Sheet（如 Login） | 合并到 `data/data.xml` 中的 datatable | `data/` 目录 |
-| 验证数据表 Sheet（如 Login_verify） | 合并到 `data/data_verify.xml` 中的 datatable | `data/` 目录 |
-| TestResult Sheet | result_*.xml | `result/` 目录 |
-| model.xml | model.xml（不变） | `model/` 目录 |
+> 历史参考（已完成迁移）：早期版本使用单一文件格式，v3.0 起全面改用 XML 目录结构。
+
+| 文件 | 位置 | 说明 |
+|------|------|------|
+| case/*.xml | `case/` 目录 | 用例定义（三阶段容器 + test_step） |
+| globalvalue.xml | `data/` 目录 | 全局变量 |
+| data.xml（含多个 datatable） | `data/` 目录 | 所有输入数据表 |
+| data_verify.xml（含多个 datatable） | `data/` 目录 | 所有验证数据表 |
+| result_*.xml | `result/` 目录 | 框架自动生成的测试结果 |
+| model.xml | `model/` 目录 | 元素定位模型 |
 
 ### 2.2 Schema 约束（与 `rodski/schemas` 对齐）
 
@@ -90,7 +92,7 @@ product/                           ← 产品根目录（最顶层）
 | XSD 文件 | 根元素 | 编写方 | 核心约束（摘要） |
 |----------|--------|--------|------------------|
 | `case.xsd` | `<cases>` | 人工 | 每个 `<case>` **必须且仅有 1 个** `<test_case>` 容器，其内 **至少 1 个** `<test_step>`；`<pre_process>` / `<post_process>` 各 **0～1 个**容器，内为 **0～n 个** `<test_step>`。`execute` 只能是 `是` \| `否`。`component_type`（可选）只能是 `界面` \| `接口` \| `数据库`。每个 `test_step` 的 `action` 为 `ActionType` 枚举（见 [3.5](#35-action-与-casexsd-枚举一致)）。 |
-| `model.xsd` | `<models>` | 人工 | `<model>` 须 `name`；`<element>` 须 `name`。支持**完整格式**（子节点 `<type>` / `<location>` / `<desc>`）与**简化格式**（`element` 上 `type`+`value`，此时 `type` 为定位类型）。`DriverType` / `LocatorType` 取值见 [4.2](#42-元素属性说明)、[4.3](#43-定位类型)。接口保留元素名：`_method`、`_url`、`_header_*`（与数据字段一一对应）。 |
+| `model.xsd` | `<models>` | 人工 | `<model>` 须 `name`；`<element>` 须 `name`。仅支持**完整格式**（子节点 `<type>` / `<location>` / `<desc>`），~~简化格式已移除（v5.4.0）~~。`DriverType` / `LocatorType` 取值见 [4.2](#42-元素属性说明)、[4.3](#43-定位类型)。接口保留元素名：`_method`、`_url`、`_header_*`（与数据字段一一对应）。 |
 | `data.xsd` | `<datatable>` / `<datatables>` | 人工 | `datatable@name` **必须与模型名一致**。每个 `<row>` 须 `id`（DataID）；**同一数据表内** `row@id` **全局唯一**（XSD `xs:unique`）。每行至少一个 `<field>`，`field@name` 须与对应模型元素 `name` 一致。验证数据表名为 `{模型名}_verify`，放入 `data_verify.xml`（或 `data.xml`）。 |
 | `globalvalue.xsd` | `<globalvalue>` | 人工 | 每个 `<group>` 须 `name`；**所有 group 的 `name` 全局唯一**。每组内至少一个 `<var>`，每个 `var` 须同时具备 `name` 与 `value`；**同一 group 内** `var@name` **唯一**（XSD `xs:unique`）。引用格式：`GlobalValue.组名.变量名`。 |
 | `result.xsd` | `<testresult>` | **框架生成** | 手工一般无需编写；结构见 [附录：测试结果 XML](#附录测试结果-xmlresultxsd)。 |
@@ -113,7 +115,7 @@ xmllint --noout --schema rodski/schemas/case.xsd product/DEMO/demo_site/case/dem
 2. **`<test_case>`**（**必选，且每个 case 仅 1 个**）— 用例主体，内含 **至少 1 个** `<test_step>`
 3. **`<post_process>`**（可选）— 后处理，内含 **0～n** 个 `<test_step>`
 
-原 Excel 中「测试步骤」「预期结果」等多行语义，在 XML 中统一为 **`<test_case>` 内多条 `<test_step>`**（先 `type` 再 `verify` 等，按书写顺序执行）。
+早期单文件格式中「测试步骤」「预期结果」等多行语义，在 XML 中统一为 **`<test_case>` 内多条 `<test_step>`**（先 `type` 再 `verify` 等，按书写顺序执行）。
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -312,21 +314,20 @@ RodSki 支持 12 种定位器类型，分为传统定位器和视觉定位器两
 
 **正确示例**：
 ```xml
-<!-- ✅ 正确：完整格式 -->
+<!-- ✅ 正确：完整格式（唯一支持的格式） -->
 <element name="loginBtn" type="web">
     <type>button</type>
     <location type="id">loginBtn</location>
 </element>
-
-<!-- ✅ 正确：简化格式 -->
-<element name="loginBtn" type="id" value="loginBtn"/>
 ```
 
-**错误示例**：
-```xml
-<!-- ❌ 错误：不要使用 locator 属性 -->
-<element name="loginBtn" locator="vision:登录按钮"/>
-```
+**错误示例（已废弃的旧格式）**：
+
+> ❌ 以下格式不再支持：
+> - 简化属性格式：`type="定位类型" value="值"`
+> - 已废弃的 locator 属性格式
+>
+> 所有定位器必须使用 `<location type="类型">值</location>` 子节点格式。
 
 **示例对比**：
 ```xml
@@ -351,15 +352,18 @@ RodSki 支持 12 种定位器类型，分为传统定位器和视觉定位器两
 </element>
 ```
 
-### 4.4 简化格式
+### ~~4.4 简化格式~~ — 已移除（v5.4.0）
 
-对于简单场景，也支持单行格式：
+> **⚠️ 已移除（v5.4.0）**：简化格式已从解析器中移除，不再支持。保留此节仅供历史参考。所有定位器必须使用 `<location>` 子节点格式（见 4.3、4.5）。
+
+~~对于简单场景，也支持单行格式~~：
 
 ```xml
-<element name="username" type="id" value="userName"/>
+<!-- ❌ 已移除（v5.4.0）：此格式不再支持 -->
+<!-- <element name="username" type="id" value="userName"/> -->
 ```
 
-此格式下 **属性** `type` 为 **`LocatorType` 定位类型**（不是 `web`），`value` 为定位值；驱动语义由框架按场景处理（一般为 Web）。
+~~此格式下 **属性** `type` 为 **`LocatorType` 定位类型**（不是 `web`），`value` 为定位值；驱动语义由框架按场景处理（一般为 Web）。~~
 
 ### 4.5 多定位器格式（自动切换）
 
@@ -1096,19 +1100,23 @@ python ski_run.py product/DEMO/demo_site/
 
 ### 11.2 定位器格式
 
-在 `model.xml` 中使用 `locator` 属性：
+在 `model.xml` 中使用 `<location type="...">` 子元素：
 
 ```xml
 <!-- 语义定位 -->
-<element name="loginBtn" locator="vision:登录按钮"/>
+<element name="loginBtn">
+    <location type="vision">登录按钮</location>
+</element>
 
 <!-- 坐标定位（Agent 探索后生成） -->
-<element name="submitBtn" locator="vision_bbox:100,200,150,250"/>
+<element name="submitBtn">
+    <location type="vision_bbox">100,200,150,250</location>
+</element>
 ```
 
 **格式约束**：
-- `vision:描述` — 语义描述，由 LLM 匹配
-- `vision_bbox:x1,y1,x2,y2` — 像素坐标（Web）或屏幕绝对坐标（Desktop）
+- `<location type="vision">描述</location>` — 语义描述，由 LLM 匹配
+- `<location type="vision_bbox">x1,y1,x2,y2</location>` — 像素坐标（Web）或屏幕绝对坐标（Desktop）
 
 ### 11.3 Web 平台完整示例
 
@@ -1116,9 +1124,15 @@ python ski_run.py product/DEMO/demo_site/
 ```xml
 <models>
   <model name="LoginPage">
-    <element name="username" locator="vision:用户名输入框"/>
-    <element name="password" locator="vision:密码输入框"/>
-    <element name="loginBtn" locator="vision:登录按钮"/>
+    <element name="username">
+        <location type="vision">用户名输入框</location>
+    </element>
+    <element name="password">
+        <location type="vision">密码输入框</location>
+    </element>
+    <element name="loginBtn">
+        <location type="vision">登录按钮</location>
+    </element>
   </model>
 </models>
 ```
@@ -1162,10 +1176,10 @@ export ANTHROPIC_API_KEY=your_api_key
 
 | 场景 | 推荐定位器 |
 |------|-----------|
-| 动态 ID/class | vision:描述 |
-| 无明显属性的元素 | vision:描述 |
-| 跨语言测试 | vision:描述（描述用目标语言） |
-| 已知坐标（Agent探索后） | vision_bbox:x,y,w,h |
+| 动态 ID/class | `<location type="vision">描述</location>` |
+| 无明显属性的元素 | `<location type="vision">描述</location>` |
+| 跨语言测试 | `<location type="vision">描述</location>`（描述用目标语言） |
+| 已知坐标（Agent探索后） | `<location type="vision_bbox">x1,y1,x2,y2</location>` |
 | 传统 Web 元素 | xpath/css（更快） |
 
 
@@ -1179,11 +1193,15 @@ export ANTHROPIC_API_KEY=your_api_key
 
 ```xml
 <model name="NotepadPage" driver_type="windows">
-  <element name="textArea" locator="vision:文本编辑区域"/>
+  <element name="textArea">
+      <location type="vision">文本编辑区域</location>
+  </element>
 </model>
 
 <model name="TextEditPage" driver_type="macos">
-  <element name="textArea" locator="vision:文本编辑区域"/>
+  <element name="textArea">
+      <location type="vision">文本编辑区域</location>
+  </element>
 </model>
 ```
 
@@ -1204,7 +1222,9 @@ export ANTHROPIC_API_KEY=your_api_key
 桌面场景下 `vision_bbox` 使用**屏幕绝对坐标**：
 
 ```xml
-<element name="closeBtn" locator="vision_bbox:1850,50,1900,100"/>
+<element name="closeBtn">
+    <location type="vision_bbox">1850,50,1900,100</location>
+</element>
 ```
 
 **约束**：

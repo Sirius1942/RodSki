@@ -44,10 +44,21 @@ class LLMClient:
             if name == "vision_locator":
                 from .capabilities import VisionLocatorCapability
                 self._capabilities[name] = VisionLocatorCapability(self)
+            elif name == "screenshot_verifier":
+                from .capabilities.screenshot_verifier import ScreenshotVerifierCapability
+                self._capabilities[name] = ScreenshotVerifierCapability(self)
+            elif name == "test_reviewer":
+                from .capabilities.test_reviewer import TestReviewerCapability
+                self._capabilities[name] = TestReviewerCapability(self)
             else:
                 raise LLMConfigError(f"Unknown capability: {name}")
 
         return self._capabilities[name]
+
+    def call_text(self, prompt: str, **kwargs) -> str:
+        """调用纯文本 LLM API"""
+        provider = self._get_provider()
+        return provider.call_text(prompt, **kwargs)
 
     def call_vision(self, image_base64: str, prompt: str, **kwargs) -> str:
         """调用多模态 API"""

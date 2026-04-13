@@ -46,12 +46,14 @@ class ModelParser:
         logger.info(f"模型解析完成: 共 {len(self.models)} 个模型")
 
     def _parse_models(self) -> Dict[str, Dict[str, Dict]]:
-        """解析所有模型，兼容老 SKI 格式和简化格式
+        """解析所有模型
 
-        新格式：
+        唯一支持的元素定位格式：
             <model name="Login" type="ui">
-                <element name="username" type="input">
-                    <location type="id">usernameInput</location>
+                <element name="username" type="web">
+                    <type>input</type>
+                    <location type="id" priority="1">usernameInput</location>
+                    <location type="xpath" priority="2">//input[@id='user']</location>
                 </element>
             </model>
 
@@ -61,17 +63,6 @@ class ModelParser:
                     <sql>SELECT * FROM orders WHERE status = :status LIMIT :limit</sql>
                 </query>
             </model>
-
-        老 SKI 格式 (带完整元数据):
-            <model name="Login">
-                <element name="username" type="web">
-                    <type>input</type>
-                    <location type="id">usernameInput</location>
-                </element>
-            </model>
-
-        旧版简化格式:
-            <element name="UsernameInput" type="id" value="username"/>
 
         解析后每个 model 包含:
             - __model_type__: 模型类型 (ui/interface/database)
@@ -139,29 +130,14 @@ class ModelParser:
         return models
 
     def _parse_element(self, elem_node, declared_model_type: Optional[str] = None) -> Optional[Dict]:
-        """解析单个 element 节点。"""
-        locator_attr = elem_node.get('locator')
+        """解析单个 element 节点。
+
+        唯一支持的格式：<location type="...">value</location> 子元素。
+        """
         raw_type = (elem_node.get('type') or '').strip()
         legacy_driver_type = raw_type if raw_type in LEGACY_DRIVER_TYPES else ''
         type_node = elem_node.find('type')
         child_type = (type_node.text or '').strip() if type_node is not None and type_node.text else ''
-
-        if locator_attr and ':' in locator_attr:
-            locator_type, locator_value = locator_attr.split(':', 1)
-            locator_type = locator_type.strip()
-            locator_value = locator_value.strip()
-            if locator_type in VALID_LOCATOR_TYPES:
-                model_type = declared_model_type or self._infer_model_type(legacy_driver_type, locator_type)
-                return {
-                    'type': locator_type,
-                    'value': locator_value,
-                    'locator_type': locator_type,
-                    'locator_value': locator_value,
-                    'model_type': model_type,
-                    'element_type': child_type or self._infer_element_type(raw_type, locator_type, model_type),
-                    'interfacename': elem_node.get('interfacename', ''),
-                    'locations': [{'type': locator_type, 'value': locator_value, 'priority': 1}],
-                }
 
         location_nodes = elem_node.findall('location')
         if location_nodes:
@@ -192,21 +168,6 @@ class ModelParser:
                     'locations': locations,
                 }
 
-        if raw_type and elem_node.get('value'):
-            loc_type = raw_type
-            loc_value = elem_node.get('value')
-            if loc_type in VALID_LOCATOR_TYPES:
-                model_type = declared_model_type or self._infer_model_type('', loc_type)
-                return {
-                    'type': loc_type,
-                    'value': loc_value,
-                    'locator_type': loc_type,
-                    'locator_value': loc_value,
-                    'model_type': model_type,
-                    'element_type': child_type or self._infer_element_type('', loc_type, model_type),
-                    'interfacename': '',
-                    'locations': [{'type': loc_type, 'value': loc_value, 'priority': 1}],
-                }
         return None
 
     def _infer_model_type(self, legacy_driver_type: str, locator_type: str) -> str:

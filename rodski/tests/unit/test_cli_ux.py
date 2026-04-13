@@ -69,7 +69,7 @@ class TestVerbose:
         assert r.returncode == 0
 
     def test_verbose_with_nonexistent_file(self):
-        r = run_cli("run", "/nonexistent/file.xlsx", "--verbose")
+        r = run_cli("run", "/nonexistent/file.xml", "--verbose")
         assert r.returncode == 1
         assert "不存在" in r.stderr
 

@@ -1,3 +1,4 @@
+# DEPRECATED: 配置已迁移到 llm_config.yaml。本文件仅作为向后兼容保留。
 # LLM Reviewer 配置
 
 # API 配置

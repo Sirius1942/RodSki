@@ -1,6 +1,6 @@
 """SKI 执行引擎 - 完整的测试用例执行器
 
-v3.0+: 基于 XML 用例文件和目录结构，替代原 Excel 单文件模式。
+基于 XML 用例文件和目录结构执行测试。
 
 每个 case 为三阶段（`pre_process` → `test_case` → `post_process`），每阶段内为多条
 `test_step`。用例阶段失败时仍会执行后处理（清理/关闭）。

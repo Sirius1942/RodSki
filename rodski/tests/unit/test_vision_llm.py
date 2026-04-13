@@ -10,6 +10,7 @@ import json
 import os
 import pathlib
 import sys
+import types
 import unittest
 from unittest.mock import MagicMock, patch, mock_open
 
@@ -20,14 +21,7 @@ _RODSKI_ROOT = pathlib.Path(__file__).parent.parent.parent  # rodski/
 if str(_RODSKI_ROOT) not in sys.path:
     sys.path.insert(0, str(_RODSKI_ROOT))
 
-from vision.llm_analyzer import (
-    LLMAnalyzer,
-    _load_llm_config,
-    _resolve_api_key,
-    _build_prompt,
-    _encode_image,
-    _DEFAULT_LLM_CONFIG,
-)
+from vision.llm_analyzer import LLMAnalyzer
 from vision.matcher import VisionMatcher, _normalize, _tokenize, _score
 
 
@@ -52,84 +46,15 @@ LABELED_ELEMENTS = [
     for e in SAMPLE_ELEMENTS
 ]
 
-# ===========================================================================
-# Tests: helper functions
-# ===========================================================================
 
-class TestLoadLLMConfig(unittest.TestCase):
-    def test_defaults_when_no_yaml(self):
-        with patch("vision.llm_analyzer._CONFIG_PATH") as mock_path:
-            mock_path.exists.return_value = False
-            cfg = _load_llm_config(None)
-        self.assertEqual(cfg["provider"], "claude")
-        self.assertEqual(cfg["timeout"], 10)
+def _make_fake_llm_module(mock_client_class=None):
+    """Create a fake rodski.llm module with a mocked LLMClient."""
+    mod = types.ModuleType("rodski.llm")
+    if mock_client_class is None:
+        mock_client_class = MagicMock()
+    mod.LLMClient = mock_client_class  # type: ignore[attr-defined]
+    return mod
 
-    def test_yaml_overrides_defaults(self):
-        import importlib
-        import types
-        # Provide a fake yaml module so _load_llm_config can call safe_load
-        fake_yaml = types.ModuleType("yaml")
-        fake_yaml.safe_load = MagicMock(  # type: ignore[attr-defined]
-            return_value={"llm": {"provider": "openai", "timeout": 20}}
-        )
-        with patch.dict(sys.modules, {"yaml": fake_yaml}):
-            # Reload so vision.llm_analyzer picks up the fake yaml
-            import vision.llm_analyzer as _mod
-            importlib.reload(_mod)
-            from vision.llm_analyzer import _load_llm_config as _lc
-            with patch.object(_mod, "_CONFIG_PATH") as mock_path:
-                mock_path.exists.return_value = True
-                mock_path.open.return_value.__enter__ = lambda s: s
-                mock_path.open.return_value.__exit__ = MagicMock(return_value=False)
-                cfg = _lc(None)
-        self.assertEqual(cfg["provider"], "openai")
-        self.assertEqual(cfg["timeout"], 20)
-        # Reload without fake yaml to restore module state
-        importlib.reload(_mod)
-
-    def test_explicit_config_overrides_yaml(self):
-        with patch("vision.llm_analyzer._CONFIG_PATH") as mock_path:
-            mock_path.exists.return_value = False
-            cfg = _load_llm_config({"provider": "qwen", "model": "qwen-vl-plus"})
-        self.assertEqual(cfg["provider"], "qwen")
-        self.assertEqual(cfg["model"], "qwen-vl-plus")
-
-class TestResolveApiKey(unittest.TestCase):
-    def test_vision_llm_api_key_takes_priority(self):
-        env = {"VISION_LLM_API_KEY": "override-key", "ANTHROPIC_API_KEY": "other-key"}
-        with patch.dict(os.environ, env, clear=False):
-            key = _resolve_api_key({"provider": "claude", "api_key_env": "ANTHROPIC_API_KEY"})
-        self.assertEqual(key, "override-key")
-
-    def test_api_key_env_fallback(self):
-        env = {"ANTHROPIC_API_KEY": "anthro-key"}
-        with patch.dict(os.environ, env, clear=False):
-            # Remove VISION_LLM_API_KEY if present
-            os.environ.pop("VISION_LLM_API_KEY", None)
-            key = _resolve_api_key({"provider": "claude", "api_key_env": "ANTHROPIC_API_KEY"})
-        self.assertEqual(key, "anthro-key")
-
-    def test_returns_none_when_no_key(self):
-        with patch.dict(os.environ, {}, clear=True):
-            with patch("pathlib.Path.exists", return_value=False):
-                key = _resolve_api_key({"provider": "claude", "api_key_env": "ANTHROPIC_API_KEY"})
-        self.assertIsNone(key)
-
-
-class TestBuildPrompt(unittest.TestCase):
-    def test_contains_element_content(self):
-        prompt = _build_prompt(SAMPLE_ELEMENTS)
-        self.assertIn("Login", prompt)
-        self.assertIn("Username", prompt)
-
-    def test_instructs_json_output(self):
-        prompt = _build_prompt(SAMPLE_ELEMENTS)
-        self.assertIn("semantic_label", prompt)
-        self.assertIn("JSON", prompt)
-
-    def test_empty_elements(self):
-        prompt = _build_prompt([])
-        self.assertIsInstance(prompt, str)
 
 # ===========================================================================
 # Tests: LLMAnalyzer
@@ -139,7 +64,8 @@ class TestLLMAnalyzerMergeLabels(unittest.TestCase):
     """Test _merge_labels without any API calls."""
 
     def setUp(self):
-        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}):
+        fake_mod = _make_fake_llm_module()
+        with patch.dict(sys.modules, {"rodski.llm": fake_mod}):
             self.analyzer = LLMAnalyzer()
 
     def test_merge_attaches_semantic_labels(self):
@@ -161,19 +87,30 @@ class TestLLMAnalyzerMergeLabels(unittest.TestCase):
         result = self.analyzer._merge_labels(SAMPLE_ELEMENTS, SAMPLE_LABELS)
         self.assertEqual(len(result), len(SAMPLE_ELEMENTS))
 
-class TestLLMAnalyzerAnalyze(unittest.TestCase):
-    """Test the public analyze() method with mocked LLM calls."""
 
-    def _make_analyzer(self):
-        # 强制走 legacy 路径（禁用新 LLM 架构），使 _cfg / _call_llm 可用
-        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}, clear=False):
+class TestLLMAnalyzerAnalyze(unittest.TestCase):
+    """Test the public analyze() method with mocked LLMClient."""
+
+    def _make_analyzer(self, disabled=False):
+        """Create an LLMAnalyzer with mocked LLMClient."""
+        if disabled:
+            # Simulate LLMClient init failure
             with patch.dict(sys.modules, {"rodski.llm": None}):
                 return LLMAnalyzer()
+        else:
+            mock_capability = MagicMock()
+            mock_capability.execute.return_value = LABELED_ELEMENTS
+            mock_client_instance = MagicMock()
+            mock_client_instance.get_capability.return_value = mock_capability
+            mock_client_class = MagicMock(return_value=mock_client_instance)
+            fake_mod = _make_fake_llm_module(mock_client_class)
+            with patch.dict(sys.modules, {"rodski.llm": fake_mod}):
+                analyzer = LLMAnalyzer()
+            return analyzer
 
     def test_analyze_returns_enhanced_elements(self):
         analyzer = self._make_analyzer()
-        with patch.object(analyzer, "_call_llm", return_value=SAMPLE_LABELS):
-            result = analyzer.analyze("/fake/screenshot.png", SAMPLE_ELEMENTS)
+        result = analyzer.analyze("/fake/screenshot.png", SAMPLE_ELEMENTS)
         self.assertEqual(result[0]["semantic_label"], "登录按钮")
         self.assertEqual(len(result), 3)
 
@@ -182,54 +119,42 @@ class TestLLMAnalyzerAnalyze(unittest.TestCase):
         result = analyzer.analyze("/fake/screenshot.png", [])
         self.assertEqual(result, [])
 
-    def test_analyze_no_api_key_returns_original(self):
-        with patch.dict(os.environ, {}, clear=True):
-            with patch("pathlib.Path.exists", return_value=False):
-                analyzer = LLMAnalyzer()
+    def test_analyze_disabled_returns_original(self):
+        analyzer = self._make_analyzer(disabled=True)
+        self.assertTrue(analyzer._disabled)
         result = analyzer.analyze("/fake/screenshot.png", SAMPLE_ELEMENTS)
         # Should return original (no semantic_label added)
         self.assertNotIn("semantic_label", result[0])
 
-    def test_analyze_llm_exception_returns_original(self):
-        analyzer = self._make_analyzer()
-        with patch.object(analyzer, "_call_llm", side_effect=RuntimeError("API down")):
-            result = analyzer.analyze("/fake/screenshot.png", SAMPLE_ELEMENTS)
-        self.assertEqual(result, SAMPLE_ELEMENTS)
+    def test_analyze_delegates_to_capability(self):
+        mock_capability = MagicMock()
+        mock_capability.execute.return_value = LABELED_ELEMENTS
+        mock_client_instance = MagicMock()
+        mock_client_instance.get_capability.return_value = mock_capability
+        mock_client_class = MagicMock(return_value=mock_client_instance)
+        fake_mod = _make_fake_llm_module(mock_client_class)
+        with patch.dict(sys.modules, {"rodski.llm": fake_mod}):
+            analyzer = LLMAnalyzer()
+        analyzer.analyze("/fake/screenshot.png", SAMPLE_ELEMENTS)
+        mock_capability.execute.assert_called_once_with("/fake/screenshot.png", SAMPLE_ELEMENTS)
 
-    def test_call_llm_unsupported_provider_raises(self):
-        analyzer = self._make_analyzer()
-        analyzer._cfg["provider"] = "unknown_provider"
-        with self.assertRaises(ValueError):
-            analyzer._call_llm("/fake/screenshot.png", SAMPLE_ELEMENTS)
 
-class TestLLMAnalyzerClaudeIntegration(unittest.TestCase):
-    """Test _call_llm dispatches correctly to Claude, mocking anthropic library."""
+class TestLLMAnalyzerDisabledFlag(unittest.TestCase):
+    """Test that _disabled flag is set correctly."""
 
-    def test_call_llm_claude_dispatches_and_parses(self):
-        # 强制走 legacy 路径以确保 _cfg / _call_llm 可用
-        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}, clear=False):
-            with patch.dict(sys.modules, {"rodski.llm": None}):
-                analyzer = LLMAnalyzer({"provider": "claude"})
+    def test_disabled_when_llm_client_fails(self):
+        with patch.dict(sys.modules, {"rodski.llm": None}):
+            analyzer = LLMAnalyzer()
+        self.assertTrue(analyzer._disabled)
+        self.assertIsNone(analyzer._client)
+        self.assertIsNone(analyzer._capability)
 
-        fake_response_text = json.dumps(SAMPLE_LABELS)
-        mock_content = MagicMock()
-        mock_content.text = fake_response_text
-        mock_response = MagicMock()
-        mock_response.content = [mock_content]
+    def test_enabled_when_llm_client_succeeds(self):
+        fake_mod = _make_fake_llm_module()
+        with patch.dict(sys.modules, {"rodski.llm": fake_mod}):
+            analyzer = LLMAnalyzer()
+        self.assertFalse(analyzer._disabled)
 
-        mock_client = MagicMock()
-        mock_client.messages.create.return_value = mock_response
-
-        mock_anthropic = MagicMock()
-        mock_anthropic.Anthropic.return_value = mock_client
-
-        with patch("vision.llm_analyzer._encode_image", return_value=("b64data", "image/png")):
-            with patch.dict(sys.modules, {"anthropic": mock_anthropic}):
-                result = analyzer._call_llm("/fake/screen.png", SAMPLE_ELEMENTS)
-
-        self.assertEqual(len(result), 3)
-        self.assertEqual(result[0]["semantic_label"], "登录按钮")
-        mock_client.messages.create.assert_called_once()
 
 # ===========================================================================
 # Tests: VisionMatcher helpers

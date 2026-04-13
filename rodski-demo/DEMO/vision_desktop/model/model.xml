@@ -3,47 +3,91 @@
   <!-- 记事本应用模型 - 演示 Desktop 平台视觉定位 -->
   <model name="NotepadApp">
     <!-- 应用路径（静态数据） -->
-    <element name="appPath" locator="static:notepad.exe"/>
+    <element name="appPath">
+      <location type="static">notepad.exe</location>
+    </element>
   </model>
 
   <model name="NotepadPage">
     <!-- 文本编辑区 - 语义定位 -->
-    <element name="textArea" locator="vision:文本编辑区域"/>
+    <element name="textArea">
+      <location type="vision">文本编辑区域</location>
+    </element>
 
     <!-- 菜单项 - 坐标定位（备用） -->
-    <element name="menuFile" locator="vision:文件菜单"/>
-    <element name="menuEdit" locator="vision:编辑菜单"/>
-    <element name="menuHelp" locator="vision:帮助菜单"/>
+    <element name="menuFile">
+      <location type="vision">文件菜单</location>
+    </element>
+    <element name="menuEdit">
+      <location type="vision">编辑菜单</location>
+    </element>
+    <element name="menuHelp">
+      <location type="vision">帮助菜单</location>
+    </element>
 
     <!-- 文件菜单子项 -->
-    <element name="menuItemNew" locator="vision:新建菜单项"/>
-    <element name="menuItemSave" locator="vision:保存菜单项"/>
-    <element name="menuItemExit" locator="vision:退出菜单项"/>
+    <element name="menuItemNew">
+      <location type="vision">新建菜单项</location>
+    </element>
+    <element name="menuItemSave">
+      <location type="vision">保存菜单项</location>
+    </element>
+    <element name="menuItemExit">
+      <location type="vision">退出菜单项</location>
+    </element>
 
     <!-- 状态栏 -->
-    <element name="statusBar" locator="vision:状态栏"/>
+    <element name="statusBar">
+      <location type="vision">状态栏</location>
+    </element>
 
     <!-- 精确坐标定位（备用方案） -->
-    <element name="textAreaBbox" locator="vision_bbox:100,100,1200,800"/>
-    <element name="closeBtnBbox" locator="vision_bbox:1850,50,1900,100"/>
+    <element name="textAreaBbox">
+      <location type="vision_bbox">100,100,1200,800</location>
+    </element>
+    <element name="closeBtnBbox">
+      <location type="vision_bbox">1850,50,1900,100</location>
+    </element>
   </model>
 
   <!-- 计算器应用模型 - 扩展示例 -->
   <model name="CalculatorApp">
-    <element name="appPath" locator="static:calc.exe"/>
+    <element name="appPath">
+      <location type="static">calc.exe</location>
+    </element>
   </model>
 
   <model name="CalculatorPage">
-    <element name="display" locator="vision:计算器显示屏"/>
-    <element name="btnClear" locator="vision:清除按钮"/>
-    <element name="btnEquals" locator="vision:等于按钮"/>
-    <element name="btnAdd" locator="vision:加号按钮"/>
-    <element name="btnSubtract" locator="vision:减号按钮"/>
-    <element name="btnMultiply" locator="vision:乘号按钮"/>
-    <element name="btnDivide" locator="vision:除号按钮"/>
+    <element name="display">
+      <location type="vision">计算器显示屏</location>
+    </element>
+    <element name="btnClear">
+      <location type="vision">清除按钮</location>
+    </element>
+    <element name="btnEquals">
+      <location type="vision">等于按钮</location>
+    </element>
+    <element name="btnAdd">
+      <location type="vision">加号按钮</location>
+    </element>
+    <element name="btnSubtract">
+      <location type="vision">减号按钮</location>
+    </element>
+    <element name="btnMultiply">
+      <location type="vision">乘号按钮</location>
+    </element>
+    <element name="btnDivide">
+      <location type="vision">除号按钮</location>
+    </element>
     <!-- 数字按钮示例 -->
-    <element name="btn1" locator="vision:数字1按钮"/>
-    <element name="btn2" locator="vision:数字2按钮"/>
-    <element name="btn3" locator="vision:数字3按钮"/>
+    <element name="btn1">
+      <location type="vision">数字1按钮</location>
+    </element>
+    <element name="btn2">
+      <location type="vision">数字2按钮</location>
+    </element>
+    <element name="btn3">
+      <location type="vision">数字3按钮</location>
+    </element>
   </model>
 </models>

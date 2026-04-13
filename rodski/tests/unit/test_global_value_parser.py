@@ -1,4 +1,9 @@
-"""GlobalValueParser 单元测试 - XML 版本"""
+"""GlobalValueParser 单元测试 - XML 版本
+
+测试 core/global_value_parser.py 中的全局变量解析器。
+覆盖：parse（完整/空文件）、DefaultValue 组（URL/BrowserType/WaitTime）、
+      数据库连接组、自定义变量组、引用格式 GlobalValue.组名.变量名。
+"""
 import pytest
 from pathlib import Path
 from core.global_value_parser import GlobalValueParser

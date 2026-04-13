@@ -1,7 +1,7 @@
 # Agent 集成指南
 
-**版本**: v1.0
-**日期**: 2026-03-29
+**版本**: v3.0
+**日期**: 2026-04-13
 **目标读者**: AI Agent 开发者
 
 ---
@@ -15,6 +15,8 @@ RodSki 作为执行引擎，Agent 作为智能层：
 ```
 Agent (探索/决策) → XML (活文档) → RodSki (执行) → 结果 → Agent (分析)
 ```
+
+**重要**：RodSki 是 Agent 的执行工具和协议层，不是 Agent 框架。RodSki 不编排 Agent，不管理对话，不做规划决策。Agent 调用 RodSki，RodSki 返回确定性结果。
 
 ### 1.2 核心职责
 
@@ -86,6 +88,43 @@ for result in root.findall(".//result[@status='FAIL']"):
 
 ---
 
+## Agent 接口契约
+
+### CLI 命令
+
+| 命令 | 用途 | 输出 |
+|------|------|------|
+| `rodski run <path> [--output-format json]` | 执行测试 | JSON 结构化结果 |
+| `rodski run <path> --dry-run` | 干跑验证（不执行） | 验证结果 |
+| `rodski explain <case.xml>` | 用例自然语言解释 | 文本说明 |
+| `rodski validate <path>` | XML 格式校验 | 校验结果 |
+| `rodski run <path> --headless` | 无头模式执行 | JSON 结果 |
+
+### 唯一输入格式
+
+所有输入均为 XML 文件：
+- `case/*.xml` — 用例定义
+- `model/model.xml` — 元素模型（唯一定位器格式：`<location type="...">值</location>`）
+- `data/data.xml` — 操作数据
+- `data/data_verify.xml` — 验证数据（可选）
+- `data/globalvalue.xml` — 全局变量
+
+### 唯一输出格式
+
+执行结果为 `execution_summary.json`，结构见 §8。
+
+### 错误契约
+
+| 错误类型 | exit_code | Agent 处理策略 |
+|---------|-----------|---------------|
+| 元素未找到 | 1 | 重新探索页面，更新 model XML |
+| 超时 | 1 | 添加 wait 步骤或增加超时配置 |
+| 断言失败 | 1 | 检查预期值或页面状态 |
+| XML 格式错误 | 2 | 校验并修复 XML |
+| 配置缺失 | 2 | 检查 config 文件 |
+
+---
+
 ## 3. XML 生成策略
 
 ### 3.1 模型 XML
@@ -93,11 +132,13 @@ for result in root.findall(".//result[@status='FAIL']"):
 ```python
 def generate_model_xml(page_name, elements):
     """
-    elements: [{"name": "loginBtn", "locator": "vision:登录按钮"}]
+    elements: [{"name": "loginBtn", "loc_type": "vision", "loc_value": "登录按钮"}]
     """
     xml = f'<models>\n  <model name="{page_name}">\n'
     for elem in elements:
-        xml += f'    <element name="{elem["name"]}" locator="{elem["locator"]}"/>\n'
+        xml += f'    <element name="{elem["name"]}">'
+        xml += f'<location type="{elem["loc_type"]}">{elem["loc_value"]}</location>'
+        xml += '</element>\n'
     xml += '  </model>\n</models>'
 
     Path(f"model/{page_name}.xml").write_text(xml)
@@ -387,25 +428,27 @@ elements = agent.analyze_screenshot(screenshot)
 # 生成 vision 定位器
 for elem in elements:
     if elem["has_bbox"]:
-        locator = f"vision_bbox:{elem['x']},{elem['y']},{elem['w']},{elem['h']}"
+        loc_type = "vision_bbox"
+        loc_value = f"{elem['x']},{elem['y']},{elem['w']},{elem['h']}"
     else:
-        locator = f"vision:{elem['description']}"
+        loc_type = "vision"
+        loc_value = elem['description']
 
     # 写入模型 XML
-    generate_model_xml(page_name, [{"name": elem["name"], "locator": locator}])
+    generate_model_xml(page_name, [{"name": elem["name"], "loc_type": loc_type, "loc_value": loc_value}])
 ```
 
 ### 5.2 定位器选择
 
 ```python
 def choose_locator(element_info):
-    """根据元素特征选择定位器类型"""
+    """根据元素特征选择定位器类型，返回 (loc_type, loc_value) 元组"""
     if element_info.get("has_stable_id"):
-        return f"xpath://[@id='{element_info['id']}']"
+        return ("xpath", f"//[@id='{element_info['id']}']")
     elif element_info.get("has_bbox"):
-        return f"vision_bbox:{element_info['bbox']}"
+        return ("vision_bbox", element_info['bbox'])
     else:
-        return f"vision:{element_info['description']}"
+        return ("vision", element_info['description'])
 ```
 
 ---
@@ -512,8 +555,9 @@ else:
 
 ---
 
-**文档版本**: v2.0
-**最后更新**: 2026-04-05
+**文档版本**: v3.0
+**最后更新**: 2026-04-13
+**框架版本**: v5.7.0
 
 ## execution_summary.json 消费说明
 

@@ -1,3 +1,4 @@
+# DEPRECATED: 配置已迁移到 llm_config.yaml。本文件仅作为向后兼容保留。
 omniparser:
   url: http://14.103.175.167:7862/parse/
   box_threshold: 0.18

@@ -1,4 +1,10 @@
-"""Android 驱动单元测试"""
+"""Android 驱动单元测试
+
+测试 drivers/android_driver.py 中的 Android 移动端驱动。
+覆盖：初始化配置、基本操作（click/type/swipe/scroll）、
+      元素查找（locator 类型映射）、截图、应用管理。
+所有 Appium 调用通过 mock 隔离。
+"""
 import pytest
 from unittest.mock import Mock, patch
 from drivers.android_driver import AndroidDriver

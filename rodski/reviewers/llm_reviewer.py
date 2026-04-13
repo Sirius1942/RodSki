@@ -2,30 +2,39 @@
 import os
 import json
 import base64
+import logging
 from pathlib import Path
 from typing import Dict, List, Optional
 import yaml
 from openai import OpenAI
 
+logger = logging.getLogger(__name__)
+
 
 class LLMReviewer:
     """使用 LLM 审查测试结果的真实性"""
 
-    def __init__(self, config_path: str = None):
+    def __init__(self, config_path: str = None, llm_client=None):
+        self._llm_client = llm_client
+
         if config_path is None:
             config_path = Path(__file__).parent.parent / "config" / "llm_config.yaml"
 
         with open(config_path, 'r', encoding='utf-8') as f:
             self.config = yaml.safe_load(f)
 
-        api_key = self.config.get('api_key')
-        if api_key == 'your-api-key-here':
-            api_key = os.getenv('OPENAI_API_KEY')
+        # 仅在未提供 llm_client 时初始化直连 OpenAI 客户端
+        if self._llm_client is None:
+            api_key = self.config.get('api_key')
+            if api_key == 'your-api-key-here':
+                api_key = os.getenv('OPENAI_API_KEY')
 
-        self.client = OpenAI(
-            api_key=api_key,
-            base_url=self.config.get('api_base')
-        )
+            self.client = OpenAI(
+                api_key=api_key,
+                base_url=self.config.get('api_base')
+            )
+        else:
+            self.client = None
 
     def review_result(self, result_dir: str, case_xml: str = None) -> Dict:
         """审查测试结果
@@ -52,7 +61,28 @@ class LLMReviewer:
         # 收集截图
         screenshots = self._collect_screenshots(result_path)
 
-        # 构建审查请求
+        # 读取用例 XML 内容（如果提供了路径）
+        case_xml_content = None
+        if case_xml:
+            with open(case_xml, 'r', encoding='utf-8') as f:
+                case_xml_content = f.read()
+
+        # 优先使用统一 LLMClient 能力
+        if self._llm_client is not None:
+            try:
+                capability = self._llm_client.get_capability("test_reviewer")
+                return capability.review(
+                    log=log_content,
+                    result_xml=xml_content,
+                    screenshots=screenshots,
+                    case_xml=case_xml_content,
+                )
+            except Exception as e:
+                logger.warning(
+                    f"LLMClient capability failed, falling back to direct API: {e}"
+                )
+
+        # 回退：直接调用 OpenAI API
         return self._call_llm(log_content, xml_content, screenshots, case_xml)
 
     def _collect_screenshots(self, result_path: Path) -> List[str]:

@@ -1,4 +1,9 @@
-"""ModelManager 单元测试"""
+"""ModelManager 单元测试
+
+测试 data/model_manager.py 中的模型管理器。
+覆盖：load（加载 model.xml）、get（按模型名+字段名取定位器）、
+      模型缓存、模型不存在处理。
+"""
 import json
 import pytest
 from data.model_manager import ModelManager

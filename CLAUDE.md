@@ -1,5 +1,7 @@
 # RodSki 项目 - Claude 协作指南
 
+> RodSki 是面向 AI Agent 的跨平台确定性测试执行引擎。
+
 ## 项目文档位置 ⚠️ 重要
 
 **框架文档（AI Agent 必读）统一存放在 `rodski/docs/`：**

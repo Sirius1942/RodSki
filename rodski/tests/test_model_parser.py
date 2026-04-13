@@ -198,7 +198,8 @@ def test_multi_locator_primary_locator(multi_locator_parser):
     assert result["locator_value"] == "登录"
 
 
-def test_legacy_simplified_format_is_still_supported(tmp_path):
+def test_legacy_simplified_format_is_no_longer_supported(tmp_path):
+    """旧版简化格式 type="id" value="xxx" 已移除，应返回 None。"""
     xml = tmp_path / "model.xml"
     xml.write_text(
         '''<?xml version="1.0" encoding="UTF-8"?>
@@ -211,6 +212,42 @@ def test_legacy_simplified_format_is_still_supported(tmp_path):
     )
     parser = ModelParser(str(xml))
     result = parser.get_element("Legacy.username")
+    assert result is None
+
+
+def test_locator_attribute_format_is_no_longer_supported(tmp_path):
+    """旧版 locator="type:value" 属性格式已移除，应返回 None。"""
+    xml = tmp_path / "model.xml"
+    xml.write_text(
+        '''<?xml version="1.0" encoding="UTF-8"?>
+<models>
+  <model name="Legacy">
+    <element name="searchBtn" locator="vision:搜索按钮"/>
+  </model>
+</models>''',
+        encoding='utf-8'
+    )
+    parser = ModelParser(str(xml))
+    result = parser.get_element("Legacy.searchBtn")
+    assert result is None
+
+
+def test_location_element_format_works(tmp_path):
+    """唯一支持的格式：<location> 子元素。"""
+    xml = tmp_path / "model.xml"
+    xml.write_text(
+        '''<?xml version="1.0" encoding="UTF-8"?>
+<models>
+  <model name="TestPage">
+    <element name="username">
+      <location type="id">userName</location>
+    </element>
+  </model>
+</models>''',
+        encoding='utf-8'
+    )
+    parser = ModelParser(str(xml))
+    result = parser.get_element("TestPage.username")
     assert result["locator_type"] == "id"
     assert result["locator_value"] == "userName"
     assert result["model_type"] == MODEL_TYPE_UI

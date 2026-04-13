@@ -1,4 +1,8 @@
-"""TaskExecutor 单元测试"""
+"""TaskExecutor 单元测试
+
+测试用例任务执行器的基本功能。
+覆盖：任务调度、执行顺序、结果收集。
+"""
 import json
 import pytest
 from unittest.mock import MagicMock

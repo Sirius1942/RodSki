@@ -27,6 +27,26 @@ class OpenAIProvider(BaseProvider):
                 raise LLMProviderError("openai library not installed")
         return self._client
 
+    def call_text(self, prompt: str, **kwargs) -> str:
+        """调用 OpenAI 纯文本 API"""
+        client = self._get_client()
+
+        try:
+            response = client.chat.completions.create(
+                model=self.model,
+                max_tokens=kwargs.get("max_tokens", self.max_tokens),
+                timeout=self.timeout,
+                temperature=kwargs.get("temperature"),
+                messages=[{
+                    "role": "user",
+                    "content": prompt,
+                }],
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            logger.error(f"OpenAI API call failed: {e}")
+            raise LLMProviderError(f"OpenAI API error: {e}")
+
     def call_vision(self, image_base64: str, prompt: str, **kwargs) -> str:
         """调用 OpenAI 多模态 API"""
         client = self._get_client()

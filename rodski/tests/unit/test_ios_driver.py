@@ -1,4 +1,10 @@
-"""iOS 驱动单元测试"""
+"""iOS 驱动单元测试
+
+测试 drivers/ios_driver.py 中的 iOS 移动端驱动。
+覆盖：初始化配置、基本操作（click/type/swipe）、
+      元素查找（iOS 特有 locator）、截图。
+所有 Appium 调用通过 mock 隔离。
+"""
 import pytest
 from unittest.mock import Mock, patch
 from drivers.ios_driver import IOSDriver

@@ -40,12 +40,12 @@ def main():
         description="RodSki - 关键字驱动测试框架",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="示例:\n"
-               "  ski run case.xlsx                        执行测试用例\n"
-               "  ski run case.xlsx --dry-run               验证用例但不执行\n"
-               "  ski run case.xlsx --verbose               详细输出模式\n"
-               "  ski run case.xlsx --step-by-step          单步执行模式\n"
-               "  ski run case.xlsx --pause-on-error        错误时暂停\n"
-               "  ski run case.xlsx --interactive           交互模式\n"
+               "  ski run case/                        执行测试用例\n"
+               "  ski run case/ --dry-run               验证用例但不执行\n"
+               "  ski run case/ --verbose               详细输出模式\n"
+               "  ski run case/ --step-by-step          单步执行模式\n"
+               "  ski run case/ --pause-on-error        错误时暂停\n"
+               "  ski run case/ --interactive           交互模式\n"
                "  ski config list                           查看配置\n"
     )
     parser.add_argument("--version", action="version", version=f"RodSki {VERSION}")

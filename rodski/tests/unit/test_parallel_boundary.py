@@ -1,4 +1,8 @@
-"""parallel_executor 并发边界测试"""
+"""parallel_executor 并发边界测试
+
+测试 core/parallel_executor.py 的边界条件。
+覆盖：空任务列表、单任务执行、超大并发数、超时场景。
+"""
 import pytest
 from core.parallel_executor import ParallelExecutor
 

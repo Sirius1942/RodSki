@@ -3,62 +3,131 @@
   <!-- 登录页模型（来自 login 模块） -->
   <model name="LoginPage">
     <!-- 账号登录 Tab -->
-    <element name="accountTab" type="css" value="span[type=PASSWORD]" desc="账号登录页签"/>
+    <element name="accountTab">
+      <location type="css">span[type=PASSWORD]</location>
+      <desc>账号登录页签</desc>
+    </element>
     <!-- 用户名输入框 -->
-    <element name="username" type="css" value="#userName" desc="用户名输入框"/>
+    <element name="username">
+      <location type="css">#userName</location>
+      <desc>用户名输入框</desc>
+    </element>
     <!-- 密码输入框 -->
-    <element name="password" type="css" value="#password" desc="密码输入框"/>
+    <element name="password">
+      <location type="css">#password</location>
+      <desc>密码输入框</desc>
+    </element>
     <!-- 同意协议复选框（label 标签） -->
-    <element name="agreeCheckbox" type="css" value="label.br-checkbox" desc="同意协议复选框"/>
+    <element name="agreeCheckbox">
+      <location type="css">label.br-checkbox</location>
+      <desc>同意协议复选框</desc>
+    </element>
     <!-- 登录按钮 -->
-    <element name="loginBtn" type="css" value=".btn-submit" desc="登录按钮"/>
+    <element name="loginBtn">
+      <location type="css">.btn-submit</location>
+      <desc>登录按钮</desc>
+    </element>
   </model>
 
   <!-- 发布询价页（维修厂-小李） -->
   <model name="InquiryPage">
     <!-- VIN码输入框 -->
-    <element name="vin" type="css" value="#vin" desc="VIN码输入框"/>
+    <element name="vin">
+      <location type="css">#vin</location>
+      <desc>VIN码输入框</desc>
+    </element>
     <!-- 配件名称/原厂零件号（第1行） -->
-    <element name="needsName" type="css" value="textarea[name=needName]" desc="配件名称输入框（第1行）"/>
+    <element name="needsName">
+      <location type="css">textarea[name=needName]</location>
+      <desc>配件名称输入框（第1行）</desc>
+    </element>
     <!-- 数量（第1行） -->
-    <element name="needQuantity" type="css" value="textarea[name=needQuantity]" desc="数量输入框（第1行）"/>
+    <element name="needQuantity">
+      <location type="css">textarea[name=needQuantity]</location>
+      <desc>数量输入框（第1行）</desc>
+    </element>
     <!-- 配件描述备注 -->
-    <element name="qualityRemarks" type="css" value="#new-quality-remarks" desc="质量要求备注"/>
+    <element name="qualityRemarks">
+      <location type="css">#new-quality-remarks</location>
+      <desc>质量要求备注</desc>
+    </element>
     <!-- 发布询价/保存按钮 -->
-    <element name="submitInquiry" type="css" value=".save-inquiry" desc="发布询价按钮"/>
+    <element name="submitInquiry">
+      <location type="css">.save-inquiry</location>
+      <desc>发布询价按钮</desc>
+    </element>
     <!-- 品牌输入（当VIN无结果时使用） -->
-    <element name="carBrand" type="css" value="#otherCarBrandName" desc="车辆品牌输入"/>
+    <element name="carBrand">
+      <location type="css">#otherCarBrandName</location>
+      <desc>车辆品牌输入</desc>
+    </element>
     <!-- 车型输入 -->
-    <element name="carModel" type="css" value="#otherCarModelName" desc="车辆型号输入"/>
+    <element name="carModel">
+      <location type="css">#otherCarModelName</location>
+      <desc>车辆型号输入</desc>
+    </element>
     <!-- 自助查找OE配件按钮 -->
-    <element name="searchOE" type="css" value=".btn-searchOE" desc="自助查找OE配件"/>
+    <element name="searchOE">
+      <location type="css">.btn-searchOE</location>
+      <desc>自助查找OE配件</desc>
+    </element>
   </model>
 
   <!-- 供应商询价单列表页 -->
   <model name="SupplierInquiryPage">
     <!-- 询价单列表容器 -->
-    <element name="inquiryList" type="css" value=".inquiry-list,[class*='inquiry-list']" desc="询价单列表"/>
+    <element name="inquiryList">
+      <location type="css">.inquiry-list,[class*='inquiry-list']</location>
+      <desc>询价单列表</desc>
+    </element>
     <!-- 询价单号 -->
-    <element name="inquiryNo" type="css" value="[class*='inquiry-no']" desc="询价单号"/>
+    <element name="inquiryNo">
+      <location type="css">[class*='inquiry-no']</location>
+      <desc>询价单号</desc>
+    </element>
     <!-- 立即报价按钮 -->
-    <element name="quoteNow" type="xpath" value="//*[contains(text(),'立即报价')]" desc="立即报价按钮"/>
+    <element name="quoteNow">
+      <location type="xpath">//*[contains(text(),'立即报价')]</location>
+      <desc>立即报价按钮</desc>
+    </element>
     <!-- 查看详情 -->
-    <element name="viewDetail" type="xpath" value="//*[contains(text(),'查看详情')]" desc="查看详情"/>
+    <element name="viewDetail">
+      <location type="xpath">//*[contains(text(),'查看详情')]</location>
+      <desc>查看详情</desc>
+    </element>
     <!-- 询价商品名称 -->
-    <element name="inquiryProduct" type="css" value="[class*='product-name']" desc="询价商品名称"/>
+    <element name="inquiryProduct">
+      <location type="css">[class*='product-name']</location>
+      <desc>询价商品名称</desc>
+    </element>
   </model>
 
   <!-- 供应商报价页 -->
   <model name="QuotePage">
     <!-- 报价输入框 -->
-    <element name="quotePrice" type="css" value="input[placeholder*='报价']" desc="报价输入框"/>
+    <element name="quotePrice">
+      <location type="css">input[placeholder*='报价']</location>
+      <desc>报价输入框</desc>
+    </element>
     <!-- 数量输入 -->
-    <element name="quantity" type="css" value="input[type='number']" desc="数量输入"/>
+    <element name="quantity">
+      <location type="css">input[type='number']</location>
+      <desc>数量输入</desc>
+    </element>
     <!-- 提交报价 -->
-    <element name="submitQuote" type="xpath" value="//*[contains(text(),'提交报价')]" desc="提交报价按钮"/>
+    <element name="submitQuote">
+      <location type="xpath">//*[contains(text(),'提交报价')]</location>
+      <desc>提交报价按钮</desc>
+    </element>
     <!-- 取消报价 -->
-    <element name="cancelQuote" type="xpath" value="//*[contains(text(),'取消')]" desc="取消报价"/>
+    <element name="cancelQuote">
+      <location type="xpath">//*[contains(text(),'取消')]</location>
+      <desc>取消报价</desc>
+    </element>
     <!-- 确认按钮（对话框） -->
-    <element name="confirmBtn" type="xpath" value="//*[contains(text(),'确认')]" desc="确认按钮"/>
+    <element name="confirmBtn">
+      <location type="xpath">//*[contains(text(),'确认')]</location>
+      <desc>确认按钮</desc>
+    </element>
   </model>
 </models>

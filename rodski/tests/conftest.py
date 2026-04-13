@@ -4,7 +4,6 @@ import pytest
 import warnings
 
 # 过滤第三方库的 deprecation warnings
-warnings.filterwarnings("ignore", category=DeprecationWarning, module="openpyxl")
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="dateutil")
 
 

@@ -1,4 +1,10 @@
-"""Pywinauto 驱动单元测试"""
+"""Pywinauto 驱动单元测试
+
+测试 drivers/pywinauto_driver.py 中的 Windows 桌面驱动。
+覆盖：初始化、窗口查找、控件操作（click/type）、
+      截图、平台检查（仅 Windows）。
+所有 pywinauto 调用通过 mock 隔离。
+"""
 import pytest
 import sys
 from unittest.mock import Mock, patch, MagicMock

@@ -1,4 +1,5 @@
 # RodSki LLM 统一配置
+# 所有 LLM 相关配置集中在此文件
 
 # 默认 provider
 provider: claude
@@ -8,14 +9,14 @@ providers:
   claude:
     model: claude-opus-4-6
     base_url: "http://code.casstime.ai"  # 可选代理地址
-    api_key_env: sk-f3tf9sUywnTBNbkQesLsaEE5Abtz1vZX88Sqvqm5MG7cGg3w
+    api_key_env: ANTHROPIC_API_KEY
     timeout: 10
     max_tokens: 1024
 
   openai:
     model: gpt-5.4
-    base_url: http://code.casstime.ai
-    api_key_env: sk-f3tf9sUywnTBNbkQesLsaEE5Abtz1vZX88Sqvqm5MG7cGg3w
+    base_url: "http://code.casstime.ai"
+    api_key_env: OPENAI_API_KEY
     timeout: 10
     max_tokens: 2000
 
@@ -23,3 +24,35 @@ providers:
 capabilities:
   vision_locator:
     provider: claude  # 可覆盖默认 provider
+  screenshot_verifier:
+    provider: claude
+  test_reviewer:
+    provider: openai
+    temperature: 0.1
+    max_tokens: 2000
+    enable_vision: true
+    max_screenshots: 10
+    system_prompt: |
+      你是一个专业的自动化测试结果审查员。
+      你的任务是根据测试用例定义、执行日志和截图，判断测试是否真正成功。
+
+      判断标准：
+      1. 所有步骤是否按预期执行
+      2. 截图中的界面状态是否符合预期
+      3. 是否有异常、错误或警告
+      4. 最终结果是否达到测试目标
+
+      输出格式：
+      {
+        "verdict": "PASS|FAIL|SUSPICIOUS",
+        "confidence": 0.0-1.0,
+        "reason": "判断理由",
+        "issues": ["发现的问题列表"]
+      }
+
+# OmniParser 配置
+omniparser:
+  url: "http://14.103.175.167:7862/parse/"
+  box_threshold: 0.18
+  iou_threshold: 0.7
+  timeout: 5

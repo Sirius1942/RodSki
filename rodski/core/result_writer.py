@@ -1,6 +1,5 @@
 """结果回填模块 - 将测试执行结果写入 XML 文件
 
-替代原来写入 Excel TestResult/TestSummary Sheet 的方式。
 XML 格式参见 schemas/result.xsd。
 """
 import logging

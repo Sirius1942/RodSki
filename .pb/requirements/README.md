@@ -6,7 +6,7 @@ RodSki 框架的需求管理文档目录。
 
 | 文档 | 说明 |
 |------|------|
-| [RODSKI_REQUIREMENTS.md](RODSKI_REQUIREMENTS.md) | RodSki 需求总览 — 关键字驱动框架、多端覆盖、CLI/GUI/CI 集成 |
+| [RODSKI_REQUIREMENTS.md](RODSKI_REQUIREMENTS.md) | RodSki 需求总览 — 关键字驱动框架、多端覆盖、CLI/GUI/CI 集成、单元测试门禁与 Markdown 报告要求 |
 
 ### 历史归档
 

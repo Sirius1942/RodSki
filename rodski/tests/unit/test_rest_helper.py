@@ -1,4 +1,10 @@
-"""RestHelper 单元测试"""
+"""RestHelper 单元测试
+
+测试 api/rest_helper.py 中的 HTTP 请求辅助类。
+覆盖：send_request（GET/POST/PUT/DELETE）、请求头组装、
+      JSON body 序列化、响应解析、超时处理、重试机制。
+所有 HTTP 请求通过 mock 隔离。
+"""
 import pytest
 from unittest.mock import MagicMock, patch, Mock
 from datetime import timedelta
