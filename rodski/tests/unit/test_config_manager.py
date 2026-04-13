@@ -1,4 +1,10 @@
-"""ConfigManager 单元测试"""
+"""ConfigManager 单元测试
+
+测试 core/config_manager.py 中的配置管理器。
+覆盖：默认值（driver/headless/timeout）、set/get、
+      持久化（写入 JSON 文件后重新加载）、
+      from_dict / to_dict、自定义配置项。
+"""
 import json
 import pytest
 from core.config_manager import ConfigManager, DEFAULTS

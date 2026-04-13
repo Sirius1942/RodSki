@@ -25,6 +25,12 @@ _DEFAULT_CONFIG = {
         },
     },
     "capabilities": {},
+    "omniparser": {
+        "url": "http://14.103.175.167:7862/parse/",
+        "box_threshold": 0.18,
+        "iou_threshold": 0.7,
+        "timeout": 5,
+    },
 }
 
 _CONFIG_PATH = pathlib.Path(__file__).parent.parent / "config" / "llm_config.yaml"
@@ -101,3 +107,28 @@ def resolve_api_key(provider_config: dict) -> str:
             pass
 
     return ""
+
+
+def get_capability_config(config: dict, capability_name: str) -> dict[str, Any]:
+    """获取指定能力的配置，合并 provider 级别配置。
+
+    Returns:
+        合并后的能力配置字典，包含 provider 配置和能力特定配置。
+    """
+    capabilities = config.get("capabilities", {})
+    cap_cfg = dict(capabilities.get(capability_name, {}))
+
+    # 确定该能力使用的 provider
+    provider_name = cap_cfg.pop("provider", config.get("provider", "claude"))
+    provider_cfg = dict(config.get("providers", {}).get(provider_name, {}))
+
+    # 能力特定配置覆盖 provider 级别配置
+    provider_cfg.update(cap_cfg)
+    provider_cfg["provider"] = provider_name
+
+    return provider_cfg
+
+
+def get_omniparser_config(config: dict) -> dict[str, Any]:
+    """获取 OmniParser 配置。"""
+    return dict(config.get("omniparser", _DEFAULT_CONFIG["omniparser"]))

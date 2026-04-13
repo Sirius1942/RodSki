@@ -1,4 +1,9 @@
-"""Profiler 单元测试"""
+"""Profiler 单元测试
+
+测试 core/profiler.py 中的性能分析器。
+覆盖：start/stop 计时、duration 计算、
+      report 输出、嵌套测量。
+"""
 import pytest
 import time
 from core.profiler import Profiler

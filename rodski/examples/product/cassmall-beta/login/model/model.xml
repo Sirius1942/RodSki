@@ -2,14 +2,29 @@
 <models>
   <model name="LoginPage">
     <!-- 账号登录 Tab -->
-    <element name="accountTab" type="css" value="span[type=PASSWORD]" desc="账号登录页签"/>
+    <element name="accountTab">
+      <location type="css">span[type=PASSWORD]</location>
+      <desc>账号登录页签</desc>
+    </element>
     <!-- 用户名输入框 -->
-    <element name="username" type="css" value="#userName" desc="用户名输入框"/>
+    <element name="username">
+      <location type="css">#userName</location>
+      <desc>用户名输入框</desc>
+    </element>
     <!-- 密码输入框 -->
-    <element name="password" type="css" value="#password" desc="密码输入框"/>
+    <element name="password">
+      <location type="css">#password</location>
+      <desc>密码输入框</desc>
+    </element>
     <!-- 同意协议复选框（label 标签） -->
-    <element name="agreeCheckbox" type="css" value="label.br-checkbox" desc="同意协议复选框"/>
+    <element name="agreeCheckbox">
+      <location type="css">label.br-checkbox</location>
+      <desc>同意协议复选框</desc>
+    </element>
     <!-- 登录按钮 -->
-    <element name="loginBtn" type="css" value=".btn-submit" desc="登录按钮"/>
+    <element name="loginBtn">
+      <location type="css">.btn-submit</location>
+      <desc>登录按钮</desc>
+    </element>
   </model>
 </models>

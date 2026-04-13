@@ -22,20 +22,26 @@ RodSki 调用 **OmniParser 服务**获取页面元素坐标，结合多模态 LL
 
 ### 语义定位
 ```xml
-<element name="loginBtn" locator="vision:登录按钮"/>
+<element name="loginBtn">
+    <location type="vision">登录按钮</location>
+</element>
 ```
 
 ### 坐标定位
 ```xml
 <!-- Web: 像素坐标 -->
-<element name="submitBtn" locator="vision_bbox:100,200,150,250"/>
+<element name="submitBtn">
+    <location type="vision_bbox">100,200,150,250</location>
+</element>
 
 <!-- Desktop: 屏幕绝对坐标 -->
-<element name="closeBtn" locator="vision_bbox:1850,50,1900,100"/>
+<element name="closeBtn">
+    <location type="vision_bbox">1850,50,1900,100</location>
+</element>
 ```
 
 **格式约束**：
-- 使用 `locator` 属性，格式为 `前缀:值`
+- 使用 `<location type="...">值</location>` 子元素格式
 - `vision_bbox` 坐标为 `x1,y1,x2,y2`（逗号分隔）
 - Web: 像素坐标；Desktop: 屏幕绝对坐标
 
@@ -48,7 +54,7 @@ RodSki 调用 **OmniParser 服务**获取页面元素坐标，结合多模态 LL
 ```
 
 **流程说明**：
-1. 框架读取模型定义，识别 `locator="vision:..."` 或 `locator="vision_bbox:..."`
+1. 框架读取模型定义，识别 `<location type="vision">` 或 `<location type="vision_bbox">` 元素
 2. 自动截图（Web 浏览器截图 / Desktop 全屏截图）
 3. 调用 OmniParser 服务获取元素坐标列表
 4. 使用 LLM 进行语义匹配（仅 `vision` 类型）
@@ -106,9 +112,15 @@ rodski/vision/
 **模型定义**（`model/model.xml`）：
 ```xml
 <model name="LoginPage" driver_type="web">
-  <element name="username" locator="vision:用户名输入框"/>
-  <element name="password" locator="vision:密码输入框"/>
-  <element name="loginBtn" locator="vision:登录按钮"/>
+  <element name="username">
+      <location type="vision">用户名输入框</location>
+  </element>
+  <element name="password">
+      <location type="vision">密码输入框</location>
+  </element>
+  <element name="loginBtn">
+      <location type="vision">登录按钮</location>
+  </element>
 </model>
 ```
 
@@ -134,8 +146,12 @@ rodski/vision/
 **模型定义**（`model/model.xml`）：
 ```xml
 <model name="Notepad" driver_type="windows">
-  <element name="textArea" locator="vision:文本编辑区"/>
-  <element name="saveBtn" locator="vision_bbox:100,50,150,80"/>
+  <element name="textArea">
+      <location type="vision">文本编辑区</location>
+  </element>
+  <element name="saveBtn">
+      <location type="vision_bbox">100,50,150,80</location>
+  </element>
 </model>
 ```
 
@@ -212,7 +228,7 @@ print(json.dumps({"status": "success", "keys": keys}))
 - ❌ 不新增 `vision_click`、`vision_input` 等关键字
 - ❌ 不在 Case XML 中直接写坐标
 - ❌ 桌面端不新增 `clipboard`、`key_combination`、`window` 等关键字
-- ✅ 视觉定位作为模型定位器类型（`locator` 属性）
+- ✅ 视觉定位作为模型定位器类型（`<location type="...">` 子元素）
 - ✅ 复用现有关键字（type/verify/navigate/launch）
 - ✅ 桌面操作通过 `run` 调用脚本
 - ✅ 坐标信息记录在模型 XML 中

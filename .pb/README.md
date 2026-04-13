@@ -31,7 +31,7 @@ PhoenixBear 管理 RodSki 的所有迭代开发，涵盖需求、约束、设计
 | **[conventions/](conventions/)** | 项目规范：Git 工作流、CI/CD、项目约束 |
 | **[requirements/](requirements/)** | 需求文档总览 |
 | **[agent/](agent/)** | Agent 开发规范与集成指南 |
-| **[iterations/](iterations/)** | 迭代管理（iteration-03 ~ iteration-07） |
+| **[iterations/](iterations/)** | 迭代管理与执行记录（含每次 pytest 单元测试的 Markdown 报告） |
 
 ## 快速开始
 

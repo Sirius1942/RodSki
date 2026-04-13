@@ -1,4 +1,10 @@
-"""DataResolver 单元测试"""
+"""DataResolver 单元测试
+
+测试 data/data_resolver.py 中的数据解析器。
+覆盖：简单变量替换 ${var}、多变量、嵌套变量 ${user.name}、
+      缺失变量保留原样、模型引用 @{model.field}、
+      GlobalValue 引用、Return 引用、数据表引用。
+"""
 import pytest
 from unittest.mock import MagicMock
 from data.data_resolver import DataResolver

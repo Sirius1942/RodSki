@@ -1,4 +1,9 @@
-"""测试并发执行器"""
+"""并发执行器单元测试
+
+测试 core/parallel_executor.py 中的并发执行器。
+覆盖：多线程执行、执行结果收集、异常处理、
+      最大并发数限制。
+"""
 import pytest
 from unittest.mock import Mock, MagicMock
 from core.parallel_executor import ParallelExecutor

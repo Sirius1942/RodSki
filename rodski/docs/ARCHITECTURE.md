@@ -1,4 +1,6 @@
-# RodSki 项目架构文档
+# RodSki 执行引擎架构文档
+
+> RodSki 是面向 AI Agent 的跨平台确定性测试执行引擎。
 
 ## 1. 项目目录结构
 
@@ -28,7 +30,7 @@ rodski/
 │   ├── model_parser.py      # 模型解析器 - XML元素定位
 │   ├── global_value_parser.py # 全局变量解析器
 │   ├── data_parser.py       # 数据引用解析器
-│   ├── result_writer.py     # 结果回写器 - Excel结果回填
+│   ├── result_writer.py     # 结果回写器 - 测试结果回填
 │   ├── config_manager.py    # 配置管理器
 │   ├── logger.py            # 日志管理
 │   ├── exceptions.py        # 自定义异常
@@ -46,18 +48,12 @@ rodski/
 │
 ├── data/                    # 数据处理层
 │   ├── __init__.py
-│   ├── excel_parser.py      # Excel 解析器
 │   ├── data_resolver.py     # 数据解析器 - 引用解析
 │   └── model_manager.py     # 模型管理器
 │
 ├── api/                     # API 测试支持
 │   ├── __init__.py
 │   └── rest_helper.py       # RESTful API 辅助工具
-│
-├── examples/                # 示例用例
-│   ├── baidu_test/
-│   ├── android_example.py
-│   └── ios_example.py
 │
 ├── config/                  # 配置文件
 ├── logs/                    # 日志输出
@@ -74,7 +70,7 @@ rodski/
 │                              CLI Layer (入口层)                              │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│   cli_main.py ──► rodski_cli/run.py ──► rodski run case.xlsx [options]           │
+│   cli_main.py ──► rodski_cli/run.py ──► rodski run case/ [options]               │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
                                       │
@@ -225,30 +221,43 @@ rodski/
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                           Excel 用例文件结构                                 │
+│                           XML 用例文件结构                                    │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                          Case Sheet                                  │   │
-│  ├─────┬───────┬───────┬────────────────────────────────────────────────┤   │
-│  │执行 │CaseID │ 标题  │ 预处理 │ 测试步骤 │ 预期结果 │ 后处理           │   │
-│  │控制 │       │       │action │ action  │ action  │ action           │   │
-│  ├─────┼───────┼───────┼────────────────────────────────────────────────┤   │
-│  │ 是  │TC001  │登录   │navigate│ type    │ assert  │ close            │   │
-│  │     │       │       │       │ click   │         │                  │   │
-│  └─────┴───────┴───────┴────────────────────────────────────────────────┘   │
+│  │                    case/*.xml (用例定义)                              │   │
+│  │  <cases>                                                            │   │
+│  │    <case execute="是" id="TC001" title="登录">                      │   │
+│  │      <pre_process>                                                  │   │
+│  │        <test_step action="navigate" model="" data="..."/>           │   │
+│  │      </pre_process>                                                 │   │
+│  │      <test_case>                                                    │   │
+│  │        <test_step action="type" model="Login" data="L001"/>         │   │
+│  │        <test_step action="verify" model="Login" data="V001"/>       │   │
+│  │      </test_case>                                                   │   │
+│  │      <post_process>                                                 │   │
+│  │        <test_step action="close" model="" data=""/>                 │   │
+│  │      </post_process>                                                │   │
+│  │    </case>                                                          │   │
+│  │  </cases>                                                           │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                             │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                      数据表 Sheet (LoginData)                        │   │
-│  ├─────────┬─────────┬──────────┬─────────────┐                         │   │
-│  │ DataID  │ Remark  │ username │  password   │                         │   │
-│  ├─────────┼─────────┼──────────┼─────────────┤                         │   │
-│  │ data001 │ 正常登录 │ admin    │ 123456      │                         │   │
-│  │ data002 │ 错误密码 │ admin    │ wrong       │                         │   │
-│  └─────────┴─────────┴──────────┴─────────────┘                         │
+│  │                    data/data.xml (数据表)                             │   │
+│  │  <datatable name="Login">                                           │   │
+│  │    <row id="L001" remark="正常登录">                                 │   │
+│  │      <field name="username">admin</field>                           │   │
+│  │      <field name="password">123456</field>                          │   │
+│  │    </row>                                                           │   │
+│  │    <row id="L002" remark="错误密码">                                 │   │
+│  │      <field name="username">admin</field>                           │   │
+│  │      <field name="password">wrong</field>                           │   │
+│  │    </row>                                                           │   │
+│  │  </datatable>                                                       │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                             │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                        model.xml (元素定位)                          │   │
+│  │                        model/model.xml (元素定位)                     │   │
 │  │  <model name="LoginPage">                                           │   │
 │  │    <element name="username">                                        │   │
 │  │      <location type="id">username_input</location>                  │   │
@@ -320,7 +329,7 @@ rodski/
                     ┌─────────────────┐
                     │  6. 结果回填     │
                     │  ResultWriter   │
-                    │  更新 Excel     │
+                    │  更新结果 XML   │
                     └────────┬────────┘
                              │
                              ▼
@@ -460,7 +469,7 @@ rodski/
 
 ### 6.5 DataTableParser (数据表解析器)
 ```python
-职责: 解析 Excel 数据表，支持数据驱动测试
+职责: 解析 XML 数据表，支持数据驱动测试
 位置: core/data_table_parser.py
 
 功能:
@@ -523,7 +532,7 @@ XML 用例文件
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │  ResultWriter.write_results(results)                                        │
 │      │                                                                      │
-│      ├── 更新 Excel TestResult Sheet                                        │
+│      ├── 更新 result/*.xml 测试结果                                          │
 │      └── 写入执行状态、耗时、错误信息、截图路径                               │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -570,22 +579,22 @@ def _kw_new_keyword(self, params: Dict) -> bool:
 
 ```bash
 # 执行测试用例
-rodski run case.xlsx
+rodski run case/
 
 # 详细输出模式
-rodski run case.xlsx --verbose
+rodski run case/ --verbose
 
 # 无头模式
-rodski run case.xlsx --headless
+rodski run case/ --headless
 
 # 失败重试
-rodski run case.xlsx --retry 3
+rodski run case/ --retry 3
 
 # 仅验证不执行
-rodski run case.xlsx --dry-run
+rodski run case/ --dry-run
 
 # 显示性能统计
-rodski run case.xlsx --performance
+rodski run case/ --performance
 
 # 查看配置
 rodski config list

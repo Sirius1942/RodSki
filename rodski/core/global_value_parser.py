@@ -1,6 +1,6 @@
 """全局变量 XML 解析器 - 解析 globalvalue.xml
 
-从 data/globalvalue.xml 解析全局变量，替代原 Excel GlobalValue Sheet。
+从 data/globalvalue.xml 解析全局变量。
 XML 格式参见 schemas/globalvalue.xsd。
 """
 import xml.etree.ElementTree as ET

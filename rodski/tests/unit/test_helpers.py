@@ -1,4 +1,8 @@
-"""utils/helpers.py 单元测试"""
+"""utils/helpers.py 单元测试
+
+测试 utils/helpers.py 中的通用工具函数。
+覆盖：文件路径处理、字符串工具、时间格式化等辅助方法。
+"""
 import pytest
 from pathlib import Path
 import tempfile

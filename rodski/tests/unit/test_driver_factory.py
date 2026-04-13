@@ -1,4 +1,10 @@
-"""DriverFactory 单元测试"""
+"""DriverFactory 单元测试
+
+测试 core/driver_factory.py 中的驱动工厂。
+覆盖：create_driver（web/android/ios/interface/macos 类型）、
+      MockInterfaceDriver / MockMacOSDriver、
+      driver_factory 闭包、未知类型错误处理。
+"""
 import pytest
 from unittest.mock import MagicMock, patch
 from core.driver_factory import DriverFactory, MockInterfaceDriver, MockMacOSDriver

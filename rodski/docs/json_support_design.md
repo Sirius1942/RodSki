@@ -7,7 +7,7 @@
 ## 核心功能
 
 ### 1. JSON 字符串解析
-直接在 Excel 数据表中写入 JSON：
+直接在 数据表中写入 JSON：
 ```
 | DataID | request_body | expected_response |
 |--------|--------------|-------------------|
@@ -67,7 +67,7 @@ data = resolver.resolve_json('{"name": "${user}"}')
 data = resolver.resolve_json("@file:api/login_request.json")
 ```
 
-### Excel 用例编写
+### 数据表用例编写
 
 **方案 1：简单 JSON 内嵌**
 ```
@@ -102,7 +102,7 @@ data = resolver.resolve_json("@file:api/login_request.json")
 ## 优势
 
 1. **灵活性**：支持内嵌和文件引用两种方式
-2. **易用性**：保持 Excel 编写习惯
+2. **易用性**：保持数据表编写习惯
 3. **可维护性**：复杂 JSON 独立文件管理
 4. **扩展性**：支持变量和模型引用
 5. **兼容性**：不影响现有功能

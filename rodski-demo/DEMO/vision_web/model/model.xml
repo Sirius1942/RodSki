@@ -1,8 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <models>
   <model name="SearchPage">
-    <element name="searchInput" locator="vision:搜索输入框"/>
-    <element name="searchBtn" locator="vision:搜索按钮"/>
-    <element name="firstResult" locator="vision:第一个搜索结果"/>
+    <element name="searchInput">
+      <location type="vision">搜索输入框</location>
+    </element>
+    <element name="searchBtn">
+      <location type="vision">搜索按钮</location>
+    </element>
+    <element name="firstResult">
+      <location type="vision">第一个搜索结果</location>
+    </element>
   </model>
 </models>

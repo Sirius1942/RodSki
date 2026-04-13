@@ -1,101 +1,93 @@
-# 🏎️ RodSki
+# RodSki
 
-**RodSki** 是一个关键字驱动的自动化测试框架，使用 Python 编写，支持 Web（Playwright）、Android（Appium）、iOS（Appium）和桌面应用（PyWinAuto）的自动化测试。
+**RodSki** 是面向 AI Agent 的跨平台确定性测试执行引擎，基于 XML 活文档协议，支持 Web（Playwright）、Android（Appium）、iOS（Appium）和桌面应用（PyWinAuto）的自动化测试执行。
 
-> 从 SKI Java 测试框架重写而来，使用 PyQt6 构建 GUI，Playwright 替代 Selenium，新增 RESTful API 测试支持。
+> Agent 负责思考，RodSki 负责稳定执行。
 
-## ✨ 特性
+## 特性
 
-- **关键字驱动** — 通过 xml 用例驱动测试执行，无需编写代码
-- **多平台支持** — Web / Android / iOS / Windows 桌面应用
-- **数据驱动** — 支持 xml 数据表与全局变量
-- **智能等待** — 自动处理元素加载延迟，提高测试稳定性
-- **RESTful API** — 内置 API 测试能力
-- **并行执行** — 支持多用例并行
-- **CLI 工具** — 命令行接口，支持 CI/CD 集成
-- **测试报告** — 自动生成 HTML 测试报告
+- **结构化 XML 协议** — model / case / data 活文档，Agent 可读可写
+- **多平台确定性执行** — Web / Android / iOS / Desktop 统一关键字
+- **视觉定位能力** — OmniParser + LLM 语义定位（可选 AI 能力层）
+- **Agent 友好 CLI** — run / validate / explain / dry-run，JSON 结构化输出
+- **活文档模式** — Agent 写 XML → RodSki 执行 → 结果反馈 → Agent 分析
+- **智能等待** — 自动处理元素加载延迟，零配置开箱即用
+- **智能诊断** — AI 辅助失败分析与恢复建议（可选）
 
-## 🚀 快速开始
-
-### 安装
+## 快速开始
 
 ```bash
+# 安装
 pip install -r requirements.txt
-```
 
-### CLI 使用
+# 执行测试
+rodski run case/ --output-format json
 
-```bash
-# 执行测试用例
-rodski run case.xlsx
+# 解释用例（自然语言）
+rodski explain case/login.xml
+
+# 干跑模式（仅验证不执行）
+rodski run case/ --dry-run
 
 # 详细输出
-rodski run case.xlsx --verbose
-
-# 单步执行
-rodski run case.xlsx --step-by-step
-
-# 查看配置
-rodski config list
+rodski run case/ --verbose
 ```
 
-### GUI 启动
+## 架构概览
 
-```bash
-python rodski/ski_gui.py
+```
+Agent (探索/决策) → XML (活文档) → RodSki (执行) → JSON (结果) → Agent (分析)
 ```
 
-## 🎯 智能等待机制
+RodSki 作为 Agent 工具链中的执行层，提供确定性、可重复的测试执行能力。Agent 通过 XML 协议描述测试意图，RodSki 负责跨平台执行并以 JSON 格式返回结构化结果，供 Agent 进一步分析和决策。
 
-RodSki 内置智能等待功能，自动处理 UI 元素的加载延迟，无需手动添加等待步骤。
+## 项目结构
 
-### 特点
+```
+RodSki/
+├── rodski/              # 核心框架
+│   ├── core/            # 执行引擎（关键字、解析器、诊断）
+│   ├── drivers/         # 平台驱动（Playwright/Appium/PyWinAuto）
+│   ├── llm/             # LLM 能力层（可选）
+│   ├── vision/          # 视觉定位（可选）
+│   ├── rodski_cli/      # CLI 子命令
+│   ├── config/          # 配置文件
+│   └── docs/            # 框架文档
+├── rodski-demo/         # 官方示例
+└── .pb/                 # 项目管理文档
+```
 
-- ⚡ **零配置** — 默认启用，开箱即用
-- 🚀 **性能优化** — 快速响应元素无延迟（首次立即尝试）
-- 🔄 **自动重试** — 元素未加载时自动重试（默认 30 次 × 300ms = 9 秒）
-- ⏱️ **智能停止** — 元素出现后立即执行，不浪费时间
-- 🎛️ **可配置** — 支持自定义重试次数和间隔
+## 文档
 
-### 配置
+| 文档 | 说明 |
+|------|------|
+| [Agent 集成指南](rodski/docs/AGENT_INTEGRATION.md) | Agent 接入主入口 |
+| [用例编写指南](rodski/docs/TEST_CASE_WRITING_GUIDE.md) | XML 用例编写规范 |
+| [核心设计约束](rodski/docs/CORE_DESIGN_CONSTRAINTS.md) | 框架不可违反的设计约束 |
+| [关键字参考](rodski/docs/SKILL_REFERENCE.md) | 全部关键字语法说明 |
+| [架构说明](rodski/docs/ARCHITECTURE.md) | 框架内部架构 |
+| [视觉定位](rodski/docs/VISION_LOCATION.md) | OmniParser 视觉定位能力 |
 
-编辑 `rodski/config/config.json`：
+## 智能等待
+
+RodSki 内置智能等待机制，自动处理 UI 元素的加载延迟，无需手动添加等待步骤。
+
+- **零配置** — 默认启用，开箱即用
+- **性能优化** — 元素就绪时立即执行，不浪费时间
+- **自动重试** — 元素未加载时自动重试（默认 30 次 x 300ms = 9 秒）
+- **可配置** — 支持自定义重试次数和间隔
+
+配置项位于 `rodski/config/config.json`：
 
 ```json
 {
-  "smart_wait_enabled": true,           // 启用智能等待
-  "smart_wait_max_retries": 30,         // 最大重试 30 次
-  "smart_wait_retry_interval": 0.3,     // 每次间隔 300ms
-  "smart_wait_log_retry": true          // 记录重试日志
+  "smart_wait_enabled": true,
+  "smart_wait_max_retries": 30,
+  "smart_wait_retry_interval": 0.3,
+  "smart_wait_log_retry": true
 }
 ```
 
-### 适用场景
-
-- 动态加载的页面元素（React、Vue 等）
-- 网络延迟导致的元素延迟出现
-- 移动应用的异步加载
-- 桌面应用的窗口切换
-
-详见：[快速入门指南](rodski/docs/user-guides/QUICKSTART.md)
-
-## 📁 项目结构
-
-```
-rodski/
-├── api/            # RESTful API 测试
-├── cli_main.py     # CLI 入口
-├── config/         # 配置文件
-├── core/           # 核心引擎（关键字解析、执行器等）
-├── drivers/        # 浏览器/设备驱动
-├── rodski_cli/     # CLI 子命令
-├── ui/             # GUI 界面
-├── utils/          # 工具函数
-├── tests/          # 测试用例
-├── docs/           # 正式文档（requirements / design / user-guides），见 rodski/docs/README.md
-└── examples/       # 示例
-```
-
-## 📄 License
+## License
 
 MIT License - 详见 [LICENSE](rodski/LICENSE)

@@ -1,4 +1,9 @@
-"""性能监控测试"""
+"""性能监控测试
+
+测试 core/performance.py 中的性能监控装饰器。
+覆盖：monitor_performance 执行时间测量、
+      超阈值告警、正常返回值传递。
+"""
 import time
 from core.performance import monitor_performance
 

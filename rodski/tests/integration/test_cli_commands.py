@@ -63,7 +63,7 @@ class TestCLILog:
 
 class TestCLIRun:
     def test_run_nonexistent_file(self):
-        r = run_cli("run", "/nonexistent/file.xlsx")
+        r = run_cli("run", "/nonexistent/file.xml")
         assert r.returncode == 1
         assert "不存在" in r.stderr
 

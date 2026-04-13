@@ -1,4 +1,11 @@
-"""DataTableParser 单元测试 - XML 版本"""
+"""DataTableParser 单元测试 - XML 版本
+
+测试 core/data_table_parser.py 中的数据表解析器。
+覆盖：parse_all_tables（从 data/ 目录加载所有数据表 XML）、
+      get_data（按 datatable name + row id 获取数据行）、
+      verify 数据表（_verify 后缀命名约定）、字段值提取。
+对应数据文件组织约定：datatable@name = model name。
+"""
 import pytest
 from pathlib import Path
 from core.data_table_parser import DataTableParser

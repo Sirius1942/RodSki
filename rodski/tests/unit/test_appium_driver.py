@@ -1,4 +1,10 @@
-"""移动端驱动单元测试"""
+"""移动端驱动单元测试
+
+测试 drivers/ 中的 AppiumDriver、AndroidDriver、IOSDriver。
+覆盖：驱动初始化、平台差异化行为、capabilities 组装、
+      基本操作（click/type/navigate/screenshot）。
+所有 Appium WebDriver 调用通过 mock 隔离。
+"""
 import pytest
 from unittest.mock import Mock, patch
 from drivers import AppiumDriver, AndroidDriver, IOSDriver

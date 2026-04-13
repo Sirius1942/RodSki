@@ -13,6 +13,18 @@ class BaseProvider(ABC):
         self.max_tokens = config.get("max_tokens", 1024)
 
     @abstractmethod
+    def call_text(self, prompt: str, **kwargs) -> str:
+        """调用纯文本 LLM API
+
+        Args:
+            prompt: 提示词
+
+        Returns:
+            LLM 响应文本
+        """
+        pass
+
+    @abstractmethod
     def call_vision(self, image_base64: str, prompt: str, **kwargs) -> str:
         """调用多模态 API
 

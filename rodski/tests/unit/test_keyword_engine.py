@@ -1,4 +1,13 @@
-"""KeywordEngine 单元测试"""
+"""KeywordEngine 单元测试
+
+测试 core/keyword_engine.py 中的关键字引擎。
+覆盖：基础关键字（type/wait/navigate/screenshot/assert）、
+      UI 交互（upload_file/clear/get_text）、高级关键字（set/DB/run/send）、
+      verify 批量模式（全匹配/不匹配/Return引用/模型类型校验）、
+      重试机制（成功重试/耗尽/参数错误不重试/统计追踪）、
+      close 关键字、BLANK/NULL/NONE 特殊值处理（§4.1）。
+对应核心设计约束 §5（SUPPORTED 关键字列表 16 个）。
+"""
 import pytest
 from unittest.mock import MagicMock
 from core.keyword_engine import KeywordEngine
@@ -469,7 +478,7 @@ class TestRunKeyword:
         script = fun_dir / "hello.py"
         script.write_text('print("hello world")', encoding="utf-8")
 
-        case_file = case_dir / "test.xlsx"
+        case_file = case_dir / "test.xml"
         case_file.touch()
 
         engine = KeywordEngine(mock_driver, case_file=str(case_file))
@@ -487,7 +496,7 @@ class TestRunKeyword:
         script = fun_dir / "compute.py"
         script.write_text('import json; print(json.dumps({"total": 42}))', encoding="utf-8")
 
-        case_file = case_dir / "test.xlsx"
+        case_file = case_dir / "test.xml"
         case_file.touch()
 
         engine = KeywordEngine(mock_driver, case_file=str(case_file))
@@ -501,7 +510,7 @@ class TestRunKeyword:
         case_dir.mkdir(parents=True)
         fun_dir.mkdir(parents=True)
 
-        case_file = case_dir / "test.xlsx"
+        case_file = case_dir / "test.xml"
         case_file.touch()
 
         engine = KeywordEngine(mock_driver, case_file=str(case_file))
@@ -519,7 +528,7 @@ class TestRunKeyword:
         script = fun_dir / "bad.py"
         script.write_text('raise ValueError("boom")', encoding="utf-8")
 
-        case_file = case_dir / "test.xlsx"
+        case_file = case_dir / "test.xml"
         case_file.touch()
 
         engine = KeywordEngine(mock_driver, case_file=str(case_file))
@@ -879,4 +888,152 @@ class TestVerifyKeyword:
         result = engine.execute("get", {"locator": "#elem"})
         assert result is True
         assert engine.get_return(-1) == "hello"
+
+
+class TestCloseKeyword:
+    """close 关键字测试"""
+
+    def test_close(self, engine, mock_driver):
+        """close 应调用 driver.close() 并返回 True"""
+        result = engine.execute("close", {})
+        assert result is True
+        mock_driver.close.assert_called_once()
+
+    def test_close_stores_return(self, engine, mock_driver):
+        """close 执行后应存储返回值 True"""
+        engine.execute("close", {})
+        assert engine.get_return(-1) is True
+
+
+class TestSpecialValues:
+    """BLANK / NULL / NONE 特殊值处理（§4.1 核心设计约束）
+
+    type 批量模式中：
+    - BLANK → 值设为空字符串 ''，跳过该字段不输入
+    - NULL / NONE → 值设为 None，跳过该字段不输入
+
+    verify 批量模式中：
+    - BLANK（UI）→ 跳过该字段不验证
+    - NULL / NONE（UI）→ 跳过该字段不验证
+
+    send 批量模式中：
+    - BLANK → body 字段值为 ''
+    - NULL → body 字段值为 None
+    - NONE → 完全不包含该字段
+    """
+
+    def test_type_blank_skips_field(self, mock_driver):
+        """type 批量模式：BLANK 值应跳过该字段（不调用 type_locator）"""
+        mock_model_parser = MagicMock()
+        mock_model_parser.get_model.return_value = {
+            '__model_type__': MODEL_TYPE_UI,
+            'username': {'locator_type': 'id', 'locator_value': 'uname', 'model_type': MODEL_TYPE_UI},
+            'password': {'locator_type': 'id', 'locator_value': 'pwd', 'model_type': MODEL_TYPE_UI},
+        }
+        mock_model_parser.get_model_type.return_value = MODEL_TYPE_UI
+        mock_data_manager = MagicMock()
+        mock_data_manager.get_data.return_value = {
+            'username': 'admin',
+            'password': 'BLANK',  # 应跳过
+        }
+
+        engine = KeywordEngine(mock_driver,
+                               model_parser=mock_model_parser,
+                               data_manager=mock_data_manager)
+        result = engine.execute("type", {"model": "Login", "data": "D001"})
+        assert result is True
+        # username 应被输入，password(BLANK) 应被跳过
+        # 验证 type_locator 只被调用了一次（仅 username）
+        calls = [c for c in mock_driver.type_locator.call_args_list]
+        assert len(calls) == 1
+        assert calls[0][0][0] == 'id=uname'  # 定位器格式为 type=value
+
+    def test_type_null_skips_field(self, mock_driver):
+        """type 批量模式：NULL 值应跳过该字段"""
+        mock_model_parser = MagicMock()
+        mock_model_parser.get_model.return_value = {
+            '__model_type__': MODEL_TYPE_UI,
+            'field1': {'locator_type': 'id', 'locator_value': 'f1', 'model_type': MODEL_TYPE_UI},
+            'field2': {'locator_type': 'id', 'locator_value': 'f2', 'model_type': MODEL_TYPE_UI},
+        }
+        mock_model_parser.get_model_type.return_value = MODEL_TYPE_UI
+        mock_data_manager = MagicMock()
+        mock_data_manager.get_data.return_value = {
+            'field1': 'hello',
+            'field2': 'NULL',  # 应跳过
+        }
+
+        engine = KeywordEngine(mock_driver,
+                               model_parser=mock_model_parser,
+                               data_manager=mock_data_manager)
+        result = engine.execute("type", {"model": "Form", "data": "D001"})
+        assert result is True
+        calls = [c for c in mock_driver.type_locator.call_args_list]
+        assert len(calls) == 1
+        assert calls[0][0][0] == 'id=f1'  # 定位器格式为 type=value
+
+    def test_type_none_skips_field(self, mock_driver):
+        """type 批量模式：NONE 值应跳过该字段（与 NULL 相同）"""
+        mock_model_parser = MagicMock()
+        mock_model_parser.get_model.return_value = {
+            '__model_type__': MODEL_TYPE_UI,
+            'field1': {'locator_type': 'id', 'locator_value': 'f1', 'model_type': MODEL_TYPE_UI},
+        }
+        mock_model_parser.get_model_type.return_value = MODEL_TYPE_UI
+        mock_data_manager = MagicMock()
+        mock_data_manager.get_data.return_value = {
+            'field1': 'NONE',  # 应跳过
+        }
+
+        engine = KeywordEngine(mock_driver,
+                               model_parser=mock_model_parser,
+                               data_manager=mock_data_manager)
+        result = engine.execute("type", {"model": "Form", "data": "D001"})
+        assert result is True
+        mock_driver.type_locator.assert_not_called()
+
+    def test_verify_blank_skips_ui_field(self, mock_driver):
+        """verify 批量模式（UI）：BLANK 值应跳过该字段不验证"""
+        mock_model_parser = MagicMock()
+        mock_model_parser.get_model.return_value = {
+            '__model_type__': MODEL_TYPE_UI,
+            'status': {'locator_type': 'id', 'locator_value': 'status', 'model_type': MODEL_TYPE_UI},
+            'remark': {'locator_type': 'id', 'locator_value': 'remark', 'model_type': MODEL_TYPE_UI},
+        }
+        mock_model_parser.get_model_type.return_value = MODEL_TYPE_UI
+        mock_data_manager = MagicMock()
+        mock_data_manager.get_data.return_value = {
+            'status': '已完成',
+            'remark': 'BLANK',  # 应跳过不验证
+        }
+        mock_driver.get_text_locator.side_effect = lambda loc: {
+            '#status': '已完成',
+            '#remark': '任意内容',  # 即使不匹配也不应报错
+        }.get(loc, '')
+
+        engine = KeywordEngine(mock_driver,
+                               model_parser=mock_model_parser,
+                               data_manager=mock_data_manager)
+        result = engine.execute("verify", {"model": "Order", "data": "V001"})
+        assert result is True  # BLANK 字段被跳过，不影响通过
+
+    def test_verify_null_skips_ui_field(self, mock_driver):
+        """verify 批量模式（UI）：NULL 值应跳过该字段不验证"""
+        mock_model_parser = MagicMock()
+        mock_model_parser.get_model.return_value = {
+            '__model_type__': MODEL_TYPE_UI,
+            'amount': {'locator_type': 'id', 'locator_value': 'amt', 'model_type': MODEL_TYPE_UI},
+        }
+        mock_model_parser.get_model_type.return_value = MODEL_TYPE_UI
+        mock_data_manager = MagicMock()
+        mock_data_manager.get_data.return_value = {
+            'amount': 'NULL',  # 应跳过不验证
+        }
+        mock_driver.get_text_locator.return_value = '999'  # 不匹配但应被跳过
+
+        engine = KeywordEngine(mock_driver,
+                               model_parser=mock_model_parser,
+                               data_manager=mock_data_manager)
+        result = engine.execute("verify", {"model": "Order", "data": "V001"})
+        assert result is True  # NULL 字段被跳过
 

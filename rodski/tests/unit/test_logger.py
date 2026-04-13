@@ -1,4 +1,9 @@
-"""Logger 单元测试"""
+"""Logger 单元测试
+
+测试 core/logger.py 中的日志模块。
+覆盖：日志初始化、级别设置、文件输出、控制台输出、
+      日志格式化、多实例隔离。
+"""
 import pytest
 from core.logger import Logger
 

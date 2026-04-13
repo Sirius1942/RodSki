@@ -184,18 +184,20 @@ RodSki 支持 12 种定位器类型，分为传统定位器和视觉定位器两
 
 **约束规则**：
 ```xml
-<!-- ✅ 正确：完整格式 -->
+<!-- ✅ 正确：完整格式（唯一支持的格式） -->
 <element name="loginBtn" type="web">
     <type>button</type>
     <location type="id">loginBtn</location>
 </element>
 
-<!-- ✅ 正确：简化格式 -->
-<element name="loginBtn" type="id" value="loginBtn"/>
+<!-- ❌ 已移除（v5.4.0）：简化格式不再支持 -->
+<!-- <element name="loginBtn" type="id" value="loginBtn"/> -->
 
 <!-- ❌ 错误：不要使用 locator 属性 -->
-<element name="loginBtn" locator="vision:登录按钮"/>
+<!-- <element name="loginBtn" locator="vision:登录按钮"/> -->
 ```
+
+> **⚠️ v5.4.0 变更**：简化格式 `type="定位类型" value="值"` 和 `locator="前缀:值"` 已从解析器中移除。所有定位器必须使用 `<location type="类型">值</location>` 子节点格式。
 
 ### 2.5.4 多定位器格式
 
@@ -434,13 +436,13 @@ RodskiXmlValidator.validate_file("path/to/case.xml", RodskiXmlValidator.KIND_CAS
 
 ### 7.1 文件类型与 Schema 对照
 
-| 文件类型 | Schema 文件 | 存放目录 | 对应原 Excel |
-|---------|------------|---------|-------------|
-| 用例 XML | `schemas/case.xsd` | `case/` | Case Sheet |
-| 模型 XML | `schemas/model.xsd` | `model/` | model.xml（不变） |
-| 数据表 XML | `schemas/data.xsd` | `data/` | 各数据表 Sheet |
-| 全局变量 XML | `schemas/globalvalue.xsd` | `data/` | GlobalValue Sheet |
-| 结果 XML | `schemas/result.xsd` | `result/` | TestResult + TestSummary Sheet |
+| 文件类型 | Schema 文件 | 存放目录 | 说明 |
+|---------|------------|---------|------|
+| 用例 XML | `schemas/case.xsd` | `case/` | 用例定义（三阶段容器 + test_step） |
+| 模型 XML | `schemas/model.xsd` | `model/` | 元素定位模型 |
+| 数据表 XML | `schemas/data.xsd` | `data/` | 输入数据表 + 验证数据表 |
+| 全局变量 XML | `schemas/globalvalue.xsd` | `data/` | 全局变量定义 |
+| 结果 XML | `schemas/result.xsd` | `result/` | 测试结果 + 测试摘要 |
 
 ### 7.2 Case XML 格式约束（三阶段 · 多 `test_step`）
 
@@ -597,7 +599,7 @@ RodskiXmlValidator.validate_file("path/to/case.xml", RodskiXmlValidator.KIND_CAS
 
 ### 7.5 Model XML 格式约束（不变）
 
-model.xml 格式与之前版本保持一致，支持完整格式和简化格式。详见 `schemas/model.xsd`。
+model.xml 格式与之前版本保持一致，仅支持完整格式（`<location>` 子节点）。简化格式已于 v5.4.0 移除。详见 `schemas/model.xsd`。
 
 ### 7.6 Result XML 格式约束
 
@@ -1458,6 +1460,39 @@ test:
 - 标题清晰描述测试内容
 - 添加 post_process 清理资源
 - 合理使用全局等待时间
+
+---
+
+## Agent 契约摘要
+
+本节汇总 Agent 在生成和消费 RodSki XML 时必须遵循的契约。
+
+### 输入契约
+
+| 项目 | 规范 |
+|------|------|
+| 用例格式 | XML（`case/*.xml`） |
+| 模型格式 | XML（`model/model.xml`） |
+| 数据格式 | XML（`data/data.xml`、`data/data_verify.xml`） |
+| 定位器格式 | `<location type="类型">值</location>`（唯一格式，v5.4.0 起） |
+| 关键字集合 | navigate / launch / type / send / verify / assert / run / DB / get / set / wait / clear / upload_file / screenshot / evaluate |
+
+### 输出契约
+
+| 项目 | 规范 |
+|------|------|
+| 结果文件 | `execution_summary.json` |
+| 截图 | `result/screenshots/` |
+| 日志 | `result/execution.log` |
+| Return 值 | 通过 `${Return[-1]}` 在数据表中引用 |
+
+### 版本兼容性
+
+| 框架版本 | 契约变更 |
+|---------|---------|
+| v5.4.0 | 移除简化定位器格式、移除 Excel 支持 |
+| v5.6.0 | LLM 能力统一到 LLMClient |
+| v5.7.0 | 文档叙事统一为执行引擎定位 |
 
 ---
 

@@ -66,6 +66,7 @@ class DiagnosisEngine:
         ai_verifier=None,
         ai_model: str = "claude",
         ai_timeout: int = 30,
+        llm_client=None,
     ):
         """初始化诊断引擎
 
@@ -73,10 +74,14 @@ class DiagnosisEngine:
             ai_verifier: AIScreenshotVerifier 实例，用于 AI 视觉分析
             ai_model: AI 模型名称
             ai_timeout: AI 分析超时（秒）
+            llm_client: 统一 LLMClient 实例（可选）。若提供，
+                        优先使用其 screenshot_verifier 能力进行视觉分析，
+                        否则回退到 ai_verifier。
         """
         self._ai_verifier = ai_verifier
         self.ai_model = ai_model
         self.ai_timeout = ai_timeout
+        self._llm_client = llm_client
 
     def diagnose(
         self,
@@ -112,9 +117,9 @@ class DiagnosisEngine:
         if error_type in self.UNRECOVERABLE_TYPES:
             recovery_action = {"action": "abort", "data": error_type}
 
-        # 3. AI 视觉辅助分析（如果有截图 + AI verifier）
+        # 3. AI 视觉辅助分析（如果有截图 + AI 分析器）
         visual_analysis = ""
-        if screenshot_path and self._ai_verifier:
+        if screenshot_path and (self._llm_client or self._ai_verifier):
             visual_analysis = self._try_visual_analysis(screenshot_path, error_type, error_msg)
 
         # 4. 生成诊断报告
@@ -142,23 +147,44 @@ class DiagnosisEngine:
         error_type: str,
         error_msg: str,
     ) -> str:
-        """调用 AI verifier 进行视觉分析"""
-        try:
-            prompt = (
-                f"分析这张截图，找出问题原因。\n"
-                f"异常类型: {error_type}\n"
-                f"异常信息: {error_msg}\n\n"
-                f"请描述你看到了什么，以及最可能的问题原因。"
-            )
-            is_pass, reason = self._ai_verifier.verify(
-                screenshot_path=screenshot_path,
-                expected=prompt,
-            )
-            # AI 返回的 reason 即为分析结果（即使 match=False）
-            return reason
-        except Exception as e:
-            logger.warning(f"[DiagnosisEngine] AI 视觉分析失败: {e}")
-            return f"AI 分析不可用: {e}"
+        """调用 AI verifier 进行视觉分析
+
+        优先使用 llm_client 的 screenshot_verifier 能力；
+        若不可用则回退到传统 ai_verifier 实例。
+        """
+        prompt = (
+            f"分析这张截图，找出问题原因。\n"
+            f"异常类型: {error_type}\n"
+            f"异常信息: {error_msg}\n\n"
+            f"请描述你看到了什么，以及最可能的问题原因。"
+        )
+
+        # 优先：通过统一 LLMClient 的 screenshot_verifier 能力
+        if self._llm_client is not None:
+            try:
+                verifier = self._llm_client.get_capability("screenshot_verifier")
+                is_pass, reason = verifier.verify(
+                    screenshot_path=screenshot_path,
+                    expected=prompt,
+                )
+                return reason
+            except Exception as e:
+                logger.warning(f"[DiagnosisEngine] LLMClient 视觉分析失败: {e}")
+                # 继续尝试 fallback
+
+        # 回退：传统 ai_verifier
+        if self._ai_verifier is not None:
+            try:
+                is_pass, reason = self._ai_verifier.verify(
+                    screenshot_path=screenshot_path,
+                    expected=prompt,
+                )
+                return reason
+            except Exception as e:
+                logger.warning(f"[DiagnosisEngine] AI 视觉分析失败: {e}")
+                return f"AI 分析不可用: {e}"
+
+        return "AI 分析不可用: 无可用的视觉分析器"
 
     def _format_failure_point(self, context: Dict[str, Any]) -> str:
         """格式化失败位置描述"""
