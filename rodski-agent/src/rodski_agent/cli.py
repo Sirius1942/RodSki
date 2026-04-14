@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import json
+import os
 from typing import Any
 
 import click
 
 from rodski_agent import __version__
+from rodski_agent.execution.graph import build_execution_graph
 
 
 def _output(ctx: click.Context, data: dict[str, Any], human_message: str) -> None:
@@ -61,7 +63,47 @@ def main(ctx: click.Context, output_format: str) -> None:
 @click.pass_context
 def run(ctx: click.Context, case: str, max_retry: int, headless: bool, browser: str) -> None:
     """Execute a test case."""
-    _placeholder(ctx, "run")
+    case_path = os.path.abspath(case)
+    state = {
+        "case_path": case_path,
+        "max_retry": max_retry,
+        "headless": headless,
+        "browser": browser,
+    }
+
+    graph = build_execution_graph()
+    result = graph.invoke(state)
+
+    status = result.get("status", "error")
+    report_data = result.get("report", {})
+    error = result.get("error", "")
+
+    output_data = {
+        "status": "success" if status in ("pass",) else "failure" if status in ("fail", "partial") else status,
+        "command": "run",
+        "output": report_data,
+    }
+    if error:
+        output_data["error"] = error
+
+    total = report_data.get("total", 0)
+    passed = report_data.get("passed", 0)
+    failed = report_data.get("failed", 0)
+
+    if status == "error":
+        human_msg = f"Error: {error}"
+    elif status == "pass":
+        human_msg = f"All {total} case(s) passed."
+    elif status == "fail":
+        human_msg = f"All {total} case(s) failed."
+    else:
+        human_msg = f"{passed}/{total} passed, {failed} failed."
+
+    _output(ctx, output_data, human_msg)
+
+    # Exit with non-zero for failures
+    if status not in ("pass",):
+        ctx.exit(1 if status in ("fail", "partial") else 2)
 
 
 # ---------------------------------------------------------------------------
@@ -119,4 +161,15 @@ def config(ctx: click.Context) -> None:
 @click.pass_context
 def show(ctx: click.Context) -> None:
     """Show current configuration."""
-    _placeholder(ctx, "config show")
+    from rodski_agent.common.config import AgentConfig
+
+    try:
+        cfg = AgentConfig.load()
+        data = {"status": "success", "command": "config show", "output": cfg.to_dict()}
+        import yaml as _yaml
+        human_msg = _yaml.dump(cfg.to_dict(), allow_unicode=True, default_flow_style=False)
+    except Exception as e:
+        data = {"status": "error", "command": "config show", "error": str(e)}
+        human_msg = f"Error loading config: {e}"
+
+    _output(ctx, data, human_msg)

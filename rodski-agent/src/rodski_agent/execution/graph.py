@@ -1,0 +1,263 @@
+"""Execution Agent LangGraph 图定义。
+
+MVP 版本包含 4 个顺序节点：
+
+    pre_check -> execute -> parse_result -> report
+
+其中 pre_check 失败时直接跳转到 report（条件边）。
+
+运行时自动检测 ``langgraph`` 是否可用：
+  - 可用时使用 ``StateGraph`` 构建真正的 LangGraph 图；
+  - 不可用时使用内置的 ``SimpleGraph`` 替代，保持 ``invoke(state) -> state``
+    接口一致。
+
+Python 3.9 兼容：使用 ``from __future__ import annotations`` 延迟求值。
+"""
+
+from __future__ import annotations
+
+import logging
+from typing import Any, Callable, Dict, List, Optional, Tuple
+
+logger = logging.getLogger(__name__)
+
+# ------------------------------------------------------------------
+# 检测 langgraph 可用性
+# ------------------------------------------------------------------
+
+try:
+    from langgraph.graph import END, StateGraph
+
+    HAS_LANGGRAPH = True
+    logger.debug("langgraph detected — using StateGraph backend")
+except ImportError:
+    HAS_LANGGRAPH = False
+    logger.debug("langgraph not found — using SimpleGraph backend")
+
+
+# ==================================================================
+# SimpleGraph — 轻量级替代实现
+# ==================================================================
+
+class SimpleGraph:
+    """当 ``langgraph`` 不可用时的简化执行图。
+
+    接口与 LangGraph 编译后的图一致：
+
+    .. code-block:: python
+
+        graph = SimpleGraph(nodes=[...], conditional_edges={...})
+        result = graph.invoke({"case_path": "...", "headless": True})
+
+    Parameters
+    ----------
+    nodes:
+        有序节点列表，每项为 ``(name, callable)``。
+    conditional_edges:
+        条件跳转映射，key 为源节点名，value 为
+        ``(condition_fn, target_map)``。
+        ``condition_fn(state) -> str`` 返回 target_map 中的 key，
+        对应的 value 为下一个节点名（``"__end__"`` 表示结束）。
+    """
+
+    _END = "__end__"
+
+    def __init__(
+        self,
+        nodes: List[Tuple[str, Callable[..., Any]]],
+        conditional_edges: Optional[
+            Dict[str, Tuple[Callable[..., str], Dict[str, str]]]
+        ] = None,
+    ) -> None:
+        self._nodes: Dict[str, Callable[..., Any]] = {
+            name: fn for name, fn in nodes
+        }
+        self._order: List[str] = [name for name, _ in nodes]
+        self._conditional_edges = conditional_edges or {}
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    def invoke(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        """按顺序执行节点，遇到异常时标记 error 并终止。
+
+        Returns
+        -------
+        dict
+            执行完成后的最终状态。
+        """
+        current: Dict[str, Any] = dict(state)
+        idx = 0
+
+        while idx < len(self._order):
+            name = self._order[idx]
+            fn = self._nodes[name]
+
+            # 执行节点
+            try:
+                updates = fn(current)
+                if isinstance(updates, dict):
+                    current.update(updates)
+            except Exception as exc:
+                current["status"] = "error"
+                current["error"] = f"Node '{name}' failed: {exc}"
+                logger.exception("Node '%s' raised an exception", name)
+                break
+
+            # 检查条件边
+            if name in self._conditional_edges:
+                condition_fn, target_map = self._conditional_edges[name]
+                try:
+                    branch_key = condition_fn(current)
+                except Exception as exc:
+                    current["status"] = "error"
+                    current["error"] = (
+                        f"Conditional edge after '{name}' failed: {exc}"
+                    )
+                    break
+                target_node = target_map.get(branch_key)
+                if target_node is None or target_node == self._END:
+                    break
+                # 跳转到目标节点
+                if target_node in self._nodes:
+                    idx = self._order.index(target_node)
+                    continue
+                else:
+                    current["status"] = "error"
+                    current["error"] = (
+                        f"Conditional edge target '{target_node}' not found"
+                    )
+                    break
+
+            idx += 1
+
+        return current
+
+
+# ==================================================================
+# 图构建函数
+# ==================================================================
+
+def _pre_check_router(state: Dict[str, Any]) -> str:
+    """pre_check 后的条件路由：error 时跳到 report，否则继续 execute。"""
+    if state.get("status") == "error":
+        return "report"
+    return "execute"
+
+
+def build_execution_graph(
+    pre_check_fn: Optional[Callable[..., Any]] = None,
+    execute_fn: Optional[Callable[..., Any]] = None,
+    parse_result_fn: Optional[Callable[..., Any]] = None,
+    report_fn: Optional[Callable[..., Any]] = None,
+) -> Any:
+    """构建 Execution Agent 的执行图。
+
+    MVP 版本节点流：
+
+        pre_check --(ok)--> execute --> parse_result --> report
+                  --(error)------------------------> report
+
+    Parameters
+    ----------
+    pre_check_fn, execute_fn, parse_result_fn, report_fn:
+        节点函数。允许注入自定义实现（方便测试时 Mock）。
+        如果不提供，延迟导入 ``rodski_agent.execution.nodes`` 中的默认实现。
+
+    Returns
+    -------
+    graph
+        编译后的图对象，支持 ``graph.invoke(state_dict)`` 调用。
+    """
+    # 延迟导入默认节点实现
+    if pre_check_fn is None:
+        from rodski_agent.execution.nodes import pre_check
+
+        pre_check_fn = pre_check
+    if execute_fn is None:
+        from rodski_agent.execution.nodes import execute
+
+        execute_fn = execute
+    if parse_result_fn is None:
+        from rodski_agent.execution.nodes import parse_result
+
+        parse_result_fn = parse_result
+    if report_fn is None:
+        from rodski_agent.execution.nodes import report
+
+        report_fn = report
+
+    if HAS_LANGGRAPH:
+        return _build_langgraph(
+            pre_check_fn, execute_fn, parse_result_fn, report_fn
+        )
+    return _build_simple_graph(
+        pre_check_fn, execute_fn, parse_result_fn, report_fn
+    )
+
+
+# ------------------------------------------------------------------
+# SimpleGraph 版本
+# ------------------------------------------------------------------
+
+def _build_simple_graph(
+    pre_check_fn: Callable[..., Any],
+    execute_fn: Callable[..., Any],
+    parse_result_fn: Callable[..., Any],
+    report_fn: Callable[..., Any],
+) -> SimpleGraph:
+    """使用 SimpleGraph 构建执行图。"""
+    return SimpleGraph(
+        nodes=[
+            ("pre_check", pre_check_fn),
+            ("execute", execute_fn),
+            ("parse_result", parse_result_fn),
+            ("report", report_fn),
+        ],
+        conditional_edges={
+            "pre_check": (
+                _pre_check_router,
+                {"execute": "execute", "report": "report"},
+            ),
+        },
+    )
+
+
+# ------------------------------------------------------------------
+# LangGraph 版本
+# ------------------------------------------------------------------
+
+def _build_langgraph(
+    pre_check_fn: Callable[..., Any],
+    execute_fn: Callable[..., Any],
+    parse_result_fn: Callable[..., Any],
+    report_fn: Callable[..., Any],
+) -> Any:
+    """使用 LangGraph StateGraph 构建执行图。"""
+    from rodski_agent.common.state import ExecutionState
+
+    graph = StateGraph(ExecutionState)
+
+    # 添加节点
+    graph.add_node("pre_check", pre_check_fn)
+    graph.add_node("execute", execute_fn)
+    graph.add_node("parse_result", parse_result_fn)
+    graph.add_node("report", report_fn)
+
+    # 设置入口
+    graph.set_entry_point("pre_check")
+
+    # 条件边：pre_check 成功 -> execute，失败 -> report
+    graph.add_conditional_edges(
+        "pre_check",
+        _pre_check_router,
+        {"execute": "execute", "report": "report"},
+    )
+
+    # 线性边
+    graph.add_edge("execute", "parse_result")
+    graph.add_edge("parse_result", "report")
+    graph.add_edge("report", END)
+
+    return graph.compile()
