@@ -4,7 +4,7 @@ build-backend = "setuptools.backends._legacy:_Backend"
 
 [project]
 name = "rodski-agent"
-version = "0.1.0"
+version = "2.0.0"
 description = "AI Agent layer for RodSki test automation framework"
 requires-python = ">=3.9"
 readme = "README.md"
@@ -21,6 +21,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+mcp = [
+    "mcp>=1.0",
+]
 dev = [
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
@@ -30,6 +33,7 @@ dev = [
 
 [project.scripts]
 rodski-agent = "rodski_agent.cli:main"
+rodski-agent-mcp = "rodski_agent.mcp_server:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
