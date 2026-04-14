@@ -1,0 +1,29 @@
+# rodski 路径配置
+rodski:
+  cli_path: "python rodski/ski_run.py"
+  validate_cmd: "rodski validate"
+  default_browser: "chromium"
+  headless: true
+
+# LLM 配置 — 复用 rodski 的 llm_config.yaml，不自建
+llm:
+  config_path: "../rodski/config/llm_config.yaml"
+
+# OmniParser 配置 — 复用 rodski 的配置
+omniparser:
+  config_path: "../rodski/config/llm_config.yaml"
+
+# Agent 行为配置
+design:
+  max_scenarios: 10
+  max_fix_attempts: 3
+
+execution:
+  max_retry: 3
+  screenshot_on_fail: true
+  diagnosis_enabled: true
+
+# 输出配置
+output:
+  format: "human"
+  verbose: false
