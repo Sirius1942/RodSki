@@ -7,12 +7,14 @@
 from __future__ import annotations
 
 import json
+from unittest.mock import patch
 
 import pytest
 from click.testing import CliRunner
 
 from rodski_agent import __version__
 from rodski_agent.cli import main
+from rodski_agent.common.rodski_tools import RodskiResult
 
 
 class TestMainGroup:
@@ -46,26 +48,28 @@ class TestRunCommand:
         assert result.exit_code == 0
         assert "--case" in result.output
 
-    def test_run_format_json_输出合法JSON(self, cli_runner: CliRunner, tmp_path):
+    def test_run_format_json_输出合法JSON(self, cli_runner: CliRunner, sample_project_dir):
         """--format json run --case <path> 应输出一行合法 JSON 对象。"""
-        case_path = str(tmp_path / "test.xml")
-        result = cli_runner.invoke(main, ["--format", "json", "run", "--case", case_path])
-        assert result.exit_code == 0
-        # 输出应能被 json.loads 解析
+        mock_result = RodskiResult(success=True, exit_code=0, stdout="", stderr="")
+        with patch("rodski_agent.common.rodski_tools.rodski_run", return_value=mock_result):
+            case_path = str(sample_project_dir)
+            result = cli_runner.invoke(main, ["--format", "json", "run", "--case", case_path])
         parsed = json.loads(result.output.strip())
         assert isinstance(parsed, dict)
-        # placeholder 输出包含 status 字段
         assert "status" in parsed
-        assert parsed["status"] == "not_implemented"
+
+    def test_run_nonexistent_path_error(self, cli_runner: CliRunner, tmp_path):
+        """Non-existent case path should exit with error status."""
+        case_path = str(tmp_path / "nonexistent")
+        result = cli_runner.invoke(main, ["--format", "json", "run", "--case", case_path])
+        parsed = json.loads(result.output.strip())
+        assert parsed["status"] == "error"
 
     def test_run_format_human_输出可读文本(self, cli_runner: CliRunner, tmp_path):
         """--format human run --case <path> 应输出人类可读文本（非 JSON）。"""
-        case_path = str(tmp_path / "test.xml")
+        case_path = str(tmp_path / "nonexistent")
         result = cli_runner.invoke(main, ["--format", "human", "run", "--case", case_path])
-        assert result.exit_code == 0
-        # human 模式不应输出 JSON 大括号
         assert result.output.strip() != ""
-        # human 模式输出不是一个 JSON 对象
         try:
             json.loads(result.output.strip())
             is_json = True
@@ -78,13 +82,13 @@ class TestRunCommand:
         result = cli_runner.invoke(main, ["run"])
         assert result.exit_code != 0
 
-    def test_run_default_format_human(self, cli_runner: CliRunner, tmp_path):
-        """未指定 --format 时默认以 human 格式输出。"""
-        case_path = str(tmp_path / "test.xml")
-        result = cli_runner.invoke(main, ["run", "--case", case_path])
-        assert result.exit_code == 0
-        # 默认 human 格式，输出中应包含命令名
-        assert "run" in result.output.lower() or "not implemented" in result.output.lower()
+    def test_run_valid_project_dir(self, cli_runner: CliRunner, sample_project_dir):
+        """Valid project dir with mocked rodski_run should return pass."""
+        mock_result = RodskiResult(success=True, exit_code=0, stdout="", stderr="")
+        with patch("rodski_agent.common.rodski_tools.rodski_run", return_value=mock_result):
+            result = cli_runner.invoke(main, ["--format", "json", "run", "--case", str(sample_project_dir)])
+        parsed = json.loads(result.output.strip())
+        assert parsed["status"] == "success"
 
 
 class TestDesignCommand:
@@ -123,7 +127,7 @@ class TestConfigCommand:
         assert "show" in result.output
 
     def test_config_show_正常返回(self, cli_runner: CliRunner):
-        """config show 应正常执行并输出内容（placeholder）。"""
+        """config show 应正常执行并输出内容。"""
         result = cli_runner.invoke(main, ["config", "show"])
         assert result.exit_code == 0
         assert result.output.strip() != ""
@@ -134,7 +138,8 @@ class TestConfigCommand:
         assert result.exit_code == 0
         parsed = json.loads(result.output.strip())
         assert isinstance(parsed, dict)
-        assert parsed.get("status") == "not_implemented"
+        assert parsed.get("status") == "success"
+        assert "output" in parsed
 
 
 class TestPipelineCommand:
