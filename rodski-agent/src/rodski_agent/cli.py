@@ -301,10 +301,71 @@ def design(ctx: click.Context, requirement: str, url: str | None, output: str) -
 @click.option("--url", default=None, type=str, help="Target URL for the test.")
 @click.option("--output", required=True, type=click.Path(), help="Output path for generated test case.")
 @click.option("--max-retry", default=3, show_default=True, type=int, help="Max retry count on failure.")
+@click.option("--headless/--no-headless", default=True, show_default=True, help="Run browser in headless mode.")
+@click.option("--browser", default="chromium", show_default=True, help="Browser engine to use.")
 @click.pass_context
-def pipeline(ctx: click.Context, requirement: str, url: str | None, output: str, max_retry: int) -> None:
+def pipeline(ctx: click.Context, requirement: str, url: str | None, output: str,
+             max_retry: int, headless: bool, browser: str) -> None:
     """Run the full design-then-execute pipeline."""
-    _placeholder(ctx, "pipeline")
+    try:
+        from rodski_agent.pipeline.orchestrator import run_pipeline
+
+        output_dir = os.path.abspath(output)
+        result = run_pipeline(
+            requirement=requirement,
+            output_dir=output_dir,
+            target_url=url,
+            max_retry=max_retry,
+            headless=headless,
+            browser=browser,
+        )
+
+        status = result.get("status", "error")
+        design_data = result.get("design", {})
+        exec_data = result.get("execution", {})
+        error = result.get("error", "")
+
+        agent_out = AgentOutput(
+            status=status,
+            command="pipeline",
+            output={
+                "design": design_data,
+                "execution": exec_data,
+            },
+            error=error if error else None,
+        )
+
+        fmt = ctx.obj.get("format", "human") if ctx.obj else "human"
+        if fmt == "json":
+            click.echo(agent_out.to_json())
+        else:
+            if status == "success":
+                report = exec_data.get("report", {})
+                total = report.get("total", 0)
+                passed = report.get("passed", 0)
+                files = design_data.get("generated_files", [])
+                click.echo(
+                    f"Pipeline complete: designed {len(files)} file(s), "
+                    f"executed {total} case(s), {passed} passed."
+                )
+            elif status == "error":
+                click.echo(f"Pipeline error: {error}")
+            else:
+                report = exec_data.get("report", {})
+                click.echo(
+                    f"Pipeline finished with failures: "
+                    f"{report.get('passed', 0)}/{report.get('total', 0)} passed."
+                )
+
+        if status != "success":
+            ctx.exit(1 if status == "failure" else 2)
+
+    except AgentError as err:
+        _handle_agent_error(ctx, err, "pipeline")
+    except (SystemExit, click.exceptions.Exit):
+        raise
+    except Exception as exc:
+        _handle_unexpected_error(ctx, exc, "pipeline")
 
 
 # ---------------------------------------------------------------------------

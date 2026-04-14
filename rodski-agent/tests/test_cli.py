@@ -151,15 +151,15 @@ class TestPipelineCommand:
         assert result.exit_code == 0
         assert "--requirement" in result.output
 
-    def test_pipeline_placeholder_输出(self, cli_runner: CliRunner, tmp_path):
-        """提供必填参数后 pipeline 命令应返回 placeholder 输出。"""
-        output_path = str(tmp_path / "out.xml")
+    def test_pipeline_runs_and_produces_output(self, cli_runner: CliRunner, tmp_path):
+        """pipeline 命令应执行并产生输出（无真实环境时预期非零退出）。"""
+        output_path = str(tmp_path / "out")
         result = cli_runner.invoke(main, [
             "pipeline",
             "--requirement", "测试购物车功能",
             "--output", output_path,
         ])
-        assert result.exit_code == 0
+        # Pipeline runs design + execution; without a real test env, non-zero is expected
         assert result.output.strip() != ""
 
 
