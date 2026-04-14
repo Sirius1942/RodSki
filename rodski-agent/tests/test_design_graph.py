@@ -473,11 +473,11 @@ class TestDesignGraph:
             return {"validation_errors": [], "status": "success"}
 
         graph = build_design_graph(
-            mock_analyze_req,
-            mock_plan_cases,
-            mock_design_data,
-            mock_generate_xml,
-            mock_validate_xml,
+            analyze_req_fn=mock_analyze_req,
+            plan_cases_fn=mock_plan_cases,
+            design_data_fn=mock_design_data,
+            generate_xml_fn=mock_generate_xml,
+            validate_xml_fn=mock_validate_xml,
         )
 
         result = graph.invoke({
@@ -530,7 +530,13 @@ class TestDesignGraph:
                 return {"validation_errors": ["error"], "fix_attempt": val_count["n"], "status": "running"}
             return {"validation_errors": [], "status": "success"}
 
-        graph = build_design_graph(mock_analyze, mock_plan, mock_data, mock_gen, mock_val)
+        graph = build_design_graph(
+            analyze_req_fn=mock_analyze,
+            plan_cases_fn=mock_plan,
+            design_data_fn=mock_data,
+            generate_xml_fn=mock_gen,
+            validate_xml_fn=mock_val,
+        )
         result = graph.invoke({"requirement": "test", "output_dir": "/tmp"})
         assert result["status"] == "success"
         # gen and val should each be called at least 2 times

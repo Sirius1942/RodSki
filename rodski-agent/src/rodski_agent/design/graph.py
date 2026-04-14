@@ -1,12 +1,15 @@
 """Design Agent LangGraph 图定义。
 
-包含 5 个节点：
+包含 7 个节点（含可选视觉探索）：
 
-    analyze_req -> plan_cases -> design_data -> generate_xml -> validate_xml
-                                                     ^                |
-                                                     |-- (fail, <3) --+
-                                                                      |
-                                                              (pass) --> END
+    analyze_req -> explore_page -> identify_elem -> plan_cases -> design_data
+                                                       -> generate_xml -> validate_xml
+                                                             ^                |
+                                                             |-- (fail, <3) --+
+                                                                              |
+                                                                      (pass) --> END
+
+当不提供 target_url 时，explore_page 和 identify_elem 优雅降级返回空列表。
 
 运行时自动检测 ``langgraph`` 是否可用：
   - 可用时使用 ``StateGraph`` 构建真正的 LangGraph 图；
@@ -66,6 +69,8 @@ def _validate_router(state: Dict[str, Any]) -> str:
 
 def build_design_graph(
     analyze_req_fn: Optional[Callable[..., Any]] = None,
+    explore_page_fn: Optional[Callable[..., Any]] = None,
+    identify_elem_fn: Optional[Callable[..., Any]] = None,
     plan_cases_fn: Optional[Callable[..., Any]] = None,
     design_data_fn: Optional[Callable[..., Any]] = None,
     generate_xml_fn: Optional[Callable[..., Any]] = None,
@@ -73,19 +78,21 @@ def build_design_graph(
 ) -> Any:
     """构建 Design Agent 的设计图。
 
-    节点流：
+    节点流（含视觉探索）：
 
-        analyze_req -> plan_cases -> design_data -> generate_xml -> validate_xml
-                                                         ^               |
-                                                         +-- (fail) -----+
-                                                                         |
-                                                             (pass) --> END
+        analyze_req -> explore_page -> identify_elem -> plan_cases
+            -> design_data -> generate_xml -> validate_xml
+                                   ^               |
+                                   +-- (fail) -----+
+                                                    |
+                                        (pass) --> END
 
     Parameters
     ----------
-    analyze_req_fn, plan_cases_fn, design_data_fn, generate_xml_fn, validate_xml_fn:
+    analyze_req_fn, explore_page_fn, identify_elem_fn, plan_cases_fn,
+    design_data_fn, generate_xml_fn, validate_xml_fn:
         节点函数。允许注入自定义实现（方便测试时 Mock）。
-        如果不提供，延迟导入 ``rodski_agent.design.nodes`` 中的默认实现。
+        如果不提供，延迟导入默认实现。
 
     Returns
     -------
@@ -97,6 +104,14 @@ def build_design_graph(
         from rodski_agent.design.nodes import analyze_req
 
         analyze_req_fn = analyze_req
+    if explore_page_fn is None:
+        from rodski_agent.design.visual import explore_page
+
+        explore_page_fn = explore_page
+    if identify_elem_fn is None:
+        from rodski_agent.design.visual import identify_elem
+
+        identify_elem_fn = identify_elem
     if plan_cases_fn is None:
         from rodski_agent.design.nodes import plan_cases
 
@@ -116,11 +131,13 @@ def build_design_graph(
 
     if HAS_LANGGRAPH:
         return _build_langgraph(
-            analyze_req_fn, plan_cases_fn, design_data_fn,
+            analyze_req_fn, explore_page_fn, identify_elem_fn,
+            plan_cases_fn, design_data_fn,
             generate_xml_fn, validate_xml_fn,
         )
     return _build_simple_graph(
-        analyze_req_fn, plan_cases_fn, design_data_fn,
+        analyze_req_fn, explore_page_fn, identify_elem_fn,
+        plan_cases_fn, design_data_fn,
         generate_xml_fn, validate_xml_fn,
     )
 
@@ -132,6 +149,8 @@ def build_design_graph(
 
 def _build_simple_graph(
     analyze_req_fn: Callable[..., Any],
+    explore_page_fn: Callable[..., Any],
+    identify_elem_fn: Callable[..., Any],
     plan_cases_fn: Callable[..., Any],
     design_data_fn: Callable[..., Any],
     generate_xml_fn: Callable[..., Any],
@@ -141,6 +160,8 @@ def _build_simple_graph(
     return SimpleGraph(
         nodes=[
             ("analyze_req", analyze_req_fn),
+            ("explore_page", explore_page_fn),
+            ("identify_elem", identify_elem_fn),
             ("plan_cases", plan_cases_fn),
             ("design_data", design_data_fn),
             ("generate_xml", generate_xml_fn),
@@ -165,6 +186,8 @@ def _build_simple_graph(
 
 def _build_langgraph(
     analyze_req_fn: Callable[..., Any],
+    explore_page_fn: Callable[..., Any],
+    identify_elem_fn: Callable[..., Any],
     plan_cases_fn: Callable[..., Any],
     design_data_fn: Callable[..., Any],
     generate_xml_fn: Callable[..., Any],
@@ -177,6 +200,8 @@ def _build_langgraph(
 
     # 添加节点
     graph.add_node("analyze_req", analyze_req_fn)
+    graph.add_node("explore_page", explore_page_fn)
+    graph.add_node("identify_elem", identify_elem_fn)
     graph.add_node("plan_cases", plan_cases_fn)
     graph.add_node("design_data", design_data_fn)
     graph.add_node("generate_xml", generate_xml_fn)
@@ -186,7 +211,9 @@ def _build_langgraph(
     graph.set_entry_point("analyze_req")
 
     # 线性边
-    graph.add_edge("analyze_req", "plan_cases")
+    graph.add_edge("analyze_req", "explore_page")
+    graph.add_edge("explore_page", "identify_elem")
+    graph.add_edge("identify_elem", "plan_cases")
     graph.add_edge("plan_cases", "design_data")
     graph.add_edge("design_data", "generate_xml")
     graph.add_edge("generate_xml", "validate_xml")

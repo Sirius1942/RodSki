@@ -64,11 +64,13 @@ class DesignState(TypedDict, total=False):
     requirement: str                  # 测试需求描述
     target_url: str                   # 被测系统 URL
     output_dir: str                   # 生成文件输出目录
+    headless: bool                    # 截图时是否无头模式
 
     # -- 中间状态 ------------------------------------------------------
     test_scenarios: List[Dict[str, Any]]   # 测试场景列表
-    page_elements: List[Dict[str, Any]]    # 页面元素（爬取 / OmniParser）
-    enriched_elements: List[Dict[str, Any]]  # 增强后的元素信息
+    page_elements: List[Dict[str, Any]]    # 页面元素（OmniParser 识别）
+    screenshots: List[str]                 # 截图路径列表
+    enriched_elements: List[Dict[str, Any]]  # LLM 语义增强后的元素信息
     case_plan: List[Dict[str, Any]]        # 用例编排计划
     test_data: List[Dict[str, Any]]        # 测试数据
     generated_files: List[str]             # 已生成的文件路径
