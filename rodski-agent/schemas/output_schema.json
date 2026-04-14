@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "rodski-agent output",
+  "description": "Unified output envelope for all rodski-agent commands.",
+  "type": "object",
+  "required": ["status", "command", "output"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["success", "failure", "error"]
+    },
+    "command": {
+      "type": "string",
+      "description": "The command that produced this output (run, design, diagnose, pipeline, config)."
+    },
+    "output": {
+      "type": "object",
+      "description": "Command-specific payload."
+    },
+    "error": {
+      "type": "string",
+      "description": "Error description when status is 'error'."
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Optional metadata (version, duration, etc.).",
+      "properties": {
+        "version": { "type": "string" },
+        "duration_ms": { "type": "number" },
+        "error_code": { "type": "string" },
+        "error_category": { "type": "string" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false,
+  "if": {
+    "properties": { "command": { "const": "run" } }
+  },
+  "then": {
+    "properties": {
+      "output": {
+        "type": "object",
+        "properties": {
+          "total": { "type": "integer", "minimum": 0 },
+          "passed": { "type": "integer", "minimum": 0 },
+          "failed": { "type": "integer", "minimum": 0 },
+          "cases": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string" },
+                "title": { "type": "string" },
+                "status": { "type": "string", "enum": ["PASS", "FAIL", "UNKNOWN"] },
+                "time": { "type": "number" },
+                "error": { "type": "string" }
+              },
+              "required": ["id", "status"]
+            }
+          },
+          "diagnosis": { "type": ["object", "null"] }
+        }
+      }
+    }
+  }
+}
