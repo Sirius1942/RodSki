@@ -61,12 +61,13 @@ class TestBuildExecutionGraph:
         def mock_pre_check(s): return {"status": "running"}
         def mock_execute(s): return {"execution_result": {"exit_code": 0}}
         def mock_parse_result(s): return {"case_results": [{"id": "c001", "status": "PASS", "time": 1.0}]}
+        def mock_diagnose(s): return {"diagnosis": {"skipped": True}}
         def mock_report(s):
             cases = s.get("case_results", [])
             passed = sum(1 for c in cases if c["status"] == "PASS")
             return {"report": {"total": len(cases), "passed": passed, "failed": 0}, "status": "pass"}
 
-        g = build_execution_graph(mock_pre_check, mock_execute, mock_parse_result, mock_report)
+        g = build_execution_graph(mock_pre_check, mock_execute, mock_parse_result, mock_diagnose, mock_report)
         result = g.invoke({"case_path": "/fake", "headless": True})
         assert result["status"] == "pass"
         assert result["report"]["total"] == 1
@@ -83,11 +84,14 @@ class TestBuildExecutionGraph:
         def mock_parse_result(s):
             call_log.append("parse_result")
             return {}
+        def mock_diagnose(s):
+            call_log.append("diagnose")
+            return {}
         def mock_report(s):
             call_log.append("report")
             return {"report": {"total": 0}, "status": "error"}
 
-        g = build_execution_graph(mock_pre_check, mock_execute, mock_parse_result, mock_report)
+        g = build_execution_graph(mock_pre_check, mock_execute, mock_parse_result, mock_diagnose, mock_report)
         result = g.invoke({"case_path": "/bad"})
         assert "pre_check" in call_log
         assert "report" in call_log

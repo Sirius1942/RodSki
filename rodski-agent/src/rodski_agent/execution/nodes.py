@@ -1,21 +1,36 @@
-"""Execution Agent 节点实现 — MVP 版本
+"""Execution Agent 节点实现
 
 每个节点函数签名: fn(state: dict) -> dict
 接收当前 state，返回需要更新的字段。
+
+节点列表:
+  - pre_check: 预检查
+  - execute: 执行测试
+  - parse_result: 解析结果
+  - diagnose: 诊断失败用例（LLM 驱动，不可用时优雅降级）
+  - report: 生成报告
 """
 
 from __future__ import annotations
 
-import os
 import json
-import xml.etree.ElementTree as ET
+import logging
+import os
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from rodski_agent.common.rodski_knowledge import (
     validate_directory_structure,
     REQUIRED_DIRS,
 )
+from rodski_agent.common.result_parser import (
+    collect_screenshots,
+    extract_cases_from_summary,
+    parse_execution_summary,
+    parse_result_xml,
+)
+
+logger = logging.getLogger(__name__)
 
 
 def pre_check(state: dict) -> dict:
@@ -99,34 +114,29 @@ def parse_result(state: dict) -> dict:
     """解析执行结果 — 从 result XML 或 execution_summary.json 提取用例级别结果
 
     解析格式参考 AGENT_INTEGRATION 输出契约。
+    使用 result_parser 模块中的公共函数完成实际解析。
     """
     if state.get("status") == "error":
         return {}
 
     exec_result = state.get("execution_result", {})
     result_dir = exec_result.get("result_dir")
-    case_results = []
-    screenshots = []
+    case_results: list[dict[str, Any]] = []
+    screenshots: list[str] = []
 
     # 优先解析 execution_summary.json
     if result_dir:
-        summary = exec_result.get("execution_summary") or _try_parse_summary(result_dir)
+        summary = exec_result.get("execution_summary") or parse_execution_summary(result_dir)
         if summary:
-            case_results = _extract_from_summary(summary)
+            case_results = extract_cases_from_summary(summary)
         else:
             # 降级解析 result_*.xml
             result_files = exec_result.get("result_files", [])
             if result_files:
-                case_results = _parse_result_xml(result_files[0])
+                case_results = parse_result_xml(result_files[0])
 
         # 收集截图
-        screenshot_dir = os.path.join(result_dir, "screenshots")
-        if os.path.isdir(screenshot_dir):
-            screenshots = [
-                os.path.join(screenshot_dir, f)
-                for f in os.listdir(screenshot_dir)
-                if f.endswith((".png", ".jpg"))
-            ]
+        screenshots = collect_screenshots(result_dir)
 
     # 如果无法解析结果文件，从 exit_code 推断
     if not case_results:
@@ -177,57 +187,172 @@ def report(state: dict) -> dict:
     }
 
 
-# ---- 内部辅助函数 ----
-
-def _try_parse_summary(result_dir: str) -> Optional[dict]:
-    """尝试解析 execution_summary.json"""
-    path = os.path.join(result_dir, "execution_summary.json")
-    if os.path.isfile(path):
-        try:
-            with open(path, encoding="utf-8") as f:
-                return json.load(f)
-        except (json.JSONDecodeError, OSError):
-            pass
-    return None
+# ====================================================================
+# diagnose 节点
+# ====================================================================
 
 
-def _extract_from_summary(summary: dict) -> list[dict]:
-    """从 execution_summary.json 提取用例结果"""
-    results = []
-    for case in summary.get("cases", summary.get("results", [])):
-        results.append({
-            "id": case.get("case_id", case.get("id", "unknown")),
-            "title": case.get("title", ""),
-            "status": case.get("status", "UNKNOWN"),
-            "time": case.get("execution_time", case.get("time", 0)),
-            "error": case.get("error", case.get("error_message", "")),
-        })
-    return results
+def diagnose(state: dict) -> dict:
+    """诊断失败用例 — 调用 LLM 分析失败原因。
 
+    对 state["case_results"] 中每个 status != "PASS" 的用例，
+    组装 prompt 调用 LLM 获取诊断结果。
 
-def _parse_result_xml(xml_path: str) -> list[dict]:
-    """解析 result_*.xml 提取用例结果
+    当 LLM 不可用时（rodski 不可导入、配置缺失、连接失败），
+    返回降级诊断结果 ``{"skipped": True, "reason": "..."}``。
 
-    result.xsd 结构:
-    <testresult>
-      <summary total="2" passed="1" failed="1" .../>
-      <results>
-        <result case_id="c001" title="..." status="PASS" execution_time="2.3" .../>
-      </results>
-    </testresult>
+    Returns
+    -------
+    dict
+        ``{"diagnosis": {...}}``，包含各用例诊断详情。
     """
-    results = []
+    case_results = state.get("case_results", [])
+    failed_cases = [c for c in case_results if c.get("status") != "PASS"]
+
+    if not failed_cases:
+        return {"diagnosis": {"skipped": True, "reason": "No failed cases"}}
+
+    # 尝试导入 LLM 桥接层
     try:
-        tree = ET.parse(xml_path)
-        root = tree.getroot()
-        for result_elem in root.findall(".//result"):
-            results.append({
-                "id": result_elem.get("case_id", "unknown"),
-                "title": result_elem.get("title", ""),
-                "status": result_elem.get("status", "UNKNOWN"),
-                "time": float(result_elem.get("execution_time", "0")),
-                "error": result_elem.get("error_message", result_elem.get("error", "")),
-            })
-    except (ET.ParseError, OSError):
-        pass
-    return results
+        from rodski_agent.common.llm_bridge import call_llm_text, LLMUnavailableError
+        from rodski_agent.execution.prompts import (
+            DIAGNOSE_SYSTEM_PROMPT,
+            DIAGNOSE_USER_TEMPLATE,
+        )
+    except ImportError as exc:
+        logger.warning("Cannot import LLM bridge or prompts: %s", exc)
+        return {"diagnosis": {"skipped": True, "reason": f"Import error: {exc}"}}
+
+    diagnoses: list[dict] = []
+
+    for case in failed_cases:
+        case_id = case.get("id", "unknown")
+        error_message = case.get("error", "")
+        action = case.get("action", "unknown")
+        model = case.get("model", "unknown")
+
+        # 截图描述
+        screenshots = state.get("screenshots", [])
+        screenshot_desc = "无截图"
+        if screenshots:
+            screenshot_desc = f"共 {len(screenshots)} 张截图: {', '.join(Path(s).name for s in screenshots[:3])}"
+
+        user_prompt = DIAGNOSE_USER_TEMPLATE.format(
+            case_id=case_id,
+            error_message=error_message,
+            action=action,
+            model=model,
+            screenshot_desc=screenshot_desc,
+        )
+        full_prompt = DIAGNOSE_SYSTEM_PROMPT + "\n\n" + user_prompt
+
+        try:
+            response_text = call_llm_text(full_prompt)
+            diagnosis = _parse_diagnosis_response(response_text)
+        except LLMUnavailableError as exc:
+            logger.warning("LLM unavailable for case %s: %s", case_id, exc)
+            return {
+                "diagnosis": {
+                    "skipped": True,
+                    "reason": f"LLM unavailable: {exc}",
+                }
+            }
+        except Exception as exc:
+            logger.warning("Diagnosis failed for case %s: %s", case_id, exc)
+            diagnosis = _fallback_diagnosis(case_id, error_message)
+
+        # 强制执行置信度规则
+        diagnosis = _enforce_confidence_rule(diagnosis)
+        diagnosis["case_id"] = case_id
+        diagnoses.append(diagnosis)
+
+    return {"diagnosis": {"cases": diagnoses, "skipped": False}}
+
+
+def _parse_diagnosis_response(response_text: str) -> dict:
+    """解析 LLM 返回的诊断 JSON。
+
+    尝试从文本中提取 JSON 对象。如果解析失败，返回 UNKNOWN 降级结果。
+    """
+    text = response_text.strip()
+
+    # 尝试从 markdown 代码块中提取
+    if "```json" in text:
+        start = text.index("```json") + len("```json")
+        end = text.index("```", start)
+        text = text[start:end].strip()
+    elif "```" in text:
+        start = text.index("```") + len("```")
+        end = text.index("```", start)
+        text = text[start:end].strip()
+
+    try:
+        result = json.loads(text)
+        # 验证必须字段
+        required_fields = [
+            "root_cause", "confidence", "category",
+            "suggestion", "evidence", "recommended_action",
+        ]
+        for field in required_fields:
+            if field not in result:
+                result[field] = _default_field_value(field)
+        # 验证 category
+        valid_categories = {"CASE_DEFECT", "ENV_DEFECT", "PRODUCT_DEFECT", "UNKNOWN"}
+        if result.get("category") not in valid_categories:
+            result["category"] = "UNKNOWN"
+        # 验证 recommended_action
+        valid_actions = {"insert", "pause", "terminate", "escalate"}
+        if result.get("recommended_action") not in valid_actions:
+            result["recommended_action"] = "pause"
+        # 验证 confidence
+        try:
+            result["confidence"] = float(result["confidence"])
+            result["confidence"] = max(0.0, min(1.0, result["confidence"]))
+        except (TypeError, ValueError):
+            result["confidence"] = 0.3
+        return result
+    except (json.JSONDecodeError, ValueError):
+        return {
+            "root_cause": f"LLM 返回非 JSON 格式: {text[:200]}",
+            "confidence": 0.2,
+            "category": "UNKNOWN",
+            "suggestion": "请人工审查",
+            "evidence": text[:500],
+            "recommended_action": "escalate",
+        }
+
+
+def _default_field_value(field: str) -> Any:
+    """返回诊断字段的默认值。"""
+    defaults = {
+        "root_cause": "未知",
+        "confidence": 0.3,
+        "category": "UNKNOWN",
+        "suggestion": "请人工审查",
+        "evidence": "",
+        "recommended_action": "pause",
+    }
+    return defaults.get(field, "")
+
+
+def _fallback_diagnosis(case_id: str, error_message: str) -> dict:
+    """LLM 调用异常时的降级诊断。"""
+    return {
+        "root_cause": f"自动诊断失败，错误信息: {error_message[:200]}",
+        "confidence": 0.2,
+        "category": "UNKNOWN",
+        "suggestion": "请人工检查失败用例和错误日志",
+        "evidence": error_message[:500],
+        "recommended_action": "escalate",
+    }
+
+
+def _enforce_confidence_rule(diagnosis: dict) -> dict:
+    """强制执行置信度规则：confidence < 0.6 时，recommended_action 只能是 pause 或 escalate。"""
+    confidence = diagnosis.get("confidence", 0.0)
+    action = diagnosis.get("recommended_action", "pause")
+
+    if confidence < 0.6 and action not in ("pause", "escalate"):
+        diagnosis["recommended_action"] = "pause"
+
+    return diagnosis

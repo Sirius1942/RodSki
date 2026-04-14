@@ -9,6 +9,9 @@ from typing import Any
 import click
 
 from rodski_agent import __version__
+from rodski_agent.common.contracts import AgentOutput
+from rodski_agent.common.errors import AgentError, InternalError
+from rodski_agent.common.formatters import format_run_result, format_error
 from rodski_agent.execution.graph import build_execution_graph
 
 
@@ -28,6 +31,94 @@ def _placeholder(ctx: click.Context, command: str) -> None:
         {"status": "not_implemented", "command": command, "message": "Command not implemented yet"},
         f"[{command}] Command not implemented yet.",
     )
+
+
+def _handle_agent_error(ctx: click.Context, err: AgentError, command: str) -> None:
+    """Handle an AgentError: output structured error and set exit code 2."""
+    error_meta = {
+        "error_code": err.code,
+        "error_category": err.category.value,
+    }
+    if err.details:
+        error_meta["details"] = err.details
+
+    agent_out = AgentOutput(
+        status="error",
+        command=command,
+        output={},
+        error=err.message,
+        metadata=error_meta,
+    )
+
+    fmt = ctx.obj.get("format", "human") if ctx.obj else "human"
+    if fmt == "json":
+        click.echo(agent_out.to_json())
+    else:
+        click.echo(format_error(err.to_dict()))
+
+    ctx.exit(2)
+
+
+def _handle_unexpected_error(ctx: click.Context, exc: Exception, command: str) -> None:
+    """Wrap an unexpected exception in InternalError and output it."""
+    internal = InternalError(
+        message=f"Unexpected error: {exc}",
+        details={"exception_type": type(exc).__name__},
+        suggestion="This is likely a bug. Please report it.",
+    )
+    _handle_agent_error(ctx, internal, command)
+
+
+def _load_result_data(path: str) -> list[dict[str, Any]] | None:
+    """Load test result data from a directory or file path.
+
+    Supports:
+      - Directory containing execution_summary.json or result_*.xml
+      - Direct path to execution_summary.json
+      - Direct path to result_*.xml
+
+    Returns
+    -------
+    list[dict] | None
+        List of case result dicts, or None if loading fails.
+    """
+    from rodski_agent.common.result_parser import (
+        parse_execution_summary,
+        extract_cases_from_summary,
+        parse_result_xml,
+        find_latest_result,
+    )
+
+    if os.path.isdir(path):
+        # Try execution_summary.json first
+        summary = parse_execution_summary(path)
+        if summary:
+            cases = extract_cases_from_summary(summary)
+            if cases:
+                return cases
+        # Try result_*.xml
+        latest = find_latest_result(path)
+        if latest:
+            cases = parse_result_xml(latest)
+            if cases:
+                return cases
+        return None
+
+    if not os.path.isfile(path):
+        return None
+
+    # Direct file path
+    if path.endswith(".json"):
+        summary = parse_execution_summary(path)
+        if summary:
+            return extract_cases_from_summary(summary)
+        return None
+
+    if path.endswith(".xml"):
+        cases = parse_result_xml(path)
+        return cases if cases else None
+
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -63,47 +154,54 @@ def main(ctx: click.Context, output_format: str) -> None:
 @click.pass_context
 def run(ctx: click.Context, case: str, max_retry: int, headless: bool, browser: str) -> None:
     """Execute a test case."""
-    case_path = os.path.abspath(case)
-    state = {
-        "case_path": case_path,
-        "max_retry": max_retry,
-        "headless": headless,
-        "browser": browser,
-    }
+    try:
+        case_path = os.path.abspath(case)
+        state = {
+            "case_path": case_path,
+            "max_retry": max_retry,
+            "headless": headless,
+            "browser": browser,
+        }
 
-    graph = build_execution_graph()
-    result = graph.invoke(state)
+        graph = build_execution_graph()
+        result = graph.invoke(state)
 
-    status = result.get("status", "error")
-    report_data = result.get("report", {})
-    error = result.get("error", "")
+        status = result.get("status", "error")
+        report_data = result.get("report", {})
+        error = result.get("error", "")
 
-    output_data = {
-        "status": "success" if status in ("pass",) else "failure" if status in ("fail", "partial") else status,
-        "command": "run",
-        "output": report_data,
-    }
-    if error:
-        output_data["error"] = error
+        agent_status = (
+            "success" if status in ("pass",)
+            else "failure" if status in ("fail", "partial")
+            else "error"
+        )
 
-    total = report_data.get("total", 0)
-    passed = report_data.get("passed", 0)
-    failed = report_data.get("failed", 0)
+        agent_out = AgentOutput(
+            status=agent_status,
+            command="run",
+            output=report_data,
+            error=error if error else None,
+        )
 
-    if status == "error":
-        human_msg = f"Error: {error}"
-    elif status == "pass":
-        human_msg = f"All {total} case(s) passed."
-    elif status == "fail":
-        human_msg = f"All {total} case(s) failed."
-    else:
-        human_msg = f"{passed}/{total} passed, {failed} failed."
+        fmt = ctx.obj.get("format", "human") if ctx.obj else "human"
+        if fmt == "json":
+            click.echo(agent_out.to_json())
+        else:
+            if agent_status == "error":
+                click.echo(agent_out.to_human())
+            else:
+                click.echo(format_run_result(report_data))
 
-    _output(ctx, output_data, human_msg)
+        # Exit with non-zero for failures
+        if status not in ("pass",):
+            ctx.exit(1 if status in ("fail", "partial") else 2)
 
-    # Exit with non-zero for failures
-    if status not in ("pass",):
-        ctx.exit(1 if status in ("fail", "partial") else 2)
+    except AgentError as err:
+        _handle_agent_error(ctx, err, "run")
+    except (SystemExit, click.exceptions.Exit):
+        raise  # ctx.exit() raises click.exceptions.Exit — let it propagate
+    except Exception as exc:
+        _handle_unexpected_error(ctx, exc, "run")
 
 
 # ---------------------------------------------------------------------------
@@ -140,11 +238,55 @@ def pipeline(ctx: click.Context, requirement: str, url: str | None, output: str,
 # ---------------------------------------------------------------------------
 
 @main.command()
-@click.option("--result", required=True, type=click.Path(exists=False), help="Path to the test result file.")
+@click.option("--result", required=True, type=click.Path(exists=False), help="Path to test result (directory or file).")
 @click.pass_context
 def diagnose(ctx: click.Context, result: str) -> None:
     """Diagnose a failed test result."""
-    _placeholder(ctx, "diagnose")
+    result_path = os.path.abspath(result)
+
+    # Load result data
+    case_results = _load_result_data(result_path)
+    if case_results is None:
+        _output(
+            ctx,
+            {"status": "error", "command": "diagnose", "error": f"Cannot load result from {result_path}"},
+            f"Error: Cannot load result from {result_path}",
+        )
+        ctx.exit(2)
+        return
+
+    # Build state and call diagnose node directly
+    from rodski_agent.execution.nodes import diagnose as diagnose_node
+
+    state: dict[str, Any] = {
+        "case_results": case_results,
+        "screenshots": [],
+    }
+    diagnosis_update = diagnose_node(state)
+    diagnosis = diagnosis_update.get("diagnosis", {})
+
+    output_data = {
+        "status": "success",
+        "command": "diagnose",
+        "output": diagnosis,
+    }
+
+    # Human-readable output
+    if diagnosis.get("skipped"):
+        human_msg = f"Diagnosis skipped: {diagnosis.get('reason', 'unknown')}"
+    else:
+        cases = diagnosis.get("cases", [])
+        lines = [f"Diagnosed {len(cases)} failed case(s):"]
+        for d in cases:
+            lines.append(
+                f"  [{d.get('case_id', '?')}] {d.get('category', 'UNKNOWN')} "
+                f"(confidence={d.get('confidence', 0):.2f}): {d.get('root_cause', '?')}"
+            )
+            lines.append(f"    Suggestion: {d.get('suggestion', '-')}")
+            lines.append(f"    Action: {d.get('recommended_action', '-')}")
+        human_msg = "\n".join(lines)
+
+    _output(ctx, output_data, human_msg)
 
 
 # ---------------------------------------------------------------------------

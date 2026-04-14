@@ -172,9 +172,9 @@ class TestDiagnoseCommand:
         assert result.exit_code == 0
         assert "--result" in result.output
 
-    def test_diagnose_placeholder_输出(self, cli_runner: CliRunner, tmp_path):
-        """提供 --result 参数后 diagnose 命令应返回 placeholder 输出。"""
+    def test_diagnose_nonexistent_result_报错(self, cli_runner: CliRunner, tmp_path):
+        """提供不存在的 --result 路径后 diagnose 命令应以非 0 退出。"""
         result_path = str(tmp_path / "result.xml")
         result = cli_runner.invoke(main, ["diagnose", "--result", result_path])
-        assert result.exit_code == 0
+        assert result.exit_code != 0
         assert result.output.strip() != ""
