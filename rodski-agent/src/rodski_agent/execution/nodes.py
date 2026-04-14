@@ -356,3 +356,40 @@ def _enforce_confidence_rule(diagnosis: dict) -> dict:
         diagnosis["recommended_action"] = "pause"
 
     return diagnosis
+
+
+# ====================================================================
+# retry_decide 节点
+# ====================================================================
+
+
+def retry_decide(state: dict) -> dict:
+    """基于诊断结果决定是否重试。
+
+    重试条件（必须全部满足）：
+    1. retry_count < max_retry
+    2. diagnosis.category == "CASE_DEFECT"
+    3. diagnosis.confidence > 0.7
+
+    Returns
+    -------
+    dict
+        ``{"retry_decision": "retry" | "give_up", ...}``
+    """
+    diagnosis = state.get("diagnosis", {})
+    retry_count = state.get("retry_count", 0)
+    max_retry = state.get("max_retry", 0)
+
+    # Cannot retry if at limit
+    if retry_count >= max_retry:
+        return {"retry_decision": "give_up"}
+
+    # Only CASE_DEFECT with high confidence is retryable
+    category = diagnosis.get("category", "UNKNOWN")
+    confidence = diagnosis.get("confidence", 0)
+
+    if category == "CASE_DEFECT" and confidence > 0.7:
+        return {"retry_decision": "retry", "retry_count": retry_count + 1}
+
+    # Everything else: give up
+    return {"retry_decision": "give_up"}
