@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "rodski-agent"
+version = "0.1.0"
+description = "AI Agent layer for RodSki test automation framework"
+requires-python = ">=3.9"
+readme = "README.md"
+
+dependencies = [
+    "langgraph>=0.4.0",
+    "langchain-core>=0.3.0",
+    "langchain-anthropic>=0.3.0",
+    "langchain-openai>=0.3.0",
+    "click>=8.0",
+    "pyyaml>=6.0",
+    "requests>=2.31.0",
+    "pillow>=10.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.12.0",
+    "ruff>=0.4.0",
+]
+
+[project.scripts]
+rodski-agent = "rodski_agent.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "e2e: end-to-end tests (may be slow)",
+    "slow: slow running tests",
+]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+
+[tool.coverage.run]
+source = ["rodski_agent"]
+
+[tool.coverage.report]
+fail_under = 80
