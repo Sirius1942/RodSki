@@ -148,7 +148,7 @@ def main(ctx: click.Context, output_format: str) -> None:
 
 @main.command()
 @click.option("--case", required=True, type=click.Path(exists=False), help="Path to the test case file.")
-@click.option("--max-retry", default=0, show_default=True, type=int, help="Max retry count on failure.")
+@click.option("--max-retry", default=3, show_default=True, type=int, help="Max retry count on failure.")
 @click.option("--headless/--no-headless", default=True, show_default=True, help="Run browser in headless mode.")
 @click.option("--browser", default="chromium", show_default=True, help="Browser engine to use.")
 @click.pass_context
@@ -170,6 +170,13 @@ def run(ctx: click.Context, case: str, max_retry: int, headless: bool, browser: 
         report_data = result.get("report", {})
         error = result.get("error", "")
 
+        # Include retry info in output
+        retry_count = result.get("retry_count", 0)
+        fixes_applied = result.get("fixes_applied", [])
+        if retry_count > 0:
+            report_data["retry_count"] = retry_count
+            report_data["fixes_applied"] = fixes_applied
+
         agent_status = (
             "success" if status in ("pass",)
             else "failure" if status in ("fail", "partial")
@@ -190,7 +197,12 @@ def run(ctx: click.Context, case: str, max_retry: int, headless: bool, browser: 
             if agent_status == "error":
                 click.echo(agent_out.to_human())
             else:
-                click.echo(format_run_result(report_data))
+                human_text = format_run_result(report_data)
+                if retry_count > 0:
+                    human_text += f"\nRetries: {retry_count}/{max_retry}"
+                    if fixes_applied:
+                        human_text += f"\nFixes applied: {', '.join(fixes_applied)}"
+                click.echo(human_text)
 
         # Exit with non-zero for failures
         if status not in ("pass",):
@@ -215,7 +227,69 @@ def run(ctx: click.Context, case: str, max_retry: int, headless: bool, browser: 
 @click.pass_context
 def design(ctx: click.Context, requirement: str, url: str | None, output: str) -> None:
     """Design a test case from a requirement."""
-    _placeholder(ctx, "design")
+    try:
+        from rodski_agent.design.graph import build_design_graph
+        from rodski_agent.common.contracts import DesignOutput
+
+        output_dir = os.path.abspath(output)
+        state: dict[str, Any] = {
+            "requirement": requirement,
+            "output_dir": output_dir,
+        }
+        if url:
+            state["target_url"] = url
+
+        graph = build_design_graph()
+        result = graph.invoke(state)
+
+        status = result.get("status", "error")
+        generated_files = result.get("generated_files", [])
+        error = result.get("error", "")
+        validation_errors = result.get("validation_errors", [])
+
+        # Classify generated files
+        case_files = [f for f in generated_files if "/case/" in f]
+        model_files = [f for f in generated_files if "/model/" in f]
+        data_files = [f for f in generated_files if "/data/" in f]
+
+        design_output = DesignOutput(
+            cases=case_files,
+            models=model_files,
+            data=data_files,
+            summary=f"Generated {len(generated_files)} file(s)",
+        )
+
+        agent_status = "success" if status == "success" else "error"
+
+        agent_out = AgentOutput(
+            status=agent_status,
+            command="design",
+            output=design_output.to_dict(),
+            error=error if error else None,
+        )
+
+        fmt = ctx.obj.get("format", "human") if ctx.obj else "human"
+        if fmt == "json":
+            click.echo(agent_out.to_json())
+        else:
+            if agent_status == "error":
+                click.echo(agent_out.to_human())
+                if validation_errors:
+                    click.echo("Validation errors:")
+                    for ve in validation_errors:
+                        click.echo(f"  - {ve}")
+            else:
+                click.echo(agent_out.to_human())
+
+        if status != "success":
+            ctx.exit(2)
+
+    except AgentError as err:
+        _handle_agent_error(ctx, err, "design")
+    except (SystemExit, click.exceptions.Exit):
+        raise
+    except Exception as exc:
+        _handle_unexpected_error(ctx, exc, "design")
 
 
 # ---------------------------------------------------------------------------
@@ -226,7 +300,7 @@ def design(ctx: click.Context, requirement: str, url: str | None, output: str) -
 @click.option("--requirement", required=True, type=str, help="Natural-language requirement description.")
 @click.option("--url", default=None, type=str, help="Target URL for the test.")
 @click.option("--output", required=True, type=click.Path(), help="Output path for generated test case.")
-@click.option("--max-retry", default=0, show_default=True, type=int, help="Max retry count on failure.")
+@click.option("--max-retry", default=3, show_default=True, type=int, help="Max retry count on failure.")
 @click.pass_context
 def pipeline(ctx: click.Context, requirement: str, url: str | None, output: str, max_retry: int) -> None:
     """Run the full design-then-execute pipeline."""

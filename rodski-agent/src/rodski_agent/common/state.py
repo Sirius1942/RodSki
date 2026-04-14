@@ -38,9 +38,10 @@ class ExecutionState(TypedDict, total=False):
     # 每个 case 的结构化结果：[{id, title, status, time, error}, ...]
     screenshots: List[str]            # 截图路径列表
 
-    # -- 诊断（V1 使用，MVP 为空占位）----------------------------------
+    # -- 诊断与重试 ---------------------------------------------------
     diagnosis: Optional[Dict[str, Any]]
     retry_count: int
+    retry_decision: str               # "retry" | "give_up"
     fixes_applied: List[str]
 
     # -- 输出 ----------------------------------------------------------
