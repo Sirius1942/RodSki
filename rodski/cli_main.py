@@ -3,9 +3,9 @@
 import sys
 import argparse
 import traceback
-from rodski_cli import run, model, config, log, report, profile, docs
+from .rodski_cli import run, model, config, log, report, profile, docs, capabilities
 
-VERSION = "3.1.0"
+from rodski import __version__ as VERSION
 
 
 def format_error(e, verbose=False):
@@ -74,6 +74,9 @@ def main():
     # docs 子命令
     docs.setup_parser(subparsers)
 
+    # capabilities 子命令
+    capabilities.setup_parser(subparsers)
+
     args = parser.parse_args()
 
     if not args.command:
@@ -88,7 +91,8 @@ def main():
         "log": log.handle,
         "report": report.handle,
         "profile": profile.handle,
-        "docs": docs.handle
+        "docs": docs.handle,
+        "capabilities": capabilities.handle,
     }
 
     verbose = getattr(args, "verbose", False)

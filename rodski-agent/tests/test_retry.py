@@ -15,7 +15,6 @@ from rodski_agent.execution.nodes import retry_decide
 from rodski_agent.execution.fixer import apply_fix
 from rodski_agent.execution.graph import (
     build_execution_graph,
-    SimpleGraph,
     _retry_decide_router,
 )
 
@@ -545,36 +544,6 @@ class TestExecutionGraphRetryLoop:
 
 
 # ================================================================
-# T05-005: SimpleGraph 循环保护测试
-# ================================================================
-
-
-class TestSimpleGraphLoopProtection:
-    """SimpleGraph 循环保护测试。"""
-
-    def test_max_loop_prevents_infinite_loop(self):
-        """max_loop 参数应防止无限循环。"""
-        call_count = [0]
-
-        def always_loop(s):
-            call_count[0] += 1
-            return {"loop": True}
-
-        g = SimpleGraph(
-            nodes=[("a", always_loop), ("b", always_loop)],
-            conditional_edges={
-                "b": (lambda s: "a", {"a": "a"}),
-            },
-            max_loop=3,
-        )
-        result = g.invoke({})
-        assert result["status"] == "error"
-        assert "Max loop count" in result["error"]
-        # Should not run indefinitely
-        assert call_count[0] <= 10
-
-
-# ================================================================
 # T05-005: build_execution_graph 接受新参数
 # ================================================================
 
@@ -605,5 +574,7 @@ class TestBuildExecutionGraphNewParams:
         )
         result = g.invoke({"case_path": "/fake", "headless": True, "max_retry": 3})
 
-        assert result.get("custom_marker") is True
+        # LangGraph TypedDict state only retains known keys — custom_marker
+        # is not in ExecutionState, so we verify via retry_decision instead
+        assert result.get("retry_decision") == "give_up"
         assert result["status"] == "fail"

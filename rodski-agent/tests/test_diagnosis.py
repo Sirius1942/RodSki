@@ -2,7 +2,7 @@
 
 覆盖:
   - diagnose 节点 with mock LLM
-  - LLM unavailable 降级
+  - LLM 失败直接报错
   - 诊断提示词包含必要元素
   - 更新后的执行图包含 diagnose 节点
   - diagnose CLI 命令
@@ -21,7 +21,6 @@ from rodski_agent.execution.nodes import (
     diagnose,
     _parse_diagnosis_response,
     _enforce_confidence_rule,
-    _fallback_diagnosis,
 )
 from rodski_agent.execution.prompts import (
     DIAGNOSE_SYSTEM_PROMPT,
@@ -29,7 +28,7 @@ from rodski_agent.execution.prompts import (
     COMMON_FAILURE_PATTERNS,
 )
 from rodski_agent.execution.graph import build_execution_graph, _parse_result_router
-from rodski_agent.common.llm_bridge import LLMUnavailableError
+from rodski_agent.common.errors import LLMError
 
 
 # ================================================================
@@ -126,7 +125,7 @@ class TestDiagnoseNodeWithMockLLM:
         }
         captured_prompt = []
 
-        def mock_call(prompt):
+        def mock_call(prompt, agent_type="design"):
             captured_prompt.append(prompt)
             return self._mock_llm_response()
 
@@ -139,15 +138,15 @@ class TestDiagnoseNodeWithMockLLM:
 
 
 # ================================================================
-# T04-006b: LLM unavailable 降级
+# T04-006b: LLM 失败直接报错
 # ================================================================
 
 
-class TestDiagnoseLLMUnavailable:
-    """LLM 不可用时的降级行为。"""
+class TestDiagnoseLLMError:
+    """LLM 不可用时直接报错。"""
 
-    def test_llm_unavailable_returns_skipped(self):
-        """LLM 不可用时，diagnose 应返回 skipped=True。"""
+    def test_llm_error_propagates(self):
+        """LLM 错误应直接抛出 LLMError。"""
         state = {
             "case_results": [
                 {"id": "c001", "status": "FAIL", "error": "some error"},
@@ -156,35 +155,10 @@ class TestDiagnoseLLMUnavailable:
         }
         with patch(
             "rodski_agent.common.llm_bridge.call_llm_text",
-            side_effect=LLMUnavailableError("No API key"),
+            side_effect=LLMError("No API key", code="E_LLM_KEY_MISSING"),
         ):
-            result = diagnose(state)
-
-        diag = result["diagnosis"]
-        assert diag["skipped"] is True
-        assert "LLM unavailable" in diag["reason"]
-
-    def test_llm_exception_fallback(self):
-        """LLM 调用抛出非 LLMUnavailableError 时，应使用降级诊断。"""
-        state = {
-            "case_results": [
-                {"id": "c001", "status": "FAIL", "error": "element not found"},
-            ],
-            "screenshots": [],
-        }
-        with patch(
-            "rodski_agent.common.llm_bridge.call_llm_text",
-            side_effect=RuntimeError("Connection timeout"),
-        ):
-            result = diagnose(state)
-
-        diag = result["diagnosis"]
-        assert diag["skipped"] is False
-        assert len(diag["cases"]) == 1
-        case_diag = diag["cases"][0]
-        assert case_diag["category"] == "UNKNOWN"
-        assert case_diag["confidence"] < 0.6
-        assert case_diag["recommended_action"] in ("pause", "escalate")
+            with pytest.raises(LLMError):
+                diagnose(state)
 
 
 # ================================================================
@@ -468,13 +442,6 @@ class TestDiagnosisResultParsing:
         result = _enforce_confidence_rule(diag)
         assert result["recommended_action"] == "terminate"
 
-    def test_fallback_diagnosis(self):
-        """降级诊断应返回 UNKNOWN 且低置信度。"""
-        result = _fallback_diagnosis("c001", "element not found: #btn")
-        assert result["category"] == "UNKNOWN"
-        assert result["confidence"] < 0.6
-        assert "element not found" in result["root_cause"]
-
 
 # ================================================================
 # T04-006f: diagnose CLI 命令
@@ -498,27 +465,6 @@ class TestDiagnoseCLI:
         parsed = json.loads(result.output.strip())
         assert parsed["status"] == "error"
 
-    def test_diagnose_with_summary_json(self, cli_runner: CliRunner, tmp_path):
-        """提供包含 execution_summary.json 的目录应调用 diagnose 节点。"""
-        summary = {
-            "cases": [
-                {"case_id": "c001", "title": "Login", "status": "FAIL", "error": "timeout"},
-            ]
-        }
-        (tmp_path / "execution_summary.json").write_text(json.dumps(summary))
-
-        with patch(
-            "rodski_agent.common.llm_bridge.call_llm_text",
-            side_effect=LLMUnavailableError("No API key"),
-        ):
-            result = cli_runner.invoke(
-                main, ["--format", "json", "diagnose", "--result", str(tmp_path)]
-            )
-
-        parsed = json.loads(result.output.strip())
-        assert parsed["status"] == "success"
-        assert parsed["output"]["skipped"] is True
-
     def test_diagnose_with_all_pass(self, cli_runner: CliRunner, tmp_path):
         """所有用例通过时，diagnose 应跳过。"""
         summary = {
@@ -536,26 +482,6 @@ class TestDiagnoseCLI:
         assert parsed["status"] == "success"
         assert parsed["output"]["skipped"] is True
 
-    def test_diagnose_human_format(self, cli_runner: CliRunner, tmp_path):
-        """human 格式应输出可读文本。"""
-        summary = {
-            "cases": [
-                {"case_id": "c001", "title": "Login", "status": "FAIL", "error": "timeout"},
-            ]
-        }
-        (tmp_path / "execution_summary.json").write_text(json.dumps(summary))
-
-        with patch(
-            "rodski_agent.common.llm_bridge.call_llm_text",
-            side_effect=LLMUnavailableError("No API key"),
-        ):
-            result = cli_runner.invoke(
-                main, ["--format", "human", "diagnose", "--result", str(tmp_path)]
-            )
-
-        assert result.exit_code == 0
-        assert "skipped" in result.output.lower() or "Diagnosis" in result.output
-
 
 # ================================================================
 # T04-006g: LLM Bridge 测试
@@ -565,41 +491,31 @@ class TestDiagnoseCLI:
 class TestLLMBridge:
     """LLM 桥接层测试。"""
 
-    def test_llm_unavailable_error_is_importable(self):
-        """LLMUnavailableError 应可正常导入。"""
-        from rodski_agent.common.llm_bridge import LLMUnavailableError
-        assert issubclass(LLMUnavailableError, Exception)
+    def test_llm_error_is_importable(self):
+        """LLMError 应可正常导入。"""
+        from rodski_agent.common.errors import LLMError
+        assert issubclass(LLMError, Exception)
 
-    def test_get_llm_client_raises_when_unavailable(self):
-        """当 rodski 不可导入时，get_llm_client 应抛 LLMUnavailableError。"""
-        from rodski_agent.common.llm_bridge import get_llm_client
+    def test_get_chat_model_raises_without_api_key(self, monkeypatch):
+        """API key 缺失时，get_chat_model 应抛 LLMError。"""
+        from rodski_agent.common.llm_bridge import get_chat_model, reset_cache
+        reset_cache()
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        with pytest.raises(LLMError, match="API key not found"):
+            get_chat_model("design")
 
-        with patch("rodski_agent.common.llm_bridge._find_rodski_root", side_effect=LLMUnavailableError("no rodski")):
-            with pytest.raises(LLMUnavailableError):
-                get_llm_client()
+    def test_call_llm_text_raises_on_error(self, monkeypatch):
+        """LLM 调用失败时，call_llm_text 应抛 LLMError。"""
+        from rodski_agent.common.llm_bridge import call_llm_text, reset_cache
+        reset_cache()
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        with pytest.raises(LLMError):
+            call_llm_text("test prompt")
 
-    def test_analyze_screenshot_handles_unavailable(self):
-        """LLM 不可用时，analyze_screenshot 应返回 error dict。"""
-        from rodski_agent.common.llm_bridge import analyze_screenshot
-
-        with patch("rodski_agent.common.llm_bridge.get_llm_client", side_effect=LLMUnavailableError("no key")):
-            result = analyze_screenshot("/fake/image.png", "What is shown?")
-        assert result["answer"] == ""
-        assert "error" in result
-
-    def test_review_test_result_handles_unavailable(self):
-        """LLM 不可用时，review_test_result 应返回 error dict。"""
-        from rodski_agent.common.llm_bridge import review_test_result
-
-        with patch("rodski_agent.common.llm_bridge.get_llm_client", side_effect=LLMUnavailableError("no key")):
-            result = review_test_result({"case_results": []})
-        assert result["review"] == ""
-        assert "error" in result
-
-    def test_call_llm_text_raises_when_unavailable(self):
-        """LLM 不可用时，call_llm_text 应抛 LLMUnavailableError。"""
-        from rodski_agent.common.llm_bridge import call_llm_text
-
-        with patch("rodski_agent.common.llm_bridge.get_llm_client", side_effect=LLMUnavailableError("no key")):
-            with pytest.raises(LLMUnavailableError):
-                call_llm_text("test prompt")
+    def test_analyze_screenshot_raises_on_error(self, monkeypatch):
+        """LLM 不可用时，analyze_screenshot 应抛 LLMError。"""
+        from rodski_agent.common.llm_bridge import analyze_screenshot, reset_cache
+        reset_cache()
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        with pytest.raises(LLMError):
+            analyze_screenshot("/fake/image.png", "What is shown?")

@@ -16,6 +16,7 @@ from rodski_agent.common.config import (
     DesignConfig,
     ExecutionConfig,
     LLMConfig,
+    LLMProviderConfig,
     OmniParserConfig,
     OutputConfig,
     RodskiConfig,
@@ -69,11 +70,15 @@ class TestDefaultConfig:
         assert cfg.output.verbose is False
 
     def test_llm_section_类型正确(self, monkeypatch, tmp_path):
-        """llm section 应返回 LLMConfig 实例。"""
+        """llm section 应返回 LLMConfig 实例，含 design 和 execution 子配置。"""
         monkeypatch.delenv("RODSKI_AGENT_CONFIG", raising=False)
         monkeypatch.chdir(tmp_path)
         cfg = AgentConfig.load()
         assert isinstance(cfg.llm, LLMConfig)
+        assert isinstance(cfg.llm.design, LLMProviderConfig)
+        assert isinstance(cfg.llm.execution, LLMProviderConfig)
+        assert cfg.llm.design.provider == "claude"
+        assert cfg.llm.execution.temperature == 0.1
 
     def test_omniparser_section_类型正确(self, monkeypatch, tmp_path):
         """omniparser section 应返回 OmniParserConfig 实例。"""
@@ -202,6 +207,8 @@ class TestToDict:
         d = cfg.to_dict()
         assert isinstance(d["design"]["max_scenarios"], int)
         assert isinstance(d["rodski"]["headless"], bool)
+        assert isinstance(d["llm"]["design"]["provider"], str)
+        assert isinstance(d["llm"]["execution"]["temperature"], float)
 
 
 class TestCoercion:

@@ -107,12 +107,32 @@ class TestDesignCommand:
 
     def test_design_placeholder_输出(self, cli_runner: CliRunner, tmp_path):
         """提供必填参数后 design 命令应返回 placeholder 输出。"""
-        output_path = str(tmp_path / "out.xml")
-        result = cli_runner.invoke(main, [
-            "design",
-            "--requirement", "测试登录功能",
-            "--output", output_path,
-        ])
+        import json as _json
+        output_path = str(tmp_path / "out")
+
+        scenarios = _json.dumps([{"scenario_name": "t", "description": "Test", "type": "ui", "steps_outline": ["a"]}])
+        case_plan = _json.dumps([{
+            "id": "c001", "title": "Test",
+            "steps": [{"phase": "test_case", "action": "type", "model": "Login", "data": "D001"}],
+        }])
+        test_data = _json.dumps({
+            "datatables": [{"name": "Login", "rows": [{"id": "D001", "fields": [{"name": "f1", "value": "v1"}]}]}],
+            "verify_tables": [],
+        })
+        responses = [scenarios, case_plan, test_data]
+        counter = {"n": 0}
+
+        def mock_llm(prompt, agent_type="design"):
+            idx = counter["n"]
+            counter["n"] += 1
+            return responses[idx] if idx < len(responses) else "[]"
+
+        with patch("rodski_agent.common.llm_bridge.call_llm_text", side_effect=mock_llm):
+            result = cli_runner.invoke(main, [
+                "design",
+                "--requirement", "测试登录功能",
+                "--output", output_path,
+            ])
         assert result.exit_code == 0
         assert result.output.strip() != ""
 

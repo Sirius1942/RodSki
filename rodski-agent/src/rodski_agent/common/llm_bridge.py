@@ -1,7 +1,7 @@
-"""LLM 桥接层 — 复用 rodski LLM 能力
+"""LLM 桥接层 — 基于 langchain 的自建 LLM 客户端。
 
-通过动态导入 rodski/llm/client.py 的 LLMClient，为 rodski-agent 提供
-LLM 调用能力。当 rodski 不可导入或 LLM 配置缺失时，所有函数优雅降级。
+为 rodski-agent 提供 LLM 调用能力。按 agent_type (design/execution)
+使用不同的模型配置。LLM 不可用时直接抛出 LLMError，不降级。
 
 Python 3.9 兼容：使用 ``from __future__ import annotations`` 延迟求值。
 """
@@ -10,173 +10,129 @@ from __future__ import annotations
 
 import base64
 import logging
-import sys
-from pathlib import Path
+import os
 from typing import Any, Optional
+
+from langchain_core.messages import HumanMessage, SystemMessage
+
+from rodski_agent.common.errors import LLMError
 
 logger = logging.getLogger(__name__)
 
-
-# ============================================================
-# 异常
-# ============================================================
-
-class LLMUnavailableError(Exception):
-    """LLM 服务不可用 — rodski 不可导入、配置缺失或连接失败。"""
+# 缓存已创建的 ChatModel 实例
+_model_cache: dict[str, Any] = {}
 
 
-# ============================================================
-# 核心：获取 LLMClient 实例
-# ============================================================
+def _get_config() -> Any:
+    """懒加载 AgentConfig。"""
+    from rodski_agent.common.config import AgentConfig
+    return AgentConfig.load()
 
-def _find_rodski_root() -> Path:
-    """找到 rodski 项目根目录（与 rodski-agent 同级）。
 
-    目录结构:
-        RodSki/
-        ├── rodski/          ← 目标
-        └── rodski-agent/
-            └── src/rodski_agent/common/llm_bridge.py  ← 当前文件
+def get_chat_model(agent_type: str = "design") -> Any:
+    """获取指定 agent 类型的 ChatModel 实例。
+
+    Parameters
+    ----------
+    agent_type:
+        ``"design"`` 或 ``"execution"``，决定使用哪组 LLM 配置。
+
+    Returns
+    -------
+    BaseChatModel
+        langchain ChatModel 实例。
+
+    Raises
+    ------
+    LLMError
+        配置错误或 API key 缺失时抛出。
     """
-    # 从当前文件往上 4 级到 RodSki/
-    project_root = Path(__file__).resolve().parents[4]
-    rodski_root = project_root / "rodski"
-    if rodski_root.is_dir():
-        return rodski_root
+    if agent_type in _model_cache:
+        return _model_cache[agent_type]
 
-    # 降级：尝试相对工作目录
-    cwd = Path.cwd()
-    if cwd.name == "rodski-agent":
-        candidate = cwd.parent / "rodski"
+    config = _get_config()
+    llm_config = config.llm
+
+    if agent_type == "execution":
+        provider_config = llm_config.execution
     else:
-        candidate = cwd / "rodski"
-    if candidate.is_dir():
-        return candidate
+        provider_config = llm_config.design
 
-    raise LLMUnavailableError(
-        f"Cannot find rodski/ directory (searched from {project_root})"
-    )
+    # 获取 API key
+    api_key = os.environ.get(provider_config.api_key_env, "")
+    if not api_key:
+        raise LLMError(
+            f"API key not found: environment variable '{provider_config.api_key_env}' is not set",
+            code="E_LLM_KEY_MISSING",
+            suggestion=f"Set the {provider_config.api_key_env} environment variable",
+        )
 
+    provider = provider_config.provider.lower()
 
-def get_llm_client() -> Any:
-    """获取 rodski LLMClient 实例。
-
-    找不到 rodski 或 LLM 配置时抛 LLMUnavailableError。
-
-    Returns
-    -------
-    LLMClient
-        rodski.llm.client.LLMClient 实例。
-    """
     try:
-        rodski_root = _find_rodski_root()
-    except LLMUnavailableError:
+        if provider in ("claude", "anthropic"):
+            from langchain_anthropic import ChatAnthropic
+
+            kwargs: dict[str, Any] = {
+                "model": provider_config.model,
+                "api_key": api_key,
+                "temperature": provider_config.temperature,
+                "max_tokens": provider_config.max_tokens,
+            }
+            if provider_config.base_url:
+                kwargs["base_url"] = provider_config.base_url
+            model = ChatAnthropic(**kwargs)
+
+        elif provider in ("openai", "gpt"):
+            from langchain_openai import ChatOpenAI
+
+            kwargs = {
+                "model": provider_config.model,
+                "api_key": api_key,
+                "temperature": provider_config.temperature,
+                "max_tokens": provider_config.max_tokens,
+            }
+            if provider_config.base_url:
+                kwargs["base_url"] = provider_config.base_url
+            model = ChatOpenAI(**kwargs)
+
+        else:
+            raise LLMError(
+                f"Unsupported LLM provider: '{provider}'",
+                code="E_LLM_PROVIDER",
+                suggestion="Supported providers: claude, openai",
+            )
+    except LLMError:
         raise
-
-    rodski_str = str(rodski_root)
-    if rodski_str not in sys.path:
-        sys.path.insert(0, rodski_str)
-
-    try:
-        from llm.client import LLMClient
-    except ImportError as exc:
-        raise LLMUnavailableError(
-            f"Cannot import LLMClient from rodski/llm/client.py: {exc}"
+    except Exception as exc:
+        raise LLMError(
+            f"Failed to initialize LLM client for {agent_type}: {exc}",
+            code="E_LLM_INIT",
         ) from exc
 
-    try:
-        client = LLMClient()
-        return client
-    except Exception as exc:
-        raise LLMUnavailableError(
-            f"Failed to initialize LLMClient: {exc}"
-        ) from exc
+    _model_cache[agent_type] = model
+    return model
+
+
+def reset_cache() -> None:
+    """清空模型缓存（供测试使用）。"""
+    _model_cache.clear()
 
 
 # ============================================================
-# 高级 API：截图分析
+# 高级 API：文本调用
 # ============================================================
 
-def analyze_screenshot(image_path: str, question: str) -> dict:
-    """调用 screenshot_verifier 能力分析截图。
 
-    Parameters
-    ----------
-    image_path:
-        截图文件路径。
-    question:
-        需要回答的问题（如 "页面上是否显示错误信息？"）。
-
-    Returns
-    -------
-    dict
-        分析结果，格式为 ``{"answer": str, "confidence": float}``。
-        LLM 不可用时返回 ``{"answer": "", "error": str}``。
-    """
-    try:
-        client = get_llm_client()
-    except LLMUnavailableError as exc:
-        logger.warning("LLM unavailable for screenshot analysis: %s", exc)
-        return {"answer": "", "error": str(exc)}
-
-    try:
-        # 读取图片并转换为 base64
-        with open(image_path, "rb") as f:
-            image_data = base64.b64encode(f.read()).decode("utf-8")
-
-        result_text = client.call_vision(image_data, question)
-        return {"answer": result_text, "confidence": 0.8}
-    except FileNotFoundError:
-        return {"answer": "", "error": f"Screenshot not found: {image_path}"}
-    except Exception as exc:
-        logger.warning("Screenshot analysis failed: %s", exc)
-        return {"answer": "", "error": str(exc)}
-
-
-# ============================================================
-# 高级 API：测试结果审查
-# ============================================================
-
-def review_test_result(result_data: dict) -> dict:
-    """调用 test_reviewer 能力审查测试结果。
-
-    Parameters
-    ----------
-    result_data:
-        测试结果数据字典，包含 case_results 等信息。
-
-    Returns
-    -------
-    dict
-        审查结果，格式为 ``{"review": str, "suggestions": list}``。
-        LLM 不可用时返回 ``{"review": "", "error": str}``。
-    """
-    try:
-        client = get_llm_client()
-    except LLMUnavailableError as exc:
-        logger.warning("LLM unavailable for test result review: %s", exc)
-        return {"review": "", "error": str(exc)}
-
-    try:
-        capability = client.get_capability("test_reviewer")
-        review = capability.review(result_data)
-        return {"review": review, "suggestions": []}
-    except Exception as exc:
-        logger.warning("Test result review failed: %s", exc)
-        return {"review": "", "error": str(exc)}
-
-
-# ============================================================
-# 高级 API：文本诊断（供 diagnose 节点使用）
-# ============================================================
-
-def call_llm_text(prompt: str) -> str:
+def call_llm_text(prompt: str, agent_type: str = "design") -> str:
     """调用 LLM 纯文本 API。
 
     Parameters
     ----------
     prompt:
         完整的 prompt 文本。
+    agent_type:
+        ``"design"`` 或 ``"execution"``。
 
     Returns
     -------
@@ -185,13 +141,72 @@ def call_llm_text(prompt: str) -> str:
 
     Raises
     ------
-    LLMUnavailableError
-        LLM 不可用时抛出。
+    LLMError
+        LLM 不可用或调用失败时抛出。
     """
-    client = get_llm_client()
+    model = get_chat_model(agent_type)
     try:
-        return client.call_text(prompt)
+        response = model.invoke([HumanMessage(content=prompt)])
+        return response.content
     except Exception as exc:
-        raise LLMUnavailableError(
-            f"LLM text call failed: {exc}"
+        raise LLMError(
+            f"LLM text call failed: {exc}",
+            code="E_LLM_CALL",
+        ) from exc
+
+
+# ============================================================
+# 高级 API：截图分析（Vision）
+# ============================================================
+
+
+def analyze_screenshot(
+    image_path: str,
+    question: str,
+    agent_type: str = "design",
+) -> dict:
+    """调用 LLM Vision 能力分析截图。
+
+    Parameters
+    ----------
+    image_path:
+        截图文件路径。
+    question:
+        需要回答的问题。
+    agent_type:
+        使用哪组 LLM 配置。
+
+    Returns
+    -------
+    dict
+        ``{"answer": str, "confidence": float}``
+
+    Raises
+    ------
+    LLMError
+        LLM 不可用或调用失败时抛出。
+    """
+    model = get_chat_model(agent_type)
+
+    with open(image_path, "rb") as f:
+        image_data = base64.b64encode(f.read()).decode("utf-8")
+
+    # 构造多模态消息
+    message = HumanMessage(
+        content=[
+            {"type": "text", "text": question},
+            {
+                "type": "image_url",
+                "image_url": {"url": f"data:image/png;base64,{image_data}"},
+            },
+        ]
+    )
+
+    try:
+        response = model.invoke([message])
+        return {"answer": response.content, "confidence": 0.8}
+    except Exception as exc:
+        raise LLMError(
+            f"Screenshot analysis failed: {exc}",
+            code="E_LLM_VISION",
         ) from exc

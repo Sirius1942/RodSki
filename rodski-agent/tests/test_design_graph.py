@@ -17,12 +17,10 @@ from rodski_agent.design.nodes import (
     design_data,
     generate_xml,
     validate_xml,
-    _fallback_scenarios,
-    _fallback_case_plan,
-    _fallback_test_data,
     _validate_case_plan_actions,
     _parse_json_response,
 )
+from rodski_agent.common.errors import LLMError
 from rodski_agent.design.graph import build_design_graph, _validate_router
 
 
@@ -40,49 +38,28 @@ class TestAnalyzeReq:
         assert result["status"] == "error"
         assert result["test_scenarios"] == []
 
-    def test_fallback_ui_scenario(self):
-        """Fallback generates UI scenario for general requirement."""
-        result = analyze_req({"requirement": "测试登录功能"})
+    def test_with_mock_llm_success(self):
+        """Mock LLM returns valid scenarios."""
+        scenarios = [
+            {"scenario_name": "login_test", "description": "test login", "type": "ui", "steps_outline": ["a"]}
+        ]
+        with patch("rodski_agent.common.llm_bridge.call_llm_text", return_value=json.dumps(scenarios)):
+            result = analyze_req({"requirement": "测试登录功能"})
         assert result["status"] == "running"
-        scenarios = result["test_scenarios"]
-        assert len(scenarios) >= 1
-        assert scenarios[0]["type"] == "ui"
+        assert len(result["test_scenarios"]) == 1
+        assert result["test_scenarios"][0]["type"] == "ui"
 
-    def test_fallback_api_scenario(self):
-        """Fallback detects API type from keywords."""
-        result = analyze_req({"requirement": "测试登录接口 API"})
-        scenarios = result["test_scenarios"]
-        assert scenarios[0]["type"] == "api"
+    def test_llm_error_propagates(self):
+        """LLM error should propagate, not be silently caught."""
+        with patch("rodski_agent.common.llm_bridge.call_llm_text", side_effect=LLMError("no key", code="E_LLM")):
+            with pytest.raises(LLMError):
+                analyze_req({"requirement": "test login"})
 
-    def test_fallback_db_scenario(self):
-        """Fallback detects DB type from keywords."""
-        result = analyze_req({"requirement": "测试数据库查询"})
-        scenarios = result["test_scenarios"]
-        assert scenarios[0]["type"] == "db"
-
-    def test_with_mock_llm(self):
-        """With mock LLM unavailable, should fall back to stub."""
-        with patch("rodski_agent.common.llm_bridge.call_llm_text", side_effect=Exception("no llm")):
-            # LLM exception triggers fallback
+    def test_llm_returns_invalid_format(self):
+        """LLM returns non-list → error status."""
+        with patch("rodski_agent.common.llm_bridge.call_llm_text", return_value='{"not": "a list"}'):
             result = analyze_req({"requirement": "test login"})
-            assert result["status"] == "running"
-            assert len(result["test_scenarios"]) >= 1
-
-
-class TestFallbackScenarios:
-    """测试 _fallback_scenarios"""
-
-    def test_basic_scenario(self):
-        """Basic scenario generation."""
-        scenarios = _fallback_scenarios("test search feature")
-        assert len(scenarios) == 1
-        assert scenarios[0]["scenario_name"] == "test_scenario_001"
-        assert scenarios[0]["type"] == "ui"
-
-    def test_api_detection(self):
-        """API keywords detected."""
-        scenarios = _fallback_scenarios("test HTTP request")
-        assert scenarios[0]["type"] == "api"
+        assert result["status"] == "error"
 
 
 # ============================================================
@@ -98,55 +75,30 @@ class TestPlanCases:
         result = plan_cases({"test_scenarios": []})
         assert result["status"] == "error"
 
-    def test_fallback_ui_plan(self):
-        """Fallback generates UI case plan."""
-        scenarios = [
+    def test_with_mock_llm_success(self):
+        """Mock LLM returns valid case plan."""
+        case_plan = [
             {
-                "scenario_name": "login_success",
-                "description": "Login test",
-                "type": "ui",
-                "steps_outline": ["open", "fill", "verify"],
+                "id": "c001",
+                "title": "Login Test",
+                "steps": [
+                    {"phase": "test_case", "action": "type", "model": "Login", "data": "D001"},
+                    {"phase": "test_case", "action": "verify", "model": "Login", "data": "V001"},
+                ],
             }
         ]
-        result = plan_cases({"test_scenarios": scenarios})
+        scenarios = [{"scenario_name": "login_test", "description": "Login", "type": "ui", "steps_outline": ["a"]}]
+        with patch("rodski_agent.common.llm_bridge.call_llm_text", return_value=json.dumps(case_plan)):
+            result = plan_cases({"test_scenarios": scenarios})
         assert result["status"] == "running"
-        case_plan = result["case_plan"]
-        assert len(case_plan) >= 1
-        # Check all actions are valid
-        for case in case_plan:
-            for step in case["steps"]:
-                from rodski_agent.common.rodski_knowledge import validate_action
-                assert validate_action(step["action"]), f"Invalid action: {step['action']}"
+        assert len(result["case_plan"]) == 1
 
-    def test_fallback_api_plan(self):
-        """Fallback generates API case plan."""
-        scenarios = [
-            {
-                "scenario_name": "api_test",
-                "description": "API test",
-                "type": "api",
-                "steps_outline": ["send request", "verify response"],
-            }
-        ]
-        result = plan_cases({"test_scenarios": scenarios})
-        case_plan = result["case_plan"]
-        actions = [s["action"] for s in case_plan[0]["steps"]]
-        assert "send" in actions
-
-    def test_fallback_db_plan(self):
-        """Fallback generates DB case plan."""
-        scenarios = [
-            {
-                "scenario_name": "db_test",
-                "description": "DB test",
-                "type": "db",
-                "steps_outline": ["execute query"],
-            }
-        ]
-        result = plan_cases({"test_scenarios": scenarios})
-        case_plan = result["case_plan"]
-        actions = [s["action"] for s in case_plan[0]["steps"]]
-        assert "DB" in actions
+    def test_llm_error_propagates(self):
+        """LLM error should propagate."""
+        scenarios = [{"scenario_name": "test", "description": "Test", "type": "ui", "steps_outline": ["a"]}]
+        with patch("rodski_agent.common.llm_bridge.call_llm_text", side_effect=LLMError("no key", code="E_LLM")):
+            with pytest.raises(LLMError):
+                plan_cases({"test_scenarios": scenarios})
 
 
 class TestValidateCasePlanActions:
@@ -201,48 +153,25 @@ class TestDesignData:
         result = design_data({"case_plan": []})
         assert result["status"] == "error"
 
-    def test_fallback_data_generation(self):
-        """Fallback generates minimal test data."""
-        case_plan = [
-            {
-                "id": "c001",
-                "title": "Test",
-                "steps": [
-                    {"action": "type", "model": "Login", "data": "L001"},
-                    {"action": "verify", "model": "Login", "data": "V001"},
-                ],
-            }
-        ]
-        result = design_data({"case_plan": case_plan})
+    def test_with_mock_llm_success(self):
+        """Mock LLM returns valid test data."""
+        test_data = {
+            "datatables": [{"name": "Login", "rows": [{"id": "L001", "fields": [{"name": "f1", "value": "v1"}]}]}],
+            "verify_tables": [{"name": "Login_verify", "rows": [{"id": "V001", "fields": [{"name": "f1", "value": "v1"}]}]}],
+        }
+        case_plan = [{"id": "c001", "title": "Test", "steps": [{"action": "type", "model": "Login", "data": "L001"}]}]
+        with patch("rodski_agent.common.llm_bridge.call_llm_text", return_value=json.dumps(test_data)):
+            result = design_data({"case_plan": case_plan})
         assert result["status"] == "running"
-        test_data = result["test_data"]
-        assert "datatables" in test_data
-        assert "verify_tables" in test_data
+        assert "datatables" in result["test_data"]
+        assert "verify_tables" in result["test_data"]
 
-
-class TestFallbackTestData:
-    """测试 _fallback_test_data"""
-
-    def test_generates_data_and_verify(self):
-        """Should generate both data and verify tables."""
-        case_plan = [
-            {
-                "id": "c001",
-                "steps": [
-                    {"action": "type", "model": "Login", "data": "L001"},
-                    {"action": "verify", "model": "Login", "data": "V001"},
-                ],
-            }
-        ]
-        data = _fallback_test_data(case_plan)
-        assert len(data["datatables"]) >= 1
-        assert data["datatables"][0]["name"] == "Login"
-        # verify table for Login (verify step uses Login model)
-        # Note: Login model is already seen by type step,
-        # so verify step's model won't be added to datatables again,
-        # but it will be added to verify_tables
-        assert len(data["verify_tables"]) >= 1
-        assert data["verify_tables"][0]["name"] == "Login_verify"
+    def test_llm_error_propagates(self):
+        """LLM error should propagate."""
+        case_plan = [{"id": "c001", "title": "Test", "steps": [{"action": "type", "model": "M", "data": "D"}]}]
+        with patch("rodski_agent.common.llm_bridge.call_llm_text", side_effect=LLMError("no key", code="E_LLM")):
+            with pytest.raises(LLMError):
+                design_data({"case_plan": case_plan})
 
 
 # ============================================================
@@ -391,19 +320,17 @@ class TestValidateXml:
         result = validate_xml({"output_dir": "/tmp", "generated_files": []})
         assert result["status"] == "error"
 
-    def test_graceful_degradation(self, tmp_path):
-        """When rodski validator is not available, should succeed gracefully."""
-        # Mock rodski_validate at the source module to raise ImportError
+    def test_validator_error_propagates(self, tmp_path):
+        """When rodski validator raises, error should propagate."""
         with patch(
             "rodski_agent.common.rodski_tools.rodski_validate",
             side_effect=ImportError("no rodski"),
         ):
-            result = validate_xml({
-                "output_dir": str(tmp_path),
-                "generated_files": [str(tmp_path / "test.xml")],
-            })
-        # Should gracefully degrade to success
-        assert result["status"] == "success"
+            with pytest.raises(ImportError):
+                validate_xml({
+                    "output_dir": str(tmp_path),
+                    "generated_files": [str(tmp_path / "test.xml")],
+                })
 
 
 # ============================================================
@@ -486,14 +413,32 @@ class TestDesignGraph:
         })
         assert result["status"] == "success"
 
-    def test_end_to_end_with_real_nodes(self, tmp_path):
-        """Full graph with real nodes (LLM unavailable, uses fallback)."""
+    def test_end_to_end_with_mock_llm(self, tmp_path):
+        """Full graph with real nodes and mock LLM."""
         output_dir = str(tmp_path / "output")
-        result = build_design_graph().invoke({
-            "requirement": "测试登录功能",
-            "output_dir": output_dir,
+
+        scenarios = json.dumps([{"scenario_name": "t", "description": "Test", "type": "ui", "steps_outline": ["a"]}])
+        case_plan = json.dumps([{
+            "id": "c001", "title": "Test",
+            "steps": [{"phase": "test_case", "action": "type", "model": "Login", "data": "D001"}],
+        }])
+        test_data = json.dumps({
+            "datatables": [{"name": "Login", "rows": [{"id": "D001", "fields": [{"name": "f1", "value": "v1"}]}]}],
+            "verify_tables": [],
         })
-        # Should complete (with fallback) and create files
+        llm_responses = [scenarios, case_plan, test_data]
+        call_count = {"n": 0}
+
+        def mock_llm(prompt, agent_type="design"):
+            idx = call_count["n"]
+            call_count["n"] += 1
+            return llm_responses[idx] if idx < len(llm_responses) else "[]"
+
+        with patch("rodski_agent.common.llm_bridge.call_llm_text", side_effect=mock_llm):
+            result = build_design_graph().invoke({
+                "requirement": "测试登录功能",
+                "output_dir": output_dir,
+            })
         generated = result.get("generated_files", [])
         assert len(generated) >= 1
         assert os.path.isdir(os.path.join(output_dir, "case"))
@@ -590,16 +535,38 @@ class TestCliDesignCommand:
         assert result.exit_code == 0
         assert "--requirement" in result.output
 
+    def _mock_llm_responses(self):
+        """Return a side_effect function for mock LLM calls in CLI tests."""
+        scenarios = json.dumps([{"scenario_name": "t", "description": "Test", "type": "ui", "steps_outline": ["a"]}])
+        case_plan = json.dumps([{
+            "id": "c001", "title": "Test",
+            "steps": [{"phase": "test_case", "action": "type", "model": "Login", "data": "D001"}],
+        }])
+        test_data = json.dumps({
+            "datatables": [{"name": "Login", "rows": [{"id": "D001", "fields": [{"name": "f1", "value": "v1"}]}]}],
+            "verify_tables": [],
+        })
+        responses = [scenarios, case_plan, test_data]
+        counter = {"n": 0}
+
+        def mock_fn(prompt, agent_type="design"):
+            idx = counter["n"]
+            counter["n"] += 1
+            return responses[idx] if idx < len(responses) else "[]"
+
+        return mock_fn
+
     def test_design_json_output(self, cli_runner, tmp_path):
         """design with --format json should produce valid JSON."""
         from rodski_agent.cli import main
         output_dir = str(tmp_path / "output")
-        result = cli_runner.invoke(main, [
-            "--format", "json",
-            "design",
-            "--requirement", "测试登录功能",
-            "--output", output_dir,
-        ])
+        with patch("rodski_agent.common.llm_bridge.call_llm_text", side_effect=self._mock_llm_responses()):
+            result = cli_runner.invoke(main, [
+                "--format", "json",
+                "design",
+                "--requirement", "测试登录功能",
+                "--output", output_dir,
+            ])
         parsed = json.loads(result.output.strip())
         assert isinstance(parsed, dict)
         assert "status" in parsed
@@ -610,23 +577,25 @@ class TestCliDesignCommand:
         """design with human format should produce readable text."""
         from rodski_agent.cli import main
         output_dir = str(tmp_path / "output")
-        result = cli_runner.invoke(main, [
-            "--format", "human",
-            "design",
-            "--requirement", "测试登录功能",
-            "--output", output_dir,
-        ])
+        with patch("rodski_agent.common.llm_bridge.call_llm_text", side_effect=self._mock_llm_responses()):
+            result = cli_runner.invoke(main, [
+                "--format", "human",
+                "design",
+                "--requirement", "测试登录功能",
+                "--output", output_dir,
+            ])
         assert result.output.strip() != ""
 
     def test_design_creates_files(self, cli_runner, tmp_path):
         """design command should create output files."""
         from rodski_agent.cli import main
         output_dir = str(tmp_path / "output")
-        cli_runner.invoke(main, [
-            "design",
-            "--requirement", "测试搜索功能",
-            "--output", output_dir,
-        ])
+        with patch("rodski_agent.common.llm_bridge.call_llm_text", side_effect=self._mock_llm_responses()):
+            cli_runner.invoke(main, [
+                "design",
+                "--requirement", "测试搜索功能",
+                "--output", output_dir,
+            ])
         # Should create directory structure
         assert os.path.isdir(os.path.join(output_dir, "case"))
         assert os.path.isdir(os.path.join(output_dir, "model"))

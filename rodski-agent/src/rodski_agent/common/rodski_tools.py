@@ -295,6 +295,55 @@ def rodski_validate(path: str) -> RodskiResult:
         )
 
 
+def rodski_capabilities(timeout: int = 30) -> dict:
+    """调用 rodski capabilities 获取框架能力清单
+
+    通过 subprocess 调用 ``python3 rodski/cli_main.py capabilities``，
+    解析 JSON 输出并返回 dict。
+
+    返回示例::
+
+        {
+            "version": "5.7.1",
+            "supported_keywords": [...],
+            "locator_types": [...],
+            "driver_types": [...],
+            ...
+        }
+
+    失败时抛出 RuntimeError。
+    """
+    rodski_root = _find_rodski_root()
+    cli_main = rodski_root / "cli_main.py"
+
+    cmd = ["python3", str(cli_main), "capabilities"]
+
+    try:
+        proc = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            cwd=str(rodski_root),
+        )
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(f"rodski capabilities timed out after {timeout}s")
+    except FileNotFoundError:
+        raise RuntimeError(f"rodski CLI not found at {cli_main}")
+
+    if proc.returncode != 0:
+        raise RuntimeError(
+            f"rodski capabilities failed (exit {proc.returncode}): {proc.stderr.strip()}"
+        )
+
+    try:
+        return json.loads(proc.stdout)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(
+            f"rodski capabilities returned invalid JSON: {exc}\nOutput: {proc.stdout[:500]}"
+        ) from exc
+
+
 def _guess_xml_kind(path: str) -> str:
     """根据文件路径猜测 XML 文档类型
 

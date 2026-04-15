@@ -258,7 +258,7 @@ Model XML:
 只输出 JSON，不要解释。"""
 
     try:
-        response = call_llm_text(prompt)
+        response = call_llm_text(prompt, agent_type="execution")
         import json
         text = response.strip()
         if "```" in text:
@@ -420,7 +420,7 @@ Data XML:
 只输出 JSON，不要解释。"""
 
     try:
-        response = call_llm_text(prompt)
+        response = call_llm_text(prompt, agent_type="execution")
         import json
         text = response.strip()
         if "```" in text:

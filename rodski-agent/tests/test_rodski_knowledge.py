@@ -19,11 +19,14 @@ import os
 
 import pytest
 
+from unittest.mock import patch
+
 from rodski_agent.common.rodski_knowledge import (
     ALL_VALID_ACTIONS,
     LOCATOR_TYPES,
     RODSKI_CONSTRAINT_SUMMARY,
     RODSKI_KEYWORD_REFERENCE,
+    RodskiConstraints,
     SUPPORTED_KEYWORDS,
     UI_ATOMIC_ACTIONS,
     VERIFY_TABLE_SUFFIX,
@@ -34,6 +37,14 @@ from rodski_agent.common.rodski_knowledge import (
     validate_locator_type,
     validate_verify_table_name,
 )
+
+
+@pytest.fixture(autouse=True)
+def reset_constraints():
+    """每个测试前后重置 RodskiConstraints 单例。"""
+    RodskiConstraints.reset()
+    yield
+    RodskiConstraints.reset()
 
 
 class TestSupportedKeywords:
@@ -373,3 +384,87 @@ class TestRodskiConstraintSummary:
         """RODSKI_KEYWORD_REFERENCE 应为非空字符串。"""
         assert isinstance(RODSKI_KEYWORD_REFERENCE, str)
         assert len(RODSKI_KEYWORD_REFERENCE) > 0
+
+
+class TestRodskiConstraints:
+    """RodskiConstraints 动态约束单例测试"""
+
+    def test_instance_returns_same_object(self):
+        """instance() 应返回同一单例。"""
+        with patch("rodski_agent.common.rodski_tools.rodski_capabilities", side_effect=RuntimeError("no rodski")):
+            a = RodskiConstraints.instance()
+            b = RodskiConstraints.instance()
+        assert a is b
+
+    def test_reset_clears_instance(self):
+        """reset() 应清除单例，下次 instance() 返回新对象。"""
+        with patch("rodski_agent.common.rodski_tools.rodski_capabilities", side_effect=RuntimeError("no rodski")):
+            a = RodskiConstraints.instance()
+            RodskiConstraints.reset()
+            b = RodskiConstraints.instance()
+        assert a is not b
+
+    def test_loads_from_capabilities(self):
+        """成功加载 capabilities 时，应使用动态值。"""
+        mock_caps = {
+            "version": "5.8.0",
+            "supported_keywords": ["type", "verify", "send", "navigate", "close", "custom_new_keyword"],
+            "locator_types": ["id", "css", "xpath", "vision", "ai_locator"],
+            "driver_types": ["web", "interface", "android"],
+        }
+        with patch("rodski_agent.common.rodski_tools.rodski_capabilities", return_value=mock_caps):
+            c = RodskiConstraints.instance()
+        assert c.version == "5.8.0"
+        assert "custom_new_keyword" in c.supported_keywords
+        assert "ai_locator" in c.locator_types
+        assert "android" in c.driver_types
+        assert c._loaded is True
+
+    def test_fallback_on_failure(self):
+        """加载失败时，应使用硬编码默认值。"""
+        with patch("rodski_agent.common.rodski_tools.rodski_capabilities", side_effect=RuntimeError("no rodski")):
+            c = RodskiConstraints.instance()
+        assert c.version == "unknown"
+        assert c.supported_keywords == list(SUPPORTED_KEYWORDS)
+        assert c.locator_types == list(LOCATOR_TYPES)
+        assert c._loaded is False
+
+    def test_validate_action_uses_dynamic(self):
+        """validate_action 应使用动态约束。"""
+        mock_caps = {
+            "version": "5.8.0",
+            "supported_keywords": ["type", "verify", "custom_action"],
+            "locator_types": [],
+            "driver_types": [],
+        }
+        with patch("rodski_agent.common.rodski_tools.rodski_capabilities", return_value=mock_caps):
+            assert validate_action("custom_action") is True
+            assert validate_action("type") is True
+            # send 不在动态列表中（被删除了）
+            assert validate_action("send") is False
+
+    def test_validate_locator_uses_dynamic(self):
+        """validate_locator_type 应使用动态约束。"""
+        mock_caps = {
+            "version": "5.8.0",
+            "supported_keywords": [],
+            "locator_types": ["id", "css", "new_locator"],
+            "driver_types": [],
+        }
+        with patch("rodski_agent.common.rodski_tools.rodski_capabilities", return_value=mock_caps):
+            assert validate_locator_type("new_locator") is True
+            assert validate_locator_type("xpath") is False  # not in dynamic list
+
+    def test_all_valid_actions_includes_compat(self):
+        """all_valid_actions 应包含 compat 和 additional keywords。"""
+        mock_caps = {
+            "version": "5.8.0",
+            "supported_keywords": ["type"],
+            "locator_types": [],
+            "driver_types": [],
+        }
+        with patch("rodski_agent.common.rodski_tools.rodski_capabilities", return_value=mock_caps):
+            c = RodskiConstraints.instance()
+        assert "type" in c.all_valid_actions
+        assert "check" in c.all_valid_actions  # COMPAT_KEYWORDS
+        assert "screenshot" in c.all_valid_actions  # ADDITIONAL_ACTION_TYPES

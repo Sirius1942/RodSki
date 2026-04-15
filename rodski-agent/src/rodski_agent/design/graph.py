@@ -9,12 +9,7 @@
                                                                               |
                                                                       (pass) --> END
 
-当不提供 target_url 时，explore_page 和 identify_elem 优雅降级返回空列表。
-
-运行时自动检测 ``langgraph`` 是否可用：
-  - 可用时使用 ``StateGraph`` 构建真正的 LangGraph 图；
-  - 不可用时使用 ``SimpleGraph`` 替代，保持 ``invoke(state) -> state``
-    接口一致。
+当不提供 target_url 时，explore_page 和 identify_elem 返回空列表。
 
 Python 3.9 兼容：使用 ``from __future__ import annotations`` 延迟求值。
 """
@@ -24,20 +19,9 @@ from __future__ import annotations
 import logging
 from typing import Any, Callable, Dict, Optional
 
-from rodski_agent.execution.graph import SimpleGraph
+from langgraph.graph import END, StateGraph
 
 logger = logging.getLogger(__name__)
-
-# ------------------------------------------------------------------
-# 检测 langgraph 可用性
-# ------------------------------------------------------------------
-
-try:
-    from langgraph.graph import END, StateGraph
-
-    HAS_LANGGRAPH = True
-except ImportError:
-    HAS_LANGGRAPH = False
 
 
 # ==================================================================
@@ -129,71 +113,6 @@ def build_design_graph(
 
         validate_xml_fn = validate_xml
 
-    if HAS_LANGGRAPH:
-        return _build_langgraph(
-            analyze_req_fn, explore_page_fn, identify_elem_fn,
-            plan_cases_fn, design_data_fn,
-            generate_xml_fn, validate_xml_fn,
-        )
-    return _build_simple_graph(
-        analyze_req_fn, explore_page_fn, identify_elem_fn,
-        plan_cases_fn, design_data_fn,
-        generate_xml_fn, validate_xml_fn,
-    )
-
-
-# ------------------------------------------------------------------
-# SimpleGraph 版本
-# ------------------------------------------------------------------
-
-
-def _build_simple_graph(
-    analyze_req_fn: Callable[..., Any],
-    explore_page_fn: Callable[..., Any],
-    identify_elem_fn: Callable[..., Any],
-    plan_cases_fn: Callable[..., Any],
-    design_data_fn: Callable[..., Any],
-    generate_xml_fn: Callable[..., Any],
-    validate_xml_fn: Callable[..., Any],
-) -> SimpleGraph:
-    """使用 SimpleGraph 构建设计图。"""
-    return SimpleGraph(
-        nodes=[
-            ("analyze_req", analyze_req_fn),
-            ("explore_page", explore_page_fn),
-            ("identify_elem", identify_elem_fn),
-            ("plan_cases", plan_cases_fn),
-            ("design_data", design_data_fn),
-            ("generate_xml", generate_xml_fn),
-            ("validate_xml", validate_xml_fn),
-        ],
-        conditional_edges={
-            "validate_xml": (
-                _validate_router,
-                {
-                    "end": "__end__",
-                    "generate_xml": "generate_xml",
-                },
-            ),
-        },
-    )
-
-
-# ------------------------------------------------------------------
-# LangGraph 版本
-# ------------------------------------------------------------------
-
-
-def _build_langgraph(
-    analyze_req_fn: Callable[..., Any],
-    explore_page_fn: Callable[..., Any],
-    identify_elem_fn: Callable[..., Any],
-    plan_cases_fn: Callable[..., Any],
-    design_data_fn: Callable[..., Any],
-    generate_xml_fn: Callable[..., Any],
-    validate_xml_fn: Callable[..., Any],
-) -> Any:
-    """使用 LangGraph StateGraph 构建设计图。"""
     from rodski_agent.common.state import DesignState
 
     graph = StateGraph(DesignState)

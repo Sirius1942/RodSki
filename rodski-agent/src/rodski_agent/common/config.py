@@ -30,13 +30,29 @@ class RodskiConfig:
 
 
 @dataclass
+class LLMProviderConfig:
+    """Single LLM provider configuration."""
+    provider: str = "claude"
+    model: str = "claude-sonnet-4-20250514"
+    base_url: str = ""
+    api_key_env: str = "ANTHROPIC_API_KEY"
+    temperature: float = 0.7
+    max_tokens: int = 4096
+
+
+@dataclass
 class LLMConfig:
-    config_path: str = "../rodski/config/llm_config.yaml"
+    """LLM configuration with per-agent provider settings."""
+    design: LLMProviderConfig = field(default_factory=LLMProviderConfig)
+    execution: LLMProviderConfig = field(
+        default_factory=lambda: LLMProviderConfig(temperature=0.1, max_tokens=2048)
+    )
 
 
 @dataclass
 class OmniParserConfig:
-    config_path: str = "../rodski/config/llm_config.yaml"
+    url: str = "http://localhost:8000"
+    timeout: int = 30
 
 
 @dataclass
@@ -103,7 +119,7 @@ def _load_yaml(path: Path) -> dict[str, Any]:
 def _apply_env_overrides(data: dict[str, Any]) -> dict[str, Any]:
     """Override config values with ``RODSKI_AGENT_*`` environment variables.
 
-    ``RODSKI_AGENT_LLM__MODEL`` sets ``data["llm"]["model"]``.
+    ``RODSKI_AGENT_LLM__DESIGN__MODEL`` sets ``data["llm"]["design"]["model"]``.
     """
     for key, value in os.environ.items():
         if not key.startswith(_ENV_PREFIX):
@@ -153,6 +169,16 @@ def _build_section(cls: type[_T], raw: dict[str, Any] | None) -> _T:
     return cls(**{k: v for k, v in raw.items() if k in known})
 
 
+def _build_llm_config(raw: dict[str, Any] | None) -> LLMConfig:
+    """Build LLMConfig with nested per-agent provider configs."""
+    if not raw:
+        return LLMConfig()
+    return LLMConfig(
+        design=_build_section(LLMProviderConfig, raw.get("design")),
+        execution=_build_section(LLMProviderConfig, raw.get("execution")),
+    )
+
+
 @dataclass
 class AgentConfig:
     """Top-level configuration for rodski-agent."""
@@ -190,7 +216,7 @@ class AgentConfig:
 
         return cls(
             rodski=_build_section(RodskiConfig, raw.get("rodski")),
-            llm=_build_section(LLMConfig, raw.get("llm")),
+            llm=_build_llm_config(raw.get("llm")),
             omniparser=_build_section(OmniParserConfig, raw.get("omniparser")),
             design=_build_section(DesignConfig, raw.get("design")),
             execution=_build_section(ExecutionConfig, raw.get("execution")),

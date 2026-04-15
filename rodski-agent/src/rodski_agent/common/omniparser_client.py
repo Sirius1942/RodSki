@@ -1,7 +1,7 @@
 """OmniParser HTTP 客户端 — 页面元素识别。
 
 通过 HTTP API 调用 OmniParser 服务，获取页面元素列表。
-当 OmniParser 不可用时优雅降级。
+不可用时直接抛 OmniParserUnavailableError。
 
 Python 3.9 兼容：使用 ``from __future__ import annotations`` 延迟求值。
 """
@@ -89,9 +89,14 @@ def parse_screenshot(
             f"Screenshot not found: {image_path}"
         ) from exc
 
+    # 修复双路径 bug: 如果 URL 已经包含 /parse，不再追加
+    parse_url = url.rstrip("/")
+    if not parse_url.endswith("/parse"):
+        parse_url = f"{parse_url}/parse"
+
     try:
         response = requests.post(
-            f"{url}/parse",
+            parse_url,
             json={"image": image_data},
             timeout=timeout,
         )

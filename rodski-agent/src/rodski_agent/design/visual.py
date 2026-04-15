@@ -4,7 +4,7 @@
   - explore_page: 截取页面截图并通过 OmniParser 识别元素
   - identify_elem: 通过 LLM Vision 为元素添加语义标签
 
-当 OmniParser/Playwright/LLM 不可用时优雅降级。
+OmniParser/LLM 不可用时直接报错，不做降级。
 
 Python 3.9 兼容：使用 ``from __future__ import annotations`` 延迟求值。
 """
@@ -26,7 +26,7 @@ def explore_page(state: dict) -> dict:
     1. 使用 Playwright 截取页面截图
     2. 使用 OmniParser 识别页面元素
 
-    当不可用时返回空 page_elements，后续节点使用 fallback。
+    截图或解析失败时直接抛错。
 
     Reads: state["target_url"], state["output_dir"]
     Writes: state["page_elements"], state["screenshots"]
@@ -43,38 +43,25 @@ def explore_page(state: dict) -> dict:
     screenshot_path = os.path.join(screenshot_dir, "page_screenshot.png")
 
     # Step 1: Capture screenshot
-    try:
-        from rodski_agent.common.omniparser_client import (
-            capture_screenshot,
-            OmniParserUnavailableError,
-        )
+    from rodski_agent.common.omniparser_client import (
+        capture_screenshot,
+        parse_screenshot,
+    )
 
-        capture_screenshot(
-            url=target_url,
-            output_path=screenshot_path,
-            headless=state.get("headless", True),
-        )
-        logger.info("Screenshot captured: %s", screenshot_path)
-    except Exception as exc:
-        logger.warning("Screenshot capture failed, continuing without: %s", exc)
-        return {"page_elements": [], "screenshots": []}
+    capture_screenshot(
+        url=target_url,
+        output_path=screenshot_path,
+        headless=state.get("headless", True),
+    )
+    logger.info("Screenshot captured: %s", screenshot_path)
 
     # Step 2: Parse screenshot with OmniParser
-    try:
-        from rodski_agent.common.omniparser_client import parse_screenshot
-
-        elements = parse_screenshot(screenshot_path)
-        logger.info("OmniParser found %d elements", len(elements))
-        return {
-            "page_elements": elements,
-            "screenshots": [screenshot_path],
-        }
-    except Exception as exc:
-        logger.warning("OmniParser failed, continuing without elements: %s", exc)
-        return {
-            "page_elements": [],
-            "screenshots": [screenshot_path],
-        }
+    elements = parse_screenshot(screenshot_path)
+    logger.info("OmniParser found %d elements", len(elements))
+    return {
+        "page_elements": elements,
+        "screenshots": [screenshot_path],
+    }
 
 
 def identify_elem(state: dict) -> dict:
@@ -85,7 +72,7 @@ def identify_elem(state: dict) -> dict:
     - purpose: 功能描述
     - suggested_locator_type: 建议的定位方式
 
-    不可用时返回原始 page_elements 作为 enriched_elements。
+    LLM 不可用时直接报错。
 
     Reads: state["page_elements"], state["screenshots"]
     Writes: state["enriched_elements"]
@@ -96,15 +83,13 @@ def identify_elem(state: dict) -> dict:
     if not page_elements:
         return {"enriched_elements": []}
 
-    # Try LLM enrichment
-    try:
-        from rodski_agent.common.llm_bridge import call_llm_text, LLMUnavailableError
-        import json
+    from rodski_agent.common.llm_bridge import call_llm_text
+    import json
 
-        elements_desc = json.dumps(page_elements, ensure_ascii=False)
-        screenshot_info = f"Screenshots: {', '.join(screenshots)}" if screenshots else "No screenshots"
+    elements_desc = json.dumps(page_elements, ensure_ascii=False)
+    screenshot_info = f"Screenshots: {', '.join(screenshots)}" if screenshots else "No screenshots"
 
-        prompt = f"""\
+    prompt = f"""\
 分析以下页面元素列表，为每个元素添加语义信息。
 
 页面元素：
@@ -121,64 +106,21 @@ def identify_elem(state: dict) -> dict:
 
 严格以 JSON 数组格式输出。"""
 
-        response = call_llm_text(prompt)
+    response = call_llm_text(prompt)
 
-        # Parse response
-        text = response.strip()
-        if "```json" in text:
-            start = text.index("```json") + len("```json")
-            end = text.index("```", start)
-            text = text[start:end].strip()
-        elif "```" in text:
-            start = text.index("```") + len("```")
-            end = text.index("```", start)
-            text = text[start:end].strip()
+    # Parse response
+    text = response.strip()
+    if "```json" in text:
+        start = text.index("```json") + len("```json")
+        end = text.index("```", start)
+        text = text[start:end].strip()
+    elif "```" in text:
+        start = text.index("```") + len("```")
+        end = text.index("```", start)
+        text = text[start:end].strip()
 
-        enriched = json.loads(text)
-        if isinstance(enriched, list):
-            return {"enriched_elements": enriched}
+    enriched = json.loads(text)
+    if isinstance(enriched, list):
+        return {"enriched_elements": enriched}
 
-    except Exception as exc:
-        logger.warning("LLM element enrichment failed: %s", exc)
-
-    # Fallback: convert page_elements to enriched format without LLM
-    enriched = _fallback_enrichment(page_elements)
-    return {"enriched_elements": enriched}
-
-
-def _fallback_enrichment(elements: list[dict]) -> list[dict]:
-    """不依赖 LLM 的简单元素增强。"""
-    enriched: list[dict] = []
-    for elem in elements:
-        label = elem.get("label", "")
-        elem_type = elem.get("type", "unknown")
-
-        # Generate semantic name from label
-        semantic = label.lower().replace(" ", "_").replace("-", "_")
-        if not semantic:
-            semantic = f"element_{elem.get('id', 0)}"
-        # Remove non-alphanumeric chars
-        semantic = "".join(c for c in semantic if c.isalnum() or c == "_")
-        if not semantic:
-            semantic = f"element_{elem.get('id', 0)}"
-
-        # Suggest locator type based on element type
-        locator_map = {
-            "button": "css",
-            "input": "css",
-            "text": "text",
-            "link": "text",
-            "image": "css",
-            "select": "css",
-        }
-        suggested_locator = locator_map.get(elem_type, "css")
-
-        enriched.append({
-            "id": elem.get("id", 0),
-            "semantic_name": semantic,
-            "purpose": f"{elem_type}: {label}" if label else elem_type,
-            "suggested_locator_type": suggested_locator,
-            "original_label": label,
-        })
-
-    return enriched
+    raise ValueError(f"LLM returned invalid enrichment format: {type(enriched)}")

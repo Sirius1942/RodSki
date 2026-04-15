@@ -319,40 +319,38 @@ class TestExplorePage:
         assert "page_screenshot.png" in result["screenshots"][0]
         mock_capture.assert_called_once()
 
-    def test_screenshot_failure_graceful(self, tmp_path):
-        """Screenshot capture fails → empty result."""
+    def test_screenshot_failure_raises(self, tmp_path):
+        """Screenshot capture fails → error propagated."""
         from rodski_agent.design.visual import explore_page
+        from rodski_agent.common.omniparser_client import OmniParserUnavailableError
 
         with patch(
             "rodski_agent.common.omniparser_client.capture_screenshot",
-            side_effect=Exception("no browser"),
+            side_effect=OmniParserUnavailableError("no browser"),
         ):
-            result = explore_page({
-                "target_url": "https://example.com",
-                "output_dir": str(tmp_path),
-            })
+            with pytest.raises(OmniParserUnavailableError):
+                explore_page({
+                    "target_url": "https://example.com",
+                    "output_dir": str(tmp_path),
+                })
 
-        assert result["page_elements"] == []
-        assert result["screenshots"] == []
-
-    def test_omniparser_failure_keeps_screenshot(self, tmp_path):
-        """OmniParser fails → empty elements but screenshot preserved."""
+    def test_omniparser_failure_raises(self, tmp_path):
+        """OmniParser fails → error propagated."""
         from rodski_agent.design.visual import explore_page
+        from rodski_agent.common.omniparser_client import OmniParserUnavailableError
 
         output_dir = str(tmp_path / "output")
 
         with patch("rodski_agent.common.omniparser_client.capture_screenshot"), \
              patch(
                  "rodski_agent.common.omniparser_client.parse_screenshot",
-                 side_effect=Exception("omni down"),
+                 side_effect=OmniParserUnavailableError("omni down"),
              ):
-            result = explore_page({
-                "target_url": "https://example.com",
-                "output_dir": output_dir,
-            })
-
-        assert result["page_elements"] == []
-        assert len(result["screenshots"]) == 1
+            with pytest.raises(OmniParserUnavailableError):
+                explore_page({
+                    "target_url": "https://example.com",
+                    "output_dir": output_dir,
+                })
 
     def test_uses_tempdir_when_no_output_dir(self):
         """No output_dir → uses tempfile.mkdtemp for screenshots."""
@@ -470,148 +468,47 @@ class TestIdentifyElem:
         assert len(result["enriched_elements"]) == 1
         assert result["enriched_elements"][0]["semantic_name"] == "ok_btn"
 
-    def test_llm_failure_uses_fallback(self):
-        """LLM fails → fallback enrichment used."""
+    def test_llm_failure_raises(self):
+        """LLM fails → error propagated."""
         from rodski_agent.design.visual import identify_elem
+        from rodski_agent.common.errors import LLMError
 
         elements = [
             {"id": 0, "label": "Submit Form", "type": "button"},
-            {"id": 1, "label": "Email Address", "type": "input"},
         ]
 
-        with patch("rodski_agent.common.llm_bridge.call_llm_text", side_effect=Exception("LLM down")):
-            result = identify_elem({
-                "page_elements": elements,
-                "screenshots": [],
-            })
-
-        enriched = result["enriched_elements"]
-        assert len(enriched) == 2
-        assert enriched[0]["semantic_name"] == "submit_form"
-        assert enriched[0]["suggested_locator_type"] == "css"
-        assert enriched[1]["semantic_name"] == "email_address"
+        with patch("rodski_agent.common.llm_bridge.call_llm_text", side_effect=LLMError("LLM down", code="E_LLM")):
+            with pytest.raises(LLMError):
+                identify_elem({
+                    "page_elements": elements,
+                    "screenshots": [],
+                })
 
     def test_llm_returns_non_list(self):
-        """LLM returns non-list JSON → fallback."""
+        """LLM returns non-list JSON → ValueError."""
         from rodski_agent.design.visual import identify_elem
 
         elements = [{"id": 0, "label": "Test", "type": "text"}]
 
         with patch("rodski_agent.common.llm_bridge.call_llm_text", return_value='{"not": "a list"}'):
-            result = identify_elem({
-                "page_elements": elements,
-                "screenshots": [],
-            })
-
-        # Should fallback
-        assert len(result["enriched_elements"]) == 1
-        assert result["enriched_elements"][0]["semantic_name"] == "test"
+            with pytest.raises(ValueError, match="invalid enrichment format"):
+                identify_elem({
+                    "page_elements": elements,
+                    "screenshots": [],
+                })
 
     def test_llm_returns_invalid_json(self):
-        """LLM returns garbage text → fallback."""
+        """LLM returns garbage text → json.JSONDecodeError."""
         from rodski_agent.design.visual import identify_elem
 
         elements = [{"id": 0, "label": "Hello", "type": "text"}]
 
         with patch("rodski_agent.common.llm_bridge.call_llm_text", return_value="not json at all"):
-            result = identify_elem({
-                "page_elements": elements,
-                "screenshots": [],
-            })
-
-        assert len(result["enriched_elements"]) == 1
-        assert result["enriched_elements"][0]["semantic_name"] == "hello"
-
-
-# ============================================================
-# Fallback enrichment tests
-# ============================================================
-
-
-class TestFallbackEnrichment:
-    """_fallback_enrichment 辅助函数测试。"""
-
-    def test_basic_enrichment(self):
-        """Basic elements → correct semantic names and locator types."""
-        from rodski_agent.design.visual import _fallback_enrichment
-
-        elements = [
-            {"id": 0, "label": "Login Button", "type": "button"},
-            {"id": 1, "label": "Username Input", "type": "input"},
-            {"id": 2, "label": "Click here", "type": "link"},
-            {"id": 3, "label": "Welcome", "type": "text"},
-            {"id": 4, "label": "Logo", "type": "image"},
-        ]
-
-        result = _fallback_enrichment(elements)
-        assert len(result) == 5
-
-        assert result[0]["semantic_name"] == "login_button"
-        assert result[0]["suggested_locator_type"] == "css"
-
-        assert result[1]["semantic_name"] == "username_input"
-        assert result[1]["suggested_locator_type"] == "css"
-
-        assert result[2]["semantic_name"] == "click_here"
-        assert result[2]["suggested_locator_type"] == "text"
-
-        assert result[3]["semantic_name"] == "welcome"
-        assert result[3]["suggested_locator_type"] == "text"
-
-        assert result[4]["semantic_name"] == "logo"
-        assert result[4]["suggested_locator_type"] == "css"
-
-    def test_empty_label(self):
-        """Empty label → uses element_<id> as semantic name."""
-        from rodski_agent.design.visual import _fallback_enrichment
-
-        elements = [{"id": 5, "label": "", "type": "unknown"}]
-        result = _fallback_enrichment(elements)
-
-        assert result[0]["semantic_name"] == "element_5"
-        assert result[0]["purpose"] == "unknown"
-
-    def test_special_characters_in_label(self):
-        """Special chars removed from semantic name."""
-        from rodski_agent.design.visual import _fallback_enrichment
-
-        elements = [{"id": 0, "label": "Sign In!", "type": "button"}]
-        result = _fallback_enrichment(elements)
-
-        assert result[0]["semantic_name"] == "sign_in"
-
-    def test_empty_elements_list(self):
-        """Empty list → empty result."""
-        from rodski_agent.design.visual import _fallback_enrichment
-
-        assert _fallback_enrichment([]) == []
-
-    def test_unknown_type_defaults_to_css(self):
-        """Unknown element type → css locator."""
-        from rodski_agent.design.visual import _fallback_enrichment
-
-        elements = [{"id": 0, "label": "Custom", "type": "custom_widget"}]
-        result = _fallback_enrichment(elements)
-
-        assert result[0]["suggested_locator_type"] == "css"
-
-    def test_select_type(self):
-        """Select type → css locator."""
-        from rodski_agent.design.visual import _fallback_enrichment
-
-        elements = [{"id": 0, "label": "Country", "type": "select"}]
-        result = _fallback_enrichment(elements)
-
-        assert result[0]["suggested_locator_type"] == "css"
-
-    def test_preserves_original_label(self):
-        """Original label preserved in output."""
-        from rodski_agent.design.visual import _fallback_enrichment
-
-        elements = [{"id": 0, "label": "Submit Order", "type": "button"}]
-        result = _fallback_enrichment(elements)
-
-        assert result[0]["original_label"] == "Submit Order"
+            with pytest.raises(json.JSONDecodeError):
+                identify_elem({
+                    "page_elements": elements,
+                    "screenshots": [],
+                })
 
 
 # ============================================================

@@ -1,6 +1,6 @@
 """Pipeline 编排器和 CLI 命令单元测试。
 
-测试 Design → Execution 串联 pipeline 的完整流程。
+测试 Design → Validation Gate → Execution 串联 pipeline 的完整流程。
 所有外部依赖均 Mock，确保测试无网络或文件系统副作用。
 """
 from __future__ import annotations
@@ -12,7 +12,11 @@ from unittest.mock import patch, MagicMock
 import pytest
 from click.testing import CliRunner
 
-from rodski_agent.pipeline.orchestrator import run_pipeline
+from rodski_agent.pipeline.orchestrator import (
+    run_pipeline,
+    _aggregate_execution_results,
+    _find_case_files,
+)
 
 
 # ============================================================
@@ -28,7 +32,8 @@ class TestRunPipeline:
         output_dir = str(tmp_path / "output")
 
         with patch("rodski_agent.design.graph.build_design_graph") as mock_dg, \
-             patch("rodski_agent.execution.graph.build_execution_graph") as mock_eg:
+             patch("rodski_agent.execution.graph.build_execution_graph") as mock_eg, \
+             patch("rodski_agent.common.rodski_tools.rodski_validate") as mock_val:
 
             # Mock design graph
             design_graph = MagicMock()
@@ -38,6 +43,9 @@ class TestRunPipeline:
                 "validation_errors": [],
             }
             mock_dg.return_value = design_graph
+
+            # Mock validation gate
+            mock_val.return_value = MagicMock(success=True, stderr="", stdout="OK")
 
             # Mock execution graph
             exec_graph = MagicMock()
@@ -79,12 +87,12 @@ class TestRunPipeline:
         assert "validation" in result["error"].lower() or "Design" in result.get("error", "")
         assert result["execution"] == {}
 
-    def test_execution_failure(self, tmp_path):
-        """Design succeeds + execution fails → overall failure."""
+    def test_validation_gate_failure(self, tmp_path):
+        """Design succeeds but validation gate fails → error."""
         output_dir = str(tmp_path / "output")
 
         with patch("rodski_agent.design.graph.build_design_graph") as mock_dg, \
-             patch("rodski_agent.execution.graph.build_execution_graph") as mock_eg:
+             patch("rodski_agent.common.rodski_tools.rodski_validate") as mock_val:
 
             design_graph = MagicMock()
             design_graph.invoke.return_value = {
@@ -93,6 +101,39 @@ class TestRunPipeline:
                 "validation_errors": [],
             }
             mock_dg.return_value = design_graph
+
+            mock_val.return_value = MagicMock(
+                success=False,
+                stderr="case/test.xml: invalid action 'click'",
+                stdout="",
+            )
+
+            result = run_pipeline(
+                requirement="test login",
+                output_dir=output_dir,
+            )
+
+        assert result["status"] == "error"
+        assert "Validation gate failed" in result["error"]
+        assert result["validation"]["passed"] is False
+
+    def test_execution_failure(self, tmp_path):
+        """Design succeeds + execution fails → overall failure."""
+        output_dir = str(tmp_path / "output")
+
+        with patch("rodski_agent.design.graph.build_design_graph") as mock_dg, \
+             patch("rodski_agent.execution.graph.build_execution_graph") as mock_eg, \
+             patch("rodski_agent.common.rodski_tools.rodski_validate") as mock_val:
+
+            design_graph = MagicMock()
+            design_graph.invoke.return_value = {
+                "status": "success",
+                "generated_files": ["/tmp/case.xml"],
+                "validation_errors": [],
+            }
+            mock_dg.return_value = design_graph
+
+            mock_val.return_value = MagicMock(success=True, stderr="", stdout="OK")
 
             exec_graph = MagicMock()
             exec_graph.invoke.return_value = {
@@ -131,7 +172,8 @@ class TestRunPipeline:
         output_dir = str(tmp_path / "output")
 
         with patch("rodski_agent.design.graph.build_design_graph") as mock_dg, \
-             patch("rodski_agent.execution.graph.build_execution_graph") as mock_eg:
+             patch("rodski_agent.execution.graph.build_execution_graph") as mock_eg, \
+             patch("rodski_agent.common.rodski_tools.rodski_validate") as mock_val:
 
             design_graph = MagicMock()
             design_graph.invoke.return_value = {
@@ -140,6 +182,8 @@ class TestRunPipeline:
                 "validation_errors": [],
             }
             mock_dg.return_value = design_graph
+
+            mock_val.return_value = MagicMock(success=True, stderr="", stdout="OK")
 
             mock_eg.side_effect = RuntimeError("graph build failed")
 
@@ -149,14 +193,15 @@ class TestRunPipeline:
             )
 
         assert result["status"] == "error"
-        assert "Execution phase failed" in result["error"]
+        assert "graph build failed" in result["error"]
 
     def test_passes_url_to_design(self, tmp_path):
         """target_url should be passed to design state."""
         output_dir = str(tmp_path / "output")
 
         with patch("rodski_agent.design.graph.build_design_graph") as mock_dg, \
-             patch("rodski_agent.execution.graph.build_execution_graph") as mock_eg:
+             patch("rodski_agent.execution.graph.build_execution_graph") as mock_eg, \
+             patch("rodski_agent.common.rodski_tools.rodski_validate") as mock_val:
 
             design_graph = MagicMock()
             design_graph.invoke.return_value = {
@@ -165,6 +210,8 @@ class TestRunPipeline:
                 "validation_errors": [],
             }
             mock_dg.return_value = design_graph
+
+            mock_val.return_value = MagicMock(success=True, stderr="", stdout="OK")
 
             exec_graph = MagicMock()
             exec_graph.invoke.return_value = {
@@ -179,7 +226,6 @@ class TestRunPipeline:
                 target_url="https://example.com",
             )
 
-            # Check design_graph.invoke was called with target_url
             call_args = design_graph.invoke.call_args[0][0]
             assert call_args["target_url"] == "https://example.com"
 
@@ -188,7 +234,8 @@ class TestRunPipeline:
         output_dir = str(tmp_path / "output")
 
         with patch("rodski_agent.design.graph.build_design_graph") as mock_dg, \
-             patch("rodski_agent.execution.graph.build_execution_graph") as mock_eg:
+             patch("rodski_agent.execution.graph.build_execution_graph") as mock_eg, \
+             patch("rodski_agent.common.rodski_tools.rodski_validate") as mock_val:
 
             design_graph = MagicMock()
             design_graph.invoke.return_value = {
@@ -197,6 +244,8 @@ class TestRunPipeline:
                 "validation_errors": [],
             }
             mock_dg.return_value = design_graph
+
+            mock_val.return_value = MagicMock(success=True, stderr="", stdout="OK")
 
             exec_graph = MagicMock()
             exec_graph.invoke.return_value = {
@@ -223,7 +272,8 @@ class TestRunPipeline:
         output_dir = str(tmp_path / "output")
 
         with patch("rodski_agent.design.graph.build_design_graph") as mock_dg, \
-             patch("rodski_agent.execution.graph.build_execution_graph") as mock_eg:
+             patch("rodski_agent.execution.graph.build_execution_graph") as mock_eg, \
+             patch("rodski_agent.common.rodski_tools.rodski_validate") as mock_val:
 
             design_graph = MagicMock()
             design_graph.invoke.return_value = {
@@ -232,6 +282,8 @@ class TestRunPipeline:
                 "validation_errors": [],
             }
             mock_dg.return_value = design_graph
+
+            mock_val.return_value = MagicMock(success=True, stderr="", stdout="OK")
 
             exec_graph = MagicMock()
             exec_graph.invoke.return_value = {
@@ -246,6 +298,67 @@ class TestRunPipeline:
             )
 
         assert result["status"] == "failure"
+
+
+# ============================================================
+# Helper function tests
+# ============================================================
+
+
+class TestFindCaseFiles:
+    """_find_case_files 测试"""
+
+    def test_finds_xml_files(self, tmp_path):
+        """Should find all XML files in case/ directory."""
+        case_dir = tmp_path / "case"
+        case_dir.mkdir()
+        (case_dir / "test1.xml").write_text("<cases/>")
+        (case_dir / "test2.xml").write_text("<cases/>")
+        (case_dir / "readme.txt").write_text("not xml")
+
+        files = _find_case_files(str(tmp_path))
+        assert len(files) == 2
+        assert all(f.endswith(".xml") for f in files)
+
+    def test_no_case_dir(self, tmp_path):
+        """No case/ directory → empty list."""
+        assert _find_case_files(str(tmp_path)) == []
+
+
+class TestAggregateExecutionResults:
+    """_aggregate_execution_results 测试"""
+
+    def test_empty_results(self):
+        """Empty results → pass with zero counts."""
+        result = _aggregate_execution_results([])
+        assert result["status"] == "pass"
+        assert result["report"]["total"] == 0
+
+    def test_single_result(self):
+        """Single result returned directly."""
+        r = [{"status": "pass", "report": {"total": 1, "passed": 1, "failed": 0}}]
+        result = _aggregate_execution_results(r)
+        assert result["status"] == "pass"
+
+    def test_multi_result_all_pass(self):
+        """Multiple results all pass → pass."""
+        results = [
+            {"status": "pass", "report": {"total": 1, "passed": 1, "failed": 0, "cases": []}},
+            {"status": "pass", "report": {"total": 2, "passed": 2, "failed": 0, "cases": []}},
+        ]
+        result = _aggregate_execution_results(results)
+        assert result["status"] == "pass"
+        assert result["report"]["total"] == 3
+        assert result["report"]["passed"] == 3
+
+    def test_multi_result_partial(self):
+        """Mixed pass/fail → partial."""
+        results = [
+            {"status": "pass", "report": {"total": 1, "passed": 1, "failed": 0, "cases": []}},
+            {"status": "fail", "report": {"total": 1, "passed": 0, "failed": 1, "cases": []}},
+        ]
+        result = _aggregate_execution_results(results)
+        assert result["status"] == "partial"
 
 
 # ============================================================
@@ -264,6 +377,9 @@ class TestPipelineCLI:
         assert "--requirement" in result.output
         assert "--output" in result.output
         assert "--max-retry" in result.output
+        assert "--max-fix-attempts" in result.output
+        assert "--parallel" in result.output
+        assert "--max-workers" in result.output
 
     def test_pipeline_missing_requirement(self, cli_runner):
         """Missing --requirement should fail."""
@@ -277,7 +393,8 @@ class TestPipelineCLI:
         output_dir = str(tmp_path / "output")
 
         with patch("rodski_agent.design.graph.build_design_graph") as mock_dg, \
-             patch("rodski_agent.execution.graph.build_execution_graph") as mock_eg:
+             patch("rodski_agent.execution.graph.build_execution_graph") as mock_eg, \
+             patch("rodski_agent.common.rodski_tools.rodski_validate") as mock_val:
 
             design_graph = MagicMock()
             design_graph.invoke.return_value = {
@@ -286,6 +403,8 @@ class TestPipelineCLI:
                 "validation_errors": [],
             }
             mock_dg.return_value = design_graph
+
+            mock_val.return_value = MagicMock(success=True, stderr="", stdout="OK")
 
             exec_graph = MagicMock()
             exec_graph.invoke.return_value = {
@@ -313,7 +432,8 @@ class TestPipelineCLI:
         output_dir = str(tmp_path / "output")
 
         with patch("rodski_agent.design.graph.build_design_graph") as mock_dg, \
-             patch("rodski_agent.execution.graph.build_execution_graph") as mock_eg:
+             patch("rodski_agent.execution.graph.build_execution_graph") as mock_eg, \
+             patch("rodski_agent.common.rodski_tools.rodski_validate") as mock_val:
 
             design_graph = MagicMock()
             design_graph.invoke.return_value = {
@@ -322,6 +442,8 @@ class TestPipelineCLI:
                 "validation_errors": [],
             }
             mock_dg.return_value = design_graph
+
+            mock_val.return_value = MagicMock(success=True, stderr="", stdout="OK")
 
             exec_graph = MagicMock()
             exec_graph.invoke.return_value = {
@@ -368,18 +490,38 @@ class TestPipelineCLI:
 
 
 # ============================================================
-# Integration test (using real nodes with LLM fallback)
+# Integration test (using mock LLM)
 # ============================================================
 
 
 class TestPipelineIntegration:
-    """Pipeline 端到端集成测试（LLM 不可用，使用 fallback）。"""
+    """Pipeline 端到端集成测试（Mock LLM）。"""
 
-    def test_full_pipeline_with_fallback(self, tmp_path):
-        """Full pipeline with real design graph (fallback) and mock execution."""
+    def test_full_pipeline_with_mock_llm(self, tmp_path):
+        """Full pipeline with real design graph (mock LLM) and mock execution."""
+        import json as _json
+
         output_dir = str(tmp_path / "pipeline_output")
 
-        with patch("rodski_agent.execution.graph.build_execution_graph") as mock_eg:
+        scenarios = _json.dumps([{"scenario_name": "t", "description": "Test", "type": "ui", "steps_outline": ["a"]}])
+        case_plan = _json.dumps([{
+            "id": "c001", "title": "Test",
+            "steps": [{"phase": "test_case", "action": "type", "model": "Login", "data": "D001"}],
+        }])
+        test_data = _json.dumps({
+            "datatables": [{"name": "Login", "rows": [{"id": "D001", "fields": [{"name": "f1", "value": "v1"}]}]}],
+            "verify_tables": [],
+        })
+        llm_responses = [scenarios, case_plan, test_data]
+        call_count = {"n": 0}
+
+        def mock_llm(prompt, agent_type="design"):
+            idx = call_count["n"]
+            call_count["n"] += 1
+            return llm_responses[idx] if idx < len(llm_responses) else "[]"
+
+        with patch("rodski_agent.common.llm_bridge.call_llm_text", side_effect=mock_llm), \
+             patch("rodski_agent.execution.graph.build_execution_graph") as mock_eg:
             exec_graph = MagicMock()
             exec_graph.invoke.return_value = {
                 "status": "pass",
@@ -392,11 +534,8 @@ class TestPipelineIntegration:
                 output_dir=output_dir,
             )
 
-        # Design should succeed via fallback
         assert result["design"]["status"] == "success"
         assert len(result["design"]["generated_files"]) >= 1
-        # Execution mock should pass
         assert result["execution"]["status"] == "pass"
         assert result["status"] == "success"
-        # Files should exist
         assert os.path.isdir(os.path.join(output_dir, "case"))

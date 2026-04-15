@@ -7,7 +7,7 @@
   - pre_check: 预检查
   - execute: 执行测试
   - parse_result: 解析结果
-  - diagnose: 诊断失败用例（LLM 驱动，不可用时优雅降级）
+  - diagnose: 诊断失败用例（LLM 驱动）
   - report: 生成报告
 """
 
@@ -34,14 +34,15 @@ logger = logging.getLogger(__name__)
 
 
 def pre_check(state: dict) -> dict:
-    """预检查 — 验证用例路径和目录结构完整性
+    """预检查 — 验证用例路径、目录结构完整性及 rodski 版本兼容性
 
     检查项:
     1. case_path 是否存在
     2. 如果是目录，检查 case/model/data 是否存在
     3. 如果是文件，检查上级模块目录结构
+    4. 调用 rodski capabilities 获取版本信息并校验兼容性
 
-    返回: status 和 error（如果有）
+    返回: status 和 error（如果有），以及 rodski_capabilities（如果获取成功）
     """
     case_path = state.get("case_path", "")
     p = Path(case_path)
@@ -69,7 +70,23 @@ def pre_check(state: dict) -> dict:
             "error": f"Missing required directories in {module_dir}: {', '.join(missing)}",
         }
 
-    return {"status": "running"}
+    # 版本协商 — 获取 rodski 能力清单
+    caps = None
+    try:
+        from rodski_agent.common.rodski_tools import rodski_capabilities
+        caps = rodski_capabilities()
+        rodski_version = caps.get("version", "unknown")
+        logger.info("rodski version: %s, keywords: %d, locator_types: %d",
+                     rodski_version,
+                     len(caps.get("supported_keywords", [])),
+                     len(caps.get("locator_types", [])))
+    except Exception as exc:
+        logger.warning("Failed to get rodski capabilities: %s", exc)
+
+    result = {"status": "running"}
+    if caps is not None:
+        result["rodski_capabilities"] = caps
+    return result
 
 
 def execute(state: dict) -> dict:
@@ -198,8 +215,7 @@ def diagnose(state: dict) -> dict:
     对 state["case_results"] 中每个 status != "PASS" 的用例，
     组装 prompt 调用 LLM 获取诊断结果。
 
-    当 LLM 不可用时（rodski 不可导入、配置缺失、连接失败），
-    返回降级诊断结果 ``{"skipped": True, "reason": "..."}``。
+    LLM 不可用时直接抛出 LLMError。
 
     Returns
     -------
@@ -214,7 +230,8 @@ def diagnose(state: dict) -> dict:
 
     # 尝试导入 LLM 桥接层
     try:
-        from rodski_agent.common.llm_bridge import call_llm_text, LLMUnavailableError
+        from rodski_agent.common.llm_bridge import call_llm_text
+        from rodski_agent.common.errors import LLMError
         from rodski_agent.execution.prompts import (
             DIAGNOSE_SYSTEM_PROMPT,
             DIAGNOSE_USER_TEMPLATE,
@@ -247,19 +264,15 @@ def diagnose(state: dict) -> dict:
         full_prompt = DIAGNOSE_SYSTEM_PROMPT + "\n\n" + user_prompt
 
         try:
-            response_text = call_llm_text(full_prompt)
+            response_text = call_llm_text(full_prompt, agent_type="execution")
             diagnosis = _parse_diagnosis_response(response_text)
-        except LLMUnavailableError as exc:
-            logger.warning("LLM unavailable for case %s: %s", case_id, exc)
-            return {
-                "diagnosis": {
-                    "skipped": True,
-                    "reason": f"LLM unavailable: {exc}",
-                }
-            }
+        except LLMError:
+            raise
         except Exception as exc:
-            logger.warning("Diagnosis failed for case %s: %s", case_id, exc)
-            diagnosis = _fallback_diagnosis(case_id, error_message)
+            raise LLMError(
+                f"Diagnosis failed for case {case_id}: {exc}",
+                code="E_LLM_DIAGNOSIS",
+            ) from exc
 
         # 强制执行置信度规则
         diagnosis = _enforce_confidence_rule(diagnosis)
@@ -333,18 +346,6 @@ def _default_field_value(field: str) -> Any:
         "recommended_action": "pause",
     }
     return defaults.get(field, "")
-
-
-def _fallback_diagnosis(case_id: str, error_message: str) -> dict:
-    """LLM 调用异常时的降级诊断。"""
-    return {
-        "root_cause": f"自动诊断失败，错误信息: {error_message[:200]}",
-        "confidence": 0.2,
-        "category": "UNKNOWN",
-        "suggestion": "请人工检查失败用例和错误日志",
-        "evidence": error_message[:500],
-        "recommended_action": "escalate",
-    }
 
 
 def _enforce_confidence_rule(diagnosis: dict) -> dict:

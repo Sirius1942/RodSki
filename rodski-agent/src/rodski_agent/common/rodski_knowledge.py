@@ -4,15 +4,24 @@
 供 Design Agent / Execution Agent / xml_builder / prompts / fixer 等模块共用。
 
 数据来源：
-  - rodski/docs/CORE_DESIGN_CONSTRAINTS.md (v4.0)
-  - rodski/docs/TEST_CASE_WRITING_GUIDE.md (v3.3)
+  - 运行时通过 ``rodski capabilities`` 命令动态获取（首选）
+  - 硬编码默认值作为 fallback（当 rodski 命令不可用时）
+  - LLM prompt 摘要文本保留为静态（人工维护）
+
+使用方式：
+  - 模块级常量（SUPPORTED_KEYWORDS 等）仍可直接导入
+  - ``RodskiConstraints.instance()`` 提供动态版本，首次访问时加载
+  - 校验函数（validate_action 等）优先查询动态约束
 """
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 # ============================================================
 # 1. 关键字约束  (CORE_DESIGN_CONSTRAINTS §5, §1.2)
@@ -149,12 +158,78 @@ INTERFACE_HEADER_PREFIX: str = "_header_"
 """接口模型中请求头元素的命名前缀（如 _header_Authorization）。"""
 
 # ============================================================
-# 6. 校验函数
+# 6. 动态约束单例
+# ============================================================
+
+
+class RodskiConstraints:
+    """从 ``rodski capabilities`` 动态加载的约束集合。
+
+    首次调用 ``instance()`` 时自动加载。加载失败时使用模块级硬编码默认值。
+    提供 ``reset()`` 方法供测试隔离。
+    """
+
+    _inst: Optional["RodskiConstraints"] = None
+
+    def __init__(self) -> None:
+        self.supported_keywords: list[str] = list(SUPPORTED_KEYWORDS)
+        self.locator_types: list[str] = list(LOCATOR_TYPES)
+        self.driver_types: list[str] = list(DRIVER_TYPES)
+        self.version: str = "unknown"
+        self._loaded = False
+
+    @classmethod
+    def instance(cls) -> "RodskiConstraints":
+        if cls._inst is None:
+            cls._inst = cls()
+            cls._inst._load()
+        return cls._inst
+
+    @classmethod
+    def reset(cls) -> None:
+        """清除缓存，下次 ``instance()`` 会重新加载。"""
+        cls._inst = None
+
+    def _load(self) -> None:
+        """从 rodski capabilities 加载约束。失败时保留默认值。"""
+        try:
+            from rodski_agent.common.rodski_tools import rodski_capabilities
+
+            caps = rodski_capabilities()
+            self.version = caps.get("version", "unknown")
+            kw = caps.get("supported_keywords", [])
+            if kw:
+                self.supported_keywords = kw
+            lt = caps.get("locator_types", [])
+            if lt:
+                self.locator_types = lt
+            dt = caps.get("driver_types", [])
+            if dt:
+                self.driver_types = dt
+            self._loaded = True
+            logger.info(
+                "RodskiConstraints loaded: version=%s, keywords=%d, locators=%d",
+                self.version, len(self.supported_keywords), len(self.locator_types),
+            )
+        except Exception as exc:
+            logger.warning("Failed to load rodski capabilities, using defaults: %s", exc)
+            self._loaded = False
+
+    @property
+    def all_valid_actions(self) -> list[str]:
+        """所有合法 action 值（含兼容与补充）。"""
+        return self.supported_keywords + COMPAT_KEYWORDS + ADDITIONAL_ACTION_TYPES
+
+
+# ============================================================
+# 7. 校验函数
 # ============================================================
 
 
 def validate_action(action: str) -> bool:
     """检查 action 是否在 SUPPORTED_KEYWORDS、COMPAT_KEYWORDS 或 ADDITIONAL_ACTION_TYPES 中。
+
+    优先使用动态约束，fallback 到模块级常量。
 
     Args:
         action: Case XML test_step 的 action 属性值。
@@ -162,11 +237,16 @@ def validate_action(action: str) -> bool:
     Returns:
         True 表示合法，False 表示非法。
     """
-    return action in ALL_VALID_ACTIONS
+    try:
+        return action in RodskiConstraints.instance().all_valid_actions
+    except Exception:
+        return action in ALL_VALID_ACTIONS
 
 
 def validate_locator_type(loc_type: str) -> bool:
     """检查定位器类型是否在 LOCATOR_TYPES 中。
+
+    优先使用动态约束，fallback 到模块级常量。
 
     Args:
         loc_type: location 节点的 type 属性值。
@@ -174,7 +254,10 @@ def validate_locator_type(loc_type: str) -> bool:
     Returns:
         True 表示合法。
     """
-    return loc_type in LOCATOR_TYPES
+    try:
+        return loc_type in RodskiConstraints.instance().locator_types
+    except Exception:
+        return loc_type in LOCATOR_TYPES
 
 
 def validate_directory_structure(path: str) -> list[str]:
@@ -270,7 +353,7 @@ def is_ui_atomic_action(value: str) -> bool:
 
 
 # ============================================================
-# 7. RODSKI_CONSTRAINT_SUMMARY  —  LLM 提示词嵌入用摘要
+# 8. RODSKI_CONSTRAINT_SUMMARY  —  LLM 提示词嵌入用摘要
 # ============================================================
 
 RODSKI_CONSTRAINT_SUMMARY: str = """\
@@ -329,7 +412,7 @@ vision, ocr, vision_bbox
 """
 
 # ============================================================
-# 8. RODSKI_KEYWORD_REFERENCE  —  关键字简明参考
+# 9. RODSKI_KEYWORD_REFERENCE  —  关键字简明参考
 # ============================================================
 
 RODSKI_KEYWORD_REFERENCE: str = """\

@@ -1,16 +1,20 @@
-"""Pipeline 编排器 — Design → Execution 串联。
+"""Pipeline 编排器 — Design → Validation Gate → Execution。
 
 将 Design Agent 和 Execution Agent 组合成完整的 pipeline：
 1. Design: 根据需求生成测试用例 XML
-2. Execution: 执行生成的测试用例
+2. Validation Gate: 用 rodski_validate 二次校验所有生成的 XML
+3. Execution: 执行生成的测试用例（支持多 case 并行执行）
 
 Python 3.9 兼容：使用 ``from __future__ import annotations`` 延迟求值。
 """
 
 from __future__ import annotations
 
+import glob
 import logging
-from typing import Any, Dict
+import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -18,12 +22,15 @@ logger = logging.getLogger(__name__)
 def run_pipeline(
     requirement: str,
     output_dir: str,
-    target_url: str | None = None,
+    target_url: str = "",
     max_retry: int = 3,
+    max_fix_attempts: int = 3,
     headless: bool = True,
     browser: str = "chromium",
+    parallel: bool = False,
+    max_workers: int = 3,
 ) -> Dict[str, Any]:
-    """执行 Design → Execution 完整 pipeline。
+    """执行 Design → Validation Gate → Execution 完整 pipeline。
 
     Parameters
     ----------
@@ -34,28 +41,35 @@ def run_pipeline(
     target_url:
         被测系统 URL（可选）。
     max_retry:
-        最大重试次数。
+        执行阶段最大重试次数。
+    max_fix_attempts:
+        设计阶段 XML 校验失败最大修复次数。
     headless:
         是否无头模式。
     browser:
         浏览器类型。
+    parallel:
+        是否并行执行多个 case 文件。
+    max_workers:
+        并行执行最大线程数。
 
     Returns
     -------
     dict
-        合并的 pipeline 结果，包含 design 和 execution 两个阶段的结果。
-        结构::
+        合并的 pipeline 结果::
 
             {
                 "status": "success" | "failure" | "error",
-                "design": { ... },    # Design Agent 结果
-                "execution": { ... }, # Execution Agent 结果（design 成功时）
-                "error": "..."        # 错误信息（如有）
+                "design": { ... },
+                "validation": { ... },
+                "execution": { ... },
+                "error": "..."
             }
     """
     result: Dict[str, Any] = {
         "status": "running",
         "design": {},
+        "validation": {},
         "execution": {},
     }
 
@@ -95,36 +109,49 @@ def run_pipeline(
         result["error"] = f"Design phase failed: {exc}"
         return result
 
-    # ---- Phase 2: Execution ----
-    logger.info("Pipeline phase 2: Execution")
+    # ---- Phase 2: Validation Gate ----
+    logger.info("Pipeline phase 2: Validation Gate")
     try:
-        from rodski_agent.execution.graph import build_execution_graph
+        validation = _validate_generated_files(output_dir)
+        result["validation"] = validation
 
-        exec_state: Dict[str, Any] = {
-            "case_path": output_dir,
-            "max_retry": max_retry,
-            "headless": headless,
-            "browser": browser,
-        }
+        if not validation.get("passed", False):
+            result["status"] = "error"
+            result["error"] = (
+                f"Validation gate failed: {len(validation.get('errors', []))} error(s)"
+            )
+            return result
+    except Exception as exc:
+        logger.warning("Validation gate skipped: %s", exc)
+        result["validation"] = {"passed": True, "skipped": True, "reason": str(exc)}
 
-        exec_graph = build_execution_graph()
-        exec_result = exec_graph.invoke(exec_state)
+    # ---- Phase 3: Execution ----
+    logger.info("Pipeline phase 3: Execution")
+    try:
+        case_files = _find_case_files(output_dir)
 
-        exec_status = exec_result.get("status", "error")
-        result["execution"] = {
-            "status": exec_status,
-            "report": exec_result.get("report", {}),
-        }
+        if parallel and len(case_files) > 1:
+            exec_results = _execute_parallel(
+                case_files, max_retry, headless, browser, max_workers
+            )
+        else:
+            exec_results = _execute_sequential(
+                case_files or [output_dir], max_retry, headless, browser
+            )
 
-        # Map overall status
+        # Aggregate results
+        aggregated = _aggregate_execution_results(exec_results)
+        result["execution"] = aggregated
+
+        exec_status = aggregated.get("status", "error")
         if exec_status == "pass":
             result["status"] = "success"
         elif exec_status in ("fail", "partial"):
             result["status"] = "failure"
-            result["error"] = exec_result.get("error", "")
+            result["error"] = aggregated.get("error", "")
         else:
             result["status"] = "error"
-            result["error"] = exec_result.get("error", "")
+            result["error"] = aggregated.get("error", "")
 
     except Exception as exc:
         logger.error("Pipeline execution phase failed: %s", exc)
@@ -132,3 +159,148 @@ def run_pipeline(
         result["error"] = f"Execution phase failed: {exc}"
 
     return result
+
+
+def _validate_generated_files(output_dir: str) -> Dict[str, Any]:
+    """用 rodski_validate 校验 output_dir 下所有 XML 文件。"""
+    from rodski_agent.common.rodski_tools import rodski_validate
+
+    result = rodski_validate(output_dir)
+    errors = [e for e in result.stderr.split("\n") if e.strip()] if result.stderr else []
+
+    return {
+        "passed": result.success,
+        "errors": errors,
+        "stdout": result.stdout,
+    }
+
+
+def _find_case_files(output_dir: str) -> List[str]:
+    """在 output_dir/case/ 下找到所有 XML 文件。"""
+    case_dir = os.path.join(output_dir, "case")
+    if not os.path.isdir(case_dir):
+        return []
+    files = glob.glob(os.path.join(case_dir, "*.xml"))
+    return sorted(files)
+
+
+def _execute_single(
+    case_path: str,
+    max_retry: int,
+    headless: bool,
+    browser: str,
+) -> Dict[str, Any]:
+    """执行单个 case 文件。"""
+    from rodski_agent.execution.graph import build_execution_graph
+
+    exec_state: Dict[str, Any] = {
+        "case_path": case_path,
+        "max_retry": max_retry,
+        "headless": headless,
+        "browser": browser,
+    }
+
+    exec_graph = build_execution_graph()
+    return exec_graph.invoke(exec_state)
+
+
+def _execute_sequential(
+    case_paths: List[str],
+    max_retry: int,
+    headless: bool,
+    browser: str,
+) -> List[Dict[str, Any]]:
+    """顺序执行多个 case。"""
+    results: List[Dict[str, Any]] = []
+    for path in case_paths:
+        try:
+            r = _execute_single(path, max_retry, headless, browser)
+            r["case_path"] = path
+            results.append(r)
+        except Exception as exc:
+            results.append({
+                "case_path": path,
+                "status": "error",
+                "error": str(exc),
+            })
+    return results
+
+
+def _execute_parallel(
+    case_paths: List[str],
+    max_retry: int,
+    headless: bool,
+    browser: str,
+    max_workers: int,
+) -> List[Dict[str, Any]]:
+    """并行执行多个 case 文件，每个 case 独立的 execution graph 实例。"""
+    results: List[Dict[str, Any]] = []
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_path = {
+            executor.submit(_execute_single, path, max_retry, headless, browser): path
+            for path in case_paths
+        }
+        for future in as_completed(future_to_path):
+            path = future_to_path[future]
+            try:
+                r = future.result()
+                r["case_path"] = path
+                results.append(r)
+            except Exception as exc:
+                results.append({
+                    "case_path": path,
+                    "status": "error",
+                    "error": str(exc),
+                })
+
+    return results
+
+
+def _aggregate_execution_results(results: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """聚合多个 case 的执行结果。"""
+    if not results:
+        return {"status": "pass", "report": {"total": 0, "passed": 0, "failed": 0}}
+
+    # For single-result case (backward compatibility), return it directly
+    if len(results) == 1:
+        r = results[0]
+        return {
+            "status": r.get("status", "error"),
+            "report": r.get("report", {}),
+            "error": r.get("error", ""),
+        }
+
+    # Multi-result aggregation
+    total = 0
+    passed = 0
+    failed = 0
+    all_cases: List[Dict] = []
+    errors: List[str] = []
+
+    for r in results:
+        report = r.get("report", {})
+        total += report.get("total", 0)
+        passed += report.get("passed", 0)
+        failed += report.get("failed", 0)
+        all_cases.extend(report.get("cases", []))
+        if r.get("error"):
+            errors.append(f"{r.get('case_path', '?')}: {r['error']}")
+
+    if failed == 0 and not errors:
+        status = "pass"
+    elif passed == 0:
+        status = "fail"
+    else:
+        status = "partial"
+
+    return {
+        "status": status,
+        "report": {
+            "total": total,
+            "passed": passed,
+            "failed": failed,
+            "cases": all_cases,
+        },
+        "error": "; ".join(errors) if errors else "",
+    }

@@ -10,7 +10,7 @@
   - generate_xml: 生成 XML 文件
   - validate_xml: 校验 XML 文件
 
-所有 LLM 调用均有 fallback 降级路径。
+LLM 不可用时直接报错，不做降级。
 
 Python 3.9 兼容：使用 ``from __future__ import annotations`` 延迟求值。
 """
@@ -39,9 +39,6 @@ logger = logging.getLogger(__name__)
 def analyze_req(state: dict) -> dict:
     """LLM 分析需求 -> test_scenarios.
 
-    Try LLM first; fall back to simple keyword-based extraction
-    when LLM is unavailable.
-
     Reads: state["requirement"]
     Writes: state["test_scenarios"]
     """
@@ -53,45 +50,20 @@ def analyze_req(state: dict) -> dict:
             "error": "No requirement provided",
         }
 
-    # Try LLM
-    try:
-        from rodski_agent.common.llm_bridge import call_llm_text, LLMUnavailableError
-        from rodski_agent.design.prompts import ANALYZE_REQ_PROMPT
+    from rodski_agent.common.llm_bridge import call_llm_text
+    from rodski_agent.design.prompts import ANALYZE_REQ_PROMPT
 
-        full_prompt = ANALYZE_REQ_PROMPT + f"\n\n【需求描述】\n{requirement}"
-        response_text = call_llm_text(full_prompt)
-        scenarios = _parse_json_response(response_text)
-        if isinstance(scenarios, list) and scenarios:
-            return {"test_scenarios": scenarios, "status": "running"}
-    except Exception as exc:
-        logger.warning("LLM unavailable for analyze_req, using fallback: %s", exc)
+    full_prompt = ANALYZE_REQ_PROMPT + f"\n\n【需求描述】\n{requirement}"
+    response_text = call_llm_text(full_prompt)
+    scenarios = _parse_json_response(response_text)
+    if isinstance(scenarios, list) and scenarios:
+        return {"test_scenarios": scenarios, "status": "running"}
 
-    # Fallback: generate minimal stub scenario
-    scenarios = _fallback_scenarios(requirement)
-    return {"test_scenarios": scenarios, "status": "running"}
-
-
-def _fallback_scenarios(requirement: str) -> list[dict]:
-    """Generate minimal stub scenarios from requirement text."""
-    # Simple heuristic: create one scenario per requirement
-    scenario_name = "test_scenario_001"
-
-    # Detect type from keywords
-    scenario_type = "ui"
-    lower_req = requirement.lower()
-    if any(kw in lower_req for kw in ["api", "接口", "http", "request", "请求"]):
-        scenario_type = "api"
-    elif any(kw in lower_req for kw in ["db", "数据库", "sql", "database"]):
-        scenario_type = "db"
-
-    return [
-        {
-            "scenario_name": scenario_name,
-            "description": requirement[:200],
-            "type": scenario_type,
-            "steps_outline": ["准备测试环境", "执行测试操作", "验证测试结果"],
-        }
-    ]
+    return {
+        "test_scenarios": [],
+        "status": "error",
+        "error": "LLM returned invalid scenarios format",
+    }
 
 
 # ============================================================
@@ -113,28 +85,25 @@ def plan_cases(state: dict) -> dict:
             "error": "No test scenarios to plan",
         }
 
-    # Try LLM
-    try:
-        from rodski_agent.common.llm_bridge import call_llm_text, LLMUnavailableError
-        from rodski_agent.design.prompts import PLAN_CASES_PROMPT
+    from rodski_agent.common.llm_bridge import call_llm_text
+    from rodski_agent.design.prompts import PLAN_CASES_PROMPT
 
-        scenarios_json = json.dumps(scenarios, ensure_ascii=False)
-        full_prompt = (
-            PLAN_CASES_PROMPT
-            + f"\n\n【测试场景】\n{scenarios_json}"
-        )
-        response_text = call_llm_text(full_prompt)
-        case_plan = _parse_json_response(response_text)
-        if isinstance(case_plan, list) and case_plan:
-            # Post-validate all actions
-            case_plan = _validate_case_plan_actions(case_plan)
-            return {"case_plan": case_plan, "status": "running"}
-    except Exception as exc:
-        logger.warning("LLM unavailable for plan_cases, using fallback: %s", exc)
+    scenarios_json = json.dumps(scenarios, ensure_ascii=False)
+    full_prompt = (
+        PLAN_CASES_PROMPT
+        + f"\n\n【测试场景】\n{scenarios_json}"
+    )
+    response_text = call_llm_text(full_prompt)
+    case_plan = _parse_json_response(response_text)
+    if isinstance(case_plan, list) and case_plan:
+        case_plan = _validate_case_plan_actions(case_plan)
+        return {"case_plan": case_plan, "status": "running"}
 
-    # Fallback: generate minimal case plan from scenarios
-    case_plan = _fallback_case_plan(scenarios)
-    return {"case_plan": case_plan, "status": "running"}
+    return {
+        "case_plan": [],
+        "status": "error",
+        "error": "LLM returned invalid case plan format",
+    }
 
 
 def _validate_case_plan_actions(case_plan: list[dict]) -> list[dict]:
@@ -158,43 +127,6 @@ def _validate_case_plan_actions(case_plan: list[dict]) -> list[dict]:
     return validated
 
 
-def _fallback_case_plan(scenarios: list[dict]) -> list[dict]:
-    """Generate minimal case plan from scenarios."""
-    cases: list[dict] = []
-    for i, scenario in enumerate(scenarios):
-        case_id = f"c{i + 1:03d}"
-        scenario_type = scenario.get("type", "ui")
-        model_name = scenario.get("scenario_name", f"Model{i + 1}")
-
-        # Build steps based on type
-        steps: list[dict] = []
-        if scenario_type == "ui":
-            steps = [
-                {"phase": "pre_process", "action": "navigate", "model": "", "data": "http://localhost"},
-                {"phase": "test_case", "action": "type", "model": model_name, "data": f"D{i + 1:03d}"},
-                {"phase": "test_case", "action": "verify", "model": model_name, "data": f"V{i + 1:03d}"},
-                {"phase": "post_process", "action": "close", "model": "", "data": ""},
-            ]
-        elif scenario_type == "api":
-            steps = [
-                {"phase": "test_case", "action": "send", "model": model_name, "data": f"D{i + 1:03d}"},
-                {"phase": "test_case", "action": "verify", "model": model_name, "data": f"V{i + 1:03d}"},
-            ]
-        elif scenario_type == "db":
-            steps = [
-                {"phase": "test_case", "action": "DB", "model": "DBConn", "data": f"D{i + 1:03d}"},
-            ]
-
-        component_type_map = {"ui": "界面", "api": "接口", "db": "数据库"}
-        cases.append({
-            "id": case_id,
-            "title": scenario.get("description", f"Test {case_id}")[:60],
-            "component_type": component_type_map.get(scenario_type, "界面"),
-            "steps": steps,
-        })
-    return cases
-
-
 # ============================================================
 # Node: design_data
 # ============================================================
@@ -214,74 +146,23 @@ def design_data(state: dict) -> dict:
             "error": "No case plan to design data for",
         }
 
-    # Try LLM
-    try:
-        from rodski_agent.common.llm_bridge import call_llm_text, LLMUnavailableError
-        from rodski_agent.design.prompts import DESIGN_DATA_PROMPT
+    from rodski_agent.common.llm_bridge import call_llm_text
+    from rodski_agent.design.prompts import DESIGN_DATA_PROMPT
 
-        case_plan_json = json.dumps(case_plan, ensure_ascii=False)
-        full_prompt = (
-            DESIGN_DATA_PROMPT
-            + f"\n\n【用例计划】\n{case_plan_json}"
-        )
-        response_text = call_llm_text(full_prompt)
-        test_data = _parse_json_response(response_text)
-        if isinstance(test_data, dict) and test_data:
-            return {"test_data": test_data, "status": "running"}
-    except Exception as exc:
-        logger.warning("LLM unavailable for design_data, using fallback: %s", exc)
-
-    # Fallback: generate minimal data from case plan
-    test_data = _fallback_test_data(case_plan)
-    return {"test_data": test_data, "status": "running"}
-
-
-def _fallback_test_data(case_plan: list[dict]) -> dict:
-    """Generate minimal test data from case plan."""
-    datatables: list[dict] = []
-    verify_tables: list[dict] = []
-    seen_data_models: set[str] = set()
-    seen_verify_models: set[str] = set()
-
-    for case in case_plan:
-        for step in case.get("steps", []):
-            model = step.get("model", "")
-            data_id = step.get("data", "")
-            action = step.get("action", "")
-
-            if not model:
-                continue
-
-            if action in ("type", "send") and model not in seen_data_models:
-                seen_data_models.add(model)
-                datatables.append({
-                    "name": model,
-                    "rows": [
-                        {
-                            "id": data_id or "D001",
-                            "fields": [
-                                {"name": "field1", "value": "value1"},
-                            ],
-                        }
-                    ],
-                })
-            if action in ("verify", "check") and model not in seen_verify_models:
-                seen_verify_models.add(model)
-                verify_tables.append({
-                    "name": f"{model}_verify",
-                    "rows": [
-                        {
-                            "id": data_id or "V001",
-                            "fields": [
-                                {"name": "field1", "value": "expected1"},
-                            ],
-                        }
-                    ],
-                })
+    case_plan_json = json.dumps(case_plan, ensure_ascii=False)
+    full_prompt = (
+        DESIGN_DATA_PROMPT
+        + f"\n\n【用例计划】\n{case_plan_json}"
+    )
+    response_text = call_llm_text(full_prompt)
+    test_data = _parse_json_response(response_text)
+    if isinstance(test_data, dict) and test_data:
+        return {"test_data": test_data, "status": "running"}
 
     return {
-        "datatables": datatables,
-        "verify_tables": verify_tables,
+        "test_data": {},
+        "status": "error",
+        "error": "LLM returned invalid test data format",
     }
 
 
@@ -453,28 +334,20 @@ def validate_xml(state: dict) -> dict:
 
     fix_attempt = state.get("fix_attempt", 0)
 
-    try:
-        from rodski_agent.common.rodski_tools import rodski_validate
+    from rodski_agent.common.rodski_tools import rodski_validate
 
-        result = rodski_validate(output_dir)
-        if result.success:
-            return {
-                "validation_errors": [],
-                "status": "success",
-            }
-        else:
-            errors = [e for e in result.stderr.split("\n") if e.strip()]
-            return {
-                "validation_errors": errors,
-                "fix_attempt": fix_attempt + 1,
-                "status": "running",
-            }
-    except Exception as exc:
-        logger.warning("Validation skipped (rodski not available): %s", exc)
-        # If validator is not available, assume success (graceful degradation)
+    result = rodski_validate(output_dir)
+    if result.success:
         return {
             "validation_errors": [],
             "status": "success",
+        }
+    else:
+        errors = [e for e in result.stderr.split("\n") if e.strip()]
+        return {
+            "validation_errors": errors,
+            "fix_attempt": fix_attempt + 1,
+            "status": "running",
         }
 
 

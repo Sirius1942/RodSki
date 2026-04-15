@@ -28,7 +28,24 @@ def tmp_config(tmp_path):
             "headless": True,
         },
         "llm": {
-            "config_path": "../rodski/config/llm_config.yaml",
+            "design": {
+                "provider": "claude",
+                "model": "claude-sonnet-4-20250514",
+                "api_key_env": "ANTHROPIC_API_KEY",
+                "temperature": 0.7,
+                "max_tokens": 4096,
+            },
+            "execution": {
+                "provider": "claude",
+                "model": "claude-sonnet-4-20250514",
+                "api_key_env": "ANTHROPIC_API_KEY",
+                "temperature": 0.1,
+                "max_tokens": 2048,
+            },
+        },
+        "omniparser": {
+            "url": "http://localhost:8000",
+            "timeout": 30,
         },
         "design": {
             "max_scenarios": 5,

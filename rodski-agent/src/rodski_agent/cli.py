@@ -301,11 +301,15 @@ def design(ctx: click.Context, requirement: str, url: str | None, output: str) -
 @click.option("--url", default=None, type=str, help="Target URL for the test.")
 @click.option("--output", required=True, type=click.Path(), help="Output path for generated test case.")
 @click.option("--max-retry", default=3, show_default=True, type=int, help="Max retry count on failure.")
+@click.option("--max-fix-attempts", default=3, show_default=True, type=int, help="Max XML fix attempts in design.")
 @click.option("--headless/--no-headless", default=True, show_default=True, help="Run browser in headless mode.")
 @click.option("--browser", default="chromium", show_default=True, help="Browser engine to use.")
+@click.option("--parallel/--no-parallel", default=False, show_default=True, help="Parallel execution of cases.")
+@click.option("--max-workers", default=3, show_default=True, type=int, help="Max parallel workers.")
 @click.pass_context
 def pipeline(ctx: click.Context, requirement: str, url: str | None, output: str,
-             max_retry: int, headless: bool, browser: str) -> None:
+             max_retry: int, max_fix_attempts: int, headless: bool, browser: str,
+             parallel: bool, max_workers: int) -> None:
     """Run the full design-then-execute pipeline."""
     try:
         from rodski_agent.pipeline.orchestrator import run_pipeline
@@ -314,10 +318,13 @@ def pipeline(ctx: click.Context, requirement: str, url: str | None, output: str,
         result = run_pipeline(
             requirement=requirement,
             output_dir=output_dir,
-            target_url=url,
+            target_url=url or "",
             max_retry=max_retry,
+            max_fix_attempts=max_fix_attempts,
             headless=headless,
             browser=browser,
+            parallel=parallel,
+            max_workers=max_workers,
         )
 
         status = result.get("status", "error")
