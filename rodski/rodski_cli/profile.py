@@ -1,9 +1,9 @@
 """性能分析命令"""
 import sys
 from pathlib import Path
-from core.profiler import Profiler
-from core.performance import set_profiler
-from core.task_executor import TaskExecutor
+from ..core.profiler import Profiler
+from ..core.performance import set_profiler
+from ..core.task_executor import TaskExecutor
 
 
 def setup_parser(subparsers):

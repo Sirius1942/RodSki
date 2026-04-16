@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- V7 演示: smoke 套件 — tags 在 <cases> 级别 -->
+<cases step_wait="500" tags="smoke,login">
+
+    <!-- TC-V7-001: 冒烟测试 P0 -->
+    <case execute="是" id="TC-V7-001" title="[P0/smoke] 登录冒烟测试"
+          component_type="界面" priority="P0">
+        <test_case>
+            <test_step action="navigate" model="" data="http://localhost:8000"/>
+            <test_step action="type" model="LoginForm" data="L001"/>
+            <test_step action="verify" model="Dashboard" data="V001"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <!-- TC-V7-003: API 冒烟 P0 -->
+    <case execute="是" id="TC-V7-003" title="[P0/smoke] API登录冒烟"
+          component_type="接口" priority="P0">
+        <test_case>
+            <test_step action="send" model="LoginAPI" data="D001"/>
+            <test_step action="verify" model="LoginAPI" data="V001"/>
+        </test_case>
+    </case>
+
+</cases>

@@ -104,7 +104,7 @@ class LoopExecutor:
     def __init__(self, ski_executor):
         """Initialize with reference to SKIExecutor"""
         self.ski_executor = ski_executor
-        from core.condition_evaluator import ConditionEvaluator
+        from .condition_evaluator import ConditionEvaluator
         self.condition_evaluator = ConditionEvaluator()
 
     def execute_loop(self, step: Dict[str, Any], loop_config: LoopConfiguration) -> List[Dict[str, Any]]:

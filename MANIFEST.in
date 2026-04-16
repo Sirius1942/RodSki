@@ -1,0 +1,19 @@
+include rodski/LICENSE
+include rodski/README.md
+
+recursive-include rodski/schemas *.xsd
+recursive-include rodski/config *.yaml *.json
+
+prune rodski/tests
+prune rodski/docs
+prune rodski/examples
+prune rodski/scripts
+prune rodski/images
+prune rodski/rodski_docs
+
+exclude rodski/.flake8
+exclude rodski/bandit.yaml
+exclude rodski/mypy.ini
+exclude rodski/pytest.ini
+exclude rodski/selftest.py
+exclude rodski/requirements.txt

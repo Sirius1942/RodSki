@@ -77,6 +77,7 @@ class SKIExecutor:
         driver_factory: Optional[Callable[[], BaseDriver]] = None,
         module_dir: Optional[str] = None,
         runtime_control: Optional[BaseRuntimeControl] = None,
+        report_collector=None,
     ):
         """初始化 SKI 执行器
 
@@ -163,6 +164,9 @@ class SKIExecutor:
         self.runtime_control: BaseRuntimeControl = runtime_control or BaseRuntimeControl()
         self._runtime_stopped_graceful = False
 
+        # 报告收集器（可选）：不影响现有逻辑
+        self.report_collector = report_collector
+
     def _ensure_driver_alive(self) -> None:
         """确保驱动可用，如果驱动已关闭则重新创建"""
         if self._driver_closed:
@@ -190,15 +194,31 @@ class SKIExecutor:
                     "驱动已关闭且未提供 driver_factory，无法重新创建驱动"
                 )
 
-    def execute_all_cases(self):
-        """执行所有用例，完成后批量回填结果"""
+    def execute_all_cases(
+        self,
+        filter_tags: Optional[List[str]] = None,
+        filter_priority: Optional[List[str]] = None,
+        exclude_tags: Optional[List[str]] = None,
+    ):
+        """执行所有用例，完成后批量回填结果
+
+        Args:
+            filter_tags: 仅执行包含指定 tag 的用例（OR 匹配，任一命中即可）
+            filter_priority: 仅执行指定优先级的用例（如 ['P0', 'P1']）
+            exclude_tags: 排除包含指定 tag 的用例
+        """
         cases = self.case_parser.parse_cases()
+        cases = self._filter_cases(cases, filter_tags, filter_priority, exclude_tags)
         results = []
         case_count = 0
         total_cases = len(cases)
 
         # 初始化结果目录（用于步骤截图）
         self.result_writer._init_run_dir()
+
+        # 报告收集器：开始执行
+        if getattr(self, 'report_collector', None):
+            self.report_collector.start_run()
 
         for case in cases:
             case_count += 1
@@ -246,7 +266,54 @@ class SKIExecutor:
                 })
 
         self.result_writer.write_results(results)
+
+        # 报告收集器：结束执行
+        if getattr(self, 'report_collector', None):
+            self.report_collector.end_run()
+
         return results
+
+    @staticmethod
+    def _filter_cases(
+        cases: List[Dict[str, Any]],
+        filter_tags: Optional[List[str]] = None,
+        filter_priority: Optional[List[str]] = None,
+        exclude_tags: Optional[List[str]] = None,
+    ) -> List[Dict[str, Any]]:
+        """按 tags / priority / exclude_tags 过滤用例列表
+
+        - filter_tags: OR 匹配 -- 用例 tags 与 filter_tags 有交集即命中
+        - filter_priority: 用例 priority 在列表中即命中
+        - exclude_tags: 用例 tags 与 exclude_tags 有交集则排除
+        - 所有参数均为空时返回原列表（向后兼容）
+        """
+        if not filter_tags and not filter_priority and not exclude_tags:
+            return cases
+
+        filtered = []
+        for case in cases:
+            case_tags = set(case.get('tags') or [])
+            case_priority = (case.get('priority') or '').strip()
+
+            # exclude_tags 检查（优先排除）
+            if exclude_tags and case_tags & set(exclude_tags):
+                logger.debug(f"用例 {case['case_id']} 被 exclude_tags 排除")
+                continue
+
+            # filter_tags 检查
+            if filter_tags and not (case_tags & set(filter_tags)):
+                logger.debug(f"用例 {case['case_id']} 不匹配 filter_tags")
+                continue
+
+            # filter_priority 检查
+            if filter_priority and case_priority not in filter_priority:
+                logger.debug(f"用例 {case['case_id']} 不匹配 filter_priority")
+                continue
+
+            filtered.append(case)
+
+        logger.info(f"过滤后用例数: {len(filtered)}/{len(cases)}")
+        return filtered
 
     def execute_case(self, case: Dict[str, Any]) -> Dict[str, Any]:
         """执行单个用例（三阶段：预处理 → 用例 → 后处理）。
@@ -264,10 +331,16 @@ class SKIExecutor:
         # 保存当前 case 的 step_wait 配置（优先级高于全局配置）
         self._current_case_step_wait = case.get('step_wait')
 
+        self._pending_case_status: Optional[str] = None
+
         try:
             self._current_case_id = case['case_id']
             self._step_index = 0
             self._runtime_stopped_graceful = False
+
+            # 报告收集器：开始用例
+            if getattr(self, 'report_collector', None):
+                self.report_collector.start_case(case)
 
             err: Optional[Exception] = None
 
@@ -464,38 +537,7 @@ class SKIExecutor:
 
             # 处理条件步骤
             if step.get('type') == 'if':
-                condition = step.get('condition', '')
-                try:
-                    evaluated = self.dynamic_executor.evaluate_condition(
-                        condition, driver=self.driver
-                    )
-                except Exception as e:
-                    # 条件评估失败：友好提示 + 截图
-                    screenshot_path = self._take_failure_screenshot(
-                        f"if_cond_failed_{hash(condition) & 0xFFFFFFFF:08x}"
-                    )
-                    logger.warning(
-                        f"[IF] ⚠️ 条件无法评估: condition={condition}\n"
-                        f"   错误: {e}\n"
-                        f"   截图: {screenshot_path}\n"
-                        f"   建议: Agent 检查条件语法或页面状态\n"
-                        f"   可用操作: 调整条件 / 跳过此分支 / 插入 cleanup 步骤"
-                    )
-                    logger.warning(f"  [{self._phase_runtime_seq}] if ({condition}) → 评估失败（跳过）")
-                    continue
-
-                if evaluated:
-                    logger.info(f"  [{self._phase_runtime_seq}] if ({condition}) → True")
-                    for sub_step in step.get('steps', []):
-                        self.execute_step(sub_step, phase_label)
-                else:
-                    else_steps = step.get('else_steps', [])
-                    if else_steps:
-                        logger.info(f"  [{self._phase_runtime_seq}] if ({condition}) → False → else")
-                        for sub_step in else_steps:
-                            self.execute_step(sub_step, phase_label)
-                    else:
-                        logger.debug(f"  [{self._phase_runtime_seq}] if ({condition}) → False (无 else 跳过)")
+                self._execute_if_block(step, phase_label)
             # 处理循环步骤
             elif step.get('type') == 'loop':
                 loop_range = step.get('range', '')
@@ -514,6 +556,64 @@ class SKIExecutor:
 
             if self._drain_runtime_at_boundary(dq):
                 return
+
+    def _execute_if_block(self, step: Dict[str, Any], phase_label: str) -> None:
+        """执行 if / elif / else 条件块（支持嵌套 if，最多 2 层）"""
+        condition = step.get('condition', '')
+        try:
+            evaluated = self.dynamic_executor.evaluate_condition(
+                condition, driver=self.driver
+            )
+        except Exception as e:
+            screenshot_path = self._take_failure_screenshot(
+                f"if_cond_failed_{hash(condition) & 0xFFFFFFFF:08x}"
+            )
+            logger.warning(
+                f"[IF] 条件无法评估: condition={condition}\n"
+                f"   错误: {e}\n"
+                f"   截图: {screenshot_path}\n"
+                f"   建议: Agent 检查条件语法或页面状态\n"
+                f"   可用操作: 调整条件 / 跳过此分支 / 插入 cleanup 步骤"
+            )
+            logger.warning(f"  [{self._phase_runtime_seq}] if ({condition}) -> 评估失败（跳过）")
+            return
+
+        if evaluated:
+            logger.info(f"  [{self._phase_runtime_seq}] if ({condition}) -> True")
+            self._execute_step_list(step.get('steps', []), phase_label)
+            return
+
+        # if 条件为 False：尝试 elif 链
+        elif_chain = step.get('elif_chain', [])
+        for idx, elif_item in enumerate(elif_chain):
+            elif_cond = elif_item.get('condition', '')
+            try:
+                elif_result = self.dynamic_executor.evaluate_condition(
+                    elif_cond, driver=self.driver
+                )
+            except Exception as e:
+                logger.warning(f"  [{self._phase_runtime_seq}] elif ({elif_cond}) -> 评估失败（跳过）: {e}")
+                continue
+            if elif_result:
+                logger.info(f"  [{self._phase_runtime_seq}] elif ({elif_cond}) -> True")
+                self._execute_step_list(elif_item.get('steps', []), phase_label)
+                return
+
+        # 所有 if/elif 均为 False：执行 else
+        else_steps = step.get('else_steps', [])
+        if else_steps:
+            logger.info(f"  [{self._phase_runtime_seq}] if ({condition}) -> False -> else")
+            self._execute_step_list(else_steps, phase_label)
+        else:
+            logger.debug(f"  [{self._phase_runtime_seq}] if ({condition}) -> False (无 else 跳过)")
+
+    def _execute_step_list(self, steps: List[Dict[str, Any]], phase_label: str) -> None:
+        """执行步骤列表，支持嵌套 if 块"""
+        for sub_step in steps:
+            if sub_step.get('type') == 'if':
+                self._execute_if_block(sub_step, phase_label)
+            else:
+                self.execute_step(sub_step, phase_label)
 
     def _take_failure_screenshot(self, case_id: str) -> Optional[str]:
         """在用例失败时自动截图"""
@@ -577,8 +677,9 @@ class SKIExecutor:
             return_source = 'get_named'
         else:
             return_source = 'keyword_result'
+        step_index = len(self._current_case_steps_log) + 1
         self._current_case_steps_log.append({
-            'index': len(self._current_case_steps_log) + 1,
+            'index': step_index,
             'action': action,
             'model': model,
             'phase': step_type,
@@ -587,6 +688,17 @@ class SKIExecutor:
             'return_value': last_return,
             'named_writes': named_writes,
         })
+
+        # 报告收集器：记录步骤
+        if getattr(self, 'report_collector', None):
+            self.report_collector.record_step({
+                'index': step_index,
+                'action': action,
+                'model': model,
+                'data': resolved_data,
+                'status': 'ok',
+                'return_value': last_return,
+            })
 
         if action.lower() == 'close':
             self._driver_closed = True

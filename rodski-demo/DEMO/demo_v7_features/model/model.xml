@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- V7 Demo 模型文件 — 复用 demo_full 的核心模型 -->
+<models>
+
+<model name="LoginForm" type="ui" servicename="">
+    <element name="username" type="input">
+        <location type="id">loginUsername</location>
+    </element>
+    <element name="password" type="input">
+        <location type="id">loginPassword</location>
+    </element>
+    <element name="loginBtn" type="button">
+        <location type="id">loginBtn</location>
+    </element>
+</model>
+
+<model name="Dashboard" type="ui" servicename="">
+    <element name="totalOrders" type="text">
+        <location type="id">totalOrders</location>
+    </element>
+    <element name="completedOrders" type="text">
+        <location type="id">completedOrders</location>
+    </element>
+</model>
+
+<model name="NavMenu" type="ui" servicename="">
+    <element name="testLink" type="link">
+        <location type="id">navTest</location>
+    </element>
+</model>
+
+<model name="TestForm" type="ui" servicename="">
+    <element name="username" type="input">
+        <location type="id">username</location>
+    </element>
+    <element name="role" type="select">
+        <location type="id">role</location>
+    </element>
+    <element name="submitBtn" type="button">
+        <location type="id">submitBtn</location>
+    </element>
+    <element name="formResult" type="text">
+        <location type="id">formResult</location>
+    </element>
+</model>
+
+<model name="LoginAPI" type="interface" servicename="">
+    <element name="_method" type="http_method">
+        <location type="static">POST</location>
+    </element>
+    <element name="_url" type="http_url">
+        <location type="static">http://localhost:8000/api/login</location>
+    </element>
+    <element name="username" type="field">
+        <location type="field">username</location>
+    </element>
+    <element name="password" type="field">
+        <location type="field">password</location>
+    </element>
+</model>
+
+<model name="OrderAPI" type="interface" servicename="">
+    <element name="_method" type="http_method">
+        <location type="static">GET</location>
+    </element>
+    <element name="_url" type="http_url">
+        <location type="static">http://localhost:8000/api/orders</location>
+    </element>
+</model>
+
+<model name="QuerySQL" type="database" connection="demo_db" servicename="">
+    <query name="list" remark="查询订单列表">
+        <sql>SELECT order_no, customer_name, total_amount FROM orders LIMIT :limit</sql>
+    </query>
+    <element name="order_no" type="database">
+        <location type="field">order_no</location>
+    </element>
+    <element name="customer_name" type="database">
+        <location type="field">customer_name</location>
+    </element>
+    <element name="total_amount" type="database">
+        <location type="field">total_amount</location>
+    </element>
+</model>
+
+</models>

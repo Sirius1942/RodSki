@@ -6,6 +6,7 @@
 
 - [Git 工作流规范](GIT_WORKFLOW.md) - 分支管理、提交规范、发布流程
 - [核心设计约束](../../rodski/docs/CORE_DESIGN_CONSTRAINTS.md) - 项目结构、关键字设计、开发约束、测试规范
+- [项目边界约束](PROJECT_BOUNDARY.md) - rodski / rodski-agent 项目边界、依赖方向、LLM 配置隔离
 - [CI/CD 集成指南](CI_CD_GUIDE.md) - GitHub Actions、Jenkins、GitLab CI 集成
 
 ## 核心约束

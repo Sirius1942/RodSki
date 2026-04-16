@@ -8,7 +8,7 @@ import time
 from dataclasses import dataclass, field, asdict
 from typing import Optional, Dict, Any, List
 
-from core.exceptions import DiagnosisTimeoutError
+from .exceptions import DiagnosisTimeoutError
 
 logger = logging.getLogger("rodski")
 

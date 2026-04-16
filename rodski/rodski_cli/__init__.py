@@ -1,9 +1,9 @@
 """CLI 子命令模块"""
 import sys
 import argparse
-from rodski_cli import run, model, config, log, report, docs
+from . import run, model, config, log, report, docs
 
-VERSION = "3.1.0"
+from rodski import __version__ as VERSION
 
 def main():
     parser = argparse.ArgumentParser(

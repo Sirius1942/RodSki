@@ -8,7 +8,7 @@ from typing import Dict, Any, Optional, List
 
 import numpy as np
 
-from core.assertion.base_assertion import BaseAssertion
+from .base_assertion import BaseAssertion
 
 logger = logging.getLogger("rodski")
 

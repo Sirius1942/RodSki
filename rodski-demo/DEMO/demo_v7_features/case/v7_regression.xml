@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- V7 演示: regression 套件 — tags 在 <cases> 级别 -->
+<cases step_wait="500" tags="regression">
+
+    <!-- TC-V7-002: 回归测试 P1 -->
+    <case execute="是" id="TC-V7-002" title="[P1/regression] 表单提交回归"
+          component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="navigate" model="" data="http://localhost:8000"/>
+            <test_step action="type" model="LoginForm" data="L001"/>
+            <test_step action="type" model="NavMenu" data="N001"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="TestForm" data="T001"/>
+            <test_step action="verify" model="TestForm" data="V001"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <!-- TC-V7-005: if/elif/else 分支演示 -->
+    <case execute="是" id="TC-V7-005" title="[P1] if/elif/else 条件分支演示"
+          component_type="接口" priority="P1">
+        <test_case>
+            <test_step action="send" model="LoginAPI" data="D001"/>
+            <test_step action="set" model="" data="login_status=${Return[-1].status}"/>
+            <if condition="${login_status} == 200">
+                <test_step action="send" model="OrderAPI" data="D001"/>
+                <test_step action="verify" model="OrderAPI" data="V001"/>
+            </if>
+            <elif condition="${login_status} == 401">
+                <test_step action="send" model="LoginAPI" data="D001"/>
+            </elif>
+            <else>
+                <test_step action="set" model="" data="error_msg=unknown status"/>
+            </else>
+        </test_case>
+    </case>
+
+    <!-- TC-V7-006: 嵌套 if 演示 -->
+    <case execute="是" id="TC-V7-006" title="[P1] 嵌套if条件演示"
+          component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="navigate" model="" data="http://localhost:8000"/>
+            <test_step action="type" model="LoginForm" data="L001"/>
+        </pre_process>
+        <test_case>
+            <test_step action="verify" model="Dashboard" data="V001"/>
+            <test_step action="set" model="" data="total=${Return[-1].totalOrders}"/>
+            <if condition="${total} > 0">
+                <test_step action="type" model="NavMenu" data="N001"/>
+                <if condition="${total} >= 3">
+                    <test_step action="type" model="TestForm" data="T001"/>
+                </if>
+                <else>
+                    <test_step action="set" model="" data="msg=orders less than 3"/>
+                </else>
+            </if>
+            <else>
+                <test_step action="set" model="" data="msg=no orders"/>
+            </else>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <!-- TC-V7-007: mock_route 网络拦截 -->
+    <case execute="是" id="TC-V7-007" title="[P1] mock_route 网络拦截演示"
+          component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="navigate" model="" data="http://localhost:8000"/>
+        </pre_process>
+        <test_case>
+            <test_step action="run" model="network_ops" data="mock_route(**/api/orders, status=200, body={&quot;orders&quot;: [{&quot;id&quot;: 1, &quot;name&quot;: &quot;MockOrder&quot;}]})"/>
+            <test_step action="navigate" model="" data="http://localhost:8000"/>
+            <test_step action="type" model="LoginForm" data="L001"/>
+            <test_step action="run" model="network_ops" data="clear_routes()"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+</cases>

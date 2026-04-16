@@ -18,7 +18,7 @@ import time
 from pathlib import Path
 from typing import Optional, Tuple
 from .base_driver import BaseDriver
-from core.exceptions import (
+from ..core.exceptions import (
     DriverError,
     DriverStoppedError,
     ElementNotFoundError,

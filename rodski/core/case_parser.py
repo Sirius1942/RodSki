@@ -54,6 +54,10 @@ class CaseParser:
         # 读取根节点的 step_wait 属性（毫秒）
         step_wait_ms = root.get('step_wait', None)
 
+        # 读取 <cases> 套件级 tags（逗号分隔 → list），所有 case 共享
+        raw_suite_tags = (root.get('tags') or '').strip()
+        suite_tags = [t.strip() for t in raw_suite_tags.split(',') if t.strip()] if raw_suite_tags else []
+
         for case_node in root.findall('case'):
             execute = case_node.get('execute', '否').strip()
             if execute != '是':
@@ -65,6 +69,8 @@ class CaseParser:
                 'description': case_node.get('description', ''),
                 'component_type': case_node.get('component_type', ''),
                 'expect_fail': case_node.get('expect_fail', '否').strip(),
+                'tags': suite_tags,
+                'priority': (case_node.get('priority') or '').strip(),
                 'step_wait': step_wait_ms,
                 'metadata': self._parse_metadata(case_node.find('metadata')),
                 'pre_process': self._parse_phase_steps(case_node.find('pre_process')),
@@ -91,19 +97,59 @@ class CaseParser:
 
     @staticmethod
     def _parse_phase_steps(phase_node: Optional[ET.Element]) -> List[Dict[str, str]]:
-        """解析一个阶段容器内的全部 test_step，支持 if 和 loop"""
+        """解析一个阶段容器内的全部 test_step，支持 if/elif/else 和 loop"""
         if phase_node is None:
             return []
         steps = []
-        for el in phase_node:
+        children = list(phase_node)
+        i = 0
+        while i < len(children):
+            el = children[i]
             if el.tag == 'test_step':
                 step = CaseParser._parse_step_element(el)
                 if step.get('action'):
                     steps.append(step)
+                i += 1
             elif el.tag == 'if':
-                steps.append(CaseParser._parse_if_element(el))
+                if_block = CaseParser._parse_if_element(el, depth=1)
+                # 收集紧跟的 elif / else 元素
+                elif_chain: List[Dict[str, Any]] = []
+                else_steps: List[Dict[str, str]] = []
+                j = i + 1
+                while j < len(children):
+                    nxt = children[j]
+                    if nxt.tag == 'elif':
+                        elif_chain.append({
+                            'condition': str(nxt.get('condition', '') or '').strip(),
+                            'steps': [
+                                CaseParser._parse_step_element(s)
+                                for s in nxt.findall('test_step')
+                                if s.get('action')
+                            ],
+                        })
+                        j += 1
+                    elif nxt.tag == 'else':
+                        else_steps = [
+                            CaseParser._parse_step_element(s)
+                            for s in nxt.findall('test_step')
+                            if s.get('action')
+                        ]
+                        j += 1
+                        break  # else 终止链
+                    else:
+                        break
+                if elif_chain:
+                    if_block['elif_chain'] = elif_chain
+                if else_steps:
+                    if_block['else_steps'] = else_steps
+                steps.append(if_block)
+                i = j
             elif el.tag == 'loop':
                 steps.append(CaseParser._parse_loop_element(el))
+                i += 1
+            else:
+                # 跳过未识别的元素（如独立的 elif/else 不紧跟 if）
+                i += 1
         return steps
 
     @staticmethod
@@ -115,19 +161,30 @@ class CaseParser:
         }
 
     @staticmethod
-    def _parse_if_element(el: ET.Element) -> Dict[str, Any]:
-        """解析 if 条件元素（支持 else 分支）"""
+    def _parse_if_element(el: ET.Element, depth: int = 1) -> Dict[str, Any]:
+        """解析 if 条件元素（支持 else 分支和嵌套 if，最多 2 层）
+
+        Args:
+            el: if XML 元素
+            depth: 当前嵌套深度（1 = 顶层，2 = 第二层）
+        """
         condition = str(el.get('condition', '') or '').strip()
 
-        # 解析 then 分支
-        then_steps = [
-            CaseParser._parse_step_element(step)
-            for step in el.findall('test_step')
-            if step.get('action')
-        ]
+        # 解析 then 分支（直属子元素，支持 test_step 和嵌套 if）
+        then_steps: List[Dict[str, Any]] = []
+        for child in el:
+            if child.tag == 'test_step' and child.get('action'):
+                then_steps.append(CaseParser._parse_step_element(child))
+            elif child.tag == 'if':
+                if depth >= 2:
+                    raise ValueError(
+                        f"if 嵌套深度超过 2 层限制 (condition={condition})"
+                    )
+                then_steps.append(CaseParser._parse_if_element(child, depth=depth + 1))
+            # else 元素在下面单独处理
 
-        # 解析 else 分支
-        else_steps = []
+        # 解析 else 分支（仅内联 else，非 phase 级别）
+        else_steps: List[Dict[str, str]] = []
         else_el = el.find('else')
         if else_el is not None:
             else_steps = [

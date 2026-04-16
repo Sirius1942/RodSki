@@ -5,7 +5,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 
-from core.statistics_collector import StatisticsCollector
+from ..core.statistics_collector import StatisticsCollector
 
 
 def setup_parser(subparsers):

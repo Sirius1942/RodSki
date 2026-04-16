@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<globalvalue>
+    <group name="DefaultValue">
+        <var name="WaitTime" value="500"/>
+        <var name="URL" value="http://localhost:8000"/>
+    </group>
+    <group name="demo_db">
+        <var name="type" value="sqlite"/>
+        <var name="database" value="/Users/sirius05/Documents/project/RodSki/rodski-demo/demo.db"/>
+    </group>
+</globalvalue>

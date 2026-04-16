@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- V7 Demo 测试数据 -->
+<datatables>
+
+    <datatable name="LoginForm">
+        <row id="L001">
+            <field name="username">admin</field>
+            <field name="password">123456</field>
+            <field name="loginBtn">click</field>
+        </row>
+    </datatable>
+
+    <datatable name="Dashboard">
+        <row id="V001">
+            <field name="totalOrders">3</field>
+            <field name="completedOrders">2</field>
+        </row>
+    </datatable>
+
+    <datatable name="NavMenu">
+        <row id="N001">
+            <field name="testLink">click</field>
+        </row>
+    </datatable>
+
+    <datatable name="TestForm">
+        <row id="T001">
+            <field name="username">V7功能测试输入</field>
+            <field name="role">select【admin】</field>
+            <field name="submitBtn">click</field>
+        </row>
+        <row id="V001">
+            <field name="formResult">提交成功</field>
+        </row>
+    </datatable>
+
+    <datatable name="LoginAPI">
+        <row id="D001">
+            <field name="username">admin</field>
+            <field name="password">123456</field>
+        </row>
+        <row id="V001">
+            <field name="username">admin</field>
+        </row>
+    </datatable>
+
+    <datatable name="OrderAPI">
+        <row id="D001">
+            <field name="order_id">ORD001</field>
+        </row>
+        <row id="V001">
+            <field name="status">200</field>
+        </row>
+    </datatable>
+
+    <datatable name="QuerySQL">
+        <row id="Q001" remark="查询订单列表">
+            <field name="query">list</field>
+            <field name="limit">3</field>
+        </row>
+    </datatable>
+
+</datatables>

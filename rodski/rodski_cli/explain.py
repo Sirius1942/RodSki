@@ -42,9 +42,9 @@ def _resolve_module_dir(case_path: Path) -> Path:
 
 
 def handle(args):
-    from core.test_case_explainer import TestCaseExplainer
-    from core.model_parser import ModelParser
-    from core.data_table_parser import DataTableParser
+    from ..core.test_case_explainer import TestCaseExplainer
+    from ..core.model_parser import ModelParser
+    from ..core.data_table_parser import DataTableParser
 
     raw_path = Path(args.case)
     if not raw_path.exists():

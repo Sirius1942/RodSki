@@ -119,8 +119,9 @@ xmllint --noout --schema rodski/schemas/case.xsd product/DEMO/demo_site/case/dem
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<cases>
-  <case execute="是" id="c001" title="登录测试" description="验证登录" component_type="界面">
+<cases tags="smoke,login">
+  <case execute="是" id="c001" title="登录测试" description="验证登录"
+        component_type="界面" priority="P0">
     <pre_process>
       <test_step action="navigate" model="" data="GlobalValue.DefaultValue.URL/login"/>
     </pre_process>
@@ -135,7 +136,16 @@ xmllint --noout --schema rodski/schemas/case.xsd product/DEMO/demo_site/case/dem
 </cases>
 ```
 
-### 3.2 属性说明（`case` 根）
+### 3.2 属性说明
+
+#### `<cases>` 套件属性
+
+| 属性 | 必需 | 说明 | 取值规则 |
+|------|------|------|---------|
+| `step_wait` | 否 | 步骤间等待时间（毫秒） | 如 `500`，覆盖 GlobalValue 中的 WaitTime |
+| `tags` | 否 | 套件标签 | 逗号分隔，如 `smoke,login`。文件内所有用例共享此标签，CLI 可按标签过滤 |
+
+#### `<case>` 用例属性
 
 | 属性 | 必需 | 说明 | 取值规则 |
 |------|------|------|---------|
@@ -144,6 +154,8 @@ xmllint --noout --schema rodski/schemas/case.xsd product/DEMO/demo_site/case/dem
 | `title` | 是 | 用例标题 | 用于日志和报告显示 |
 | `description` | 否 | 用例描述 | 详细说明（可选） |
 | `component_type` | 否 | 测试类别 | `界面` / `接口` / `数据库`（与 `case.xsd` 一致），仅做分类标记 |
+| `priority` | 否 | 优先级 | `P0` / `P1` / `P2` / `P3`，CLI 可按优先级过滤 |
+| `expect_fail` | 否 | 预期失败 | `是` / `否`（默认 `否`），标记为预期失败的用例失败时不计入 FAIL |
 
 ### 3.3 三阶段执行顺序与失败语义
 
@@ -750,6 +762,40 @@ Return 引用**只应出现在数据表 XML 的 field 值中**，不要写在 Ca
 | DB | query → 结果集列表；execute → 受影响行数 |
 | run | 脚本 stdout 输出（自动尝试 JSON 解析） |
 
+### 7.6 推荐：使用 set/get 命名变量
+
+推荐使用 `set`/`get` 命名变量作为步骤间数据传递的首选方式：
+
+**推荐写法（set/get 命名变量）：**
+
+```xml
+<!-- 保存接口返回的 token -->
+<test_step action="send" model="LoginAPI" data="L001"/>
+<test_step action="set" model="" data="auth_token=${Return[-1].token}"/>
+
+<!-- 在后续步骤中使用命名变量 -->
+<test_step action="send" model="OrderAPI" data="O001"/>
+<!-- data.xml 中: <field name="_headers">Authorization: Bearer ${auth_token}</field> -->
+```
+
+**进阶写法（Return 索引）：**
+
+Return 索引适合步骤紧邻且无歧义的场景：
+
+```xml
+<test_step action="send" model="LoginAPI" data="L001"/>
+<test_step action="verify" model="LoginAPI" data="V001"/>
+<!-- data_verify.xml 中: <field name="status">${Return[-1].status}</field> -->
+```
+
+**为什么推荐 set/get？**
+
+- **可读性更好**：`${auth_token}` 比 `${Return[-3].token}` 更清晰
+- **更稳定**：插入新步骤不会导致 Return 索引偏移
+- **适合 AI Agent 生成**：减少索引计算错误
+
+> **注意**：Return 索引仍然完全支持，不会被废弃。set/get 是推荐的首选方式，Return 索引是合法的进阶用法。
+
 ---
 
 ## 8. 关键字手册
@@ -1031,16 +1077,34 @@ product/DEMO/demo_site/
 ### 9.7 运行命令
 
 ```bash
-cd rodski
-
 # 方式1：指定 case XML 文件
-python ski_run.py product/DEMO/demo_site/case/demo_case.xml
+rodski run rodski-demo/DEMO/demo_full/case/demo_case.xml
 
 # 方式2：指定 case 目录（执行所有 XML）
-python ski_run.py product/DEMO/demo_site/case/
+rodski run rodski-demo/DEMO/demo_full/case/
 
 # 方式3：指定测试模块目录
-python ski_run.py product/DEMO/demo_site/
+rodski run rodski-demo/DEMO/demo_full/
+
+# 按标签过滤（OR 匹配，命中任一即可）
+rodski run case/ --tags smoke
+rodski run case/ --tags "smoke,regression"
+
+# 按优先级过滤
+rodski run case/ --priority P0
+rodski run case/ --priority "P0,P1"
+
+# 排除标签
+rodski run case/ --exclude-tags slow
+
+# 组合过滤（标签 AND 优先级）
+rodski run case/ --tags smoke --priority P0
+
+# 执行后自动生成 HTML 报告
+rodski run case/ --report html
+
+# 无头模式
+rodski run case/ --headless
 ```
 
 ---

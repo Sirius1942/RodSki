@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RodSki Test Report</title>
+    <style>
+        :root {
+            --primary: #4F46E5;
+            --primary-light: #818CF8;
+            --success: #10B981;
+            --success-light: #D1FAE5;
+            --error: #EF4444;
+            --error-light: #FEE2E2;
+            --bg: #F9FAFB;
+            --card: #FFFFFF;
+            --text: #111827;
+            --text-muted: #6B7280;
+            --border: #E5E7EB;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #111827; --card: #1F2937; --text: #F9FAFB;
+                --text-muted: #9CA3AF; --border: #374151;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg); color: var(--text);
+            line-height: 1.6; padding: 20px; min-height: 100vh;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        header {
+            text-align: center; margin-bottom: 30px; padding: 30px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            border-radius: 16px; color: white;
+        }
+        header h1 { font-size: 2rem; margin-bottom: 8px; }
+        header p { opacity: 0.9; }
+        .summary-cards {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px; margin-bottom: 30px;
+        }
+        .card {
+            background: var(--card); border-radius: 12px; padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid var(--border);
+        }
+        .card-label { color: var(--text-muted); font-size: 0.875rem; margin-bottom: 4px; }
+        .card-value { font-size: 2rem; font-weight: 700; }
+        .card.success .card-value { color: var(--success); }
+        .card.error .card-value { color: var(--error); }
+        .card.primary .card-value { color: var(--primary); }
+        .progress-container {
+            background: var(--card); border-radius: 12px; padding: 20px;
+            margin-bottom: 30px; border: 1px solid var(--border);
+        }
+        .progress-bar {
+            height: 24px; background: var(--border); border-radius: 12px;
+            overflow: hidden; display: flex;
+        }
+        .progress-pass { background: linear-gradient(90deg, var(--success), #34D399); height: 100%; }
+        .progress-fail { background: linear-gradient(90deg, var(--error), #F87171); height: 100%; }
+        .progress-label { text-align: center; margin-top: 10px; color: var(--text-muted); }
+        .timeline-container {
+            background: var(--card); border-radius: 12px; padding: 20px;
+            margin-bottom: 30px; border: 1px solid var(--border);
+        }
+        .timeline-title { font-size: 1rem; color: var(--text-muted); margin-bottom: 12px; }
+        .timeline-bar {
+            display: flex; height: 32px; border-radius: 8px;
+            overflow: hidden; background: var(--border); gap: 2px;
+        }
+        .timeline-seg {
+            height: 100%; min-width: 3px; cursor: pointer; position: relative;
+        }
+        .timeline-seg.pass { background: var(--success); }
+        .timeline-seg.fail { background: var(--error); }
+        .timeline-seg:hover { opacity: 0.8; transform: scaleY(1.1); }
+        .timeline-legend {
+            display: flex; gap: 20px; margin-top: 12px; justify-content: center;
+        }
+        .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.875rem; color: var(--text-muted); }
+        .legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+        .legend-dot.pass { background: var(--success); }
+        .legend-dot.fail { background: var(--error); }
+        .chart-container {
+            background: var(--card); border-radius: 12px; padding: 20px;
+            margin-bottom: 30px; border: 1px solid var(--border);
+        }
+        .chart-title { font-size: 1.25rem; margin-bottom: 16px; font-weight: 600; }
+        .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .chart-box { position: relative; height: 300px; }
+        table {
+            width: 100%; border-collapse: collapse; background: var(--card);
+            border-radius: 12px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid var(--border);
+        }
+        th {
+            background: var(--primary); color: white; padding: 14px 16px;
+            text-align: left; font-weight: 600;
+        }
+        td { padding: 12px 16px; border-bottom: 1px solid var(--border); }
+        tr:last-child td { border-bottom: none; }
+        tr:hover { background: rgba(79, 70, 229, 0.05); }
+        tr.pass { background: var(--success-light); }
+        tr.fail { background: var(--error-light); }
+        @media (prefers-color-scheme: dark) {
+            tr.pass { background: rgba(16, 185, 129, 0.1); }
+            tr.fail { background: rgba(239, 68, 68, 0.1); }
+        }
+        .status-badge {
+            display: inline-block; padding: 4px 12px; border-radius: 20px;
+            font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
+        }
+        .status-badge.pass { background: var(--success-light); color: var(--success); }
+        .status-badge.fail { background: var(--error-light); color: var(--error); }
+        @media (prefers-color-scheme: dark) {
+            .status-badge.pass { background: rgba(16, 185, 129, 0.2); }
+            .status-badge.fail { background: rgba(239, 68, 68, 0.2); }
+        }
+        code {
+            background: rgba(79, 70, 229, 0.1); padding: 2px 6px; border-radius: 4px;
+            font-family: 'Monaco', 'Consolas', monospace; font-size: 0.875rem; color: var(--primary);
+        }
+        .message { color: var(--text-muted); font-size: 0.875rem; max-width: 300px; overflow: hidden; text-overflow: ellipsis; }
+        footer { text-align: center; margin-top: 30px; padding: 20px; color: var(--text-muted); font-size: 0.875rem; }
+        @media (max-width: 768px) {
+            .summary-cards { grid-template-columns: repeat(2, 1fr); }
+            .charts-grid { grid-template-columns: 1fr; }
+            .message { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>RodSki Test Report</h1>
+            <p>2026-04-16T11:39:48.339346</p>
+        </header>
+        <div class="summary-cards">
+            <div class="card primary">
+                <div class="card-label">Total</div>
+                <div class="card-value">2</div>
+            </div>
+            <div class="card success">
+                <div class="card-label">Passed</div>
+                <div class="card-value">0</div>
+            </div>
+            <div class="card error">
+                <div class="card-label">Failed</div>
+                <div class="card-value">2</div>
+            </div>
+            <div class="card">
+                <div class="card-label">Duration</div>
+                <div class="card-value">0.91s</div>
+            </div>
+        </div>
+        <div class="progress-container">
+            <div class="progress-bar">
+                <div class="progress-pass" style="width: 0.0%"></div>
+                <div class="progress-fail" style="width: 100.0%"></div>
+            </div>
+            <div class="progress-label">Pass Rate: 0.0%</div>
+        </div>
+        
+        <div class="timeline-container">
+            <h3 class="timeline-title">Execution Timeline</h3>
+            <div class="timeline-bar">
+                <div class="timeline-seg fail" style="width: 8.37%" title="TC-V7-001: 0.06s"></div>
+<div class="timeline-seg fail" style="width: 91.63%" title="TC-V7-003: 0.60s"></div>
+
+            </div>
+            <div class="timeline-legend">
+                <span class="legend-item"><span class="legend-dot pass"></span> Pass</span>
+                <span class="legend-item"><span class="legend-dot fail"></span> Fail</span>
+            </div>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Step</th>
+                    <th>Keyword</th>
+                    <th>Status</th>
+                    <th>Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="fail">
+            <td>1</td>
+            <td>TC-V7-001</td>
+            <td><code>[P0/smoke] 登录冒烟测试</code></td>
+            <td><span class="status-badge fail">FAIL</span></td>
+            <td class="message">[SKI313] 关键字 'navigate' 重试 1 次后仍失败: [SKI302] 导航失败:...</td>
+        </tr>
+<tr class="fail">
+            <td>2</td>
+            <td>TC-V7-003</td>
+            <td><code>[P0/smoke] API登录冒烟</code></td>
+            <td><span class="status-badge fail">FAIL</span></td>
+            <td class="message">[SKI312] 关键字 'verify' 参数错误: data - 数据不存在: 表 'Login...</td>
+        </tr>
+
+            </tbody>
+        </table>
+        <footer>
+            <p>RodSki Framework</p>
+        </footer>
+    </div>
+</body>
+</html>

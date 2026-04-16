@@ -17,7 +17,7 @@ import logging
 import platform
 from typing import Dict, Optional, Any, Type, Callable
 
-from drivers.base_driver import BaseDriver
+from ..drivers.base_driver import BaseDriver
 
 logger = logging.getLogger("rodski")
 
@@ -130,7 +130,7 @@ class DriverFactory:
             PlaywrightDriver 实例
         """
         try:
-            from drivers.playwright_driver import PlaywrightDriver
+            from ..drivers.playwright_driver import PlaywrightDriver
             headless = kwargs.get("headless", False)
             browser = kwargs.get("browser", "chromium")
             return PlaywrightDriver(headless=headless, browser=browser)
@@ -153,7 +153,7 @@ class DriverFactory:
             InterfaceDriver 实例
         """
         try:
-            from drivers.interface_driver import InterfaceDriver
+            from ..drivers.interface_driver import InterfaceDriver
             return InterfaceDriver(**kwargs)
         except ImportError:
             # InterfaceDriver 尚未实现，返回一个占位实现
@@ -202,7 +202,7 @@ class DriverFactory:
             PywinautoDriver 实例
         """
         try:
-            from drivers.pywinauto_driver import PywinautoDriver
+            from ..drivers.pywinauto_driver import PywinautoDriver
             app_path = kwargs.get("app_path")
             return PywinautoDriver(app_path=app_path)
         except ImportError as e:
@@ -230,14 +230,14 @@ class DriverFactory:
 
         if backend == "appium":
             try:
-                from drivers.appium_driver import AppiumDriver
+                from ..drivers.appium_driver import AppiumDriver
                 return AppiumDriver(**kwargs)
             except ImportError:
                 logger.warning("AppiumDriver 导入失败，尝试使用 PyXA")
 
         # 使用 PyXA 或返回 Mock
         try:
-            from drivers.pyxa_driver import PyXADriver
+            from ..drivers.pyxa_driver import PyXADriver
             return PyXADriver(**kwargs)
         except ImportError:
             logger.warning(

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- V7 演示: edge 套件 — tags 在 <cases> 级别 -->
+<cases tags="edge,db">
+
+    <!-- TC-V7-004: 边缘测试 P2 -->
+    <case execute="是" id="TC-V7-004" title="[P2/edge] 数据库统计查询"
+          component_type="数据库" priority="P2">
+        <test_case>
+            <test_step action="DB" model="QuerySQL" data="Q001"/>
+        </test_case>
+    </case>
+
+</cases>

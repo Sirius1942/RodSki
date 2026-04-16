@@ -19,8 +19,16 @@ def setup_parser(subparsers):
     parser.add_argument("--output", help="报告输出路径")
     parser.add_argument("--output-format", choices=["text", "json"],
                         default="text", help="输出格式 (默认: text)")
+    parser.add_argument("--report", choices=["html"], default=None,
+                        help="执行完毕后自动生成报告 (可选值: html)")
     parser.add_argument("--insert-step", action="append", dest="insert_steps",
                         help="插入动态步骤 (格式: action,model,data)")
+    parser.add_argument("--tags", type=str, default=None,
+                        help="按标签过滤用例 (逗号分隔，OR 匹配)")
+    parser.add_argument("--priority", type=str, default=None,
+                        help="按优先级过滤用例 (逗号分隔，如 P0,P1)")
+    parser.add_argument("--exclude-tags", type=str, default=None, dest="exclude_tags",
+                        help="排除包含指定标签的用例 (逗号分隔)")
 
 
 def _resolve_case_path(input_path: Path) -> Path:
@@ -138,6 +146,14 @@ def _handle_execute(case_path: Path, module_dir: Path, args) -> int:
     output_format = getattr(args, "output_format", "text")
     insert_steps = getattr(args, "insert_steps", None)
 
+    # 解析 tag/priority 过滤参数
+    raw_tags = getattr(args, "tags", None)
+    raw_priority = getattr(args, "priority", None)
+    raw_exclude = getattr(args, "exclude_tags", None)
+    filter_tags = [t.strip() for t in raw_tags.split(",") if t.strip()] if raw_tags else None
+    filter_priority = [p.strip() for p in raw_priority.split(",") if p.strip()] if raw_priority else None
+    exclude_tags = [t.strip() for t in raw_exclude.split(",") if t.strip()] if raw_exclude else None
+
     def create_driver():
         return PlaywrightDriver(headless=headless, browser=browser)
 
@@ -173,7 +189,11 @@ def _handle_execute(case_path: Path, module_dir: Path, args) -> int:
         if output_format == "text":
             print("-" * 60)
 
-        results = executor.execute_all_cases()
+        results = executor.execute_all_cases(
+            filter_tags=filter_tags,
+            filter_priority=filter_priority,
+            exclude_tags=exclude_tags,
+        )
         duration = time.time() - start_time
 
         if output_format == "json":
@@ -206,6 +226,11 @@ def _handle_execute(case_path: Path, module_dir: Path, args) -> int:
             }, indent=2, ensure_ascii=False))
             print(f"报告已保存: {args.output}")
 
+        # --report html: 执行完毕后自动生成 HTML 报告
+        report_format = getattr(args, "report", None)
+        if report_format == "html":
+            _generate_post_run_report(results, total, passed, failed, duration)
+
         return 0 if failed == 0 else 1
 
     except Exception as e:
@@ -227,3 +252,22 @@ def _handle_execute(case_path: Path, module_dir: Path, args) -> int:
                 driver.close()
             except Exception:
                 pass
+
+
+def _generate_post_run_report(results, total, passed, failed, duration):
+    """执行后自动生成 HTML 报告（--report html 触发）
+
+    报告生成失败不影响 run 主流程的退出码。
+    """
+    try:
+        from rodski_cli.report import generate_html_from_run_results
+        report_path = generate_html_from_run_results(
+            results=results,
+            total=total,
+            passed=passed,
+            failed=failed,
+            duration=duration,
+        )
+        print(f"HTML 报告已生成: {report_path}")
+    except Exception as e:
+        print(f"警告: 报告生成失败: {e}", file=sys.stderr)

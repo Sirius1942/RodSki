@@ -19,7 +19,7 @@ except ImportError:  # pragma: no cover
     xmlschema = None  # type: ignore
     _XsdValidationError = Exception  # type: ignore
 
-from core.exceptions import XmlSchemaValidationError
+from .exceptions import XmlSchemaValidationError
 
 # 文档类型 -> XSD 文件名（位于 rodski/schemas/）
 SCHEMA_FILES: Dict[str, str] = {

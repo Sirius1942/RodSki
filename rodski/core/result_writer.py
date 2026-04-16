@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 from collections import Counter
 
-from core.xml_schema_validator import RodskiXmlValidator
+from .xml_schema_validator import RodskiXmlValidator
 
 logger = logging.getLogger("rodski")
 

@@ -20,9 +20,9 @@ case_path 支持:
 import sys
 import argparse
 from pathlib import Path
-from core.ski_executor import SKIExecutor, resolve_module_dir
-from core.logger import Logger
-from drivers.playwright_driver import PlaywrightDriver
+from .core.ski_executor import SKIExecutor, resolve_module_dir
+from .core.logger import Logger
+from .drivers.playwright_driver import PlaywrightDriver
 
 
 def create_driver(headless: bool = False, browser: str = "chromium", driver_type: str = "web"):
@@ -32,7 +32,7 @@ def create_driver(headless: bool = False, browser: str = "chromium", driver_type
     此函数由 KeywordEngine 按需调用。
     """
     if driver_type in ("macos", "windows"):
-        from drivers.desktop_driver import DesktopDriver
+        from .drivers.desktop_driver import DesktopDriver
         return DesktopDriver(target_platform=driver_type)
     return PlaywrightDriver(headless=headless, browser=browser)
 

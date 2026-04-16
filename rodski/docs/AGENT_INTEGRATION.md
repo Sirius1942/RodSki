@@ -231,6 +231,43 @@ Return 引用用于在步骤间传递数据。
 | `DB` | query → 结果集列表；execute → 受影响行数 |
 | `run` | 脚本 stdout 输出（自动尝试 JSON 解析） |
 
+### 4.3.1 推荐：Agent 生成 XML 时优先使用 set/get
+
+Agent 生成用例 XML 时，**步骤间数据传递优先使用 `set`/`get` 命名变量**，而非 Return 索引。
+
+**生成规则：**
+
+1. 当一个步骤的返回值需要被后续步骤引用时，紧跟一条 `set` 步骤将其存入命名变量
+2. 后续步骤在数据表 `<field>` 中通过 `${变量名}` 引用
+3. 仅当步骤紧邻且无歧义时，才使用 `${Return[-1]}`
+
+**Agent 生成示例：**
+
+```xml
+<!-- Agent 生成的接口测试用例 -->
+<test_case>
+  <!-- 1. 登录获取 token -->
+  <test_step action="send" model="LoginAPI" data="D001"/>
+  <test_step action="set" model="" data="auth_token=${Return[-1].token}"/>
+
+  <!-- 2. 使用 token 创建订单（${auth_token} 在 data.xml 中引用） -->
+  <test_step action="send" model="OrderAPI" data="D001"/>
+  <test_step action="set" model="" data="order_id=${Return[-1].orderId}"/>
+
+  <!-- 3. 查询并验证订单（${order_id} 在 data.xml 中引用） -->
+  <test_step action="send" model="QueryOrderAPI" data="D001"/>
+  <test_step action="verify" model="QueryOrderAPI" data="V001"/>
+</test_case>
+```
+
+**为什么 Agent 应优先 set/get：**
+
+- **避免索引计算错误**：Agent 生成多步用例时，Return 索引容易因步骤增删而错位
+- **提升可维护性**：`${auth_token}` 自描述，无需回溯步骤编号
+- **适合迭代修复**：修复失败用例时插入新步骤不影响已有变量引用
+
+> Return 索引仍然支持，适合步骤紧邻的简单场景。
+
 ### 4.4 数据表 field 特殊值
 
 `type` 批量输入时，数据表 `<field>` 值中的以下内容有特殊含义：

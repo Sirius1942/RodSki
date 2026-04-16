@@ -7,7 +7,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Dict
 
-from core.xml_schema_validator import RodskiXmlValidator
+from .xml_schema_validator import RodskiXmlValidator
 
 
 class GlobalValueParser:

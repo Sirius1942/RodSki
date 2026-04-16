@@ -20,7 +20,7 @@ def setup_parser(subparsers):
 
 
 def handle(args):
-    from data.model_manager import ModelManager
+    from ..data.model_manager import ModelManager
 
     manager = ModelManager()
 

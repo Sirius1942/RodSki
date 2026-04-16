@@ -16,7 +16,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 
-from core.xml_schema_validator import RodskiXmlValidator
+from .xml_schema_validator import RodskiXmlValidator
 
 
 # 敏感字段名（自动脱敏）

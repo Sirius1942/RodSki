@@ -12,7 +12,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Deque, Dict, List, Optional
 
 if TYPE_CHECKING:
-    from core.ski_executor import SKIExecutor
+    from .ski_executor import SKIExecutor
 
 
 class ControlCommandKind(Enum):

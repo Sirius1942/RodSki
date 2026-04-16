@@ -1,6 +1,6 @@
 [build-system]
 requires = ["setuptools>=68.0", "wheel"]
-build-backend = "setuptools.backends._legacy:_Backend"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "rodski-agent"
@@ -8,7 +8,20 @@ version = "2.1.0"
 description = "AI Agent layer for RodSki test automation framework"
 requires-python = ">=3.9"
 readme = "README.md"
-
+license = "MIT"
+authors = [
+    {name = "RodSki Team"},
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Testing",
+]
 dependencies = [
     "langgraph>=0.4.0",
     "langchain-core>=0.3.0",
@@ -19,6 +32,10 @@ dependencies = [
     "requests>=2.31.0",
     "pillow>=10.0.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/RodSki/rodski-agent"
+Repository = "https://github.com/RodSki/rodski-agent"
 
 [project.optional-dependencies]
 dev = [

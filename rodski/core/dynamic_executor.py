@@ -9,7 +9,7 @@ import re
 from typing import Dict, Any, List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from core.driver_factory import DriverWrapper
+    from .driver_factory import DriverWrapper
 
 logger = logging.getLogger("rodski")
 

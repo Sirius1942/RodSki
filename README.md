@@ -16,10 +16,47 @@
 
 ## 快速开始
 
-```bash
-# 安装
-pip install -r requirements.txt
+### 前置条件
 
+- Python >= 3.9
+- pip >= 21.0
+
+### 安装
+
+```bash
+# 推荐：创建虚拟环境
+python3 -m venv .venv && source .venv/bin/activate
+
+# ---- rodski 执行引擎 ----
+
+# 基础安装（仅核心 + XML 解析）
+pip install -e .
+
+# Web 测试（Playwright）
+pip install -e ".[web]"
+playwright install chromium          # 安装浏览器
+
+# 移动端测试（Appium）
+pip install -e ".[mobile]"
+
+# 全部能力（Web + Mobile + Vision + LLM + GUI）
+pip install -e ".[all]"
+
+# ---- rodski-agent（AI Agent 层）----
+
+# 基础安装
+pip install -e rodski-agent/
+
+# 开发环境（含 pytest）
+pip install -e "rodski-agent/[dev]"
+
+# MCP Server 支持（需 Python >= 3.10）
+pip install -e "rodski-agent/[mcp]"
+```
+
+### rodski 执行引擎
+
+```bash
 # 执行测试
 rodski run case/ --output-format json
 
@@ -28,9 +65,22 @@ rodski explain case/login.xml
 
 # 干跑模式（仅验证不执行）
 rodski run case/ --dry-run
+```
 
-# 详细输出
-rodski run case/ --verbose
+### rodski-agent (AI Agent 层)
+
+```bash
+# 从需求自动生成测试用例
+rodski-agent design --requirement "测试登录功能" --output output/login/
+
+# 执行测试用例（含智能重试）
+rodski-agent run --case output/login/ --format json
+
+# 设计 + 执行一步到位
+rodski-agent pipeline --requirement "测试登录" --output output/login/ --format json
+
+# 诊断失败用例
+rodski-agent diagnose --result output/login/result/
 ```
 
 ## 架构概览
@@ -45,7 +95,7 @@ RodSki 作为 Agent 工具链中的执行层，提供确定性、可重复的测
 
 ```
 RodSki/
-├── rodski/              # 核心框架
+├── rodski/              # Layer 1: 执行引擎
 │   ├── core/            # 执行引擎（关键字、解析器、诊断）
 │   ├── drivers/         # 平台驱动（Playwright/Appium/PyWinAuto）
 │   ├── llm/             # LLM 能力层（可选）
@@ -53,6 +103,15 @@ RodSki/
 │   ├── rodski_cli/      # CLI 子命令
 │   ├── config/          # 配置文件
 │   └── docs/            # 框架文档
+├── rodski-agent/        # Layer 2: AI Agent 层
+│   ├── src/rodski_agent/
+│   │   ├── design/      # Design Agent（需求→用例）
+│   │   ├── execution/   # Execution Agent（执行→诊断→修复）
+│   │   ├── pipeline/    # Pipeline 编排
+│   │   ├── common/      # 共享工具（LLM、XML、配置）
+│   │   ├── cli.py       # CLI 入口
+│   │   └── mcp_server.py # MCP Server
+│   └── tests/           # 453 个单元测试
 ├── rodski-demo/         # 官方示例
 └── .pb/                 # 项目管理文档
 ```

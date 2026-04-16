@@ -20,16 +20,35 @@
         <xs:element name="case" type="CaseType" minOccurs="0" maxOccurs="unbounded"/>
       </xs:sequence>
       <xs:attribute name="step_wait" type="xs:string" use="optional"/>
+      <xs:attribute name="tags" type="xs:string" use="optional"/>
     </xs:complexType>
   </xs:element>
 
-  <!-- if 容器：条件 + then 分支 + 可选 else 分支 -->
+  <!-- if 容器：条件 + then 分支（支持嵌套 if，最多 2 层） -->
   <xs:complexType name="IfContainerType">
     <xs:sequence>
-      <xs:sequence minOccurs="0" maxOccurs="unbounded">
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
         <xs:element name="test_step" type="StepType"/>
-      </xs:sequence>
+        <xs:element name="if" type="NestedIfType"/>
+      </xs:choice>
       <xs:element name="else" type="ElseType" minOccurs="0" maxOccurs="1"/>
+    </xs:sequence>
+    <xs:attribute name="condition" type="xs:string" use="required"/>
+  </xs:complexType>
+
+  <!-- 嵌套 if 容器（第 2 层，不可再嵌套） -->
+  <xs:complexType name="NestedIfType">
+    <xs:sequence>
+      <xs:element name="test_step" type="StepType" minOccurs="0" maxOccurs="unbounded"/>
+      <xs:element name="else" type="ElseType" minOccurs="0" maxOccurs="1"/>
+    </xs:sequence>
+    <xs:attribute name="condition" type="xs:string" use="required"/>
+  </xs:complexType>
+
+  <!-- elif 容器：条件 + 步骤（跟在 if 或 elif 后面） -->
+  <xs:complexType name="ElifType">
+    <xs:sequence>
+      <xs:element name="test_step" type="StepType" minOccurs="0" maxOccurs="unbounded"/>
     </xs:sequence>
     <xs:attribute name="condition" type="xs:string" use="required"/>
   </xs:complexType>
@@ -41,19 +60,23 @@
     </xs:sequence>
   </xs:complexType>
 
-  <!-- 预处理 / 后处理：0..n 个步骤（支持 if 容器） -->
+  <!-- 预处理 / 后处理：0..n 个步骤（支持 if/elif/else 容器） -->
   <xs:complexType name="PhaseType">
     <xs:choice minOccurs="0" maxOccurs="unbounded">
       <xs:element name="test_step" type="StepType"/>
       <xs:element name="if" type="IfContainerType"/>
+      <xs:element name="elif" type="ElifType"/>
+      <xs:element name="else" type="ElseType"/>
     </xs:choice>
   </xs:complexType>
 
-  <!-- 用例阶段：至少 1 个步骤（支持 if 容器） -->
+  <!-- 用例阶段：至少 1 个步骤（支持 if/elif/else 容器） -->
   <xs:complexType name="TestCasePhaseType">
     <xs:choice minOccurs="1" maxOccurs="unbounded">
       <xs:element name="test_step" type="StepType"/>
       <xs:element name="if" type="IfContainerType"/>
+      <xs:element name="elif" type="ElifType"/>
+      <xs:element name="else" type="ElseType"/>
     </xs:choice>
   </xs:complexType>
 
@@ -70,6 +93,7 @@
     <xs:attribute name="description" type="xs:string" use="optional"/>
     <xs:attribute name="component_type" type="ComponentType" use="optional"/>
     <xs:attribute name="expect_fail" type="ExecuteType" use="optional" default="否"/>
+    <xs:attribute name="priority" type="PriorityType" use="optional"/>
   </xs:complexType>
 
   <!-- 元数据类型 -->
@@ -100,6 +124,15 @@
       <xs:enumeration value="界面"/>
       <xs:enumeration value="接口"/>
       <xs:enumeration value="数据库"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="PriorityType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="P0"/>
+      <xs:enumeration value="P1"/>
+      <xs:enumeration value="P2"/>
+      <xs:enumeration value="P3"/>
     </xs:restriction>
   </xs:simpleType>
 

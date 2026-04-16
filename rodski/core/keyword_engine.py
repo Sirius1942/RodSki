@@ -34,6 +34,61 @@ from core.runtime_context import RuntimeContext
 logger = logging.getLogger("rodski")
 
 
+def _add_parsed_arg(token: str, args: list, kwargs: dict) -> None:
+    """将解析出的参数 token 添加到 args 或 kwargs
+
+    Args:
+        token: 参数 token 字符串
+        args: 位置参数列表（原地修改）
+        kwargs: 关键字参数字典（原地修改）
+    """
+    if not token:
+        return
+    if '=' in token:
+        eq_pos = token.index('=')
+        key = token[:eq_pos].strip()
+        val = token[eq_pos + 1:].strip()
+        if key.isidentifier():
+            kwargs[key] = _coerce_value(val)
+            return
+    args.append(_coerce_value(token))
+
+
+def _coerce_value(val: str):
+    """将字符串值转为 Python 类型
+
+    支持: 整数、浮点数、字符串（带引号或不带引号）
+
+    Args:
+        val: 原始字符串值
+
+    Returns:
+        转换后的 Python 值
+    """
+    if not val:
+        return val
+    # 去掉引号
+    if (val.startswith("'") and val.endswith("'")) or \
+       (val.startswith('"') and val.endswith('"')):
+        return val[1:-1]
+    # 整数
+    try:
+        return int(val)
+    except ValueError:
+        pass
+    # 浮点数
+    try:
+        return float(val)
+    except ValueError:
+        pass
+    # 布尔值
+    if val.lower() == 'true':
+        return True
+    if val.lower() == 'false':
+        return False
+    return val
+
+
 class KeywordEngine:
     """关键字引擎 - 执行测试关键字并管理驱动操作
     
@@ -1605,9 +1660,15 @@ class KeywordEngine:
         return True
 
     def _kw_run(self, params: Dict) -> bool:
-        """在沙箱中执行 Python 代码
+        """执行代码 - 支持内置函数和外部脚本
 
-        用例格式: run | 工程名 | 代码文件路径
+        优先级:
+        1. 内置函数：data 匹配 "函数名(参数...)" 格式时，查 BUILTIN_REGISTRY
+        2. 外部脚本：未匹配内置函数时，走 fun/ 目录脚本逻辑
+
+        内置函数格式: run | | mock_route('/api/users', status=200, body='[]')
+        外部脚本格式: run | 工程名 | 代码文件路径
+
         目录结构:
             test_project/
             ├── case/          ← 用例文件
@@ -1619,6 +1680,12 @@ class KeywordEngine:
         """
         project_name = params.get("model", "")
         code_path = params.get("data", "")
+
+        # ── 内置函数查找 ──────────────────────────────────────────
+        if code_path and not project_name:
+            builtin_result = self._try_builtin_call(code_path)
+            if builtin_result is not None:
+                return builtin_result
 
         if not code_path:
             raise InvalidParameterError(
@@ -1682,6 +1749,109 @@ class KeywordEngine:
 
         logger.info(f"代码执行成功: {script_path}")
         return True
+
+    @staticmethod
+    def _parse_builtin_call(expr: str) -> Optional[tuple]:
+        """解析内置函数调用表达式
+
+        支持格式: 函数名(参数1, key=value, ...)
+
+        Args:
+            expr: 表达式字符串
+
+        Returns:
+            (函数名, args列表, kwargs字典) 或 None（不是函数调用格式）
+        """
+        expr = expr.strip()
+        paren_start = expr.find('(')
+        if paren_start == -1 or not expr.endswith(')'):
+            return None
+
+        func_name = expr[:paren_start].strip()
+        if not func_name or not func_name.isidentifier():
+            return None
+
+        args_str = expr[paren_start + 1:-1].strip()
+        if not args_str:
+            return (func_name, [], {})
+
+        # 解析参数：支持字符串引号、嵌套括号
+        args = []
+        kwargs = {}
+        current = ""
+        depth = 0
+        in_str = None  # None / "'" / '"'
+
+        for ch in args_str:
+            if in_str:
+                current += ch
+                if ch == in_str:
+                    in_str = None
+                continue
+            if ch in ("'", '"'):
+                in_str = ch
+                current += ch
+                continue
+            if ch in ('(', '[', '{'):
+                depth += 1
+                current += ch
+                continue
+            if ch in (')', ']', '}'):
+                depth -= 1
+                current += ch
+                continue
+            if ch == ',' and depth == 0:
+                _add_parsed_arg(current.strip(), args, kwargs)
+                current = ""
+                continue
+            current += ch
+
+        if current.strip():
+            _add_parsed_arg(current.strip(), args, kwargs)
+
+        return (func_name, args, kwargs)
+
+    def _try_builtin_call(self, expr: str) -> Optional[bool]:
+        """尝试将 data 作为内置函数调用
+
+        Args:
+            expr: data 列的值
+
+        Returns:
+            True（调用成功）/ None（非内置函数格式或未注册）
+        """
+        parsed = self._parse_builtin_call(expr)
+        if parsed is None:
+            return None
+
+        func_name, args, kwargs = parsed
+
+        try:
+            from builtin_ops import get_builtin
+        except ImportError:
+            return None
+
+        func = get_builtin(func_name)
+        if func is None:
+            return None
+
+        # 注入运行时上下文
+        kwargs["_context"] = {
+            "driver": self.driver,
+            "context": self._context,
+            "global_vars": self._global_vars,
+        }
+
+        logger.info(f"调用内置函数: {func_name}")
+
+        try:
+            result = func(*args, **kwargs)
+            self.store_return(result)
+            logger.info(f"内置函数 {func_name} 执行成功")
+            return True
+        except Exception as e:
+            logger.error(f"内置函数 {func_name} 执行失败: {e}")
+            raise
 
     def _kw_db(self, params: Dict) -> bool:
         """数据库操作 - v5.0 新语法
