@@ -186,7 +186,7 @@ xmllint --noout --schema rodski/schemas/case.xsd product/DEMO/demo_site/case/dem
 |------|------------------|
 | `close` | 关闭浏览器 |
 | `type` | UI 批量输入 |
-| `verify` | 批量验证（UI / 接口） |
+| `verify` | 批量验证（UI / 接口）；严格全匹配，任一字段不一致即步骤失败 |
 | `wait` | 等待 |
 | `navigate` | 打开 URL |
 | `assert` | 断言 |

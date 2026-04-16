@@ -33,7 +33,7 @@ from core.keyword_engine import KeywordEngine
 from core.dynamic_executor import DynamicExecutor
 from drivers.base_driver import BaseDriver
 
-from core.exceptions import DriverStoppedError, is_critical_error
+from core.exceptions import DriverStoppedError, AssertionFailedError, is_critical_error
 from core.runtime_control import (
     BaseRuntimeControl,
     GracefulRunTermination,
@@ -661,7 +661,37 @@ class SKIExecutor:
                 self.dynamic_executor.set_variable(model, resolved_data)
         else:
             params = {'model': model, 'data': resolved_data}
-            self.keyword_engine.execute(action, params)
+            try:
+                self.keyword_engine.execute(action, params)
+            except AssertionFailedError as exc:
+                history_after = self.keyword_engine._context.history
+                last_return = history_after[-1] if len(history_after) > history_before else None
+                named_after = dict(self.keyword_engine._context.named)
+                named_writes = {k: v for k, v in named_after.items() if named_before.get(k) != v}
+                step_index = len(self._current_case_steps_log) + 1
+                self._current_case_steps_log.append({
+                    'index': step_index,
+                    'action': action,
+                    'model': model,
+                    'phase': step_type,
+                    'status': 'fail',
+                    'return_source': 'keyword_result',
+                    'return_value': last_return,
+                    'named_writes': named_writes,
+                    'error': str(exc),
+                })
+
+                if getattr(self, 'report_collector', None):
+                    self.report_collector.record_step({
+                        'index': step_index,
+                        'action': action,
+                        'model': model,
+                        'data': resolved_data,
+                        'status': 'fail',
+                        'return_value': last_return,
+                        'error': str(exc),
+                    })
+                raise
 
         history_after = self.keyword_engine._context.history
         last_return = history_after[-1] if len(history_after) > history_before else None

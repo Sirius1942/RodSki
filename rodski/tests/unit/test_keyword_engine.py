@@ -15,6 +15,7 @@ from core.exceptions import (
     UnknownKeywordError,
     InvalidParameterError,
     RetryExhaustedError,
+    AssertionFailedError,
 )
 from core.model_parser import MODEL_TYPE_UI, MODEL_TYPE_INTERFACE
 
@@ -741,8 +742,13 @@ class TestVerifyKeyword:
         engine = KeywordEngine(mock_driver,
                                model_parser=mock_model_parser,
                                data_manager=mock_data_manager)
-        result = engine.execute("verify", {"model": "Order", "data": "V001"})
-        assert result is False
+        with pytest.raises(AssertionFailedError, match="批量验证失败"):
+            engine.execute("verify", {"model": "Order", "data": "V001"})
+        ret = engine.get_return(-1)
+        assert ret['amount'] == '20元'
+        assert ret['passed'] is False
+        assert ret['_verify_passed'] is False
+        assert ret['_verify_mismatches'][0]['element'] == 'amount'
         mock_data_manager.get_data.assert_called_once_with("Order_verify", "V001")
 
     def test_batch_verify_stores_actual_values(self, mock_driver):
@@ -760,8 +766,28 @@ class TestVerifyKeyword:
                                model_parser=mock_model_parser,
                                data_manager=mock_data_manager)
         engine.execute("verify", {"model": "Order", "data": "V001"})
-        assert engine.get_return(-1) == {'status': '已完成'}
+        ret = engine.get_return(-1)
+        assert ret['status'] == '已完成'
+        assert ret['passed'] is True
+        assert ret['_verify_passed'] is True
         mock_data_manager.get_data.assert_called_once_with("Order_verify", "V001")
+
+    def test_batch_verify_requires_strict_full_match(self, mock_driver):
+        mock_model_parser = MagicMock()
+        mock_model_parser.get_model.return_value = {
+            '__model_type__': MODEL_TYPE_UI,
+            'amount': {'locator_type': 'id', 'locator_value': 'orderAmount', 'model_type': MODEL_TYPE_UI},
+        }
+        mock_model_parser.get_model_type.return_value = MODEL_TYPE_UI
+        mock_data_manager = MagicMock()
+        mock_data_manager.get_data.return_value = {'amount': '10'}
+        mock_driver.get_text_locator.return_value = '210'
+
+        engine = KeywordEngine(mock_driver,
+                               model_parser=mock_model_parser,
+                               data_manager=mock_data_manager)
+        with pytest.raises(AssertionFailedError, match="批量验证失败"):
+            engine.execute("verify", {"model": "Order", "data": "V001"})
 
     def test_batch_verify_with_return_in_data_table(self, mock_driver):
         """数据表字段中使用 Return[-1]"""

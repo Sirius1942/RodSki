@@ -18,6 +18,7 @@ from core.exceptions import (
     StaleElementError,
     DriverStoppedError,
     DriverError,
+    AssertionFailedError,
     is_retryable_error,
     is_critical_error,
 )
@@ -245,7 +246,12 @@ class KeywordEngine:
                 # 参数错误和未知关键字不重试
                 logger.error(f"❌ 参数错误: {e}")
                 raise
-                
+
+            except AssertionFailedError as e:
+                # 断言失败不重试，直接向上抛出
+                logger.error(f"❌ 断言失败: {e}")
+                raise
+
             except DriverError as e:
                 # 驱动错误
                 last_error = e
@@ -1477,7 +1483,7 @@ class KeywordEngine:
                     actual_str = str(last_return) if last_return is not None else ""
 
             results[element_name] = actual_str
-            matched = expected in actual_str or actual_str == expected
+            matched = actual_str == expected
             logger.debug(f"{element_name}: 实际='{actual_str}', 期望='{expected}' → {'OK' if matched else 'FAIL'}")
 
             if not matched:
@@ -1487,16 +1493,27 @@ class KeywordEngine:
                     'actual': actual_str,
                 })
 
-        self.store_return(results)
-
         if mismatches:
+            failure_payload = dict(results)
+            failure_payload['_verify_passed'] = False
+            failure_payload['passed'] = False
+            failure_payload['_verify_mismatches'] = mismatches
+            self.store_return(failure_payload)
+
             detail = "; ".join(
                 f"{m['element']}(期望='{m['expected']}', 实际='{m['actual']}')"
                 for m in mismatches
             )
-            logger.warning(f"批量验证失败: {detail}")
-            return False
+            logger.error(f"批量验证失败: {detail}")
+            raise AssertionFailedError(
+                message=f"批量验证失败: {detail}",
+                details={'mismatches': mismatches},
+            )
 
+        success_payload = dict(results)
+        success_payload['_verify_passed'] = True
+        success_payload['passed'] = True
+        self.store_return(success_payload)
         logger.info(f"批量验证通过: {len(results)} 个字段全部匹配")
         return True
 

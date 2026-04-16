@@ -11,6 +11,7 @@ import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch, PropertyMock
 from core.ski_executor import resolve_module_dir, SKIExecutor
+from core.exceptions import AssertionFailedError
 
 
 # =====================================================================
@@ -376,3 +377,61 @@ class TestClose:
         executor.close()
 
         executor.driver.close.assert_not_called()
+
+
+
+# =====================================================================
+# execute_step —— 步骤执行与失败记录
+# =====================================================================
+class TestExecuteStep:
+    """execute_step —— verify 失败应记录为 fail 并抛出异常"""
+
+    @pytest.fixture
+    def executor(self):
+        executor = object.__new__(SKIExecutor)
+        executor.driver = MagicMock()
+        executor._driver_closed = False
+        executor.auto_screenshot_on_step = False
+        executor.default_wait_time = 0.0
+        executor._current_case_step_wait = None
+        executor._current_case_steps_log = []
+        executor.data_resolver = MagicMock()
+        executor.data_resolver.resolve.side_effect = lambda v: v
+        executor.keyword_engine = MagicMock()
+        executor.keyword_engine._context = MagicMock()
+        executor.keyword_engine._context.history = []
+        executor.keyword_engine._context.named = {}
+        executor.report_collector = MagicMock()
+        executor.model_parser = None
+        return executor
+
+    def test_verify_failure_marks_step_fail_and_records_report(self, executor):
+        failure_payload = {
+            'amount': '20元',
+            'passed': False,
+            '_verify_passed': False,
+            '_verify_mismatches': [
+                {'element': 'amount', 'expected': '10元', 'actual': '20元'}
+            ],
+        }
+
+        def raise_assertion(*args, **kwargs):
+            executor.keyword_engine._context.history.append(failure_payload)
+            raise AssertionFailedError('批量验证失败: amount(期望=10元, 实际=20元)')
+
+        executor.keyword_engine.execute.side_effect = raise_assertion
+
+        with pytest.raises(AssertionFailedError):
+            executor.execute_step({'action': 'verify', 'model': 'Order', 'data': 'V001'}, '用例')
+
+        assert len(executor._current_case_steps_log) == 1
+        step_log = executor._current_case_steps_log[0]
+        assert step_log['status'] == 'fail'
+        assert step_log['return_value'] == failure_payload
+        assert '批量验证失败' in step_log['error']
+
+        executor.report_collector.record_step.assert_called_once()
+        report_step = executor.report_collector.record_step.call_args.args[0]
+        assert report_step['status'] == 'fail'
+        assert report_step['return_value'] == failure_payload
+        assert '批量验证失败' in report_step['error']
