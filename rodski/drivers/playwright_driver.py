@@ -276,16 +276,26 @@ class PlaywrightDriver(BaseDriver):
                 if is_critical_error(e):
                     raise DriverStoppedError(str(e))
                 
-                # 元素不可见或被遮挡，尝试强制点击
+                # 元素不可见或被遮挡，先尝试滚动到可见位置
                 if "not visible" in error_msg or "attached" in error_msg or "timeout" in error_msg:
+                    logger.debug(f"尝试滚动到元素位置...")
+                    try:
+                        self.page.locator(css_locator).scroll_into_view_if_needed(timeout=3000)
+                        # 滚动后重试正常点击（保留 actionability 检查）
+                        self.page.click(css_locator, timeout=3000, **kwargs)
+                        return True
+                    except Exception:
+                        pass
+
+                    # 滚动+正常点击失败，尝试强制点击
                     logger.debug(f"尝试强制点击...")
                     try:
                         self.page.click(css_locator, force=True, timeout=3000)
                         return True
                     except:
                         pass
-                    
-                    # 尝试 JavaScript 点击，验证元素确实存在
+
+                    # 尝试 JavaScript 点击（先滚动再点击）
                     logger.debug(f"尝试 JavaScript 点击...")
                     if css_locator.startswith('//'):
                         # XPath: 使用 document.evaluate
@@ -293,7 +303,7 @@ class PlaywrightDriver(BaseDriver):
                             (() => {{
                                 const result = document.evaluate(`{css_locator}`, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
                                 const el = result.singleNodeValue;
-                                if (el) {{ el.click(); return true; }}
+                                if (el) {{ el.scrollIntoView({{block: 'center'}}); el.click(); return true; }}
                                 return false;
                             }})()
                         """)
@@ -302,7 +312,7 @@ class PlaywrightDriver(BaseDriver):
                         clicked = self.page.evaluate(f"""
                             (() => {{
                                 const el = document.querySelector('{css_locator}');
-                                if (el) {{ el.click(); return true; }}
+                                if (el) {{ el.scrollIntoView({{block: 'center'}}); el.click(); return true; }}
                                 return false;
                             }})()
                         """)
