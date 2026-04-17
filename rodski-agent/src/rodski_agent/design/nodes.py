@@ -167,6 +167,60 @@ def design_data(state: dict) -> dict:
 
 
 # ============================================================
+# Node: design_model
+# ============================================================
+
+
+def design_model(state: dict) -> dict:
+    """LLM 推断模型元素和 locator -> designed_models.
+
+    Reads: state["case_plan"], state.get("skill_context")
+    Writes: state["designed_models"]
+    Falls back silently on LLM failure.
+    """
+    case_plan = state.get("case_plan", [])
+    if not case_plan:
+        return {"designed_models": {}}
+
+    model_names: list[str] = []
+    seen: set[str] = set()
+    for case in case_plan:
+        for step in case.get("steps", []):
+            name = step.get("model", "")
+            if name and name not in seen:
+                model_names.append(name)
+                seen.add(name)
+
+    if not model_names:
+        return {"designed_models": {}}
+
+    try:
+        from rodski_agent.common.llm_bridge import call_llm_text
+        from rodski_agent.design.prompts import DESIGN_MODEL_PROMPT
+
+        skill_context = state.get("skill_context", "")
+        context_section = f"\n\n【流程描述】\n{skill_context}" if skill_context else ""
+        full_prompt = (
+            DESIGN_MODEL_PROMPT
+            + f"\n\n【需要设计的模型】\n{json.dumps(model_names, ensure_ascii=False)}"
+            + context_section
+        )
+        response_text = call_llm_text(full_prompt)
+        models_list = _parse_json_response(response_text)
+        if isinstance(models_list, list) and models_list:
+            designed_models = {
+                m["name"]: m["elements"]
+                for m in models_list
+                if "name" in m and "elements" in m
+            }
+            return {"designed_models": designed_models}
+    except Exception:
+        logger.warning("design_model LLM call failed, falling back to stub", exc_info=True)
+
+    return {"designed_models": {}}
+
+
+# ============================================================
 # Node: generate_xml
 # ============================================================
 
@@ -177,7 +231,8 @@ def generate_xml(state: dict) -> dict:
     Creates the directory structure (case/model/data) under output_dir
     and writes the generated XML files.
 
-    Reads: state["case_plan"], state["test_data"], state["output_dir"]
+    Reads: state["case_plan"], state["test_data"], state["output_dir"],
+           state.get("debug_hints")
     Writes: state["generated_files"]
     """
     output_dir = state.get("output_dir", "")
@@ -189,6 +244,27 @@ def generate_xml(state: dict) -> dict:
 
     case_plan = state.get("case_plan", [])
     test_data = state.get("test_data", {})
+
+    # If debug_hints are present, regenerate case_plan via LLM with hints appended
+    debug_hints = state.get("debug_hints")
+    if debug_hints:
+        try:
+            from rodski_agent.common.llm_bridge import call_llm_text
+            from rodski_agent.design.prompts import PLAN_CASES_PROMPT
+
+            hints_text = json.dumps(debug_hints, ensure_ascii=False, indent=2)
+            scenarios = state.get("test_scenarios", [])
+            full_prompt = (
+                PLAN_CASES_PROMPT
+                + f"\n\n【测试场景】\n{json.dumps(scenarios, ensure_ascii=False)}"
+                + f"\n\n【调试建议（请根据以下建议修正用例）】\n{hints_text}"
+            )
+            response_text = call_llm_text(full_prompt)
+            new_plan = _parse_json_response(response_text)
+            if isinstance(new_plan, list) and new_plan:
+                case_plan = _validate_case_plan_actions(new_plan)
+        except Exception:
+            logger.warning("generate_xml: debug hint re-plan failed, using existing case_plan", exc_info=True)
 
     from rodski_agent.common.xml_builder import (
         build_case_xml,
@@ -215,8 +291,15 @@ def generate_xml(state: dict) -> dict:
             _write_file(case_file, case_xml)
             generated_files.append(case_file)
 
-        # Generate model XML — build from case plan (stub models)
-        models = _extract_models_from_plan(case_plan, test_data)
+        # Generate model XML — prefer LLM-designed models, fallback to stub
+        designed_models = state.get("designed_models") or {}
+        if designed_models:
+            models = [
+                {"name": name, "elements": elements}
+                for name, elements in designed_models.items()
+            ]
+        else:
+            models = _extract_models_from_plan(case_plan, test_data)
         if models:
             model_xml = build_model_xml(models)
             model_file = os.path.join(model_dir, "model.xml")
@@ -354,6 +437,73 @@ def validate_xml(state: dict) -> dict:
 # ============================================================
 # Helpers
 # ============================================================
+
+
+# ============================================================
+# Node: gap_analysis
+# ============================================================
+
+
+def gap_analysis(state: dict) -> dict:
+    """扫描 output_dir 下已有资产，对比 case_plan 中引用的 model/data，生成 gap_report。
+
+    Reads: state["case_plan"], state["output_dir"]
+    Writes: state["gap_report"]
+    """
+    import xml.etree.ElementTree as ET
+
+    case_plan = state.get("case_plan", [])
+    output_dir = state.get("output_dir", "")
+
+    # 1. 从 case_plan 提取引用的 model 名和 data 表名
+    ref_models: set[str] = set()
+    ref_data: set[str] = set()
+    for case in case_plan:
+        for step in case.get("steps", []):
+            model = step.get("model", "")
+            if model:
+                ref_models.add(model)
+            data = step.get("data", "")
+            if data and "." in data:
+                ref_data.add(data.split(".")[0])
+
+    # 2. 扫描 output_dir 中已有资产
+    existing_models: set[str] = set()
+    existing_data: set[str] = set()
+
+    if output_dir:
+        model_file = Path(output_dir) / "model" / "model.xml"
+        if model_file.exists():
+            try:
+                tree = ET.parse(str(model_file))
+                for elem in tree.getroot().findall("model"):
+                    name = elem.get("name", "")
+                    if name:
+                        existing_models.add(name)
+            except ET.ParseError as exc:
+                logger.warning("Failed to parse model.xml: %s", exc)
+
+        data_dir = Path(output_dir) / "data"
+        if data_dir.exists():
+            for xml_file in data_dir.glob("*.xml"):
+                try:
+                    tree = ET.parse(str(xml_file))
+                    for dt in tree.getroot().findall("datatable"):
+                        name = dt.get("name", "")
+                        if name:
+                            existing_data.add(name)
+                except ET.ParseError as exc:
+                    logger.warning("Failed to parse %s: %s", xml_file, exc)
+
+    # 3. 计算差异
+    gap_report = {
+        "missing_models": sorted(ref_models - existing_models),
+        "missing_data": sorted(ref_data - existing_data),
+        "reusable_models": sorted(ref_models & existing_models),
+        "reusable_data": sorted(existing_data),
+    }
+
+    return {"gap_report": gap_report}
 
 
 def _parse_json_response(text: str) -> Any:

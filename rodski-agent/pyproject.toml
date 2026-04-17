@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rodski-agent"
-version = "2.1.0"
+version = "2.2.0"
 description = "AI Agent layer for RodSki test automation framework"
 requires-python = ">=3.9"
 readme = "README.md"

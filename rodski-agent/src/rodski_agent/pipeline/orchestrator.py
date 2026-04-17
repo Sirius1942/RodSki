@@ -125,33 +125,75 @@ def run_pipeline(
         logger.warning("Validation gate skipped: %s", exc)
         result["validation"] = {"passed": True, "skipped": True, "reason": str(exc)}
 
-    # ---- Phase 3: Execution ----
+    # ---- Phase 3: Execution (with debug loop) ----
     logger.info("Pipeline phase 3: Execution")
     try:
-        case_files = _find_case_files(output_dir)
+        from rodski_agent.design.debugger import analyze_failure
+        from rodski_agent.common import llm_bridge as _llm_bridge
 
-        if parallel and len(case_files) > 1:
-            exec_results = _execute_parallel(
-                case_files, max_retry, headless, browser, max_workers
-            )
-        else:
-            exec_results = _execute_sequential(
-                case_files or [output_dir], max_retry, headless, browser
-            )
+        debug_round = 0
+        max_debug_rounds = 3
 
-        # Aggregate results
-        aggregated = _aggregate_execution_results(exec_results)
-        result["execution"] = aggregated
+        while True:
+            case_files = _find_case_files(output_dir)
 
-        exec_status = aggregated.get("status", "error")
-        if exec_status == "pass":
-            result["status"] = "success"
-        elif exec_status in ("fail", "partial"):
-            result["status"] = "failure"
-            result["error"] = aggregated.get("error", "")
-        else:
-            result["status"] = "error"
-            result["error"] = aggregated.get("error", "")
+            if parallel and len(case_files) > 1:
+                exec_results = _execute_parallel(
+                    case_files, max_retry, headless, browser, max_workers
+                )
+            else:
+                exec_results = _execute_sequential(
+                    case_files or [output_dir], max_retry, headless, browser
+                )
+
+            aggregated = _aggregate_execution_results(exec_results)
+            exec_status = aggregated.get("status", "error")
+
+            # Success — exit loop
+            if exec_status == "pass":
+                result["execution"] = aggregated
+                result["status"] = "success"
+                break
+
+            # Failure — try debug loop
+            if debug_round < max_debug_rounds:
+                logger.info("Execution failed (round %d), running debug analysis", debug_round)
+                exec_report = aggregated.get("report", {})
+                # Collect screenshots from all exec results
+                all_screenshots: List[str] = []
+                for r in exec_results:
+                    all_screenshots.extend(r.get("screenshots", []))
+
+                try:
+                    hints = analyze_failure(exec_report, all_screenshots, _llm_bridge)
+                except Exception as exc:
+                    logger.warning("analyze_failure raised: %s", exc)
+                    hints = []
+
+                if hints:
+                    logger.info("Debug hints generated (%d), re-running design", len(hints))
+                    design_state["debug_hints"] = hints
+                    design_state["debug_round"] = debug_round + 1
+                    design_graph = build_design_graph()
+                    design_result = design_graph.invoke(design_state)
+                    if design_result.get("status") not in ("success",):
+                        # Design failed again — give up
+                        result["execution"] = aggregated
+                        result["status"] = "failure"
+                        result["error"] = aggregated.get("error", "")
+                        break
+                    debug_round += 1
+                    continue
+
+            # No more retries
+            result["execution"] = aggregated
+            if exec_status in ("fail", "partial"):
+                result["status"] = "failure"
+                result["error"] = aggregated.get("error", "")
+            else:
+                result["status"] = "error"
+                result["error"] = aggregated.get("error", "")
+            break
 
     except Exception as exc:
         logger.error("Pipeline execution phase failed: %s", exc)

@@ -73,10 +73,18 @@ class DesignState(TypedDict, total=False):
     enriched_elements: List[Dict[str, Any]]  # LLM 语义增强后的元素信息
     case_plan: List[Dict[str, Any]]        # 用例编排计划
     test_data: List[Dict[str, Any]]        # 测试数据
+    designed_models: Optional[Dict[str, Any]]  # LLM 推断的模型定义 {model_name: elements}
     generated_files: List[str]             # 已生成的文件路径
+
+    # -- Skill 上下文 --------------------------------------------------
+    skills_dir: Optional[str]                # skills/ 目录路径
+    skill_context: Optional[Dict[str, Any]]  # SkillContext.to_dict() 序列化结果
+    gap_report: Optional[Dict[str, Any]]     # {missing_models, missing_data, reusable}
 
     # -- 控制 ----------------------------------------------------------
     validation_errors: List[str]     # 校验错误列表
     fix_attempt: int                 # 当前修复尝试次数
     status: str                      # "running" | "done" | "error"
     error: str                       # 错误信息
+    debug_round: int                 # 当前调试轮次（0=初次，最大3）
+    debug_hints: Optional[List[Any]] # 调试建议列表（来自 debugger）
