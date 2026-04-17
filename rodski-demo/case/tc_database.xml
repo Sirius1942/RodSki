@@ -13,9 +13,10 @@
         </test_case>
     </case>
 
-    <!-- TC021: SQLite 插入+验证 -->
-    <case execute="是" id="TC021" title="SQLite插入并验证" description="插入订单后查询验证" component_type="数据库">
+    <!-- TC021: SQLite 插入+验证（插入前清理确保幂等） -->
+    <case execute="是" id="TC021" title="SQLite插入并验证" description="清理→插入→查询→验证，可重复执行" component_type="数据库">
         <test_case>
+            <test_step action="DB" model="QuerySQL" data="Q005"/>
             <test_step action="DB" model="QuerySQL" data="Q002"/>
             <test_step action="DB" model="QuerySQL" data="Q003"/>
             <test_step action="verify" model="QuerySQL" data="V002"/>

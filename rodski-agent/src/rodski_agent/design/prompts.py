@@ -99,6 +99,7 @@ PLAN_CASES_PROMPT: str = f"""\
 - phase 只能是 pre_process / test_case / post_process
 - action 值严格来自合法关键字列表
 - model 和 data 的格式参考关键字参考表
+- DB INSERT 用例必须在插入步骤前增加 cleanup 清理步骤（确保幂等可重复执行）
 """
 
 # ============================================================
@@ -121,6 +122,14 @@ DESIGN_DATA_PROMPT: str = f"""\
    - NONE = 不发送该字段
 6. 接口保留元素：{', '.join(INTERFACE_RESERVED_ELEMENTS)}，前缀 {INTERFACE_HEADER_PREFIX}
 7. UI 原子动作（click / hover / select【值】 等）作为 field 值使用
+
+【DB 测试幂等性规则 — 必须遵守】
+8. 数据库写入操作（INSERT/UPDATE）的用例 **必须可重复执行**：
+   - INSERT 前必须先有 DELETE 清理步骤，防止唯一约束冲突
+   - 清理步骤使用 cleanup 查询模板：DELETE FROM 表 WHERE 条件列 = :参数
+   - 清理数据行放在插入数据行之前，用例步骤中清理在插入之前执行
+   - 示例：步骤顺序 → DB(cleanup) → DB(insert) → DB(query) → verify
+9. 禁止使用固定值作为唯一键测试数据而不做清理
 
 【任务】
 根据提供的用例计划和模型定义，设计完整的测试数据表。

@@ -20,6 +20,10 @@
             <sql>SELECT order_no, customer_name, total_amount FROM orders LIMIT :limit</sql>
         </query>
 
+        <query name="cleanup" remark="清理测试数据（确保幂等）">
+            <sql>DELETE FROM orders WHERE order_no = :order_no</sql>
+        </query>
+
         <query name="insert" remark="插入订单">
             <sql>INSERT INTO orders (order_no, customer_name, customer_phone, product_name, quantity, price, total_amount, status)
                  VALUES (:order_no, :customer_name, :customer_phone, :product_name, :quantity, :price, :total_amount, :status)</sql>
@@ -93,7 +97,7 @@
             <location type="static">POST</location>
         </element>
         <element name="_url" type="interface">
-            <location type="static">GlobalValue.DefaultValue.URL/api/login</location>
+            <location type="static">http://localhost:8000/api/login</location>
         </element>
         <element name="username" type="interface">
             <location type="field">username</location>
@@ -269,6 +273,13 @@
     <model name="VisionOCR" type="ui" servicename="">
         <element name="title" type="text">
             <location type="ocr">RodSki测试样例</location>
+        </element>
+    </model>
+
+    <!-- KeywordAccept — 关键字验收测试（check 别名验证） -->
+    <model name="KeywordAccept" type="ui" servicename="">
+        <element name="loginUsername" type="input">
+            <location type="id">loginUsername</location>
         </element>
     </model>
 

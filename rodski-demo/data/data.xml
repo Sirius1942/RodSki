@@ -115,6 +115,10 @@
             <field name="query">list</field>
             <field name="limit">3</field>
         </row>
+        <row id="Q005" remark="清理测试数据（插入前确保幂等）">
+            <field name="query">cleanup</field>
+            <field name="order_no">TEST001</field>
+        </row>
         <row id="Q002" remark="插入测试订单">
             <field name="query">insert</field>
             <field name="order_no">TEST001</field>
@@ -269,6 +273,19 @@
         <row id="K002" remark="type+verify测试">
             <field name="username">关键字测试内容</field>
             <field name="submitBtn">click</field>
+        </row>
+    </datatable>
+
+    <!-- 关键字验收测试数据 -->
+    <datatable name="KeywordAccept">
+        <row id="A001" remark="assert用 - set一个值">
+            <field name="username">assert_test_value</field>
+        </row>
+    </datatable>
+
+    <datatable name="KeywordAccept_verify">
+        <row id="A001" remark="check验证登录用户名框内容">
+            <field name="loginUsername">check_test_value</field>
         </row>
     </datatable>
 
