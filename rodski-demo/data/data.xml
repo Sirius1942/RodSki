@@ -276,16 +276,32 @@
         </row>
     </datatable>
 
+    <!-- QuickLogin 验收测试数据 -->
+    <datatable name="QuickLogin">
+        <row id="K001" remark="clear测试 - 先输入用户名和密码">
+            <field name="loginUsername">待清空的内容</field>
+            <field name="loginPassword">123456</field>
+        </row>
+        <row id="K002" remark="clear后点击登录按钮">
+            <field name="loginBtn">click</field>
+        </row>
+        <row id="K003" remark="check别名测试 - 错误登录触发错误提示">
+            <field name="loginUsername">wrong_user</field>
+            <field name="loginPassword">wrong_pass</field>
+            <field name="loginBtn">click</field>
+        </row>
+    </datatable>
+
     <!-- 关键字验收测试数据 -->
     <datatable name="KeywordAccept">
-        <row id="A001" remark="assert用 - set一个值">
+        <row id="A001" remark="保留示例数据">
             <field name="username">assert_test_value</field>
         </row>
     </datatable>
 
     <datatable name="KeywordAccept_verify">
-        <row id="A001" remark="check验证登录用户名框内容">
-            <field name="loginUsername">check_test_value</field>
+        <row id="A001" remark="保留示例验证数据">
+            <field name="loginUsername">assert_test_value</field>
         </row>
     </datatable>
 

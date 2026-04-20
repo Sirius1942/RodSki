@@ -206,6 +206,12 @@
         </row>
     </datatable>
 
+    <datatable name="LocatorTest_ScrollClick_verify">
+        <row id="V001" remark="验证视口外按钮点击结果">
+            <field name="result">测试结果: ScrollClick 定位器测试成功！</field>
+        </row>
+    </datatable>
+
     <!-- 关键字测试验证 -->
     <datatable name="KeywordTest_verify">
         <row id="V001" remark="验证提交结果">

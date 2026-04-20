@@ -253,6 +253,12 @@
         </row>
     </datatable>
 
+    <datatable name="LocatorTest_ScrollClick">
+        <row id="L001" remark="视口外按钮点击测试">
+            <field name="button">click</field>
+        </row>
+    </datatable>
+
     <!-- 关键字覆盖测试数据 -->
     <datatable name="KeywordTest">
         <row id="K001" remark="clear测试 - 输入后清空">

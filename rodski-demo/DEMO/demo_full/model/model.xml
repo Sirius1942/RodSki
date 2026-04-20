@@ -260,6 +260,15 @@
     </element>
 </model>
 
+<model name="LocatorTest_ScrollClick" type="ui" servicename="">
+    <element name="button" type="button">
+        <location type="id">btn_below_fold</location>
+    </element>
+    <element name="result" type="text">
+        <location type="id">result</location>
+    </element>
+</model>
+
 <model name="KeywordTest" type="ui" servicename="">
     <element name="username" type="input">
         <location type="id">username</location>

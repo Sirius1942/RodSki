@@ -160,6 +160,13 @@
         </element>
     </model>
 
+    <!-- ErrorMessage — 登录错误提示 -->
+    <model name="ErrorMessage" type="ui" servicename="">
+        <element name="errorMsg" type="text">
+            <location type="id">loginError</location>
+        </element>
+    </model>
+
     <!-- UIActions — 高级 UI 操作（悬停、双击、右键、滚动、拖拽） -->
     <model name="UIActions" type="ui" servicename="">
         <element name="hoverBtn" type="button">

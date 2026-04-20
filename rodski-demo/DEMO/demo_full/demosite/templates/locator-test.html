@@ -60,6 +60,16 @@
             border-radius: 4px;
             display: none;
         }
+        .spacer {
+            height: 900px;
+        }
+        .scroll-click-zone {
+            margin-top: 20px;
+            padding: 20px;
+            border: 2px dashed #4CAF50;
+            border-radius: 8px;
+            background: #f9fff9;
+        }
         .back-link {
             display: inline-block;
             margin-top: 20px;
@@ -99,6 +109,14 @@
             <button data-testid="btn-xpath" onclick="testLocator('XPath')">测试 XPath 定位</button>
         </div>
 
+        <div class="spacer"></div>
+
+        <div class="test-section scroll-click-zone">
+            <h3>视口外点击回归测试</h3>
+            <p>下面的按钮初始位于首屏外，需要滚动到可见区域后才能稳定点击。</p>
+            <button id="btn_below_fold" onclick="testLocator('ScrollClick')">测试滚动后点击</button>
+        </div>
+
         <div id="result"></div>
 
         <a href="/" class="back-link">← 返回首页</a>
@@ -109,27 +127,6 @@
             const resultDiv = document.getElementById('result');
             resultDiv.style.display = 'block';
             resultDiv.innerHTML = `<strong>测试结果:</strong> ${type} 定位器测试成功！`;
-
-            // 根据不同的定位器类型获取输入框的值
-            let inputValue = '';
-            switch(type) {
-                case 'ID':
-                    inputValue = document.getElementById('input_by_id').value;
-                    break;
-                case 'Name':
-                    inputValue = document.querySelector('input[name="input_by_name"]').value;
-                    break;
-                case 'CSS':
-                    inputValue = document.querySelector('.input-css-test').value;
-                    break;
-                case 'XPath':
-                    inputValue = document.querySelector('input[data-testid="input-xpath"]').value;
-                    break;
-            }
-
-            if (inputValue) {
-                resultDiv.innerHTML += `<br>输入的内容: ${inputValue}`;
-            }
         }
     </script>
 </body>

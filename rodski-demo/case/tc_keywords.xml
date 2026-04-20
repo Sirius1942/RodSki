@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  关键字验收用例 (TC031-TC033)
+  覆盖: assert(图片断言)、clear、check(verify别名)
+  跳过: launch(需桌面应用)、upload_file(需文件系统)
+-->
+<cases step_wait="500">
+
+    <!-- TC031: assert — 图片视觉断言 -->
+    <case execute="是" id="TC031" title="assert图片断言" description="截图后用 assert[type=image] 与参考图比对" component_type="界面">
+        <pre_process>
+            <test_step action="navigate" model="" data="http://localhost:8000"/>
+            <test_step action="wait" model="" data="1"/>
+        </pre_process>
+        <test_case>
+            <test_step action="screenshot" model="" data="img/tc031_actual.png"/>
+            <test_step action="assert" model="" data="type=image,reference=tc031_expected.png,threshold=0.90"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <!-- TC032: clear — 清空输入框后登录失败 -->
+    <case execute="是" id="TC032" title="clear清空输入框" description="输入用户名后 clear 清空，再点击登录并验证错误提示" component_type="界面">
+        <pre_process>
+            <test_step action="navigate" model="" data="http://localhost:8000"/>
+            <test_step action="wait" model="" data="1"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="QuickLogin" data="K001"/>
+            <test_step action="clear" model="" data="id=loginUsername"/>
+            <test_step action="type" model="QuickLogin" data="K002"/>
+            <test_step action="verify" model="ErrorMessage" data="V001"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <!-- TC033: check — verify 的别名 -->
+    <case execute="是" id="TC033" title="check关键字验证" description="错误登录后用 check 替代 verify 验证错误提示" component_type="界面">
+        <pre_process>
+            <test_step action="navigate" model="" data="http://localhost:8000"/>
+            <test_step action="wait" model="" data="1"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="QuickLogin" data="K003"/>
+            <test_step action="check" model="ErrorMessage" data="V001"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <!--
+    跳过的关键字:
+    - launch: 需要桌面应用程序路径，无法在 demosite 环境验证
+    - upload_file: 需要本地文件系统路径和文件上传控件，demosite 未提供
+    -->
+
+</cases>
