@@ -31,7 +31,11 @@ def setup_parser(subparsers):
     # validate
     pv = sub.add_parser("validate", help="校验数据层完整性")
     pv.add_argument("module", help="测试模块目录")
-    pv.add_argument("--strict", action="store_true", help="启用 XML 列漂移检查")
+
+    # import
+    pi = sub.add_parser("import", help="将 data.xml / data_verify.xml 迁移至 data.sqlite")
+    pi.add_argument("module", help="测试模块目录")
+    pi.add_argument("--overwrite", action="store_true", help="已存在的表覆盖写入（默认跳过）")
 
 
 def _load(module: str):
@@ -48,7 +52,7 @@ def _load(module: str):
 def handle(args):
     cmd = getattr(args, "data_cmd", None)
     if not cmd:
-        print("用法: rodski data <list|schema|show|query|validate> ...", file=sys.stderr)
+        print("用法: rodski data <list|schema|show|query|validate|import> ...", file=sys.stderr)
         return 1
 
     if cmd == "list":
@@ -58,8 +62,7 @@ def handle(args):
             print("(无数据表)")
         else:
             for n in names:
-                row_count = len(dm.tables[n])
-                print(f"  {n}  ({row_count} 行)")
+                print(f"  {n}  ({len(dm.tables[n])} 行)")
 
     elif cmd == "schema":
         dm = _load(args.module)
@@ -96,19 +99,16 @@ def handle(args):
             print(f"  ... (共 {len(rows)} 行，已截断至 {args.limit})")
 
     elif cmd == "validate":
-        from core.data_schema_validator import DataSchemaValidator
         from core.exceptions import DataParseError
         try:
             dm = _load(args.module)
         except DataParseError as e:
             print(f"[FAIL] {e}", file=sys.stderr)
             return 1
-
-        if args.strict:
-            warnings = DataSchemaValidator.check_xml_column_drift(dm.tables)
-            for w in warnings:
-                print(f"[WARN] {w}")
-
         print(f"[OK] {len(dm.tables)} 张逻辑表校验通过")
+
+    elif cmd == "import":
+        from rodski_cli.data_import import run_import
+        return run_import(args.module, overwrite=args.overwrite)
 
     return 0

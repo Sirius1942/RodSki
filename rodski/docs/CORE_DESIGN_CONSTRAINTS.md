@@ -79,33 +79,14 @@ key_press【按键】 / drag【目标】 / scroll / scroll【x,y】
 **实际实现**：测试数据固定组织在以下文件中：
 
 ```
-data/data.xml          ← 所有操作数据表（type/send/DB 使用）
-data/data_verify.xml   ← 所有验证数据表（verify 使用，可选）
-data/testdata.sqlite   ← SQLite 测试数据主存储（可选，推荐）
-```
-
-**文件结构**：
-```xml
-<!-- data/data.xml -->
-<datatables>
-    <datatable name="Login">
-        <row id="L001">...</row>
-    </datatable>
-    <datatable name="LoginAPI">
-        <row id="D001">...</row>
-    </datatable>
-    <datatable name="Login_verify">
-        <row id="V001">...</row>
-    </datatable>
-</datatables>
+data/data.sqlite       ← 唯一测试数据文件（必须）
+data/globalvalue.xml   ← 全局变量（独立）
 ```
 
 **约束**：
-- 模型名与数据表名（`datatable.name`）必须一致
-- `data.xml` 仍然是唯一 XML 输入数据文件，不需要为每个模型创建独立 XML 文件
-- `data_verify.xml` 是可选的，可以将验证数据也放在 `data.xml` 中
-- XML 与 SQLite 可以共存，但**混合模式仅兼容、不推荐作为常态**
-- 当模块采用 SQLite 后，新建测试数据默认应优先进入 `testdata.sqlite`
+- 模型名与逻辑表名（`rs_datatable.table_name`）必须一致
+- `data.sqlite` 是唯一测试数据文件；`data.xml` / `data_verify.xml` 已在 v6.0.0 废弃
+- 若 `data.xml` 或 `data_verify.xml` 存在，运行时报错，必须先执行 `rodski data import <module>` 迁移
 - `globalvalue.xml` 不进入 SQLite，继续独立解析
 
 ### 2.2 验证数据表自动拼接 `_verify` 后缀
@@ -115,9 +96,7 @@ verify Login V001 → 自动查找表名为 "Login_verify" 的数据表
 verify LoginAPI V001 → 自动查找表名为 "LoginAPI_verify" 的数据表
 ```
 
-**注意**：验证数据表可以放在 `data.xml` 或 `data_verify.xml` 中，但如果两个文件中存在同名表，`data_verify.xml` 中的表会覆盖 `data.xml` 中的同名表。
-
-> 上述覆盖只适用于 XML 内部。若同名逻辑表同时出现在 XML 与 `testdata.sqlite` 中，则属于跨源冲突，运行时与 CLI 校验都必须报错。
+**注意**：验证数据表（`_verify` 后缀）与输入数据表统一存储在 `data.sqlite` 中，`table_kind='verify'`。
 
 ### 2.3 数据列只写 DataID
 
@@ -135,12 +114,11 @@ Case XML 的 data 属性中，只需要写 DataID，不需要写表名前缀：
 
 模型 XML 中的 `element name` 必须与数据表 XML 中 `<field name="...">` 完全一致（区分大小写），这是 `type`/`send`/`verify` 批量模式的匹配基础。
 
-### 2.4.1 SQLite 共存约束
+### 2.4.1 SQLite 数据约束
 
-- 同一逻辑表只能由一个数据源拥有：XML 或 SQLite 二选一
-- 同名逻辑表跨 XML / SQLite 共存时，必须报错，不能做静默覆盖
+- `data.sqlite` 是唯一测试数据文件，v6.0.0 起不再支持 XML 数据文件
 - SQLite 中的同一逻辑表必须显式声明 schema，且所有数据行字段集合完全一致
-- XML-only 模块保持当前兼容行为；XML 列漂移问题仅在严格校验或迁移到 SQLite 时强制处理
+- 若 `data.xml` 或 `data_verify.xml` 存在，运行时立即报错，不加载任何数据
 
 ---
 
@@ -387,11 +365,9 @@ product/                           ← 产品根目录（顶层）
         ├── fun/                   ← 代码工程目录（run 关键字使用）
         │   └── {工程名}/
         │       └── *.py
-        ├── data/                  ← 数据 XML / SQLite + 全局变量
+        ├── data/                  ← 测试数据 + 全局变量
         │   ├── globalvalue.xml    ← 全局变量（固定文件名）
-        │   ├── data.xml           ← 所有输入数据表（固定文件名）
-        │   ├── data_verify.xml    ← 验证数据表（可选）
-        │   └── testdata.sqlite    ← SQLite 测试数据（可选，推荐）
+        │   └── data.sqlite    ← 唯一测试数据文件（必须）
         └── result/                ← 测试结果 XML（框架自动生成）
             └── result_*.xml
 ```
@@ -412,7 +388,7 @@ product/                           ← 产品根目录（顶层）
 | `case/` | 存放测试用例定义 | `*.xml`（符合 case.xsd） |
 | `model/` | 存放页面/接口模型 | `model.xml`（符合 model.xsd） |
 | `fun/` | 存放 run 关键字的代码工程 | `*.py` |
-| `data/` | 存放数据表和全局变量 | `data.xml`、`data_verify.xml`（可选）、`testdata.sqlite`（可选，推荐）、`globalvalue.xml`（符合 data.xsd / globalvalue.xsd） |
+| `data/` | 存放数据表和全局变量 | `data.sqlite`（必须）、`globalvalue.xml`（符合 globalvalue.xsd） |
 | `result/` | 存放测试执行结果 | `result_*.xml`（符合 result.xsd，框架自动生成） |
 
 ### 6.4 禁止变更
@@ -508,63 +484,26 @@ RodskiXmlValidator.validate_file("path/to/case.xml", RodskiXmlValidator.KIND_CAS
 | `test_step.model` | 否 | 模型名；DB 场景下也填写数据库模型名，由模型的 `connection` 属性指向连接组 |
 | `test_step.data` | 否 | 数据引用或直接值 |
 
-### 7.3 Data XML 格式约束
+### 7.3 数据格式约束（v6.0.0）
 
 **固定文件组织**：
-- `data.xml` 是唯一输入数据 XML 文件
-- `data_verify.xml` 是唯一验证数据 XML 文件（可选）
-- `testdata.sqlite` 是可选且推荐的测试数据主存储
-- XML + SQLite 可共存，但混合模式仅兼容、不推荐
-- 同一逻辑表不能跨 XML / SQLite 共存；若同名必须报错
+- `data.sqlite` 是唯一测试数据文件（必须）
+- `data.xml` / `data_verify.xml` 已废弃；若存在则运行时报错
+- `globalvalue.xml` 独立维护，不进入 SQLite
 
-**支持两种 XML 根格式**：
+**SQLite EAV 元表结构**：
 
-**格式1：合并文件（推荐）**
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<datatables>
-  <datatable name="Login">
-    <row id="L001" remark="管理员登录">
-      <field name="username">admin</field>
-      <field name="password">admin123</field>
-      <field name="loginBtn">click</field>
-    </row>
-  </datatable>
-  <datatable name="Login_verify">
-    <row id="V001">
-      <field name="welcomeMsg">欢迎</field>
-    </row>
-  </datatable>
-</datatables>
-```
+| 元表 | 说明 |
+|------|------|
+| `rs_datatable` | 逻辑表注册（table_name = 模型名） |
+| `rs_datatable_field` | 字段 schema |
+| `rs_row` | 数据行（data_id） |
+| `rs_field` | 字段值 |
 
-**格式2：单表根格式（仍写入 `data.xml` 或 `data_verify.xml`）**
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<datatable name="Login">
-  <row id="L001" remark="管理员登录">
-    <field name="username">admin</field>
-    <field name="password">admin123</field>
-    <field name="loginBtn">click</field>
-  </row>
-</datatable>
-```
-
-| 属性/元素 | 必需 | 说明 |
-|-----------|------|------|
-| `datatables` | — | 合并文件的根元素，包含多个 `datatable` |
-| `datatable` | — | 单表根格式的根元素，或合并文件中的子元素 |
-| `datatable.name` | 是 | 数据表名，**必须与模型名一致** |
-| `row.id` | 是 | DataID，表内唯一 |
-| `row.remark` | 否 | 备注说明 |
-| `field.name` | 是 | 字段名，**必须与 model element name 一致** |
-| field 文本内容 | — | 字段值（支持特殊值 BLANK/NULL/NONE、动作关键字、Return 引用） |
-
-**文件覆盖规则**：
-- 框架按顺序加载 `data.xml` → `data_verify.xml`
-- 如果两个文件中存在同名表（`datatable.name` 相同），后加载的文件会**覆盖**先加载的表
-- 建议：操作数据放 `data.xml`，验证数据使用 `{模型名}_verify` 表名
-- 上述覆盖仅适用于 XML 内部；若同名逻辑表出现在 `testdata.sqlite` 中，则必须按跨源冲突报错
+**约束**：
+- `rs_datatable.table_name` 必须与模型名一致
+- 同一逻辑表所有行的字段集合必须完全一致（与 schema 一致）
+- `table_kind` 为 `'data'`（输入数据）或 `'verify'`（验证数据）
 
 **多行多列表示**：
 - **多行**：在同一 `<datatable>` 中定义多个 `<row>`，每个 row 有不同的 `id`
@@ -1521,7 +1460,7 @@ test:
 |------|------|
 | 用例格式 | XML（`case/*.xml`） |
 | 模型格式 | XML（`model/model.xml`） |
-| 数据格式 | XML（`data/data.xml`、`data/data_verify.xml`） + SQLite（`data/testdata.sqlite`，可选） |
+| 数据格式 | SQLite（`data/data.sqlite`，唯一数据文件） |
 | 定位器格式 | `<location type="类型">值</location>`（唯一格式，v5.4.0 起） |
 | 关键字集合 | navigate / launch / type / send / verify / assert / run / DB / get / set / wait / clear / upload_file / screenshot / evaluate |
 

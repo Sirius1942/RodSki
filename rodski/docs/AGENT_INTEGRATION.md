@@ -102,11 +102,10 @@ for result in root.findall(".//result[@status='FAIL']"):
 
 ### 唯一输入格式
 
-所有输入均为 XML 文件：
+所有输入均为 XML 文件或 SQLite 数据库：
 - `case/*.xml` — 用例定义
 - `model/model.xml` — 元素模型（唯一定位器格式：`<location type="...">值</location>`）
-- `data/data.xml` — 操作数据
-- `data/data_verify.xml` — 验证数据（可选）
+- `data/data.sqlite` — 测试数据（唯一数据文件）
 - `data/globalvalue.xml` — 全局变量
 
 ### 唯一输出格式
@@ -250,11 +249,11 @@ Agent 生成用例 XML 时，**步骤间数据传递优先使用 `set`/`get` 命
   <test_step action="send" model="LoginAPI" data="D001"/>
   <test_step action="set" model="" data="auth_token=${Return[-1].token}"/>
 
-  <!-- 2. 使用 token 创建订单（${auth_token} 在 data.xml 中引用） -->
+  <!-- 2. 使用 token 创建订单（${auth_token} 在 data.sqlite 中引用） -->
   <test_step action="send" model="OrderAPI" data="D001"/>
   <test_step action="set" model="" data="order_id=${Return[-1].orderId}"/>
 
-  <!-- 3. 查询并验证订单（${order_id} 在 data.xml 中引用） -->
+  <!-- 3. 查询并验证订单（${order_id} 在 data.sqlite 中引用） -->
   <test_step action="send" model="QueryOrderAPI" data="D001"/>
   <test_step action="verify" model="QueryOrderAPI" data="V001"/>
 </test_case>

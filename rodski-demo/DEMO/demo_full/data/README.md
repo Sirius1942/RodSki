@@ -2,120 +2,75 @@
 
 ## 文件组织
 
-data 目录包含测试数据和全局配置，采用统一的 XML 格式：
+`data/` 目录包含测试数据、全局配置，以及可选的 SQLite 测试数据文件：
 
 ```
 data/
-├── data.xml          # 所有测试数据表（必需）
+├── data.xml          # 输入/执行数据（必需）
+├── data_verify.xml   # 验证数据（可选）
 ├── globalvalue.xml   # 全局变量配置（必需）
-├── DB_USAGE.md       # 数据库使用说明
+├── data.sqlite       # SQLite 测试数据（可选，固定文件名）
+├── DB_USAGE.md       # 数据库/SQLite 使用说明
 └── README.md         # 本文件
 ```
 
 ## 文件说明
 
-### data.xml
+### data.xml / data_verify.xml
 
-包含所有测试用例使用的数据表，每个 datatable 对应一个模型或验证场景。
-
-**命名规范**:
-- 数据表：模型名（如 `LoginForm`, `OrderAPI`）
-- 验证表：模型名_verify（如 `LoginForm_verify`, `OrderAPI_verify`）
-
-**数据表分类**:
-
-#### 1. 登录相关 (6个)
-- `Login` - 通用登录数据
-- `LoginForm` - Web登录表单数据
-- `Login_verify` - 登录验证
-- `ErrorMessage_verify` - 错误消息验证
-- `LoginAPI` - API登录数据
-- `LoginAPI_verify` - API登录验证
-
-#### 2. 界面操作 (12个)
-- `Dashboard` / `Dashboard_verify` - 看板数据
-- `NavMenu` - 导航菜单
-- `TestForm` / `TestForm_verify` - 测试表单
-- `Form` / `Form_verify` - 通用表单
-- `UIActions` / `UIActions_verify` - UI动作测试
-- `DemoForm` / `DemoFormVerify_verify` - Auto Capture演示
-- `DemoFormBadCapture` - Auto Capture错误场景
-
-#### 3. API接口 (4个)
-- `OrderAPI` / `OrderAPI_verify` - 订单API
-- `LoginAPICapture` / `LoginAPICapture_verify` - API Auto Capture
-
-#### 4. 数据库查询 (8个)
-- `QuerySQL` / `QuerySQL_verify` - SQL查询
-- `QueryDB` / `QueryDB_verify` - 数据库查询
-- `QueryOrder` / `QueryOrder_verify` - 订单查询
-- `QueryUser` / `QueryUser_verify` - 用户查询
-
-#### 5. 业务数据 (6个)
-- `Order` / `Order_verify` - 订单数据
-- `OrderTable_verify` - 订单表验证
-- `Product` / `Product_verify` - 产品数据
-- `User` / `User_verify` - 用户数据
-
-#### 6. 高级特性 (8个)
-- `ReturnTest` / `ReturnTest_verify` - Return引用测试
-- `SetGetVerify_verify` - set/get命名访问
-- `GetVerify_verify` - get选择器模式
-- `GetModel` / `GetModelVerify_verify` - get模型模式
-- `EvaluateResult_verify` - evaluate结构化返回
-
-**总计**: 44个数据表
+- `data.xml`：普通输入数据，逻辑表名必须与模型名强一致
+- `data_verify.xml`：验证数据，逻辑表名必须为 `{模型名}_verify`
+- Case 中 `data` 只写 DataID，例如 `L001` / `V001`
 
 ### globalvalue.xml
 
 全局变量配置文件，包含：
-- 数据库连接配置（demo_db）
+- 数据库连接配置（如 `demo_db`）
 - 环境变量
 - 共享配置
 
-详细使用说明参见 `DB_USAGE.md`。
+### data.sqlite
+
+`data/data.sqlite` 是 demo 中唯一允许自动加载的 SQLite 测试数据文件。当前用于承载 `RegisterAPI` 逻辑表，演示 XML + SQLite 共存：
+
+- XML 继续承载 `LoginAPI`、`QuerySQL` 等历史表
+- SQLite 承载 `RegisterAPI`
+- 同名逻辑表不能同时出现在 XML 与 SQLite 中，否则运行时和 `rodski data validate --strict` 都会报错
 
 ## 使用方式
 
 ### 在测试用例中引用数据
 
 ```xml
-<!-- 引用数据表中的某一行 -->
+<!-- 引用 XML 数据 -->
 <test_step action="type" model="LoginForm" data="L001"/>
 
 <!-- 引用验证数据 -->
 <test_step action="verify" model="LoginForm" data="V001"/>
 
-<!-- v5+ DB 新语法：model=数据库模型，data=数据行ID -->
-<test_step action="DB" model="QuerySQL" data="Q001"/>
+<!-- 引用 SQLite 数据：表名仍然等于模型名 -->
+<test_step action="send" model="RegisterAPI" data="L001"/>
 ```
 
-### 数据表结构
+### 查看 SQLite 数据
 
-```xml
-<datatable name="LoginForm">
-    <row id="L001">
-        <field name="username">admin</field>
-        <field name="password">123456</field>
-        <field name="loginBtn">click</field>
-    </row>
-</datatable>
+```bash
+rodski data list rodski-demo/DEMO/demo_full/
+rodski data schema rodski-demo/DEMO/demo_full/ RegisterAPI
+rodski data show rodski-demo/DEMO/demo_full/ RegisterAPI L001
+rodski data validate rodski-demo/DEMO/demo_full/ --strict
 ```
 
 ## 维护规范
 
-1. **统一管理**: 所有数据表必须在 data.xml 中定义，不要创建单独的 XML 文件
-2. **命名规范**: 
-   - 数据表名与模型名保持一致
-   - 验证表统一使用 `_verify` 后缀
-3. **ID规范**:
-   - 数据行: L001, D001, F001, T001 等（按类型首字母）
-   - 验证行: V001, V002 等
-   - 查询行: Q001, Q002 等
-4. **注释**: 使用 `remark` 属性说明数据用途
+1. `data.xml` 仍然是唯一输入 XML 文件，`data_verify.xml` 仍然是唯一验证 XML 文件
+2. SQLite 测试数据固定保存在 `data/data.sqlite`，不要再创建 `testdata.sqlite` 等别名
+3. 数据表名必须与模型名强一致；验证表必须使用 `_verify` 后缀
+4. Case 的 `data` 只写 DataID，不写 `表名.DataID`
+5. SQLite 与 XML 不能同时拥有同名逻辑表
 
 ## 相关文档
 
-- `DB_USAGE.md` - 数据库关键字使用说明
+- `DB_USAGE.md` - 数据库关键字与 SQLite 使用说明
 - `../model/model.xml` - 模型定义
-- `../case/demo_case.xml` - 测试用例
+- `../case/tc030_sqlite_data.xml` - SQLite 数据源示例

@@ -40,21 +40,16 @@ DB 关键字用于执行数据库操作（查询/更新）。v5+ 语法中，数
 </model>
 ```
 
-### 3. 在数据表 XML 中定义参数数据
+### 3. 在 data.sqlite 中定义参数数据
 
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<datatable name="QuerySQL">
-    <row id="Q001" remark="查询订单列表">
-        <field name="query">list</field>
-        <field name="limit">3</field>
-    </row>
-    <row id="Q002" remark="插入订单">
-        <field name="query">insert</field>
-        <field name="order_no">ORD999</field>
-        <field name="customer_name">测试</field>
-    </row>
-</datatable>
+使用 `rodski data import` 从 XML 迁移，或直接通过 SQL 写入 `data.sqlite` 的 EAV 元表。
+
+示例（QuerySQL 表，行 Q001）：
+```sql
+INSERT INTO rs_datatable VALUES ('QuerySQL','QuerySQL','data','standard','',CURRENT_TIMESTAMP);
+INSERT INTO rs_datatable_field VALUES ('QuerySQL','limit',0),('QuerySQL','query',1);
+INSERT INTO rs_row VALUES ('QuerySQL','Q001','查询订单列表');
+INSERT INTO rs_field VALUES ('QuerySQL','Q001','query','list'),('QuerySQL','Q001','limit','3');
 ```
 
 ### 4. 在用例中使用
@@ -82,27 +77,35 @@ DB 关键字用于执行数据库操作（查询/更新）。v5+ 语法中，数
 
 查询结果自动保存到 `${Return[-1]}`，可在后续步骤中引用。
 
-## SQLite 测试数据文件（testdata.sqlite）
+## SQLite 测试数据文件（data.sqlite）
 
-`data/testdata.sqlite` 是可选的 SQLite 数据源，与 `data.xml` 并存。其中的表名不能与 `data.xml` 中已有的表名重复。
+`data/data.sqlite` 是唯一测试数据文件（v6.0.0 起，`data.xml` / `data_verify.xml` 已废弃）。逻辑表名必须与模型名强一致。
 
-当前包含的示例表：
+当前 demo 中包含的 SQLite 示例表：
 
 | 表名 | 行数 | 说明 |
 |------|------|------|
-| `LoginSQLite` | 2 | SQLite 登录测试数据（L001/L002） |
+| `RegisterAPI` | 2 | 注册接口测试数据（L001/L002） |
+| `RegisterAPIResult_verify` | 2 | 注册接口验证数据（V001/V002） |
+
+对应验收用例：`case/tc030_sqlite_data.xml`
+
+- `send RegisterAPI L001/L002` 直接从 `data/data.sqlite` 取数
+- `verify RegisterAPIResult V001/V002` 从 `data.sqlite` 中的 `RegisterAPIResult_verify` 表校验响应
 
 **查看数据：**
 
 ```bash
-# 列出所有表
-rodski data list --source data/testdata.sqlite
-
-# 查看表结构
-rodski data schema LoginSQLite --source data/testdata.sqlite
-
-# 查看表数据
-rodski data show LoginSQLite --source data/testdata.sqlite
+rodski data list rodski-demo/DEMO/demo_full/
+rodski data schema rodski-demo/DEMO/demo_full/ RegisterAPI
+rodski data show rodski-demo/DEMO/demo_full/ RegisterAPI L001
+rodski data validate rodski-demo/DEMO/demo_full/
 ```
 
-**元表结构：** `rs_datatable` / `rs_datatable_field` / `rs_row` / `rs_field`（与 XML 逻辑结构一一对应）。
+**使用约束：**
+- Case 中 `data` 只写 DataID（如 `L001`），不写 `表名.DataID`
+- `type` / `send` / `DB` 默认按模型名查找同名逻辑表
+- `verify` 默认查找 `{模型名}_verify`
+- 同一 `data/` 目录下的所有测试数据统一保存在 `data.sqlite`
+
+**元表结构：** `rs_datatable` / `rs_datatable_field` / `rs_row` / `rs_field`

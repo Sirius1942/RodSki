@@ -37,13 +37,13 @@ RodSki 的用例由三部分组成：
 |---------|------|---------|
 | 关键字 | 定义操作类型（type UI输入 / send 接口请求 / verify 批量验证 …） | Case XML 的 `action` 属性 |
 | 模型 | 定义页面元素 / 接口字段的定位信息 | model.xml 文件 |
-| 数据 | 定义输入值 / 期望值 / 配置参数 | `data/` 目录下的 `data.xml` / `data_verify.xml` / `testdata.sqlite`（可选，推荐） + `globalvalue.xml` |
+| 数据 | 定义输入值 / 期望值 / 配置参数 | `data/` 目录下的 `data.sqlite`（必须） + `globalvalue.xml` |
 
 这三者的协作方式：
 
-- **type（UI 写入）**：关键字 `type` + 模型 `Login` + 数据 `L001` → 框架遍历 Login 模型的每个元素，从逻辑表 `Login` 取对应字段的值（来源可为 XML 或 SQLite），逐一输入到界面
-- **send（接口请求）**：关键字 `send` + 模型 `LoginAPI` + 数据 `D001` → 框架从 LoginAPI 模型获取请求方式和 URL，从逻辑表 `LoginAPI` 取字段值（来源可为 XML 或 SQLite），发送 HTTP 请求
-- **verify（验证）**：关键字 `verify` + 模型 `Login` + 数据 `V001` → 框架遍历 Login 模型的每个元素，从界面/接口读取实际值，与逻辑表 `Login_verify` 中的期望值逐字段比较（来源可为 `data_verify.xml`、`data.xml` 或 SQLite）
+- **type（UI 写入）**：关键字 `type` + 模型 `Login` + 数据 `L001` → 框架遍历 Login 模型的每个元素，从逻辑表 `Login` 取对应字段的值（来源为 `data.sqlite`），逐一输入到界面
+- **send（接口请求）**：关键字 `send` + 模型 `LoginAPI` + 数据 `D001` → 框架从 LoginAPI 模型获取请求方式和 URL，从逻辑表 `LoginAPI` 取字段值（来源为 `data.sqlite`），发送 HTTP 请求
+- **verify（验证）**：关键字 `verify` + 模型 `Login` + 数据 `V001` → 框架遍历 Login 模型的每个元素，从界面/接口读取实际值，与逻辑表 `Login_verify` 中的期望值逐字段比较（来源为 `data.sqlite`）
 
 **关键规则：模型元素 name = 数据表字段 name**。这是整个框架运转的基础。
 
@@ -51,13 +51,9 @@ RodSki 的用例由三部分组成：
 
 ## 2. 目录结构
 
-v3.0+ 版本使用固定目录结构组织测试模块，Data 层支持 XML 与 SQLite 共存：
+v3.0+ 版本使用固定目录结构组织测试模块：
 
-- `data.xml` 仍然是唯一输入数据 XML 文件
-- `data_verify.xml` 仍然是唯一验证数据 XML 文件（可选）
-- `testdata.sqlite` 是可选且推荐的主测试数据存储
-- XML + SQLite 混用**受支持，但不推荐作为常态方案**
-- 当模块采用 SQLite 后，XML 主要承担兼容旧表或补充性小表的职责
+- `data.sqlite` 是唯一测试数据文件
 
 ```
 product/                           ← 产品根目录（最顶层）
@@ -70,11 +66,9 @@ product/                           ← 产品根目录（最顶层）
         ├── fun/                   ← 代码工程（run 关键字）
         │   └── data_gen/
         │       └── gen_phone.py
-        ├── data/                  ← 数据 XML / SQLite + 全局变量
+        ├── data/                  ← 测试数据 + 全局变量
         │   ├── globalvalue.xml    ← 全局变量（固定文件名）
-        │   ├── data.xml           ← 所有输入数据表（固定文件名）
-        │   ├── data_verify.xml    ← 所有验证数据表（可选，固定文件名）
-        │   └── testdata.sqlite    ← SQLite 测试数据（可选，推荐）
+        │   └── data.sqlite        ← 所有测试数据表（唯一数据文件）
         └── result/                ← 测试结果（框架自动生成）
             └── result_20260321_100000.xml
 ```
@@ -87,9 +81,7 @@ product/                           ← 产品根目录（最顶层）
 |------|------|------|
 | case/*.xml | `case/` 目录 | 用例定义（三阶段容器 + test_step） |
 | globalvalue.xml | `data/` 目录 | 全局变量 |
-| data.xml（含多个 datatable） | `data/` 目录 | 所有输入数据表（唯一 XML 输入文件） |
-| data_verify.xml（含多个 datatable） | `data/` 目录 | 所有验证数据表（可选，唯一验证 XML 文件） |
-| testdata.sqlite | `data/` 目录 | SQLite 测试数据主存储（可选，推荐） |
+| data.sqlite | `data/` 目录 | 所有测试数据表（唯一数据文件） |
 | result_*.xml | `result/` 目录 | 框架自动生成的测试结果 |
 | model.xml | `model/` 目录 | 元素定位模型 |
 
@@ -101,7 +93,7 @@ product/                           ← 产品根目录（最顶层）
 |----------|--------|--------|------------------|
 | `case.xsd` | `<cases>` | 人工 | 每个 `<case>` **必须且仅有 1 个** `<test_case>` 容器，其内 **至少 1 个** `<test_step>`；`<pre_process>` / `<post_process>` 各 **0～1 个**容器，内为 **0～n 个** `<test_step>`。`execute` 只能是 `是` \| `否`。`component_type`（可选）只能是 `界面` \| `接口` \| `数据库`。每个 `test_step` 的 `action` 为 `ActionType` 枚举（见 [3.5](#35-action-与-casexsd-枚举一致)）。 |
 | `model.xsd` | `<models>` | 人工 | `<model>` 须 `name`；`<element>` 须 `name`。仅支持**完整格式**（子节点 `<type>` / `<location>` / `<desc>`），~~简化格式已移除（v5.4.0）~~。`DriverType` / `LocatorType` 取值见 [4.2](#42-元素属性说明)、[4.3](#43-定位类型)。接口保留元素名：`_method`、`_url`、`_header_*`（与数据字段一一对应）。 |
-| `data.xsd` | `<datatable>` / `<datatables>` | 人工 | `datatable@name` **必须与模型名一致**。每个 `<row>` 须 `id`（DataID）；**同一数据表内** `row@id` **全局唯一**（XSD `xs:unique`）。每行至少一个 `<field>`，`field@name` 须与对应模型元素 `name` 一致。验证数据表名为 `{模型名}_verify`，放入 `data_verify.xml`（或 `data.xml`）。当模块同时启用 SQLite 时，XML 仍只允许使用这两个固定文件，且同名逻辑表跨 XML / SQLite 共存必须报错。 |
+| `data.xsd` | `<datatable>` / `<datatables>` | 人工 | 已废弃（v6.0.0）。测试数据统一存储在 `data.sqlite`，验证数据表名为 `{模型名}_verify`，`table_kind='verify'`。 |
 | `globalvalue.xsd` | `<globalvalue>` | 人工 | 每个 `<group>` 须 `name`；**所有 group 的 `name` 全局唯一**。每组内至少一个 `<var>`，每个 `var` 须同时具备 `name` 与 `value`；**同一 group 内** `var@name` **唯一**（XSD `xs:unique`）。引用格式：`GlobalValue.组名.变量名`。 |
 | `result.xsd` | `<testresult>` | **框架生成** | 手工一般无需编写；结构见 [附录：测试结果 XML](#附录测试结果-xmlresultxsd)。 |
 
@@ -425,7 +417,7 @@ model.xml 元素 name  ===  数据表 XML 的 field name
 ```
 
 ```xml
-<!-- data.xml 中的 Login 表 -->
+<!-- data.sqlite 中的 Login 表 -->
 <datatable name="Login">
   <row id="L001" remark="有效">
     <field name="username">admin</field>     ← name 与 model 一致
@@ -461,61 +453,82 @@ model.xml 元素 name  ===  数据表 XML 的 field name
 
 ---
 
-## 5. 数据表 XML — 测试数据编写
+## 5. 数据表 — 测试数据编写
 
-### 5.1 文件格式
+### 5.1 数据存储
 
-RodSki 的逻辑数据表可以来自两种来源：
+所有测试数据统一存储在 `data/data.sqlite`，使用 EAV 元表结构：
 
-1. XML：`data/data.xml`（输入数据）+ `data/data_verify.xml`（验证数据，可选）
-2. SQLite：`data/testdata.sqlite`（可选，推荐主存储）
+| 元表 | 说明 |
+|------|------|
+| `rs_datatable` | 逻辑表注册（`table_name` = 模型名） |
+| `rs_datatable_field` | 字段 schema（每张表的字段列表） |
+| `rs_row` | 数据行（`data_id`） |
+| `rs_field` | 字段值 |
 
 **约束：**
-- `datatable@name` 必须与模型名一致
-- `data.xml` 仍然是唯一 XML 输入数据文件
-- `data_verify.xml` 仍然是唯一验证 XML 文件
-- XML + SQLite 可以共存，但**混合模式仅兼容、不推荐作为常态方案**
-- 当模块采用 SQLite 后，新建或持续演进的逻辑表默认应优先进入 `testdata.sqlite`
-- 同一逻辑表不能同时出现在 XML 与 SQLite 中；若跨源同名，运行时与 `rodski data validate` 都必须报错
-- SQLite 中的同一逻辑表必须有显式 schema，且所有数据行字段集合完全一致
+- 逻辑表名必须与模型名一致
+- 同一逻辑表所有行的字段集合必须完全一致（与 schema 一致）
+- 验证数据表（`_verify` 后缀）`table_kind='verify'`，输入数据表 `table_kind='data'`
 
-下面示例展示 XML 组织方式：
+### 5.2 写入数据的方式
 
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<datatable name="Login">
-  <row id="L001" remark="管理员登录">
-    <field name="username">admin</field>
-    <field name="password">admin123</field>
-    <field name="loginBtn">click</field>
-  </row>
-  <row id="L002" remark="普通用户">
-    <field name="username">testuser</field>
-    <field name="password">test123</field>
-  </row>
-</datatable>
+#### 方式一：从 XML 迁移（推荐用于历史数据）
+
+```bash
+rodski data import <module>            # 默认跳过已存在的表
+rodski data import <module> --overwrite  # 覆盖已存在的表
 ```
 
-### 5.2 结构规则
+XML 格式（仅用于迁移，不再作为运行时数据源）：
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<datatables>
+  <datatable name="Login">
+    <row id="L001" remark="管理员">
+      <field name="username">admin</field>
+      <field name="password">admin123</field>
+    </row>
+    <row id="L002">
+      <field name="username">testuser</field>
+      <field name="password">test123</field>
+    </row>
+  </datatable>
+</datatables>
+```
 
-| 属性/元素 | 必需 | 说明 |
-|-----------|------|------|
-| `datatable.name` | 是 | 数据表名，**必须与模型名一致** |
-| `row.id` | 是 | DataID（数据行唯一标识） |
-| **同一表内 `row.id` 唯一** | 是 | **XSD 约束**（`xs:unique`）：任意两行不得重复同一 `id` |
-| `row.remark` | 否 | 备注说明（框架不使用） |
-| `field.name` | 是 | 字段名，**必须与 model 元素 name 一致** |
-| field 文本 | — | 字段值（空值表示跳过） |
+#### 方式二：直接写入 SQLite
 
-**来源规则补充**：
-- XML-only 模块保持当前兼容行为
-- 采用 SQLite 后，XML 更适合作为补充性小表或历史遗留表的承载路径
-- SQLite 逻辑表必须显式声明 schema，并禁止同表不同行字段集合不一致
-- XML 历史数据仍可能存在列漂移；该问题在严格校验或迁移到 SQLite 时必须修正
+```sql
+-- 1. 注册逻辑表
+INSERT INTO rs_datatable VALUES ('Login', 'Login', 'data', 'standard', '', CURRENT_TIMESTAMP);
+
+-- 2. 声明字段 schema
+INSERT INTO rs_datatable_field VALUES ('Login', 'username', 0);
+INSERT INTO rs_datatable_field VALUES ('Login', 'password', 1);
+
+-- 3. 插入数据行
+INSERT INTO rs_row VALUES ('Login', 'L001', '管理员');
+INSERT INTO rs_row VALUES ('Login', 'L002', '普通用户');
+
+-- 4. 插入字段值
+INSERT INTO rs_field VALUES ('Login', 'L001', 'username', 'admin');
+INSERT INTO rs_field VALUES ('Login', 'L001', 'password', 'admin123');
+INSERT INTO rs_field VALUES ('Login', 'L002', 'username', 'testuser');
+INSERT INTO rs_field VALUES ('Login', 'L002', 'password', 'test123');
+```
+
+验证数据表（`_verify` 后缀）：
+```sql
+INSERT INTO rs_datatable VALUES ('Login_verify', 'Login_verify', 'verify', 'standard', '', CURRENT_TIMESTAMP);
+INSERT INTO rs_datatable_field VALUES ('Login_verify', 'welcomeMsg', 0);
+INSERT INTO rs_row VALUES ('Login_verify', 'V001', '');
+INSERT INTO rs_field VALUES ('Login_verify', 'V001', 'welcomeMsg', '欢迎, admin');
+```
 
 ### 5.3 数据表命名与引用规则
 
-> **核心规则**：模型名 = `datatable@name` / 逻辑表名，强制一致。Case 的 `data` 只写 DataID，不写表名前缀。
+> **核心规则**：模型名 = 逻辑表名，强制一致。Case 的 `data` 只写 DataID，不写表名前缀。
 
 | 关键字 | Case 写法 | 逻辑表（自动推导） |
 |--------|-----------|---------------------|
@@ -523,6 +536,40 @@ RodSki 的逻辑数据表可以来自两种来源：
 | `verify` | `verify Login V001` | `Login_verify` |
 | `send` | `send LoginAPI D001` | `LoginAPI` |
 | `DB` | `DB QuerySQL Q001` | `QuerySQL` |
+
+**正确示例：**
+```xml
+<test_step action="send" model="RegisterAPI" data="L001"/>
+```
+
+**错误示例：**
+```xml
+<!-- 错误：data 不能写表名前缀 -->
+<test_step action="send" model="RegisterAPI" data="RegisterAPI.L001"/>
+```
+
+### 5.3.1 rodski data 命令
+
+```bash
+# 列出模块中的所有逻辑表
+rodski data list <module>
+
+# 查看逻辑表字段列表
+rodski data schema <module> <table>
+
+# 查看指定数据行
+rodski data show <module> <table> <data_id>
+
+# 列出逻辑表中的前 N 行
+rodski data query <module> <table> --limit 20
+
+# 校验模块数据层
+rodski data validate <module>
+
+# 从 XML 迁移数据到 data.sqlite
+rodski data import <module> [--overwrite]
+```
+
 
 ### 5.4 批量输入时的特殊值
 
@@ -575,7 +622,7 @@ RodSki 的逻辑数据表可以来自两种来源：
 #### 示例：含动作关键字的数据表
 
 ```xml
-<!-- data.xml 中的 Login 表 -->
+<!-- data.sqlite 中的 Login 表 -->
 <datatable name="Login">
   <row id="L001" remark="管理员登录">
     <field name="username">admin</field>
@@ -602,7 +649,7 @@ Case XML 写 `type Login L001` 时，框架遍历 Login 模型：
 DB 关键字使用的数据行也属于普通逻辑表，默认表名与数据库模型名一致，例如 `QuerySQL`。
 
 ```xml
-<!-- data.xml 中的 QuerySQL 表 -->
+<!-- data.sqlite 中的 QuerySQL 表 -->
 <datatable name="QuerySQL">
   <row id="Q001" remark="查询总数">
     <field name="query">count</field>
@@ -634,7 +681,7 @@ Return 引用**应写在数据表的字段值中**，不应直接写在 Case XML
 示例：验证上一步创建的物品
 
 ```xml
-<!-- data_verify.xml 中的 UI 验证表 -->
+<!-- data.sqlite 中的 UI 验证表 -->
 <datatable name="ItemDetail_verify">
   <row id="V001" remark="验证新物品名称">
     <field name="itemName">${Return[-1]}</field>
@@ -758,7 +805,7 @@ Return 引用**只应出现在数据表 XML 的 field 值中**，不要写在 Ca
 正确做法：
 
 ```xml
-<!-- data_verify.xml 中的 UI 验证表 -->
+<!-- data.sqlite 中的 UI 验证表 -->
 <datatable name="OrderDetail_verify">
   <row id="V001" remark="验证订单号">
     <field name="orderNo">ORD-20260411-001</field>
@@ -815,7 +862,7 @@ Return 引用**只应出现在数据表 XML 的 field 值中**，不要写在 Ca
 
 <!-- 在后续步骤中使用命名变量 -->
 <test_step action="send" model="OrderAPI" data="O001"/>
-<!-- data.xml 中: <field name="_headers">Authorization: Bearer ${auth_token}</field> -->
+<!-- data.sqlite 中: <field name="_headers">Authorization: Bearer ${auth_token}</field> -->
 ```
 
 **进阶写法（Return 索引）：**
@@ -825,7 +872,7 @@ Return 索引适合步骤紧邻且无歧义的场景：
 ```xml
 <test_step action="send" model="LoginAPI" data="L001"/>
 <test_step action="verify" model="LoginAPI" data="V001"/>
-<!-- data_verify.xml 中: <field name="status">${Return[-1].status}</field> -->
+<!-- data.sqlite 中: <field name="status">${Return[-1].status}</field> -->
 ```
 
 **为什么推荐 set/get？**
@@ -873,15 +920,15 @@ Return 索引适合步骤紧邻且无歧义的场景：
 | 逻辑表 | `{模型名}` | `{模型名}` | `{模型名}_verify` |
 | 匹配规则 | 元素 name = field name | 元素 name = field name | 元素 name = field name |
 
-> **数据表命名规则**：模型名 = 逻辑表名（强制一致）。Case 的 `data` 属性只写 `DataID`，不写表名前缀。逻辑表可以来自 `data.xml`、`data_verify.xml` 或 `testdata.sqlite`，但同名逻辑表不能跨源共存。
+> **数据表命名规则**：模型名 = 逻辑表名（强制一致）。Case 的 `data` 属性只写 `DataID`，不写表名前缀。逻辑表来自 `data.sqlite`。
 
 #### 接口测试：send + verify
 
 接口测试不再使用独立 HTTP 关键字，而是通过 **send / verify** 批量模式完成：
 
 1. **接口模型**：在 model.xml 中定义接口元素，包含 `_method`（请求方式）、`_url`（请求地址）、`_header_*`（请求头）以及接口字段
-2. **send 发送请求**：`send LoginAPI D001` → 从 `LoginAPI` 模型获取请求方式和 URL，从逻辑表 `LoginAPI` 取值（来源可为 XML 或 SQLite），发送 HTTP 请求
-3. **verify 验证响应**：`verify LoginAPI V001` → 从逻辑表 `LoginAPI_verify` 取期望值（来源可为 `data_verify.xml`、`data.xml` 或 SQLite），与 send 的响应比较
+2. **send 发送请求**：`send LoginAPI D001` → 从 `LoginAPI` 模型获取请求方式和 URL，从逻辑表 `LoginAPI` 取值（来源为 `data.sqlite`），发送 HTTP 请求
+3. **verify 验证响应**：`verify LoginAPI V001` → 从逻辑表 `LoginAPI_verify` 取期望值（来源为 `data.sqlite`），与 send 的响应比较
 
 **接口模型元素命名约定**：
 
@@ -911,7 +958,7 @@ Return 索引适合步骤紧邻且无歧义的场景：
 </model>
 ```
 
-**数据表（`data.xml` 中的 `LoginAPI` 表）**：
+**数据表（`data.sqlite` 中的 `LoginAPI` 表）**：
 
 ```xml
 <datatable name="LoginAPI">
@@ -922,7 +969,7 @@ Return 索引适合步骤紧邻且无歧义的场景：
 </datatable>
 ```
 
-**验证数据表（`data_verify.xml` 中的 `LoginAPI_verify` 表）**：
+**验证数据表（`data.sqlite` 中的 `LoginAPI_verify` 表）**：
 
 ```xml
 <datatable name="LoginAPI_verify">
@@ -969,7 +1016,7 @@ DB 用例格式：
 - **model 属性**：填写 `type="database"` 的模型名（如 `QuerySQL`）
 - **data 属性**：填写该模型对应逻辑表中的 DataID（如 `Q001`）
 - 数据行可通过 `query` 字段引用模型内定义的 query，也可以通过 `sql` 字段直接提供 SQL
-- 数据源可以是 `data.xml` 或 `testdata.sqlite`，但逻辑表 `QuerySQL` 只能保留单一来源
+- 数据源为 `data.sqlite`
 
 ### 8.5 高级关键字
 
@@ -1024,9 +1071,7 @@ product/DEMO/demo_site/
 │   └── demo_case.xml
 ├── data/
 │   ├── globalvalue.xml
-│   ├── data.xml
-│   ├── data_verify.xml
-│   └── testdata.sqlite      # 可选，采用 SQLite 时创建
+│   └── data.sqlite
 ├── fun/
 └── result/
 ```
@@ -1069,33 +1114,11 @@ product/DEMO/demo_site/
 </globalvalue>
 ```
 
-### 9.4 data.xml（数据表）
+### 9.4 data.sqlite（数据表）
 
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<datatables>
-  <datatable name="Login">
-    <row id="L001" remark="管理员">
-      <field name="username">admin</field>
-      <field name="password">admin123</field>
-      <field name="loginBtn">click</field>
-    </row>
-  </datatable>
-</datatables>
-```
+所有测试数据（输入表和验证表）均存储在 `data/data.sqlite` 中。输入表 `table_kind='input'`，验证表 `table_kind='verify'`。
 
-### 9.5 data_verify.xml（验证数据表）
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<datatables>
-  <datatable name="Login_verify">
-    <row id="V001" remark="验证管理员登录">
-      <field name="welcome_text">欢迎, admin</field>
-    </row>
-  </datatable>
-</datatables>
-```
+迁移命令：`rodski data import <module>`
 
 ### 9.6 demo_case.xml（用例）
 
@@ -1256,7 +1279,7 @@ rodski run case/ --headless
 <test_step action="type" model="LoginPage" data="L001"/>
 ```
 
-**data.xml 中的 LoginPage 表**：
+**data.sqlite 中的 LoginPage 表**：
 ```xml
 <row id="L001">
   <field name="username">admin</field>
