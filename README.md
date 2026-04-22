@@ -3,13 +3,16 @@
 **RodSki** 是面向 AI Agent 的跨平台确定性测试执行引擎，基于 XML 活文档协议，支持 Web（Playwright）、Android（Appium）、iOS（Appium）和桌面应用（PyWinAuto）的自动化测试执行。
 
 > Agent 负责思考，RodSki 负责稳定执行。
+>
+> 测试数据层支持 XML + SQLite 共存：`data.xml` / `data_verify.xml` 仍保留为固定 XML 入口，`data/testdata.sqlite` 作为可选且推荐的主存储；混合模式受支持，但不推荐作为常态。
 
 ## 特性
 
 - **结构化 XML 协议** — model / case / data 活文档，Agent 可读可写
+- **SQLite 测试数据主路径** — 支持 `data/testdata.sqlite` 与 XML 共存，混合模式兼容但不推荐
 - **多平台确定性执行** — Web / Android / iOS / Desktop 统一关键字
 - **视觉定位能力** — OmniParser + LLM 语义定位（可选 AI 能力层）
-- **Agent 友好 CLI** — run / validate / explain / dry-run，JSON 结构化输出
+- **Agent 友好 CLI** — run / validate / explain / dry-run，后续扩展 data / init 子命令
 - **活文档模式** — Agent 写 XML → RodSki 执行 → 结果反馈 → Agent 分析
 - **智能等待** — 自动处理元素加载延迟，零配置开箱即用
 - **智能诊断** — AI 辅助失败分析与恢复建议（可选）
@@ -29,7 +32,7 @@ python3 -m venv .venv && source .venv/bin/activate
 
 # ---- rodski 执行引擎 ----
 
-# 基础安装（仅核心 + XML 解析）
+# 基础安装（仅核心 + XML / SQLite 数据解析）
 pip install -e .
 
 # Web 测试（Playwright）
@@ -63,6 +66,13 @@ rodski run case/ --output-format json
 # 解释用例（自然语言）
 rodski explain case/login.xml
 
+# 数据表快速查看/校验（规划中的 SQLite 共存 CLI）
+rodski data list rodski-demo/
+rodski data validate rodski-demo/ --strict
+
+# 初始化标准测试模块骨架（规划中的 init CLI）
+rodski init /path/to/MyTestModule --with-verify --with-sqlite
+
 # 干跑模式（仅验证不执行）
 rodski run case/ --dry-run
 ```
@@ -85,11 +95,13 @@ rodski-agent diagnose --result output/login/result/
 
 ## 架构概览
 
-```
-Agent (探索/决策) → XML (活文档) → RodSki (执行) → JSON (结果) → Agent (分析)
+```text
+Agent (探索/决策) → XML / SQLite 测试数据 → RodSki (执行) → JSON (结果) → Agent (分析)
 ```
 
 RodSki 作为 Agent 工具链中的执行层，提供确定性、可重复的测试执行能力。Agent 通过 XML 协议描述测试意图，RodSki 负责跨平台执行并以 JSON 格式返回结构化结果，供 Agent 进一步分析和决策。
+
+在数据层，RodSki 保持现有 DSL 语义不变：Case 的 `data` 仍只写 DataID；逻辑表名仍与模型名一致；`verify` 仍自动查找 `{model}_verify`。SQLite 只是 Data 层的新承载方式，不改变关键字写法。
 
 ## 项目结构
 
@@ -100,7 +112,7 @@ RodSki/
 │   ├── drivers/         # 平台驱动（Playwright/Appium/PyWinAuto）
 │   ├── llm/             # LLM 能力层（可选）
 │   ├── vision/          # 视觉定位（可选）
-│   ├── rodski_cli/      # CLI 子命令
+│   ├── rodski_cli/      # CLI 子命令（run/explain/data/init ...）
 │   ├── config/          # 配置文件
 │   └── docs/            # 框架文档
 ├── rodski-agent/        # Layer 2: AI Agent 层
@@ -121,8 +133,9 @@ RodSki/
 | 文档 | 说明 |
 |------|------|
 | [Agent 集成指南](rodski/docs/AGENT_INTEGRATION.md) | Agent 接入主入口 |
-| [用例编写指南](rodski/docs/TEST_CASE_WRITING_GUIDE.md) | XML 用例编写规范 |
+| [用例编写指南](rodski/docs/TEST_CASE_WRITING_GUIDE.md) | XML + SQLite 数据组织与用例编写规范 |
 | [核心设计约束](rodski/docs/CORE_DESIGN_CONSTRAINTS.md) | 框架不可违反的设计约束 |
+| [数据文件组织](rodski/docs/DATA_FILE_ORGANIZATION.md) | `data.xml` / `data_verify.xml` / `testdata.sqlite` 组织规则 |
 | [关键字参考](rodski/docs/SKILL_REFERENCE.md) | 全部关键字语法说明 |
 | [架构说明](rodski/docs/ARCHITECTURE.md) | 框架内部架构 |
 | [视觉定位](rodski/docs/VISION_LOCATION.md) | OmniParser 视觉定位能力 |

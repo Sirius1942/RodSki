@@ -3,7 +3,7 @@
 import sys
 import argparse
 import traceback
-from .rodski_cli import run, model, config, log, report, profile, docs, capabilities
+from .rodski_cli import run, model, config, log, report, profile, docs, capabilities, data, init
 
 from rodski import __version__ as VERSION
 
@@ -77,6 +77,12 @@ def main():
     # capabilities 子命令
     capabilities.setup_parser(subparsers)
 
+    # data 子命令
+    data.setup_parser(subparsers)
+
+    # init 子命令
+    init.setup_parser(subparsers)
+
     args = parser.parse_args()
 
     if not args.command:
@@ -93,6 +99,8 @@ def main():
         "profile": profile.handle,
         "docs": docs.handle,
         "capabilities": capabilities.handle,
+        "data": data.handle,
+        "init": init.handle,
     }
 
     verbose = getattr(args, "verbose", False)

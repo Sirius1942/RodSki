@@ -81,3 +81,28 @@ DB 关键字用于执行数据库操作（查询/更新）。v5+ 语法中，数
 ## 返回值
 
 查询结果自动保存到 `${Return[-1]}`，可在后续步骤中引用。
+
+## SQLite 测试数据文件（testdata.sqlite）
+
+`data/testdata.sqlite` 是可选的 SQLite 数据源，与 `data.xml` 并存。其中的表名不能与 `data.xml` 中已有的表名重复。
+
+当前包含的示例表：
+
+| 表名 | 行数 | 说明 |
+|------|------|------|
+| `LoginSQLite` | 2 | SQLite 登录测试数据（L001/L002） |
+
+**查看数据：**
+
+```bash
+# 列出所有表
+rodski data list --source data/testdata.sqlite
+
+# 查看表结构
+rodski data schema LoginSQLite --source data/testdata.sqlite
+
+# 查看表数据
+rodski data show LoginSQLite --source data/testdata.sqlite
+```
+
+**元表结构：** `rs_datatable` / `rs_datatable_field` / `rs_row` / `rs_field`（与 XML 逻辑结构一一对应）。

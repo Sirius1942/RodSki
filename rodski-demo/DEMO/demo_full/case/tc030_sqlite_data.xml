@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases step_wait="500">
+    <!-- TC030: SQLite 数据源验收
+         RegisterAPI model 的数据由 testdata.sqlite 提供（XML 中无同名表）。
+    -->
+    <case execute="是" id="TC030-001" title="SQLite数据源-注册接口L001" component_type="接口">
+        <test_case>
+            <test_step action="send" model="RegisterAPI" data="L001"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC030-002" title="SQLite数据源-注册接口L002" component_type="接口">
+        <test_case>
+            <test_step action="send" model="RegisterAPI" data="L002"/>
+        </test_case>
+    </case>
+</cases>

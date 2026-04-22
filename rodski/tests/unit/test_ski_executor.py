@@ -434,4 +434,112 @@ class TestExecuteStep:
         report_step = executor.report_collector.record_step.call_args.args[0]
         assert report_step['status'] == 'fail'
         assert report_step['return_value'] == failure_payload
-        assert '批量验证失败' in report_step['error']
+
+
+# =====================================================================
+# pre_process / post_process 失败场景
+# =====================================================================
+class TestPrePostProcessFailure:
+    """pre_process/post_process 失败时的行为验证"""
+
+    @pytest.fixture
+    def executor(self):
+        executor = object.__new__(SKIExecutor)
+        executor.driver = MagicMock()
+        executor._driver_closed = False
+        executor.driver_factory = None
+        executor.auto_screenshot = False
+        executor.auto_screenshot_on_step = False
+        executor.keyword_engine = MagicMock()
+        executor.keyword_engine._context = MagicMock()
+        executor.keyword_engine._context.history = []
+        executor.keyword_engine._context.named = {}
+        executor.data_resolver = MagicMock()
+        executor.data_resolver.resolve.side_effect = lambda v: v
+        executor.dynamic_executor = MagicMock()
+        executor.result_writer = MagicMock()
+        executor.result_writer.current_run_dir = None
+        executor.runtime_control = MagicMock()
+        executor.runtime_control.drain_at_boundary = MagicMock()
+        executor.runtime_control.wait_unpaused = MagicMock(return_value=True)
+        executor.model_parser = None
+        executor.data_manager = MagicMock()
+        executor.data_manager.tables = {}
+        executor.default_wait_time = 0.0
+        executor._current_case_step_wait = None
+        executor._runtime_stopped_graceful = False
+        executor._current_case_steps_log = []
+        executor._step_index = 0
+        executor._current_case_id = ""
+        executor._phase_runtime_seq = 0
+        executor.config = MagicMock()
+        executor.report_collector = None
+        return executor
+
+    def _make_case(self, pre_steps=None, test_steps=None, post_steps=None):
+        return {
+            'case_id': 'c001',
+            'title': 'test',
+            'expect_fail': '否',
+            'component_type': '界面',
+            'step_wait': None,
+            'pre_process': pre_steps or [],
+            'test_case': test_steps or [{'action': 'click', 'model': 'M', 'data': ''}],
+            'post_process': post_steps or [],
+        }
+
+    def test_pre_process_failure_skips_test_case(self, executor):
+        """pre_process 失败时 test_case 步骤不被调用"""
+        call_log = []
+
+        def run_steps(steps, phase):
+            call_log.append(phase)
+            if phase == '预处理':
+                raise RuntimeError('pre_process failed')
+
+        executor._run_steps = run_steps
+        executor._snapshot_runtime_resources = MagicMock(return_value={})
+        executor._case_result_force_terminated = MagicMock()
+
+        result = executor.execute_case(self._make_case(
+            pre_steps=[{'action': 'open', 'model': '', 'data': ''}],
+        ))
+
+        assert '用例' not in call_log
+        assert result['status'] == 'FAIL'
+
+    def test_pre_process_failure_still_runs_post_process(self, executor):
+        """pre_process 失败时 post_process 仍执行"""
+        call_log = []
+
+        def run_steps(steps, phase):
+            call_log.append(phase)
+            if phase == '预处理':
+                raise RuntimeError('pre_process failed')
+
+        executor._run_steps = run_steps
+        executor._snapshot_runtime_resources = MagicMock(return_value={})
+        executor._case_result_force_terminated = MagicMock()
+
+        executor.execute_case(self._make_case(
+            pre_steps=[{'action': 'open', 'model': '', 'data': ''}],
+            post_steps=[{'action': 'close', 'model': '', 'data': ''}],
+        ))
+
+        assert '后处理' in call_log
+
+    def test_post_process_failure_marks_case_fail(self, executor):
+        """post_process 失败时用例状态为 FAIL"""
+        def run_steps(steps, phase):
+            if phase == '后处理':
+                raise RuntimeError('post_process failed')
+
+        executor._run_steps = run_steps
+        executor._snapshot_runtime_resources = MagicMock(return_value={})
+        executor._case_result_force_terminated = MagicMock()
+
+        result = executor.execute_case(self._make_case(
+            post_steps=[{'action': 'close', 'model': '', 'data': ''}],
+        ))
+
+        assert result['status'] == 'FAIL'

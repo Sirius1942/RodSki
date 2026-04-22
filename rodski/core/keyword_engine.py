@@ -731,6 +731,12 @@ class KeywordEngine:
         table_name = model_name
         data_id = data_ref
 
+        if '.' in data_id:
+            raise InvalidParameterError(
+                keyword="type", param_name="data",
+                reason=f"data 只能是 DataID（如 'L001'），不能包含表名前缀，错误值: '{data_id}'"
+            )
+
         model = self.model_parser.get_model(model_name)
         data_row = self.data_manager.get_data(table_name, data_id)
 
@@ -940,6 +946,12 @@ class KeywordEngine:
         """
         table_name = model_name
         data_id = data_ref
+
+        if '.' in data_id:
+            raise InvalidParameterError(
+                keyword="send", param_name="data",
+                reason=f"data 只能是 DataID（如 'D001'），不能包含表名前缀，错误值: '{data_id}'"
+            )
 
         model = self.model_parser.get_model(model_name)
         data_row = self.data_manager.get_data(table_name, data_id)
@@ -1392,6 +1404,12 @@ class KeywordEngine:
         """
         table_name = f"{model_name}_verify" if not model_name.endswith("_verify") else model_name
         data_id = data_ref
+
+        if '.' in data_id:
+            raise InvalidParameterError(
+                keyword="verify", param_name="data",
+                reason=f"data 只能是 DataID（如 'V001'），不能包含表名前缀，错误值: '{data_id}'"
+            )
 
         model = self.model_parser.get_model(model_name)
         data_row = self.data_manager.get_data(table_name, data_id)

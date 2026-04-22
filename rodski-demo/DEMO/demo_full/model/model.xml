@@ -394,4 +394,19 @@
 
 <model name="ErrorSQL" type="database" connection="demo_db" servicename="">
 </model>
+
+<model name="RegisterAPI" type="interface" servicename="">
+    <element name="_method" type="http_method">
+        <location type="static">POST</location>
+    </element>
+    <element name="_url" type="http_url">
+        <location type="static">http://localhost:8000/api/register</location>
+    </element>
+    <element name="username" type="field">
+        <location type="field">username</location>
+    </element>
+    <element name="password" type="field">
+        <location type="field">password</location>
+    </element>
+</model>
 </models>

@@ -8,6 +8,45 @@ network_ops 在非 PlaywrightDriver 下的错误处理。
 import pytest
 from unittest.mock import MagicMock, patch
 from core.keyword_engine import KeywordEngine, _add_parsed_arg, _coerce_value
+from core.exceptions import InvalidParameterError
+
+
+class TestDataRefValidation:
+    """data 参数格式校验测试"""
+
+    def _make_engine(self):
+        driver = MagicMock()
+        model_parser = MagicMock()
+        data_manager = MagicMock()
+        engine = KeywordEngine(driver=driver, model_parser=model_parser, data_manager=data_manager)
+        return engine, model_parser, data_manager
+
+    def test_type_rejects_table_prefixed_data_id(self):
+        engine, model_parser, data_manager = self._make_engine()
+        model_parser.get_model.return_value = {"username": {}}
+
+        with pytest.raises(InvalidParameterError, match="不能包含表名前缀"):
+            engine._batch_type("LoginForm", "LoginSQLite.L001")
+
+        data_manager.get_data.assert_not_called()
+
+    def test_send_rejects_table_prefixed_data_id(self):
+        engine, model_parser, data_manager = self._make_engine()
+        model_parser.get_model.return_value = {"_url": {}, "username": {}, "password": {}}
+
+        with pytest.raises(InvalidParameterError, match="不能包含表名前缀"):
+            engine._batch_send("LoginAPI", "LoginSQLite.D001")
+
+        data_manager.get_data.assert_not_called()
+
+    def test_verify_rejects_table_prefixed_data_id(self):
+        engine, model_parser, data_manager = self._make_engine()
+        model_parser.get_model.return_value = {"username": {}}
+
+        with pytest.raises(InvalidParameterError, match="不能包含表名前缀"):
+            engine._batch_verify("LoginForm", "LoginSQLite.V001")
+
+        data_manager.get_data.assert_not_called()
 
 
 class TestBuiltinRegistry:
@@ -368,3 +407,62 @@ class TestNetworkOpsValidation:
         driver = PlaywrightDriver()
         driver.page = mock_page or MagicMock()
         return driver
+
+
+class TestNetworkOpsWithPlaywrightDriver:
+    """测试 network_ops 在 Playwright 驱动下的实际调用链"""
+
+    @staticmethod
+    def _make_driver(page=None):
+        PlaywrightDriver = type("PlaywrightDriver", (), {})
+        driver = PlaywrightDriver()
+        driver.page = page or MagicMock()
+        return driver
+
+    def test_mock_route_calls_page_route(self):
+        """mock_route 调用 driver.page.route(url, handler)"""
+        from builtin_ops.network_ops import mock_route
+
+        mock_page = MagicMock()
+        driver = self._make_driver(mock_page)
+
+        mock_route("/api/data", status=200, body="[]", _context={"driver": driver})
+
+        mock_page.route.assert_called_once()
+        call_args = mock_page.route.call_args
+        assert call_args[0][0] == "/api/data"
+        assert callable(call_args[0][1])
+
+    def test_clear_routes_calls_unroute_all(self):
+        """clear_routes 调用 driver.page.unroute_all()"""
+        from builtin_ops.network_ops import clear_routes
+
+        mock_page = MagicMock()
+        driver = self._make_driver(mock_page)
+
+        result = clear_routes(_context={"driver": driver})
+
+        assert result is True
+        mock_page.unroute_all.assert_called_once_with()
+
+    def test_wait_for_response_calls_expect_response(self):
+        """wait_for_response 调用 page.wait_for_response 并返回响应信息"""
+        from builtin_ops.network_ops import wait_for_response
+
+        mock_response = MagicMock()
+        mock_response.url = "http://localhost/api/users"
+        mock_response.status = 200
+        mock_response.text.return_value = '[{"id": 1}]'
+
+        mock_page = MagicMock()
+        mock_page.wait_for_response.return_value = mock_response
+        driver = self._make_driver(mock_page)
+
+        result = wait_for_response("/api/users", timeout=5, _context={"driver": driver})
+
+        mock_page.wait_for_response.assert_called_once()
+        predicate = mock_page.wait_for_response.call_args[0][0]
+        # 验证 predicate 做子串匹配
+        assert predicate(mock_response) is True
+        assert result["status"] == 200
+        assert result["url"] == "http://localhost/api/users"
