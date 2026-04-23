@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-grid123'; style-src 'unsafe-inline';">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--vscode-font-family); font-size: 13px; color: var(--vscode-foreground); background: var(--vscode-editor-background); display: flex; height: 100vh; overflow: hidden; }
+
+  /* Sidebar */
+  #sidebar { width: 200px; min-width: 150px; border-right: 1px solid var(--vscode-panel-border); display: flex; flex-direction: column; }
+  #search-box { padding: 6px; border-bottom: 1px solid var(--vscode-panel-border); }
+  #search-box input { width: 100%; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border, transparent); padding: 3px 6px; font-size: 12px; }
+  #table-list { flex: 1; overflow-y: auto; }
+  .table-item { padding: 5px 10px; cursor: pointer; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .table-item:hover { background: var(--vscode-list-hoverBackground); }
+  .table-item.active { background: var(--vscode-list-activeSelectionBackground); color: var(--vscode-list-activeSelectionForeground); }
+
+  /* Main */
+  #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  #toolbar { padding: 5px 8px; border-bottom: 1px solid var(--vscode-panel-border); display: flex; gap: 6px; align-items: center; }
+  #toolbar span { font-size: 12px; color: var(--vscode-descriptionForeground); margin-right: auto; }
+  button { background: var(--vscode-button-background); color: var(--vscode-button-foreground); border: none; padding: 3px 10px; cursor: pointer; font-size: 12px; }
+  button:hover { background: var(--vscode-button-hoverBackground); }
+  #grid-wrap { flex: 1; overflow: auto; }
+  table { border-collapse: collapse; min-width: 100%; }
+  th { background: var(--vscode-editorGroupHeader-tabsBackground); padding: 4px 8px; text-align: left; border: 1px solid var(--vscode-panel-border); position: sticky; top: 0; font-size: 12px; white-space: nowrap; }
+  td { padding: 3px 8px; border: 1px solid var(--vscode-panel-border); white-space: nowrap; max-width: 300px; overflow: hidden; text-overflow: ellipsis; }
+  td.editing { padding: 0; }
+  td input { width: 100%; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-focusBorder); padding: 3px 8px; font-size: 13px; }
+  tr:hover td { background: var(--vscode-list-hoverBackground); }
+  td.id-col { color: var(--vscode-descriptionForeground); font-size: 11px; }
+  .del-btn { background: none; color: var(--vscode-errorForeground); padding: 1px 4px; font-size: 11px; border: none; cursor: pointer; }
+  #empty { padding: 20px; color: var(--vscode-descriptionForeground); font-size: 12px; }
+</style>
+</head>
+<body>
+<div id="sidebar">
+  <div id="search-box"><input id="search" placeholder="Filter tables..." /></div>
+  <div id="table-list"></div>
+</div>
+<div id="main">
+  <div id="toolbar">
+    <span id="table-title">—</span>
+    <button id="btn-add-row">+ Row</button>
+    <button id="btn-import">Import</button>
+    <button id="btn-export">Export</button>
+    <button id="btn-delete-table" style="background:var(--vscode-inputValidation-errorBackground)">Delete</button>
+  </div>
+  <div id="grid-wrap"><div id="empty">Select a table from the left panel.</div></div>
+</div>
+<script nonce="grid123" src="{{gridJsUri}}"></script>
+</body>
+</html>

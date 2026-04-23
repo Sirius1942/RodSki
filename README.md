@@ -4,15 +4,15 @@
 
 > Agent 负责思考，RodSki 负责稳定执行。
 >
-> 测试数据层支持 XML + SQLite 共存：`data.xml` / `data_verify.xml` 仍保留为固定 XML 入口，`data/testdata.sqlite` 作为可选且推荐的主存储；混合模式受支持，但不推荐作为常态。
+> 测试数据层支持 XML + SQLite 共存：`data.xml` / `data_verify.xml` 仍保留为固定 XML 入口，`data/data.sqlite` 作为可选且推荐的主存储；混合模式受支持，但不推荐作为常态。
 
 ## 特性
 
 - **结构化 XML 协议** — model / case / data 活文档，Agent 可读可写
-- **SQLite 测试数据主路径** — 支持 `data/testdata.sqlite` 与 XML 共存，混合模式兼容但不推荐
+- **SQLite 测试数据主路径** — 支持 `data/data.sqlite` 与 XML 共存，混合模式兼容但不推荐
 - **多平台确定性执行** — Web / Android / iOS / Desktop 统一关键字
 - **视觉定位能力** — OmniParser + LLM 语义定位（可选 AI 能力层）
-- **Agent 友好 CLI** — run / validate / explain / dry-run，后续扩展 data / init 子命令
+- **Agent 友好 CLI** — run / data / init / explain / dry-run
 - **活文档模式** — Agent 写 XML → RodSki 执行 → 结果反馈 → Agent 分析
 - **智能等待** — 自动处理元素加载延迟，零配置开箱即用
 - **智能诊断** — AI 辅助失败分析与恢复建议（可选）
@@ -66,16 +66,34 @@ rodski run case/ --output-format json
 # 解释用例（自然语言）
 rodski explain case/login.xml
 
-# 数据表快速查看/校验（规划中的 SQLite 共存 CLI）
-rodski data list rodski-demo/
-rodski data validate rodski-demo/ --strict
+# 查看模块中的逻辑表（XML + SQLite 统一视图）
+rodski data list rodski-demo/DEMO/demo_full/
 
-# 初始化标准测试模块骨架（规划中的 init CLI）
+# 查看逻辑表字段
+rodski data schema rodski-demo/DEMO/demo_full/ RegisterAPI
+
+# 查看指定数据行
+rodski data show rodski-demo/DEMO/demo_full/ RegisterAPI L001
+
+# 校验数据层（strict 会额外检查 XML 列漂移）
+rodski data validate rodski-demo/DEMO/demo_full/ --strict
+
+# 初始化标准测试模块骨架
 rodski init /path/to/MyTestModule --with-verify --with-sqlite
 
 # 干跑模式（仅验证不执行）
 rodski run case/ --dry-run
 ```
+
+### SQLite 测试数据使用规则
+
+- `data/data.sqlite` 是 `data/` 目录下唯一固定的 SQLite 测试数据文件
+- 同一 `data/` 目录下的 DB 数据统一保存在 `data.sqlite`
+- 逻辑表名必须与模型名强一致
+- Case 中 `data` 只写 DataID（如 `L001` / `D001` / `V001`），不写 `表名.DataID`
+- `type` / `send` / `DB` 默认按模型名查找同名逻辑表
+- `verify` 默认按 `{model}_verify` 查找验证表
+- XML 与 SQLite 可以共存，但同名逻辑表跨源时必须报错
 
 ### rodski-agent (AI Agent 层)
 
@@ -135,7 +153,7 @@ RodSki/
 | [Agent 集成指南](rodski/docs/AGENT_INTEGRATION.md) | Agent 接入主入口 |
 | [用例编写指南](rodski/docs/TEST_CASE_WRITING_GUIDE.md) | XML + SQLite 数据组织与用例编写规范 |
 | [核心设计约束](rodski/docs/CORE_DESIGN_CONSTRAINTS.md) | 框架不可违反的设计约束 |
-| [数据文件组织](rodski/docs/DATA_FILE_ORGANIZATION.md) | `data.xml` / `data_verify.xml` / `testdata.sqlite` 组织规则 |
+| [数据文件组织](rodski/docs/DATA_FILE_ORGANIZATION.md) | `data.xml` / `data_verify.xml` / `data.sqlite` 组织规则 |
 | [关键字参考](rodski/docs/SKILL_REFERENCE.md) | 全部关键字语法说明 |
 | [架构说明](rodski/docs/ARCHITECTURE.md) | 框架内部架构 |
 | [视觉定位](rodski/docs/VISION_LOCATION.md) | OmniParser 视觉定位能力 |

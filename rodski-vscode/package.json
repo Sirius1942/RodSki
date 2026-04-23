@@ -1,0 +1,78 @@
+{
+  "name": "rodski-vscode",
+  "displayName": "RodSki Data Editor",
+  "version": "0.1.0",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "activationEvents": [
+    "workspaceContains:**/data.sqlite"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "views": {
+      "explorer": [
+        {
+          "id": "rodskiTables",
+          "name": "RodSki Tables"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "rodski.openTable",
+        "title": "Open Table"
+      },
+      {
+        "command": "rodski.openDb",
+        "title": "Open with RodSki Tables"
+      },
+      {
+        "command": "rodski.addTable",
+        "title": "RodSki: Add Table"
+      },
+      {
+        "command": "rodski.deleteTable",
+        "title": "RodSki: Delete Table"
+      },
+      {
+        "command": "rodski.refresh",
+        "title": "RodSki: Refresh"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "rodski.openDb",
+          "when": "resourceFilename == data.sqlite",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "rodski.deleteTable",
+          "when": "viewItem == rodskiTable",
+          "group": "inline"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "sql.js": "^1.14.1",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/sql.js": "^1.4.11",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/local/rodski-vscode"
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  }
+}

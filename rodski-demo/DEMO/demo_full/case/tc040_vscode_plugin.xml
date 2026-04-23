@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases step_wait="1000">
+
+    <!-- TC040: 启动 VSCode，执行 RodSki: Refresh，截图验证 -->
+    <case execute="是" id="TC040" title="VSCode插件-打开RodSki表格视图" component_type="界面">
+        <pre_process>
+            <test_step action="run" model="desktop_ops" data="launch_vscode.py"/>
+            <test_step action="wait" model="" data="4"/>
+        </pre_process>
+        <test_case>
+            <test_step action="screenshot" model="" data="tc040_01_vscode_opened.png"/>
+            <test_step action="run" model="desktop_ops" data="open_command_palette.py"/>
+            <test_step action="wait" model="" data="1"/>
+            <test_step action="run" model="desktop_ops" data="run_rodski_refresh.py"/>
+            <test_step action="wait" model="" data="2"/>
+            <test_step action="screenshot" model="" data="tc040_02_after_refresh.png"/>
+        </test_case>
+        <post_process>
+            <test_step action="run" model="desktop_ops" data="close_tab.py"/>
+        </post_process>
+    </case>
+
+</cases>

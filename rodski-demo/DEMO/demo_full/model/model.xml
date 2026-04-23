@@ -409,4 +409,43 @@
         <location type="field">password</location>
     </element>
 </model>
+
+<model name="RegisterAPIResult" type="interface" servicename="">
+    <element name="success" type="field">
+        <location type="field">success</location>
+    </element>
+    <element name="status" type="field">
+        <location type="field">status</location>
+    </element>
+    <element name="message" type="field">
+        <location type="field">message</location>
+    </element>
+    <element name="user_id" type="field">
+        <location type="field">data.user_id</location>
+    </element>
+    <element name="username" type="field">
+        <location type="field">data.username</location>
+    </element>
+</model>
+
+<model name="VSCodeExplorer" type="ui" servicename="">
+    <element name="dataSqliteFile" type="element">
+        <location type="vision">data.sqlite 文件</location>
+    </element>
+    <element name="openWithRodski" type="element">
+        <location type="vision">Open with RodSki Tables 菜单项</location>
+    </element>
+</model>
+
+<model name="RodskiTablePanel" type="ui" servicename="">
+    <element name="tableHeader" type="element">
+        <location type="vision">表格列标题行</location>
+    </element>
+    <element name="firstCell" type="element">
+        <location type="vision">表格第一行第一个数据单元格</location>
+    </element>
+    <element name="addRowBtn" type="button">
+        <location type="vision">+ Add Row 按钮</location>
+    </element>
+</model>
 </models>
