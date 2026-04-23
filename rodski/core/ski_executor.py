@@ -22,19 +22,19 @@ from collections import deque
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional, Callable, List, Deque
-from core.model_parser import ModelParser
-from core.data_table_parser import DataTableParser
-from core.global_value_parser import GlobalValueParser
-from core.case_parser import CaseParser
-from core.result_writer import ResultWriter, write_execution_summary
-from core.config_manager import ConfigManager
+from .model_parser import ModelParser
+from .data_table_parser import DataTableParser
+from .global_value_parser import GlobalValueParser
+from .case_parser import CaseParser
+from .result_writer import ResultWriter, write_execution_summary
+from .config_manager import ConfigManager
 from data.data_resolver import DataResolver
-from core.keyword_engine import KeywordEngine
-from core.dynamic_executor import DynamicExecutor
-from drivers.base_driver import BaseDriver
+from .keyword_engine import KeywordEngine
+from .dynamic_executor import DynamicExecutor
+from ..drivers.base_driver import BaseDriver
 
-from core.exceptions import DriverStoppedError, AssertionFailedError, is_critical_error
-from core.runtime_control import (
+from .exceptions import DriverStoppedError, AssertionFailedError, is_critical_error
+from .runtime_control import (
     BaseRuntimeControl,
     GracefulRunTermination,
     ForceRunTermination,

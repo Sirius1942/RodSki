@@ -11,7 +11,7 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 
-from core.xml_schema_validator import RodskiXmlValidator
+from .xml_schema_validator import RodskiXmlValidator
 
 logger = logging.getLogger("rodski")
 

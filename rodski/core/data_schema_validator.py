@@ -1,7 +1,7 @@
 """数据 schema 校验器 — SQLite schema 完整性与行字段一致性校验"""
 from typing import Dict, Any, List
 
-from core.exceptions import DataParseError
+from .exceptions import DataParseError
 
 
 class DataSchemaValidator:

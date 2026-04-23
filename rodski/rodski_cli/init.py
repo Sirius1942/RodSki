@@ -3,7 +3,7 @@ import sys
 import sqlite3
 from pathlib import Path
 
-from core.sqlite_schema import SQLITE_DDL
+from ..core.sqlite_schema import SQLITE_DDL
 
 
 _MODEL_XML = '<?xml version="1.0" encoding="UTF-8"?>\n<models>\n</models>\n'

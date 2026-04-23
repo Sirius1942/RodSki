@@ -7,9 +7,9 @@ import sys
 import time
 from typing import Dict, Any, Optional, List, Tuple, Union
 from pathlib import Path
-from drivers.base_driver import BaseDriver
-from core.performance import monitor_performance
-from core.exceptions import (
+from ..drivers.base_driver import BaseDriver
+from .performance import monitor_performance
+from .exceptions import (
     UnknownKeywordError,
     InvalidParameterError,
     RetryExhaustedError,
@@ -22,15 +22,15 @@ from core.exceptions import (
     is_retryable_error,
     is_critical_error,
 )
-from core.assertion.image_matcher import ImageMatcher
-from core.model_parser import (
+from .assertion.image_matcher import ImageMatcher
+from .model_parser import (
     ModelParser,
     MODEL_TYPE_UI,
     MODEL_TYPE_INTERFACE,
     LEGACY_DRIVER_TYPE_WEB,
     LEGACY_DRIVER_TYPE_INTERFACE,
 )
-from core.runtime_context import RuntimeContext
+from .runtime_context import RuntimeContext
 
 logger = logging.getLogger("rodski")
 

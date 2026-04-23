@@ -9,8 +9,8 @@
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-from core.data_schema_validator import DataSchemaValidator
-from core.exceptions import DataParseError
+from .data_schema_validator import DataSchemaValidator
+from .exceptions import DataParseError
 
 
 class DataTableParser:
