@@ -63,8 +63,8 @@ MAJOR.MINOR.PATCH
 
 ## 5. 当前版本
 
-- 最新发布：**v5.8.1**
-- 对应路线图：v7 Phase 4-6 全部交付 + verify 失败语义修复
+- 最新发布：**v6.1.0**
+- 对应路线图：VSCode 数据表管理插件
 
 ## 6. 版本历史摘要
 
@@ -73,13 +73,42 @@ MAJOR.MINOR.PATCH
 | 5.0.0 | v5 | Excel → XML 迁移（Breaking Change → MAJOR） |
 | 5.1.0 ~ 5.3.2 | v5 | 契约统一、DB 支持、Bug 修复 |
 | 5.4.0 ~ 5.7.1 | v6 | 视觉定位、桌面自动化、Agent 架构 |
-| **5.8.1** | **v7** | verify 严格全匹配失败语义修复（PATCH） |
-| **5.8.0** | **v7** | 报告系统、可观测性、KPI、tags、elif、网络拦截 |
+| 5.8.0 ~ 5.8.1 | v7 | 报告系统、可观测性、KPI、tags、elif、网络拦截 |
+| 6.0.0 | v8 | 废弃 data.xml，统一 SQLite 数据层 |
+| **6.1.0** | **v8** | VSCode 数据表管理插件 rodski-vscode |
 
-## 7. 分支与版本对应
+## 7. 发布流程规范
+
+每次发布需完成以下步骤：
+
+```bash
+# 1. 更新版本号
+# pyproject.toml → version = "X.Y.Z"
+# rodski-vscode/package.json → version = "X.Y.Z"（如有 VSCode 插件变更）
+
+# 2. 运行全量测试（确认无新增失败）
+PYTHONPATH=rodski python3 -m rodski.ski_run rodski-demo/DEMO/demo_full/case/demo_case.xml
+
+# 3. 提交代码
+git add <files>
+git commit -m "release(vX.Y.Z): ..."
+git tag vX.Y.Z
+
+# 4. 推送到 GitHub
+git push origin main --tags
+
+# 5. 发布到 PyPI
+python3 -m build
+python3 -m twine upload dist/rodski-X.Y.Z*
+
+# 6. 创建 GitHub Release（附 .vsix 文件如有）
+gh release create vX.Y.Z [附件] --title "..." --notes "..."
+```
+
+## 8. 分支与版本对应
 
 | 类型 | 分支命名 | 版本示例 |
 |-----|---------|---------|
-| 功能迭代 | `feature/xxx` → merge to `main` | v5.8.0 |
-| Bug 修复 | `fix/xxx` → merge to `main` | v5.8.1 |
-| 大版本 | `release/v6.0.0` | v6.0.0 |
+| 功能迭代 | `feature/xxx` → merge to `main` | v6.1.0 |
+| Bug 修复 | `fix/xxx` → merge to `main` | v6.1.1 |
+| 大版本 | `release/v7.0.0` | v7.0.0 |
