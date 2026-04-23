@@ -1,5 +1,4 @@
 """关键字引擎 - 支持14个操作关键字（UI / API / DB / Code）"""
-import cv2
 import json
 import logging
 import subprocess

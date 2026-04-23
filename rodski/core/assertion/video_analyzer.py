@@ -1,12 +1,16 @@
 """视频分析器 - 提取视频关键帧并与预期图片进行匹配"""
-import cv2
 import logging
 import time
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 
-import numpy as np
+try:
+    import cv2
+    import numpy as np
+except ImportError:
+    cv2 = None  # type: ignore
+    np = None   # type: ignore
 
 from .base_assertion import BaseAssertion
 

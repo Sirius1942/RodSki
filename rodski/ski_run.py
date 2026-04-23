@@ -22,18 +22,13 @@ import argparse
 from pathlib import Path
 from .core.ski_executor import SKIExecutor, resolve_module_dir
 from .core.logger import Logger
-from .drivers.playwright_driver import PlaywrightDriver
 
 
 def create_driver(headless: bool = False, browser: str = "chromium", driver_type: str = "web"):
-    """驱动工厂函数：根据类型创建对应的驱动实例
-
-    驱动类型由模型元素的 type 属性决定（设计约束），
-    此函数由 KeywordEngine 按需调用。
-    """
     if driver_type in ("macos", "windows"):
         from .drivers.desktop_driver import DesktopDriver
         return DesktopDriver(target_platform=driver_type)
+    from .drivers.playwright_driver import PlaywrightDriver
     return PlaywrightDriver(headless=headless, browser=browser)
 
 

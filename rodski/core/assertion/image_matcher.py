@@ -1,5 +1,4 @@
 """图片匹配器 - 使用 OpenCV 模板匹配实现图片断言"""
-import cv2
 import logging
 import time
 import uuid
@@ -7,7 +6,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-import numpy as np
+try:
+    import cv2
+    import numpy as np
+except ImportError:
+    cv2 = None  # type: ignore
+    np = None   # type: ignore
 
 from .base_assertion import BaseAssertion
 

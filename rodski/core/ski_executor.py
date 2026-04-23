@@ -28,7 +28,7 @@ from .global_value_parser import GlobalValueParser
 from .case_parser import CaseParser
 from .result_writer import ResultWriter, write_execution_summary
 from .config_manager import ConfigManager
-from data.data_resolver import DataResolver
+from ..data.data_resolver import DataResolver
 from .keyword_engine import KeywordEngine
 from .dynamic_executor import DynamicExecutor
 from ..drivers.base_driver import BaseDriver
