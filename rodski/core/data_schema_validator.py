@@ -19,16 +19,12 @@ class DataSchemaValidator:
             expected = set(schemas[table_name])
             for data_id, row_data in rows.items():
                 actual = set(row_data.keys())
-                if actual != expected:
-                    missing = expected - actual
-                    extra = actual - expected
-                    parts = []
-                    if missing:
-                        parts.append(f"缺少字段: {sorted(missing)}")
-                    if extra:
-                        parts.append(f"多余字段: {sorted(extra)}")
+                # 允许行只包含 schema 的部分字段（缺失字段代表不执行对应操作）
+                # 但不允许出现 schema 中不存在的多余字段
+                extra = actual - expected
+                if extra:
                     raise DataParseError(
                         f"SQLite 逻辑表 '{table_name}' 行 '{data_id}' "
-                        f"字段集合与 schema 不一致 — {'; '.join(parts)}"
+                        f"包含 schema 中未定义的字段: {sorted(extra)}"
                     )
 
