@@ -31,7 +31,10 @@ class DataTableParser:
                 )
 
         if self.sqlite_file.exists():
-            from core.sqlite_data_source import SQLiteDataSource
+            try:
+                from .sqlite_data_source import SQLiteDataSource
+            except ImportError:
+                from core.sqlite_data_source import SQLiteDataSource
             if self._sqlite_source:
                 self._sqlite_source.close()
             self._sqlite_source = SQLiteDataSource(str(self.sqlite_file))

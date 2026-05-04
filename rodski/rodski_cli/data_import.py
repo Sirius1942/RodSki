@@ -4,7 +4,10 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Dict, Any
 
-from ..core.sqlite_schema import SQLITE_DDL
+try:
+    from ..core.sqlite_schema import SQLITE_DDL
+except ImportError:
+    from core.sqlite_schema import SQLITE_DDL
 
 
 def run_import(module: str, overwrite: bool = False) -> int:

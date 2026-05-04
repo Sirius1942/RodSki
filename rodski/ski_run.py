@@ -20,15 +20,29 @@ case_path 支持:
 import sys
 import argparse
 from pathlib import Path
-from .core.ski_executor import SKIExecutor, resolve_module_dir
-from .core.logger import Logger
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from rodski.core.ski_executor import SKIExecutor, resolve_module_dir
+    from rodski.core.config_manager import ConfigManager
+    from rodski.core.logger import Logger
+else:
+    from .core.ski_executor import SKIExecutor, resolve_module_dir
+    from .core.config_manager import ConfigManager
+    from .core.logger import Logger
 
 
 def create_driver(headless: bool = False, browser: str = "chromium", driver_type: str = "web"):
     if driver_type in ("macos", "windows"):
-        from .drivers.desktop_driver import DesktopDriver
+        if __package__ in (None, ""):
+            from rodski.drivers.desktop_driver import DesktopDriver
+        else:
+            from .drivers.desktop_driver import DesktopDriver
         return DesktopDriver(target_platform=driver_type)
-    from .drivers.playwright_driver import PlaywrightDriver
+    if __package__ in (None, ""):
+        from rodski.drivers.playwright_driver import PlaywrightDriver
+    else:
+        from .drivers.playwright_driver import PlaywrightDriver
     return PlaywrightDriver(headless=headless, browser=browser)
 
 
@@ -47,6 +61,22 @@ def resolve_case_path(input_path: Path) -> Path:
     return input_path
 
 
+def apply_recording_args(config: ConfigManager, args) -> ConfigManager:
+    recording = dict(config.get("recording", {}) or {})
+    if args.record:
+        recording["enabled"] = True
+    if args.record_mode:
+        recording["mode"] = args.record_mode
+        if args.record_mode == "off":
+            recording["enabled"] = False
+    if args.record_scope:
+        recording["scope"] = args.record_scope
+    if args.record_monitor is not None:
+        recording["monitor_id"] = args.record_monitor
+    config.config["recording"] = recording
+    return config
+
+
 def main():
     parser = argparse.ArgumentParser(description="RodSki 测试运行器（XML 版本）")
     parser.add_argument("case_path", help="用例 XML 文件路径、case/ 目录路径或测试模块目录路径")
@@ -57,6 +87,13 @@ def main():
                         default="INFO", help="日志等级 (默认: INFO)")
     parser.add_argument("--verbose", action="store_true", help="详细模式（等同 DEBUG）")
     parser.add_argument("--quiet", action="store_true", help="静默模式（仅 ERROR）")
+    parser.add_argument("--record", action="store_true", help="启用本次执行的视频录制")
+    parser.add_argument("--record-mode", choices=["auto", "screen", "playwright", "off"],
+                        default=None, help="录制模式 (默认读取配置)")
+    parser.add_argument("--record-scope", choices=["target", "full_screen", "all_screens"],
+                        default=None, help="屏幕录制范围 (默认读取配置)")
+    parser.add_argument("--record-monitor", type=int, default=None,
+                        help="屏幕录制 monitor_id，未指定则自动选择目标/主屏")
     args = parser.parse_args()
 
     # 确定日志等级
@@ -91,9 +128,12 @@ def main():
 
     driver = create_driver(headless=args.headless, browser=args.browser)
 
+    config = apply_recording_args(ConfigManager(), args)
+
     executor = SKIExecutor(
         str(case_path),
         driver,
+        config=config,
         driver_factory=lambda driver_type="web": create_driver(
             headless=args.headless, browser=args.browser, driver_type=driver_type
         ),

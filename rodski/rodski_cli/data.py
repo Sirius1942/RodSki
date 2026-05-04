@@ -39,7 +39,10 @@ def setup_parser(subparsers):
 
 
 def _load(module: str):
-    from core.data_table_parser import DataTableParser
+    try:
+        from ..core.data_table_parser import DataTableParser
+    except ImportError:
+        from core.data_table_parser import DataTableParser
     data_dir = Path(module) / "data"
     if not data_dir.exists():
         print(f"错误: 数据目录不存在: {data_dir}", file=sys.stderr)
@@ -99,7 +102,10 @@ def handle(args):
             print(f"  ... (共 {len(rows)} 行，已截断至 {args.limit})")
 
     elif cmd == "validate":
-        from core.exceptions import DataParseError
+        try:
+            from ..core.exceptions import DataParseError
+        except ImportError:
+            from core.exceptions import DataParseError
         try:
             dm = _load(args.module)
         except DataParseError as e:
@@ -108,7 +114,10 @@ def handle(args):
         print(f"[OK] {len(dm.tables)} 张逻辑表校验通过")
 
     elif cmd == "import":
-        from rodski_cli.data_import import run_import
+        try:
+            from .data_import import run_import
+        except ImportError:
+            from rodski_cli.data_import import run_import
         return run_import(args.module, overwrite=args.overwrite)
 
     return 0

@@ -29,11 +29,15 @@ class ScreenRecorder:
         output_dir: str = "screenshots/",
         fps: int = 10,
         max_duration: int = 600,
+        scope: str = "target",
+        monitor_id: Optional[int] = None,
     ):
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.fps = fps
         self.max_duration = max_duration
+        self.scope = scope
+        self.monitor_id = monitor_id
 
         self._recording = False
         self._stop_event = threading.Event()
@@ -44,17 +48,20 @@ class ScreenRecorder:
         # 延迟导入，避免在未安装时立即报错
         self._mss = None
         self._cv2 = None
+        self._np = None
         self._errors: list = []
 
     def _import_deps(self) -> bool:
         """尝试导入依赖，返回是否成功"""
-        if self._mss is not None and self._cv2 is not None:
+        if self._mss is not None and self._cv2 is not None and self._np is not None:
             return True
         try:
             import mss
             import cv2
+            import numpy as np
             self._mss = mss
             self._cv2 = cv2
+            self._np = np
             return True
         except ImportError as e:
             self._errors.append(str(e))
@@ -122,12 +129,21 @@ class ScreenRecorder:
         logger.info(f"屏幕录制已保存: {output}")
         return output
 
+    def _select_monitor(self, sct):
+        monitors = list(sct.monitors)
+        if self.scope == "all_screens":
+            return monitors[0]
+        if self.monitor_id is not None and 0 <= self.monitor_id < len(monitors):
+            return monitors[self.monitor_id]
+        if len(monitors) > 1:
+            return monitors[1]
+        return monitors[0]
+
     def _record_loop(self) -> None:
         """录制主循环，在独立线程中运行"""
         try:
             with self._mss.mss() as sct:
-                monitor = sct.monitors[0]  # 全屏
-                # 获取屏幕尺寸
+                monitor = self._select_monitor(sct)
                 screen_w = monitor["width"]
                 screen_h = monitor["height"]
 
@@ -176,9 +192,8 @@ class ScreenRecorder:
 
                     # 截图
                     sct_img = sct.grab(monitor)
-                    # 转换为 numpy 数组 (BGR 格式 for opencv)
                     img = self._cv2.cvtColor(
-                        self._cv2.array_to_img(sct_img),
+                        self._np.array(sct_img),
                         self._cv2.COLOR_BGRA2BGR,
                     )
 

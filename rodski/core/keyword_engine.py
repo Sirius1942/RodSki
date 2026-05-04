@@ -6,7 +6,10 @@ import sys
 import time
 from typing import Dict, Any, Optional, List, Tuple, Union
 from pathlib import Path
-from ..drivers.base_driver import BaseDriver
+try:
+    from ..drivers.base_driver import BaseDriver
+except ImportError:
+    from drivers.base_driver import BaseDriver
 from .performance import monitor_performance
 from .exceptions import (
     UnknownKeywordError,
@@ -18,10 +21,12 @@ from .exceptions import (
     DriverStoppedError,
     DriverError,
     AssertionFailedError,
+    AutoCaptureError,
     is_retryable_error,
     is_critical_error,
 )
 from .assertion.image_matcher import ImageMatcher
+from .assertion.video_analyzer import VideoAnalyzer
 from .model_parser import (
     ModelParser,
     MODEL_TYPE_UI,
@@ -134,10 +139,14 @@ class KeywordEngine:
         self._db_connections: Dict[str, Any] = {}
         self._case_file = Path(case_file) if case_file else None
         self._module_dir = Path(module_dir) if module_dir else None
-        
+        self._current_recording_path: Optional[str] = None
+
         # 初始化重试配置
         self._retry_config = {**self.DEFAULT_RETRY_CONFIG, **(retry_config or {})}
         self._retry_stats: Dict[str, List[int]] = {}
+
+    def set_current_recording_path(self, path: Optional[str]) -> None:
+        self._current_recording_path = path
 
     # ── 驱动自动路由 ──────────────────────────────────────────────
 
@@ -169,7 +178,10 @@ class KeywordEngine:
 
         # 回退：直接创建 DesktopDriver
         try:
+            from ..drivers.desktop_driver import DesktopDriver
+        except ImportError:
             from drivers.desktop_driver import DesktopDriver
+        try:
             desktop_driver = DesktopDriver(target_platform=driver_type if driver_type != "other" else None)
             self._desktop_drivers[driver_type] = desktop_driver
             logger.info(f"直接创建桌面驱动: {driver_type}")
@@ -785,7 +797,7 @@ class KeywordEngine:
                 continue
 
             resolved_values[element_name] = value
-            target_driver = self._get_driver_for_type(LEGACY_DRIVER_TYPE_WEB)
+            target_driver = self._get_driver_for_type(self.model_parser.get_model_driver_type(model_name))
 
             locations = element_info.get('locations', [])
             if not locations:
@@ -850,7 +862,6 @@ class KeywordEngine:
         return True
 
     def _run_auto_capture_ui(self, model_name: str, fields: list) -> dict:
-        from core.exceptions import AutoCaptureError
         result = {}
         for f in fields:
             loc_type = f.get('type', 'id')
@@ -870,7 +881,6 @@ class KeywordEngine:
         return result
 
     def _run_auto_capture_send(self, response: dict, fields: list) -> dict:
-        from core.exceptions import AutoCaptureError
         result = {}
         for f in fields:
             name = f['name']
@@ -1012,7 +1022,10 @@ class KeywordEngine:
                 reason="接口模型或数据中缺少 _url（请求地址）"
             )
 
-        from api.rest_helper import RestHelper
+        try:
+            from ..api.rest_helper import RestHelper
+        except ImportError:
+            from api.rest_helper import RestHelper
 
         # 从浏览器获取 cookies 以共享登录态
         browser_cookies = None
@@ -1106,21 +1119,20 @@ class KeywordEngine:
         data_ref = params.get("data", "")
 
         # 批量模式: launch ModelName DataID
-        if model_name and data_ref and self.model_parser:
-            model_type = self.model_parser.get_model_type(model_name)
-            if model_type == MODEL_TYPE_INTERFACE:
-                raise InvalidParameterError(
-                    keyword="launch",
-                    param_name="model",
-                    reason=f"launch 不支持接口模型: '{model_name}'"
-                )
-            driver_type = self.model_parser.get_model_driver_type(model_name)
-            if driver_type == LEGACY_DRIVER_TYPE_WEB:
-                result = self._execute_navigate(model_name, data_ref)
-            else:
-                result = self._execute_desktop_launch(model_name, data_ref)
-            self.store_return(True)
-            return result
+        if model_type == MODEL_TYPE_INTERFACE:
+            raise InvalidParameterError(
+                keyword="launch",
+                param_name="model",
+                reason=f"launch 不支持接口模型: '{model_name}'"
+            )
+        driver_type = self.model_parser.get_model_driver_type(model_name) if self.model_parser else LEGACY_DRIVER_TYPE_WEB
+        target_driver = self._get_driver_for_type(driver_type)
+        if driver_type == LEGACY_DRIVER_TYPE_WEB:
+            result = self._execute_navigate(model_name, data_ref)
+        else:
+            result = self._execute_desktop_launch(model_name, data_ref, target_driver)
+        self.store_return(True)
+        return result
 
         # 单参数模式: launch app_path 或 launch url
         target = params.get("app_path") or params.get("url") or data_ref
@@ -1152,16 +1164,18 @@ class KeywordEngine:
         logger.info(f"导航: {url}")
         return self.driver.navigate(url)
 
-    def _execute_desktop_launch(self, model_name: str, data_ref: str) -> bool:
+    def _execute_desktop_launch(self, model_name: str, data_ref: str, driver: Optional[BaseDriver] = None) -> bool:
         """执行 Desktop 应用启动"""
         if not self.data_manager:
             raise DriverError("data_manager 未初始化")
         data = self.data_manager.get_data(model_name, data_ref)
         app_path = data.get("app_path", "")
-        if not app_path:
-            raise InvalidParameterError("launch", "app_path", "数据中缺少 app_path 字段")
-        logger.info(f"启动应用: {app_path}")
-        return self.driver.launch(app_path=app_path)
+        app_name = data.get("app_name", "")
+        if not app_path and not app_name:
+            raise InvalidParameterError("launch", "app_path/app_name", "数据中缺少 app_path 或 app_name 字段")
+        logger.info(f"启动应用: {app_path or app_name}")
+        target_driver = driver or self.driver
+        return target_driver.launch(app_path=app_path or None, app_name=app_name or None)
 
     def _kw_screenshot(self, params: Dict) -> bool:
         """截图"""
@@ -1312,6 +1326,7 @@ class KeywordEngine:
                 )
 
             video_source = parsed.get("video_source", "recording")
+            resolved_video_source = self._current_recording_path if video_source == "recording" and self._current_recording_path else video_source
             position = parsed.get("position", "any")
             time_range_str = parsed.get("time_range", "")
 
@@ -1328,12 +1343,13 @@ class KeywordEngine:
             logger.info(
                 f"视频断言: type={assert_type}, reference={reference}, "
                 f"threshold={threshold}, video_source={video_source}, "
+                f"resolved_video_source={resolved_video_source}, "
                 f"position={position}, wait={wait}"
             )
 
             analyzer = VideoAnalyzer()
             result = analyzer.match(
-                video_source=video_source,
+                video_source=resolved_video_source,
                 reference=ref_path,
                 threshold=threshold,
                 position=position,
@@ -1344,14 +1360,7 @@ class KeywordEngine:
             )
 
             if not result["matched"]:
-                # 尝试获取/保存录屏
-                recording_path = None
-                try:
-                    from core.recording import recorder as global_recorder
-                    case_id = getattr(self, '_case_file', 'unknown') or 'unknown'
-                    recording_path = global_recorder.get_video_path(str(case_id))
-                except Exception:
-                    pass
+                recording_path = self._current_recording_path if video_source == "recording" else None
 
                 logger.warning(
                     f"视频断言失败: similarity={result['similarity']} < "
@@ -1429,6 +1438,7 @@ class KeywordEngine:
         results = {}
         mismatches = []
         model_type = self.model_parser.get_model_type(model_name)
+        target_driver = self._get_driver_for_type(self.model_parser.get_model_driver_type(model_name))
 
         for element_name, element_info in model.items():
             if element_name.startswith('__'):
@@ -1481,15 +1491,15 @@ class KeywordEngine:
             locator = f"{locator_type}={locator_value}"
 
             if model_type == MODEL_TYPE_UI:
-                if hasattr(self.driver, 'get_text_locator'):
+                if hasattr(target_driver, 'get_text_locator'):
                     if locator_type == 'id':
-                        actual = self.driver.get_text_locator(f"#{locator_value}")
+                        actual = target_driver.get_text_locator(f"#{locator_value}")
                     elif locator_type == 'css':
-                        actual = self.driver.get_text_locator(locator_value)
+                        actual = target_driver.get_text_locator(locator_value)
                     else:
-                        actual = self.driver.get_text_locator(locator)
+                        actual = target_driver.get_text_locator(locator)
                 else:
-                    actual = self.driver.get_text(locator)
+                    actual = target_driver.get_text(locator)
                 actual_str = str(actual) if actual is not None else ""
             else:
                 last_return = self.get_return(-1)
@@ -1647,7 +1657,10 @@ class KeywordEngine:
 
         logger.info(f"执行 JS: {expression[:200]}")
 
-        from drivers.playwright_driver import PlaywrightDriver
+        try:
+            from ..drivers.playwright_driver import PlaywrightDriver
+        except ImportError:
+            from drivers.playwright_driver import PlaywrightDriver
         if not isinstance(self.driver, PlaywrightDriver):
             raise DriverError("evaluate 仅支持 Web 浏览器驱动（PlaywrightDriver）")
 
@@ -1743,10 +1756,16 @@ class KeywordEngine:
         fun_dir = base_dir / "fun"
         if project_name:
             project_dir = (fun_dir / project_name).resolve()
-            script_path = (project_dir / code_path).resolve()
+            parts = code_path.split(None, 1)
+            script_file = parts[0]
+            script_args = parts[1].split() if len(parts) > 1 else []
+            script_path = (project_dir / script_file).resolve()
         else:
+            parts = code_path.split(None, 1)
+            script_file = parts[0]
+            script_args = parts[1].split() if len(parts) > 1 else []
             project_dir = fun_dir.resolve()
-            script_path = (fun_dir / code_path).resolve()
+            script_path = (fun_dir / script_file).resolve()
 
         if not script_path.exists():
             raise InvalidParameterError(
@@ -1758,7 +1777,7 @@ class KeywordEngine:
 
         try:
             result = subprocess.run(
-                [sys.executable, str(script_path)],
+                [sys.executable, str(script_path)] + script_args,
                 capture_output=True, text=True,
                 cwd=str(project_dir.resolve()),
                 timeout=300,
@@ -1861,9 +1880,12 @@ class KeywordEngine:
         func_name, args, kwargs = parsed
 
         try:
-            from builtin_ops import get_builtin
+            from ..builtin_ops import get_builtin
         except ImportError:
-            return None
+            try:
+                from builtin_ops import get_builtin
+            except ImportError:
+                return None
 
         func = get_builtin(func_name)
         if func is None:

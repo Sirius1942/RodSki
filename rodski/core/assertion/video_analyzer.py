@@ -1,4 +1,6 @@
 """视频分析器 - 提取视频关键帧并与预期图片进行匹配"""
+from __future__ import annotations
+
 import logging
 import time
 from datetime import datetime
@@ -15,6 +17,13 @@ except ImportError:
 from .base_assertion import BaseAssertion
 
 logger = logging.getLogger("rodski")
+
+
+def _require_cv_deps() -> None:
+    if cv2 is None or np is None:
+        raise RuntimeError(
+            "视频断言需要安装 OpenCV/Numpy 依赖: pip install 'rodski[recording]'"
+        )
 
 
 class VideoAnalyzer(BaseAssertion):
@@ -66,6 +75,7 @@ class VideoAnalyzer(BaseAssertion):
                 "first_match_time": float,
             }
         """
+        _require_cv_deps()
         if position not in ("start", "middle", "end", "any"):
             raise ValueError(f"position 必须是 start/middle/end/any，实际为 '{position}'")
 
@@ -161,19 +171,12 @@ class VideoAnalyzer(BaseAssertion):
         Returns:
             (frame, timestamp) 或 (None, 0) 如果提取失败
         """
+        _require_cv_deps()
         cap = None
         try:
             if video_source == "recording":
-                # 录屏模式：使用最新录制的视频文件
-                recording_dir = Path("images/assert/recordings")
-                if not recording_dir.exists():
-                    logger.warning(f"录屏目录不存在: {recording_dir}")
-                    return None, 0.0
-                video_files = sorted(recording_dir.glob("*.mp4"), key=lambda p: p.stat().st_mtime)
-                if not video_files:
-                    logger.warning("没有找到录屏文件")
-                    return None, 0.0
-                video_path = video_files[-1]
+                logger.warning("video_source=recording 需要由执行器注入当前用例录制路径")
+                return None, 0.0
             else:
                 video_path = Path(video_source)
 
@@ -243,6 +246,7 @@ class VideoAnalyzer(BaseAssertion):
         reference_img: np.ndarray,
     ) -> tuple[float, Optional[Dict[str, int]]]:
         """使用 TM_CCORR_NORMED 执行模板匹配"""
+        _require_cv_deps()
         frame_h, frame_w = frame.shape[:2]
         ref_h, ref_w = reference_img.shape[:2]
 

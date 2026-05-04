@@ -816,6 +816,53 @@ class TestVerifyKeyword:
 
 
 
+    def test_batch_type_uses_desktop_driver_type(self, mock_driver):
+        mock_model_parser = MagicMock()
+        mock_model_parser.get_model.return_value = {
+            '__model_type__': MODEL_TYPE_UI,
+            'textArea': {
+                'locator_type': 'vision_bbox',
+                'locator_value': '100,100,200,200',
+                'model_type': MODEL_TYPE_UI,
+                'locations': [{'type': 'vision_bbox', 'value': '100,100,200,200', 'priority': 1}],
+            },
+        }
+        mock_model_parser.get_model_type.return_value = MODEL_TYPE_UI
+        mock_model_parser.get_model_driver_type.return_value = 'macos'
+        mock_data_manager = MagicMock()
+        mock_data_manager.get_data.return_value = {'textArea': 'Hello'}
+
+        desktop_driver = MagicMock()
+        desktop_driver.type_locator.return_value = True
+
+        engine = KeywordEngine(mock_driver, model_parser=mock_model_parser, data_manager=mock_data_manager)
+        engine._get_driver_for_type = MagicMock(return_value=desktop_driver)
+
+        assert engine.execute('type', {'model': 'DesktopPage', 'data': 'D001'}) is True
+        engine._get_driver_for_type.assert_called_with('macos')
+        desktop_driver.type_locator.assert_called_once()
+
+    def test_verify_uses_desktop_driver_type(self, mock_driver):
+        mock_model_parser = MagicMock()
+        mock_model_parser.get_model.return_value = {
+            '__model_type__': MODEL_TYPE_UI,
+            'textArea': {'locator_type': 'vision_bbox', 'locator_value': '100,100,200,200', 'model_type': MODEL_TYPE_UI},
+        }
+        mock_model_parser.get_model_type.return_value = MODEL_TYPE_UI
+        mock_model_parser.get_model_driver_type.return_value = 'macos'
+        mock_data_manager = MagicMock()
+        mock_data_manager.get_data.return_value = {'textArea': 'Hello'}
+
+        desktop_driver = MagicMock()
+        desktop_driver.get_text_locator.return_value = 'Hello'
+
+        engine = KeywordEngine(mock_driver, model_parser=mock_model_parser, data_manager=mock_data_manager)
+        engine._get_driver_for_type = MagicMock(return_value=desktop_driver)
+
+        assert engine.execute('verify', {'model': 'DesktopPage', 'data': 'V001'}) is True
+        engine._get_driver_for_type.assert_called_with('macos')
+        desktop_driver.get_text_locator.assert_called_once()
+
     def test_type_rejects_interface_model(self, mock_driver):
         mock_model_parser = MagicMock()
         mock_model_parser.get_model.return_value = {

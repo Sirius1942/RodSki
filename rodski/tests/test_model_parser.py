@@ -74,9 +74,18 @@ def test_get_model_type(model_parser):
     assert model_parser.get_model_type("LoginAPI") == MODEL_TYPE_INTERFACE
 
 
-def test_get_model_driver_type(model_parser):
-    assert model_parser.get_model_driver_type("Login") == "web"
-    assert model_parser.get_model_driver_type("LoginAPI") == "interface"
+def test_get_model_driver_type_desktop(tmp_path):
+    xml = tmp_path / "model.xml"
+    xml.write_text('''<?xml version="1.0" encoding="UTF-8"?>
+<models>
+  <model name="DesktopPage" type="ui" driver_type="macos">
+    <element name="textArea" type="input">
+      <location type="vision_bbox">100,100,200,200</location>
+    </element>
+  </model>
+</models>''', encoding='utf-8')
+    parser = ModelParser(str(xml))
+    assert parser.get_model_driver_type("DesktopPage") == "macos"
 
 
 def test_get_element_not_found(model_parser):

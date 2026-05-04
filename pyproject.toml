@@ -4,9 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rodski"
-version = "6.1.2"
+version = "6.1.5"
 description = "RodSki - XML-driven keyword automation testing framework for AI agents"
-readme = {file = "rodski/README.md", content-type = "text/markdown"}
+readme = {file = "README.md", content-type = "text/markdown"}
 license = "MIT"
 requires-python = ">=3.9"
 authors = [
@@ -43,16 +43,18 @@ web = ["playwright>=1.40.0"]
 mobile = ["Appium-Python-Client>=3.0.0"]
 gui = ["PyQt6>=6.6.0"]
 vision = ["pillow>=10.0.0", "opencv-python-headless>=4.8.0", "numpy>=1.24.0"]
+desktop = ["pyautogui>=0.9.54", "pyperclip>=1.8.0", "mss>=9.0.1", "opencv-python>=4.8.0", "numpy>=1.24.0"]
+recording = ["mss>=9.0.1", "opencv-python>=4.8.0", "numpy>=1.24.0"]
 llm = ["anthropic>=0.18.0", "openai>=1.12.0"]
 dev = ["pytest>=7.4.0", "pytest-cov>=4.1.0", "pytest-mock>=3.12.0"]
-all = ["rodski[web,mobile,gui,vision,llm]"]
+all = ["rodski[web,mobile,gui,vision,desktop,recording,llm]"]
 
 [project.scripts]
 rodski = "rodski.cli_main:main"
 
 [project.urls]
-Homepage = "https://github.com/user/RodSki"
-Repository = "https://github.com/user/RodSki"
+Homepage = "https://github.com/Sirius1942/RodSki"
+Repository = "https://github.com/Sirius1942/RodSki"
 
 [tool.setuptools.packages.find]
 include = ["rodski", "rodski.*"]

@@ -1,6 +1,6 @@
 # 迭代规划总览
 
-**最近更新**: 2026-04-21
+**最近更新**: 2026-05-01
 
 ---
 
@@ -46,6 +46,7 @@ iteration-26 → iteration-27 → iteration-28 → iteration-29
 | 迭代 | 版本 | 状态 | 主要内容 |
 |------|------|------|----------|
 | iteration-30 | v7.0 | 🚧 进行中 | rodski-agent Wave 1 优化：报告、Trace/Network、记忆与文档 |
+| iteration-34 | v6.1.5 | ✅ 已完成 | 视频录制运行时接入：总开关、Playwright 原生录制、屏幕录制、demo 验收 |
 
 ---
 

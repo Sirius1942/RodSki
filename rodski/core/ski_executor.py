@@ -16,6 +16,7 @@
             └── result/     ← 测试结果 XML
 """
 import logging
+import re
 import time
 import copy
 from collections import deque
@@ -28,10 +29,14 @@ from .global_value_parser import GlobalValueParser
 from .case_parser import CaseParser
 from .result_writer import ResultWriter, write_execution_summary
 from .config_manager import ConfigManager
-from ..data.data_resolver import DataResolver
+try:
+    from ..data.data_resolver import DataResolver
+    from ..drivers.base_driver import BaseDriver
+except ImportError:
+    from data.data_resolver import DataResolver
+    from drivers.base_driver import BaseDriver
 from .keyword_engine import KeywordEngine
 from .dynamic_executor import DynamicExecutor
-from ..drivers.base_driver import BaseDriver
 
 from .exceptions import DriverStoppedError, AssertionFailedError, is_critical_error
 from .runtime_control import (
@@ -115,6 +120,11 @@ class SKIExecutor:
         self.auto_screenshot = self.config.get("auto_screenshot_on_failure", True)
         self.auto_screenshot_on_step = self.config.get("auto_screenshot_on_step", True)
         self._screenshot_dir_base = Path(self.config.get("screenshot_dir", "screenshots"))
+        self.recording_config = dict(self.config.get("recording", {}) or {})
+        self.recording_enabled = bool(self.config.get("recording.enabled", False))
+        self._screen_recorder = None
+        self._active_recording_backend: Optional[str] = None
+        self._current_recording_path: Optional[str] = None
 
         # 初始化解析器
         self.model_parser = ModelParser(str(self.model_file)) if self.model_file.exists() else None
@@ -187,6 +197,7 @@ class SKIExecutor:
                 )
                 self.data_resolver.return_provider = self.keyword_engine.get_return
                 self.keyword_engine.data_resolver = self.data_resolver
+                self._set_keyword_recording_path(getattr(self, "_current_recording_path", None))
 
                 logger.info("驱动重新创建成功")
             else:
@@ -315,6 +326,126 @@ class SKIExecutor:
         logger.info(f"过滤后用例数: {len(filtered)}/{len(cases)}")
         return filtered
 
+    def _recording_option(self, key: str, default: Any = None) -> Any:
+        recording_config = getattr(self, "recording_config", {}) or {}
+        config = getattr(self, "config", None)
+        if config is not None and hasattr(config, "get"):
+            try:
+                value = config.get(f"recording.{key}", recording_config.get(key, default))
+            except TypeError:
+                value = recording_config.get(key, default)
+            if type(value).__module__ != "unittest.mock":
+                return value
+        return recording_config.get(key, default)
+
+    def _select_recording_backend(self) -> Optional[str]:
+        if not getattr(self, "recording_enabled", False):
+            return None
+        mode = self._recording_option("mode", "auto")
+        if mode == "off":
+            return None
+        if mode in ("screen", "playwright"):
+            return mode
+        prefer_playwright = bool(self._recording_option("prefer_playwright_native_in_headless", True))
+        if prefer_playwright and getattr(self.driver, "headless", False) and hasattr(self.driver, "start_case_recording"):
+            return "playwright"
+        return "screen"
+
+    @staticmethod
+    def _safe_recording_id(case_id: str) -> str:
+        safe = re.sub(r"[^A-Za-z0-9_.-]+", "_", str(case_id)).strip("_")
+        return safe or "case"
+
+    def _relative_run_path(self, path: str) -> str:
+        if not path or not self.result_writer.current_run_dir:
+            return path or ""
+        try:
+            return str(Path(path).resolve().relative_to(self.result_writer.current_run_dir.resolve()))
+        except Exception:
+            return str(path)
+
+    def _set_keyword_recording_path(self, path: Optional[str]) -> None:
+        if hasattr(self.keyword_engine, "set_current_recording_path"):
+            self.keyword_engine.set_current_recording_path(path)
+        else:
+            setattr(self.keyword_engine, "_current_recording_path", path)
+
+    def _start_case_recording(self, case_id: str) -> str:
+        backend = self._select_recording_backend()
+        if not backend:
+            self._set_keyword_recording_path(None)
+            return ""
+        try:
+            if not self.result_writer.current_run_dir:
+                self.result_writer._init_run_dir()
+            output_dir = self.result_writer.current_run_dir / str(self._recording_option("output_dir", "recordings"))
+            output_dir.mkdir(parents=True, exist_ok=True)
+            safe_case_id = self._safe_recording_id(case_id)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+            if backend == "playwright":
+                target_path = output_dir / f"{safe_case_id}_{timestamp}.webm"
+                if not hasattr(self.driver, "start_case_recording"):
+                    logger.warning("当前驱动不支持 Playwright 原生录制")
+                    return ""
+                started = self.driver.start_case_recording(str(output_dir), case_id, str(target_path))
+                if not started:
+                    return ""
+                self._active_recording_backend = "playwright"
+                self._current_recording_path = str(target_path)
+                self._set_keyword_recording_path(str(target_path))
+                return self._relative_run_path(str(target_path))
+
+            try:
+                from ..vision.screen_recorder import ScreenRecorder
+            except ImportError:
+                from vision.screen_recorder import ScreenRecorder
+            recorder = ScreenRecorder(
+                output_dir=str(output_dir),
+                fps=int(self._recording_option("fps", 10)),
+                max_duration=int(self._recording_option("max_duration", 600)),
+                scope=str(self._recording_option("scope", "target")),
+                monitor_id=self._recording_option("monitor_id", None),
+            )
+            path = recorder.start(session_id=f"{safe_case_id}_{timestamp}")
+            self._screen_recorder = recorder
+            self._active_recording_backend = "screen"
+            self._current_recording_path = path
+            self._set_keyword_recording_path(path)
+            return self._relative_run_path(path)
+        except Exception as e:
+            logger.warning(f"启动用例录制失败: {e}")
+            self._screen_recorder = None
+            self._active_recording_backend = None
+            self._current_recording_path = None
+            self._set_keyword_recording_path(None)
+            return ""
+
+    def _stop_case_recording(self, case_id: str, started_path: str = "") -> str:
+        if not getattr(self, "_active_recording_backend", None):
+            self._set_keyword_recording_path(None)
+            return started_path or ""
+        try:
+            path = None
+            if self._active_recording_backend == "playwright" and hasattr(self.driver, "stop_case_recording"):
+                path = self.driver.stop_case_recording(case_id, self._current_recording_path)
+            elif self._active_recording_backend == "screen" and self._screen_recorder is not None:
+                path = self._screen_recorder.stop()
+            return self._relative_run_path(path or self._current_recording_path or started_path)
+        except Exception as e:
+            logger.warning(f"停止用例录制失败: {e}")
+            return started_path or ""
+        finally:
+            self._screen_recorder = None
+            self._active_recording_backend = None
+            self._current_recording_path = None
+            self._set_keyword_recording_path(None)
+
+    @staticmethod
+    def _attach_recording_path(result: Dict[str, Any], recording_path: str) -> Dict[str, Any]:
+        result["recording_path"] = recording_path or ""
+        return result
+
     def execute_case(self, case: Dict[str, Any]) -> Dict[str, Any]:
         """执行单个用例（三阶段：预处理 → 用例 → 后处理）。
 
@@ -325,6 +456,7 @@ class SKIExecutor:
         """
         start = time.time()
         screenshot_path = None
+        screenshot_attempted = False
         self._current_case_steps_log = []
         resources_snapshot = self._snapshot_runtime_resources()
 
@@ -337,6 +469,20 @@ class SKIExecutor:
             self._current_case_id = case['case_id']
             self._step_index = 0
             self._runtime_stopped_graceful = False
+            recording_path = self._start_case_recording(case['case_id'])
+
+            def _finish(result: Dict[str, Any]) -> Dict[str, Any]:
+                final_recording_path = self._stop_case_recording(case['case_id'], recording_path)
+                return self._attach_recording_path(result, final_recording_path)
+
+            def _capture_failure_screenshot() -> None:
+                nonlocal screenshot_path, screenshot_attempted
+                if screenshot_attempted:
+                    return
+                screenshot_attempted = True
+                component_type = case.get('component_type', '界面')
+                if self.auto_screenshot and not self._driver_closed and component_type == '界面':
+                    screenshot_path = self._take_failure_screenshot(case['case_id'])
 
             # 报告收集器：开始用例
             if getattr(self, 'report_collector', None):
@@ -359,35 +505,35 @@ class SKIExecutor:
             try:
                 self._run_steps(pre_steps, '预处理')
             except ForceRunTermination as e:
-                return self._case_result_force_terminated(case, start, e)
+                return _finish(self._case_result_force_terminated(case, start, e))
             except Exception as e:
                 logger.error(f"预处理失败: {e}")
                 _merge_error(e)
+                _capture_failure_screenshot()
 
             # 用例阶段（仅当预处理未失败且未优雅终止时执行）
             if err is None and not self._runtime_stopped_graceful:
                 try:
                     self._run_steps(test_steps, '用例')
                 except ForceRunTermination as e:
-                    return self._case_result_force_terminated(case, start, e)
+                    return _finish(self._case_result_force_terminated(case, start, e))
                 except Exception as e:
                     logger.error(f"用例阶段失败: {e}")
                     _merge_error(e)
+                    _capture_failure_screenshot()
 
             # 后处理：无论预处理/用例是否失败均执行（除非强制终止已返回）
             try:
                 self._run_steps(post_steps, '后处理')
             except ForceRunTermination as e:
-                return self._case_result_force_terminated(case, start, e)
+                return _finish(self._case_result_force_terminated(case, start, e))
             except Exception as e:
                 logger.error(f"后处理失败: {e}")
                 _merge_error(e)
+                _capture_failure_screenshot()
 
             if err is not None:
-                # 只有界面类型的用例失败时才截图
-                component_type = case.get('component_type', '界面')
-                if self.auto_screenshot and not self._driver_closed and component_type == '界面':
-                    screenshot_path = self._take_failure_screenshot(case['case_id'])
+                _capture_failure_screenshot()
                 if self.result_writer.current_run_dir:
                     write_execution_summary(
                         self.result_writer.current_run_dir,
@@ -400,23 +546,23 @@ class SKIExecutor:
                 expect_fail = case.get('expect_fail', '否').strip()
                 if expect_fail == '是':
                     logger.info(f"用例 {case['case_id']} 预期失败且实际失败 → 标记为 PASS")
-                    return {
+                    return _finish({
                         'case_id': case['case_id'],
                         'title': case.get('title', ''),
                         'status': 'PASS',
                         'execution_time': round(time.time() - start, 3),
                         'error': f"[预期失败] {str(err)}",
                         'screenshot_path': screenshot_path or '',
-                    }
+                    })
 
-                return {
+                return _finish({
                     'case_id': case['case_id'],
                     'title': case.get('title', ''),
                     'status': 'FAIL',
                     'execution_time': round(time.time() - start, 3),
                     'error': str(err),
                     'screenshot_path': screenshot_path or '',
-                }
+                })
 
             if self._runtime_stopped_graceful:
                 if self.result_writer.current_run_dir:
@@ -426,14 +572,14 @@ class SKIExecutor:
                         self._current_case_steps_log,
                         dict(self.keyword_engine._context.named),
                     )
-                return {
+                return _finish({
                     'case_id': case['case_id'],
                     'title': case.get('title', ''),
                     'status': 'SKIP',
                     'execution_time': round(time.time() - start, 3),
                     'error': 'runtime terminate (graceful)',
                     'screenshot_path': '',
-                }
+                })
 
             if self.result_writer.current_run_dir:
                 write_execution_summary(
@@ -447,20 +593,20 @@ class SKIExecutor:
             expect_fail = case.get('expect_fail', '否').strip()
             if expect_fail == '是':
                 logger.warning(f"用例 {case['case_id']} 预期失败但实际成功 → 标记为 FAIL")
-                return {
+                return _finish({
                     'case_id': case['case_id'],
                     'title': case.get('title', ''),
                     'status': 'FAIL',
                     'execution_time': round(time.time() - start, 3),
                     'error': '[预期失败但实际成功] 用例应该失败但通过了所有步骤',
-                }
+                })
 
-            return {
+            return _finish({
                 'case_id': case['case_id'],
                 'title': case.get('title', ''),
                 'status': 'PASS',
                 'execution_time': round(time.time() - start, 3),
-            }
+            })
         finally:
             self._restore_runtime_resources(resources_snapshot)
 
@@ -618,6 +764,8 @@ class SKIExecutor:
     def _take_failure_screenshot(self, case_id: str) -> Optional[str]:
         """在用例失败时自动截图"""
         try:
+            if not self.result_writer.current_run_dir:
+                self.result_writer._init_run_dir()
             if not self.result_writer.current_run_dir:
                 return None
 
@@ -786,6 +934,9 @@ class SKIExecutor:
             except Exception as e:
                 logger.debug(f"关闭数据库连接 {name} 时出错: {e}")
         self.keyword_engine._db_connections.clear()
+
+        if getattr(self, "_active_recording_backend", None):
+            self._stop_case_recording(getattr(self, '_current_case_id', 'unknown'))
 
         if not self._driver_closed and self.driver:
             try:

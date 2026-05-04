@@ -224,4 +224,6 @@ class TestPostProcessAlwaysRuns:
 
         result = executor.execute_case(case)
         assert result['status'] == 'FAIL'
+        assert result['screenshot_path'] != ''
+        mock_driver.screenshot.assert_called_once()
         mock_driver.close.assert_called_once()

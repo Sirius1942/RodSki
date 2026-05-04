@@ -17,7 +17,10 @@ import logging
 import platform
 from typing import Dict, Optional, Any, Type, Callable
 
-from ..drivers.base_driver import BaseDriver
+try:
+    from ..drivers.base_driver import BaseDriver
+except ImportError:
+    from drivers.base_driver import BaseDriver
 
 logger = logging.getLogger("rodski")
 

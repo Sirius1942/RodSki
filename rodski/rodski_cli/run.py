@@ -29,6 +29,14 @@ def setup_parser(subparsers):
                         help="按优先级过滤用例 (逗号分隔，如 P0,P1)")
     parser.add_argument("--exclude-tags", type=str, default=None, dest="exclude_tags",
                         help="排除包含指定标签的用例 (逗号分隔)")
+    parser.add_argument("--record", action="store_true",
+                        help="启用本次执行的视频录制")
+    parser.add_argument("--record-mode", choices=["auto", "screen", "playwright", "off"],
+                        default=None, help="录制模式 (默认读取配置)")
+    parser.add_argument("--record-scope", choices=["target", "full_screen", "all_screens"],
+                        default=None, help="屏幕录制范围 (默认读取配置)")
+    parser.add_argument("--record-monitor", type=int, default=None,
+                        help="屏幕录制 monitor_id，未指定则自动选择目标/主屏")
 
 
 def _resolve_case_path(input_path: Path) -> Path:
@@ -89,10 +97,33 @@ def handle(args):
     return _handle_execute(case_path, module_dir, args)
 
 
+def _apply_recording_args(config, args):
+    recording = dict(config.get("recording", {}) or {})
+    if getattr(args, "record", False):
+        recording["enabled"] = True
+    record_mode = getattr(args, "record_mode", None)
+    if record_mode:
+        recording["mode"] = record_mode
+        if record_mode == "off":
+            recording["enabled"] = False
+    record_scope = getattr(args, "record_scope", None)
+    if record_scope:
+        recording["scope"] = record_scope
+    record_monitor = getattr(args, "record_monitor", None)
+    if record_monitor is not None:
+        recording["monitor_id"] = record_monitor
+    config.config["recording"] = recording
+    return config
+
+
 def _handle_dry_run(case_path: Path, model_path: Path, verbose: bool) -> int:
     """验证用例可执行性但不实际执行"""
-    from core.case_parser import CaseParser
-    from core.model_parser import ModelParser
+    try:
+        from ..core.case_parser import CaseParser
+        from ..core.model_parser import ModelParser
+    except ImportError:
+        from core.case_parser import CaseParser
+        from core.model_parser import ModelParser
 
     try:
         model_parser = ModelParser(str(model_path))
@@ -135,10 +166,18 @@ def _handle_dry_run(case_path: Path, model_path: Path, verbose: bool) -> int:
 
 def _handle_execute(case_path: Path, module_dir: Path, args) -> int:
     """实际执行测试用例"""
-    from core.ski_executor import SKIExecutor
-    from drivers.playwright_driver import PlaywrightDriver
-    from core.json_formatter import JSONFormatter
-    from core.runtime_control import RuntimeCommandQueue
+    try:
+        from ..core.ski_executor import SKIExecutor
+        from ..core.config_manager import ConfigManager
+        from ..drivers.playwright_driver import PlaywrightDriver
+        from ..core.json_formatter import JSONFormatter
+        from ..core.runtime_control import RuntimeCommandQueue
+    except ImportError:
+        from core.ski_executor import SKIExecutor
+        from core.config_manager import ConfigManager
+        from drivers.playwright_driver import PlaywrightDriver
+        from core.json_formatter import JSONFormatter
+        from core.runtime_control import RuntimeCommandQueue
     import time
 
     headless = getattr(args, "headless", False)
@@ -154,6 +193,8 @@ def _handle_execute(case_path: Path, module_dir: Path, args) -> int:
     filter_priority = [p.strip() for p in raw_priority.split(",") if p.strip()] if raw_priority else None
     exclude_tags = [t.strip() for t in raw_exclude.split(",") if t.strip()] if raw_exclude else None
 
+    config = _apply_recording_args(ConfigManager(), args)
+
     def create_driver():
         return PlaywrightDriver(headless=headless, browser=browser)
 
@@ -166,6 +207,7 @@ def _handle_execute(case_path: Path, module_dir: Path, args) -> int:
         executor = SKIExecutor(
             str(case_path),
             driver,
+            config=config,
             driver_factory=lambda: create_driver(),
             module_dir=str(module_dir),
             runtime_control=runtime_control,
@@ -260,7 +302,10 @@ def _generate_post_run_report(results, total, passed, failed, duration):
     报告生成失败不影响 run 主流程的退出码。
     """
     try:
-        from rodski_cli.report import generate_html_from_run_results
+        try:
+            from .report import generate_html_from_run_results
+        except ImportError:
+            from rodski_cli.report import generate_html_from_run_results
         report_path = generate_html_from_run_results(
             results=results,
             total=total,
