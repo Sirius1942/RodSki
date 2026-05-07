@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases step_wait="500">
+    <case execute="是" id="TC041" title="macOS桌面录制-TextEdit 输入与快捷键" component_type="界面">
+        <pre_process>
+            <test_step action="run" model="desktop_ops" data="launch_app.py /System/Applications/TextEdit.app"/>
+            <test_step action="wait" model="" data="2"/>
+        </pre_process>
+        <test_case>
+            <test_step action="run" model="desktop_ops" data="type_text.py Hello_RodSki_Desktop_Record"/>
+            <test_step action="wait" model="" data="1"/>
+            <test_step action="run" model="desktop_ops" data="key_combo.py command+a"/>
+            <test_step action="wait" model="" data="0.5"/>
+            <test_step action="run" model="desktop_ops" data="key_combo.py command+c"/>
+            <test_step action="wait" model="" data="0.5"/>
+            <test_step action="run" model="desktop_ops" data="mouse_click.py 200 200 left"/>
+        </test_case>
+        <post_process>
+            <test_step action="run" model="desktop_ops" data="key_combo.py command+q"/>
+        </post_process>
+    </case>
+</cases>

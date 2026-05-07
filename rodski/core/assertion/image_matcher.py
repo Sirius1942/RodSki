@@ -1,5 +1,6 @@
 """图片匹配器 - 使用 OpenCV 模板匹配实现图片断言"""
-import cv2
+from __future__ import annotations
+
 import logging
 import time
 import uuid
@@ -7,11 +8,23 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-import numpy as np
+try:
+    import cv2
+    import numpy as np
+except ImportError:
+    cv2 = None  # type: ignore
+    np = None   # type: ignore
 
 from .base_assertion import BaseAssertion
 
 logger = logging.getLogger("rodski")
+
+
+def _require_cv_deps() -> None:
+    if cv2 is None or np is None:
+        raise RuntimeError(
+            "图片断言需要安装 OpenCV/Numpy 依赖: pip install 'rodski[vision]'"
+        )
 
 
 class ImageMatcher(BaseAssertion):
@@ -58,6 +71,7 @@ class ImageMatcher(BaseAssertion):
                 "first_match_time": float,  # wait 模式下首次匹配成功的时间戳（相对于开始时间），否则 None
             }
         """
+        _require_cv_deps()
         if not isinstance(screenshot, np.ndarray):
             raise TypeError(f"screenshot 必须是 numpy.ndarray，实际为 {type(screenshot)}")
 
@@ -175,6 +189,7 @@ class ImageMatcher(BaseAssertion):
         Returns:
             保存的文件路径，失败返回 None
         """
+        _require_cv_deps()
         if failures_dir is None:
             # 默认使用项目 images/assert/failures 目录
             failures_dir = Path("images/assert/failures")
@@ -213,6 +228,7 @@ class ImageMatcher(BaseAssertion):
         Returns:
             (similarity, location) - 匹配度和匹配位置
         """
+        _require_cv_deps()
         # 如果尺寸不一致，按预期图片尺寸裁剪截图中心区域
         screenshot_h, screenshot_w = screenshot.shape[:2]
         ref_h, ref_w = reference_img.shape[:2]

@@ -43,6 +43,34 @@ def main():
         action='store_true',
         help='运行前初始化数据库'
     )
+    parser.add_argument(
+        '--record',
+        action='store_true',
+        help='启用本次 demo 视频录制'
+    )
+    parser.add_argument(
+        '--headless',
+        action='store_true',
+        help='以无头模式运行'
+    )
+    parser.add_argument(
+        '--record-mode',
+        choices=['auto', 'screen', 'playwright', 'off'],
+        default=None,
+        help='录制模式 (默认读取配置)'
+    )
+    parser.add_argument(
+        '--record-scope',
+        choices=['target', 'full_screen', 'all_screens'],
+        default=None,
+        help='录制范围 (默认读取配置)'
+    )
+    parser.add_argument(
+        '--record-monitor',
+        type=int,
+        default=None,
+        help='屏幕录制 monitor_id'
+    )
 
     args = parser.parse_args()
 
@@ -100,6 +128,14 @@ def main():
         str(case_file),
         '--log-level', log_level
     ]
+    if args.headless:
+        cmd.append('--headless')
+    if args.record:
+        cmd.append('--record')
+    if args.record_mode:
+        cmd.extend(['--record-mode', args.record_mode])
+    if args.record_monitor is not None:
+        cmd.extend(['--record-monitor', str(args.record_monitor)])
 
     try:
         result = subprocess.run(cmd, cwd=project_root, check=False)

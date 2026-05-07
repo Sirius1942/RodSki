@@ -69,7 +69,9 @@ python3 ski_run.py ../rodski-demo/DEMO/demo_full/case/demo_case.xml
 
 - `tc017_keywords.xml`：wait / clear / screenshot / get
 - `tc018_vision.xml`：视觉定位（需额外环境）
-- `tc019_desktop.xml`：桌面自动化（需手动启用）
+- `tc019_desktop.xml`：桌面自动化基础示例（需手动启用）
+- `tc040_vscode_plugin.xml`：桌面应用/VSCode 操作场景（需要图形界面）
+- `tc041_desktop_recording.xml`：macOS 桌面录制验收场景（TextEdit + 键盘/鼠标）
 - `tc020_windows.xml`：多窗口/iframe 草案
 - `tc021_data_ref.xml`：复杂数据引用旧示例
 - `tc022_negative.xml`：expect_fail 负面示例

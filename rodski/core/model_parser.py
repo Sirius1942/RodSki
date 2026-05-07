@@ -81,6 +81,7 @@ class ModelParser:
             model_type = model_node.get('type', '').strip() or None
             elements = {}
             inferred_model_type = None
+            inferred_driver_type = (model_node.get('driver_type', '').strip() or None)
 
             # 如果是 database 类型，解析查询定义
             if model_type == MODEL_TYPE_DATABASE:
@@ -88,6 +89,7 @@ class ModelParser:
                 queries = self._parse_queries(model_node)
                 models[model_name] = elements
                 models[model_name]['__model_type__'] = MODEL_TYPE_DATABASE
+                models[model_name]['__driver_type__'] = None
                 models[model_name]['__connection__'] = connection
                 models[model_name]['__queries__'] = queries
                 models[model_name]['__auto_capture_type__'] = None
@@ -125,6 +127,7 @@ class ModelParser:
 
             models[model_name] = elements
             models[model_name]['__model_type__'] = model_type or inferred_model_type or MODEL_TYPE_UI
+            models[model_name]['__driver_type__'] = inferred_driver_type
             models[model_name]['__auto_capture_type__'] = auto_capture_type
             models[model_name]['__auto_capture_send__'] = auto_capture_send
         return models
@@ -259,7 +262,13 @@ class ModelParser:
 
     def get_model_driver_type(self, model_name: str) -> str:
         """兼容旧接口：根据模型类型返回主要执行类型。"""
-        model_type = self.get_model_type(model_name)
+        model = self.models.get(model_name)
+        if not model:
+            return LEGACY_DRIVER_TYPE_WEB
+        driver_type = (model.get('__driver_type__') or '').strip()
+        if driver_type in LEGACY_DRIVER_TYPES:
+            return driver_type
+        model_type = model.get('__model_type__', MODEL_TYPE_UI)
         if model_type == MODEL_TYPE_INTERFACE:
             return LEGACY_DRIVER_TYPE_INTERFACE
         return LEGACY_DRIVER_TYPE_WEB

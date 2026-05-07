@@ -3,7 +3,13 @@
 import sys
 import argparse
 import traceback
-from .rodski_cli import run, model, config, log, report, profile, docs, capabilities, data, init
+from pathlib import Path
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from rodski.rodski_cli import run, model, config, log, report, profile, docs, capabilities, data, init
+else:
+    from .rodski_cli import run, model, config, log, report, profile, docs, capabilities, data, init
 
 from rodski import __version__ as VERSION
 

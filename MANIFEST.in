@@ -1,5 +1,4 @@
 include rodski/LICENSE
-include rodski/README.md
 
 recursive-include rodski/schemas *.xsd
 recursive-include rodski/config *.yaml *.json
@@ -15,5 +14,6 @@ exclude rodski/.flake8
 exclude rodski/bandit.yaml
 exclude rodski/mypy.ini
 exclude rodski/pytest.ini
+exclude rodski/setup.py
 exclude rodski/selftest.py
 exclude rodski/requirements.txt

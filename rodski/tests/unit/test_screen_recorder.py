@@ -26,9 +26,11 @@ class TestScreenRecorderInit:
 
     def test_custom_params(self, tmp_path):
         """自定义参数"""
-        recorder = ScreenRecorder(output_dir=str(tmp_path), fps=30, max_duration=120)
+        recorder = ScreenRecorder(output_dir=str(tmp_path), fps=30, max_duration=120, scope="all_screens", monitor_id=0)
         assert recorder.fps == 30
         assert recorder.max_duration == 120
+        assert recorder.scope == "all_screens"
+        assert recorder.monitor_id == 0
 
     def test_output_dir_created(self, tmp_path):
         """输出目录应在初始化时自动创建"""
@@ -67,6 +69,7 @@ class TestImportDeps:
         recorder = ScreenRecorder(output_dir=str(tmp_path))
         recorder._mss = MagicMock()
         recorder._cv2 = MagicMock()
+        recorder._np = MagicMock()
         assert recorder._import_deps() is True
 
 
@@ -91,6 +94,7 @@ class TestStartStop:
         recorder = ScreenRecorder(output_dir=str(tmp_path))
         recorder._mss = MagicMock()
         recorder._cv2 = MagicMock()
+        recorder._np = MagicMock()
         with patch.object(recorder, '_record_loop'):
             # mock threading 使线程不实际启动
             with patch("vision.screen_recorder.threading") as mock_thread:
@@ -128,6 +132,37 @@ class TestStartStop:
         recorder = ScreenRecorder(output_dir=str(tmp_path))
         path = recorder.stop()
         assert path == ""
+
+
+class TestMonitorSelection:
+    def test_target_scope_uses_primary_monitor(self, tmp_path):
+        recorder = ScreenRecorder(output_dir=str(tmp_path), scope="target")
+        sct = MagicMock()
+        sct.monitors = [
+            {"width": 3000, "height": 1000},
+            {"width": 1920, "height": 1080},
+            {"width": 1280, "height": 720},
+        ]
+        assert recorder._select_monitor(sct) == sct.monitors[1]
+
+    def test_all_screens_uses_virtual_monitor(self, tmp_path):
+        recorder = ScreenRecorder(output_dir=str(tmp_path), scope="all_screens")
+        sct = MagicMock()
+        sct.monitors = [
+            {"width": 3000, "height": 1000},
+            {"width": 1920, "height": 1080},
+        ]
+        assert recorder._select_monitor(sct) == sct.monitors[0]
+
+    def test_monitor_id_overrides_default(self, tmp_path):
+        recorder = ScreenRecorder(output_dir=str(tmp_path), monitor_id=2)
+        sct = MagicMock()
+        sct.monitors = [
+            {"width": 3000, "height": 1000},
+            {"width": 1920, "height": 1080},
+            {"width": 1280, "height": 720},
+        ]
+        assert recorder._select_monitor(sct) == sct.monitors[2]
 
 
 # =====================================================================

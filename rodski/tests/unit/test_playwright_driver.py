@@ -235,6 +235,54 @@ class TestPlaywrightDriver:
         driver.browser.close.assert_called_once()
         driver._pw.stop.assert_called_once()
 
+    @patch('playwright.sync_api.sync_playwright')
+    def test_start_case_recording_uses_context_video_dir(self, mock_pw, tmp_path):
+        mock_playwright = MagicMock()
+        mock_pw.return_value.start.return_value = mock_playwright
+        mock_browser = Mock()
+        mock_playwright.chromium.launch.return_value = mock_browser
+        initial_page = Mock()
+        mock_browser.new_page.return_value = initial_page
+        mock_context = Mock()
+        mock_browser.new_context.return_value = mock_context
+        recording_page = Mock()
+        recording_page.video = Mock()
+        mock_context.new_page.return_value = recording_page
+
+        driver = PlaywrightDriver(headless=True)
+        target = tmp_path / "TC001.webm"
+        path = driver.start_case_recording(str(tmp_path), "TC001", str(target))
+
+        assert path == str(target)
+        mock_browser.new_context.assert_called_once_with(record_video_dir=str(tmp_path))
+        mock_context.new_page.assert_called_once()
+        initial_page.close.assert_called_once()
+        assert driver.page == recording_page
+
+    @patch('playwright.sync_api.sync_playwright')
+    def test_stop_case_recording_saves_video(self, mock_pw, tmp_path):
+        mock_playwright = MagicMock()
+        mock_pw.return_value.start.return_value = mock_playwright
+        mock_browser = Mock()
+        mock_playwright.chromium.launch.return_value = mock_browser
+        mock_browser.new_page.return_value = Mock()
+        mock_context = Mock()
+        mock_browser.new_context.return_value = mock_context
+        recording_page = Mock()
+        recording_video = Mock()
+        recording_page.video = recording_video
+        mock_context.new_page.return_value = recording_page
+
+        driver = PlaywrightDriver(headless=True)
+        target = tmp_path / "TC001.webm"
+        driver.start_case_recording(str(tmp_path), "TC001", str(target))
+        path = driver.stop_case_recording("TC001", str(target))
+
+        assert path == str(target)
+        recording_page.close.assert_called_once()
+        mock_context.close.assert_called_once()
+        recording_video.save_as.assert_called_once_with(str(target))
+
     def _create_driver(self, mock_pw):
         mock_playwright = MagicMock()
         mock_pw.return_value.start.return_value = mock_playwright

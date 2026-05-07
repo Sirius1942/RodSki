@@ -17,14 +17,24 @@ import tempfile
 import time
 from pathlib import Path
 from typing import Optional, Tuple
-from .base_driver import BaseDriver
-from ..core.exceptions import (
-    DriverError,
-    DriverStoppedError,
-    ElementNotFoundError,
-    TimeoutError,
-    is_critical_error,
-)
+try:
+    from .base_driver import BaseDriver
+    from ..core.exceptions import (
+        DriverError,
+        DriverStoppedError,
+        ElementNotFoundError,
+        TimeoutError,
+        is_critical_error,
+    )
+except ImportError:
+    from drivers.base_driver import BaseDriver
+    from core.exceptions import (
+        DriverError,
+        DriverStoppedError,
+        ElementNotFoundError,
+        TimeoutError,
+        is_critical_error,
+    )
 
 logger = logging.getLogger("rodski")
 
@@ -69,6 +79,8 @@ class PlaywrightDriver(BaseDriver):
 
     def __init__(self, headless: bool = False, browser: str = "chromium"):
         from playwright.sync_api import sync_playwright
+        self.headless = headless
+        self.browser_name = browser
         self._pw = sync_playwright().start()
         browser_type = getattr(self._pw, browser, self._pw.chromium)
         launch_kw: dict = {"headless": headless}
@@ -83,15 +95,18 @@ class PlaywrightDriver(BaseDriver):
                 ch,
             )
         self.browser = browser_type.launch(**launch_kw)
-        # 非 headless 模式使用最大化窗口；headless 使用固定分辨率
+        self.context = None
         if not headless:
             self.page = self.browser.new_page(no_viewport=True)
         else:
             self.page = self.browser.new_page()
         self._is_closed = False
         self._timeout = self.DEFAULT_TIMEOUT
-        # 视觉定位器（延迟加载）
         self._vision_locator = None
+        self._recording_context = None
+        self._recording_video = None
+        self._recording_target_path: Optional[Path] = None
+        self._recording_saved_path: Optional[str] = None
 
     def _check_driver_alive(self):
         """检查驱动是否存活"""
@@ -621,12 +636,89 @@ class PlaywrightDriver(BaseDriver):
             logger.warning(f"获取 cookies 失败: {e}")
             return {}
 
+    def start_case_recording(self, output_dir: str, case_id: str, target_path: str) -> Optional[str]:
+        if self._is_closed:
+            return None
+        record_dir = Path(output_dir)
+        record_dir.mkdir(parents=True, exist_ok=True)
+        self._recording_target_path = Path(target_path)
+        self._recording_target_path.parent.mkdir(parents=True, exist_ok=True)
+        self._recording_saved_path = None
+
+        try:
+            if self.page is not None:
+                try:
+                    self.page.close()
+                except Exception:
+                    pass
+            if self.context is not None:
+                try:
+                    self.context.close()
+                except Exception:
+                    pass
+
+            self.context = self.browser.new_context(record_video_dir=str(record_dir))
+            self._recording_context = self.context
+            self.page = self.context.new_page()
+            self._recording_video = getattr(self.page, "video", None)
+            logger.info(f"Playwright 原生录制已启动: {self._recording_target_path}")
+            return str(self._recording_target_path)
+        except Exception as e:
+            logger.warning(f"Playwright 原生录制启动失败: {e}")
+            self._recording_context = None
+            self._recording_video = None
+            self._recording_target_path = None
+            return None
+
+    def stop_case_recording(self, case_id: str = "", target_path: Optional[str] = None) -> Optional[str]:
+        if target_path:
+            self._recording_target_path = Path(target_path)
+        return self._finalize_case_recording()
+
+    def _finalize_case_recording(self) -> Optional[str]:
+        if self._recording_saved_path:
+            return self._recording_saved_path
+        if not self._recording_target_path:
+            return None
+
+        target_path = self._recording_target_path
+        video = self._recording_video or getattr(self.page, "video", None)
+        try:
+            if self.page is not None:
+                try:
+                    self.page.close()
+                except Exception:
+                    pass
+            if self._recording_context is not None:
+                try:
+                    self._recording_context.close()
+                except Exception:
+                    pass
+            if video is not None:
+                video.save_as(str(target_path))
+            self._recording_saved_path = str(target_path)
+            logger.info(f"Playwright 原生录制已保存: {target_path}")
+            return self._recording_saved_path
+        except Exception as e:
+            logger.warning(f"Playwright 原生录制保存失败: {e}")
+            return None
+        finally:
+            self._recording_context = None
+            self._recording_video = None
+            self._recording_target_path = None
+
     def close(self) -> None:
         """关闭驱动"""
         if self._is_closed:
             return
             
         self._is_closed = True
+        self._finalize_case_recording()
+        try:
+            if self.context:
+                self.context.close()
+        except Exception as e:
+            logger.debug(f"关闭浏览器上下文时出错: {e}")
         try:
             if self.browser:
                 self.browser.close()

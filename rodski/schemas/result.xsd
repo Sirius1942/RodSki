@@ -56,6 +56,7 @@
     <xs:attribute name="error_type" type="xs:string" use="optional"/>
     <xs:attribute name="error_message" type="xs:string" use="optional"/>
     <xs:attribute name="screenshot_path" type="xs:string" use="optional"/>
+    <xs:attribute name="recording_path" type="xs:string" use="optional"/>
     <xs:attribute name="updated_at" type="xs:string" use="optional"/>
   </xs:complexType>
 

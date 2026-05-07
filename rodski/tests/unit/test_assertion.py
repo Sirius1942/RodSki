@@ -708,13 +708,50 @@ class TestVideoAssertIntegration:
     def test_parse_kv_args_video_with_time_range(self):
         """视频参数解析（带 time_range）"""
         from core.keyword_engine import KeywordEngine
-        # time_range 的值含有逗号，但 _parse_kv_args 会将其拆分
-        # 这是已知的解析限制，time_range 需要在调用处二次解析
         result = KeywordEngine._parse_kv_args(
             "type=video,reference=img/frame.png"
         )
         assert result["type"] == "video"
         assert result["reference"] == "img/frame.png"
+
+    def test_video_assert_uses_current_recording_path(self, tmp_path):
+        """video_source=recording 应解析为执行器注入的当前录制路径"""
+        from core.keyword_engine import KeywordEngine
+        module_dir = tmp_path / "module"
+        ref_dir = module_dir / "images" / "assert" / "img"
+        ref_dir.mkdir(parents=True)
+        ref_path = ref_dir / "frame.png"
+        cv2.imwrite(str(ref_path), create_test_image(20, 20))
+        recording_path = tmp_path / "result" / "recordings" / "TC001.webm"
+
+        engine = KeywordEngine(
+            driver=unittest.mock.Mock(),
+            data_dir=module_dir / "data",
+            module_dir=str(module_dir),
+        )
+        engine.set_current_recording_path(str(recording_path))
+
+        with unittest.mock.patch("core.keyword_engine.VideoAnalyzer") as analyzer_cls:
+            analyzer = analyzer_cls.return_value
+            analyzer.match.return_value = {
+                "matched": True,
+                "similarity": 0.99,
+                "threshold": 0.8,
+                "reference": str(ref_path),
+                "position": "middle",
+                "matched_frame_time": 1.0,
+                "total_frames_checked": 1,
+                "wait_attempts": 1,
+                "first_match_time": 0.1,
+            }
+
+            matched = engine._kw_assert({
+                "data": "assert[type=video,reference=img/frame.png,video_source=recording,position=middle]"
+            })
+
+        assert matched is True
+        analyzer.match.assert_called_once()
+        assert analyzer.match.call_args.kwargs["video_source"] == str(recording_path)
 
 
 # ── 便捷运行 ──────────────────────────────────────────────────

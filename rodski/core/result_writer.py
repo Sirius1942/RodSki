@@ -102,6 +102,8 @@ class ResultWriter:
         self.current_run_dir.mkdir(parents=True, exist_ok=True)
         screenshots_dir = self.current_run_dir / "screenshots"
         screenshots_dir.mkdir(exist_ok=True)
+        recordings_dir = self.current_run_dir / "recordings"
+        recordings_dir.mkdir(exist_ok=True)
 
         # 同步日志目录到 Logger
         rodski_logger = logging.getLogger("rodski")
@@ -164,6 +166,7 @@ class ResultWriter:
             result_elem.set("error_type", str(result.get("error_type", "")))
             result_elem.set("error_message", str(result.get("error", "")))
             result_elem.set("screenshot_path", str(result.get("screenshot_path", "")))
+            result_elem.set("recording_path", str(result.get("recording_path", "")))
             result_elem.set("updated_at", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
             # 添加步骤详情

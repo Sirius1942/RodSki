@@ -38,6 +38,7 @@
     </xs:sequence>
     <xs:attribute name="name" type="xs:string" use="required"/>
     <xs:attribute name="type" type="ModelCategoryType" use="optional" default="ui"/>
+    <xs:attribute name="driver_type" type="DriverType" use="optional"/>
     <xs:attribute name="servicename" type="xs:string" use="optional" default=""/>
     <xs:attribute name="connection" type="xs:string" use="optional"/>
   </xs:complexType>
@@ -97,6 +98,17 @@
       <xs:enumeration value="ui"/>
       <xs:enumeration value="interface"/>
       <xs:enumeration value="database"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- 驱动类型枚举（桌面端使用） -->
+  <xs:simpleType name="DriverType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="web"/>
+      <xs:enumeration value="interface"/>
+      <xs:enumeration value="windows"/>
+      <xs:enumeration value="macos"/>
+      <xs:enumeration value="other"/>
     </xs:restriction>
   </xs:simpleType>
 
