@@ -319,10 +319,16 @@ def _handle_dry_run(
 
 def _has_active_selector(selector_filters: Dict[str, Any]) -> bool:
     """判断 selector_filters 中是否有任何活跃的过滤条件。"""
-    return any(
-        selector_filters.get(k)
-        for k in ("filter_tags", "filter_group", "exclude_tags", "filter_priority")
-    )
+    for k in ("filter_tags", "filter_group", "exclude_tags", "filter_priority"):
+        v = selector_filters.get(k)
+        if v is None:
+            continue
+        if isinstance(v, (list, tuple)):
+            if len(v) > 0:
+                return True
+        elif v:
+            return True
+    return False
 
 
 def _print_selector_dry_run_selection(selection: Dict[str, List[Dict[str, Any]]]) -> None:

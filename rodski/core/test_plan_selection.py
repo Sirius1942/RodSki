@@ -60,6 +60,15 @@ def compile_from_selector(
     return {"selected": selected, "skipped": skipped, "stale_references": []}
 
 
+def _is_active(value) -> bool:
+    """判断 selector filter 值是否活跃（非空、非 None、非空列表）。"""
+    if value is None:
+        return False
+    if isinstance(value, (list, tuple)):
+        return len(value) > 0
+    return bool(value)
+
+
 def check_plan_selector_conflict(
     plan_path: Optional[str],
     selector_filters: Dict[str, Any],
@@ -78,17 +87,17 @@ def check_plan_selector_conflict(
 
     active_keys = [
         k for k in ("filter_tags", "filter_group", "exclude_tags", "filter_priority")
-        if selector_filters.get(k)
+        if _is_active(selector_filters.get(k))
     ]
     if not active_keys:
         return
 
     raise ValueError(
         "@plan_id 与 --tag/--group/--exclude-tag/--priority 是两类执行范围来源，不能同时使用。\n"
-        "替代方式：\n"
-        "  1. 仅使用 @plan_id 指定执行范围（在 plan XML 中配置 case/scenario）\n"
-        "  2. 仅使用 --tag/--group/--exclude-tag/--priority 动态筛选\n"
-        "  3. 在 plan XML 中为 scenario 设置 tag，然后仅用 @plan_id 执行"
+        "请使用以下方式之一：\n"
+        "  1. rodski run @<plan_id>\n"
+        "  2. rodski run --tag <tag>\n"
+        "  3. rodski plan create <plan_id> --from-tag <tag> 后再 rodski run @<plan_id>"
     )
 
 
@@ -162,11 +171,11 @@ class TestPlanSelection:
         stale_references: List[Dict[str, Any]],
     ) -> None:
         case_id = self._case_id(case)
+        if case_id in self.disabled_case_ids:
+            skipped.append(self._skip_case(case, "xml_case_execute_false"))
+            return
         if plan_case.get("execute", "是") == "否":
             skipped.append(self._skip_case(case, "plan_case_execute_false"))
-            return
-        if case_id in self.disabled_case_ids:
-            skipped.append(self._skip_case(case, "case_execute_false"))
             return
 
         plan_scenarios = plan_case.get("scenarios", []) or []

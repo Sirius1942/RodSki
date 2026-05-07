@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<test_plan id="v630_stale"
+           title="Stale引用测试"
+           kind="suite"
+           execute="是"
+           default_execute="否">
+  <case id="TC040" execute="是">
+    <scenario id="NONEXISTENT_SCENARIO" execute="是"/>
+  </case>
+  <case id="NONEXISTENT_CASE" execute="是"/>
+</test_plan>

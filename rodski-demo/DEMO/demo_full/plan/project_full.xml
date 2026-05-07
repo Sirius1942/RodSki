@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<test_plan id="project_full"
+           title="全量回归"
+           kind="suite"
+           execute="是"
+           default_execute="是">
+</test_plan>

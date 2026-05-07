@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<test_plan id="v630_smoke"
+           title="v6.3.0 冒烟计划"
+           kind="suite"
+           execute="是"
+           default_execute="否">
+  <case id="TC040" execute="是">
+    <scenario id="TC041" execute="是"/>
+    <scenario id="TC042" execute="否"/>
+  </case>
+</test_plan>
