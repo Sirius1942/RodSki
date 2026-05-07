@@ -18,7 +18,7 @@ DEFAULTS = {
     "auto_screenshot_on_step": True,
     "screenshot_dir": "screenshots",
     "recording": {
-        "enabled": False,
+        "enabled": True,
         "mode": "auto",
         "scope": "target",
         "output_dir": "recordings",

@@ -346,8 +346,7 @@ class SKIExecutor:
             return None
         if mode in ("screen", "playwright"):
             return mode
-        prefer_playwright = bool(self._recording_option("prefer_playwright_native_in_headless", True))
-        if prefer_playwright and getattr(self.driver, "headless", False) and hasattr(self.driver, "start_case_recording"):
+        if hasattr(self.driver, "start_case_recording"):
             return "playwright"
         return "screen"
 
