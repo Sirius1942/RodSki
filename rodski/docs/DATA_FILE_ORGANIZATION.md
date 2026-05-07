@@ -9,6 +9,7 @@ project/
 ├── data/           # 测试数据
 │   ├── data.sqlite        # 唯一测试数据文件（必须）
 │   └── globalvalue.xml    # 全局变量（独立）
+├── plan/           # 测试计划 XML（执行配置，不是测试数据）
 ├── fun/            # 自定义函数
 └── result/         # 测试结果
 ```
@@ -20,6 +21,8 @@ project/
 1. 测试数据 → `data.sqlite`（唯一数据源）
 2. 全局变量 → `globalvalue.xml`
 3. `data/` 目录下的其他文件不会被框架读取
+
+`plan/` 是与 `data/` 同级的执行配置目录。测试计划 XML 只描述 case/scenario/step 的执行选择，不属于测试数据，不会写入或读取 `data.sqlite`。
 
 **v6.0.0 破坏性变更**：`data.xml` 和 `data_verify.xml` 已废弃。若这两个文件存在，运行时将报错并提示执行迁移命令。
 

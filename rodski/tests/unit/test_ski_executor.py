@@ -167,6 +167,7 @@ class TestExecuteCase:
         executor._current_case_step_wait = None
         executor._runtime_stopped_graceful = False
         executor._current_case_steps_log = []
+        executor._current_case_scenario_statuses = []
         executor._step_index = 0
         executor._current_case_id = ""
         executor._phase_runtime_seq = 0
@@ -469,6 +470,7 @@ class TestPrePostProcessFailure:
         executor._current_case_step_wait = None
         executor._runtime_stopped_graceful = False
         executor._current_case_steps_log = []
+        executor._current_case_scenario_statuses = []
         executor._step_index = 0
         executor._current_case_id = ""
         executor._phase_runtime_seq = 0
@@ -543,3 +545,283 @@ class TestPrePostProcessFailure:
         ))
 
         assert result['status'] == 'FAIL'
+
+
+class TestScenarioExecution:
+    """scenario 容器执行兼容性。"""
+
+    @pytest.fixture
+    def executor(self):
+        executor = object.__new__(SKIExecutor)
+        executor.driver = MagicMock()
+        executor._driver_closed = False
+        executor.auto_screenshot_on_step = False
+        executor.keyword_engine = MagicMock()
+        executor.keyword_engine._context = MagicMock()
+        executor.keyword_engine._context.history = []
+        executor.keyword_engine._context.named = {}
+        executor.data_resolver = MagicMock()
+        executor.data_resolver.resolve.side_effect = lambda v: v
+        executor.dynamic_executor = MagicMock()
+        executor.dynamic_executor.evaluate_condition.return_value = True
+        executor.dynamic_executor.parse_loop_range.return_value = []
+        executor.result_writer = MagicMock()
+        executor.result_writer.current_run_dir = None
+        executor.runtime_control = MagicMock()
+        executor.runtime_control.drain_at_boundary = MagicMock()
+        executor.runtime_control.wait_unpaused = MagicMock(return_value=True)
+        executor.model_parser = None
+        executor.default_wait_time = 0.0
+        executor._current_case_step_wait = None
+        executor._runtime_stopped_graceful = False
+        executor._current_case_steps_log = []
+        executor._current_case_scenario_statuses = []
+        executor._phase_runtime_seq = 0
+        return executor
+
+    def _scenario(self, scenario_id, steps, depends=None, title=None):
+        return {
+            'type': 'scenario',
+            'id': scenario_id,
+            'title': title or scenario_id,
+            'group': 'acceptance',
+            'tag': ['wave1'],
+            'depends': depends or [],
+            'steps': steps,
+        }
+
+    def test_scenarios_execute_in_order(self, executor):
+        calls = []
+        executor.execute_step = lambda step, phase: calls.append((step['action'], step['data'], phase))
+
+        executor._run_steps([
+            self._scenario('s1', [{'action': 'wait', 'model': '', 'data': '1'}]),
+            self._scenario('s2', [{'action': 'wait', 'model': '', 'data': '2'}]),
+        ], '用例')
+
+        assert [c[1] for c in calls] == ['1', '2']
+        assert [s['status'] for s in executor._current_case_scenario_statuses] == ['PASS', 'PASS']
+        assert executor._current_case_scenario_statuses[0]['id'] == 's1'
+        assert executor._current_case_scenario_statuses[0]['group'] == 'acceptance'
+
+    def test_mixed_bare_steps_and_scenario_execute_in_order(self, executor):
+        calls = []
+        executor.execute_step = lambda step, phase: calls.append(step['data'])
+
+        executor._run_steps([
+            {'action': 'wait', 'model': '', 'data': 'bare-before'},
+            self._scenario('s1', [{'action': 'wait', 'model': '', 'data': 'inside'}]),
+            {'action': 'wait', 'model': '', 'data': 'bare-after'},
+        ], '用例')
+
+        assert calls == ['bare-before', 'inside', 'bare-after']
+
+    def test_if_else_inside_scenario_still_executes(self, executor):
+        calls = []
+        executor.dynamic_executor.evaluate_condition.return_value = False
+        executor.execute_step = lambda step, phase: calls.append(step['data'])
+
+        executor._run_steps([
+            self._scenario('s_if', [{
+                'type': 'if',
+                'condition': '$flag == true',
+                'steps': [{'action': 'wait', 'model': '', 'data': 'then'}],
+                'else_steps': [{'action': 'wait', 'model': '', 'data': 'else'}],
+            }]),
+        ], '用例')
+
+        assert calls == ['else']
+        executor.dynamic_executor.evaluate_condition.assert_called_once()
+
+    def test_depends_skips_when_dependency_failed(self, executor):
+        calls = []
+
+        def execute_step(step, phase):
+            calls.append(step['data'])
+            if step['data'] == 'fail':
+                raise RuntimeError('scenario failed')
+
+        executor.execute_step = execute_step
+
+        with pytest.raises(RuntimeError, match='scenario failed'):
+            executor._run_steps([
+                self._scenario('setup', [{'action': 'wait', 'model': '', 'data': 'fail'}]),
+                self._scenario('dependent', [{'action': 'wait', 'model': '', 'data': 'must-not-run'}], depends=['setup']),
+            ], '用例')
+
+        assert calls == ['fail']
+        statuses = {s['id']: s['status'] for s in executor._current_case_scenario_statuses}
+        assert statuses == {'setup': 'FAIL', 'dependent': 'SKIP'}
+
+    def test_legacy_case_without_scenario_still_runs_plain_steps(self, executor):
+        calls = []
+        executor.execute_step = lambda step, phase: calls.append((step['action'], phase))
+
+        executor._run_steps([
+            {'action': 'navigate', 'model': '', 'data': 'http://localhost'},
+            {'action': 'verify', 'model': 'Dashboard', 'data': 'V001'},
+        ], '用例')
+
+        assert calls == [('navigate', '用例'), ('verify', '用例')]
+        assert executor._current_case_scenario_statuses == []
+
+    def test_plan_selected_scenario_only_runs_selected_and_bare_steps(self, executor):
+        calls = []
+        executor.execute_step = lambda step, phase: calls.append(step['data'])
+        executor._current_plan_selected_scenario_ids = {'s1'}
+        executor._current_plan_selected_step_map = {}
+        executor._current_plan_skipped_scenarios = {'s2': 'plan_not_selected'}
+
+        executor._run_steps([
+            {'action': 'wait', 'model': '', 'data': 'bare'},
+            self._scenario('s1', [{'action': 'wait', 'model': '', 'data': 'selected'}]),
+            self._scenario('s2', [{'action': 'wait', 'model': '', 'data': 'skipped'}]),
+        ], '用例')
+
+        assert calls == ['bare', 'selected']
+        statuses = {s['id']: (s['status'], s['error']) for s in executor._current_case_scenario_statuses}
+        assert statuses['s1'] == ('PASS', '')
+        assert statuses['s2'] == ('SKIP', 'plan_not_selected')
+
+    def test_plan_scenario_execute_false_records_skip(self, executor):
+        calls = []
+        executor.execute_step = lambda step, phase: calls.append(step['data'])
+        executor._current_plan_selected_scenario_ids = {'s1'}
+        executor._current_plan_selected_step_map = {}
+        executor._current_plan_skipped_scenarios = {'s2': 'plan_scenario_execute_false'}
+
+        executor._run_steps([
+            self._scenario('s1', [{'action': 'wait', 'model': '', 'data': 'run'}]),
+            self._scenario('s2', [{'action': 'wait', 'model': '', 'data': 'skip'}]),
+        ], '用例')
+
+        assert calls == ['run']
+        assert executor._current_case_scenario_statuses[1]['id'] == 's2'
+        assert executor._current_case_scenario_statuses[1]['status'] == 'SKIP'
+        assert executor._current_case_scenario_statuses[1]['error'] == 'plan_scenario_execute_false'
+
+    def test_plan_step_selection_executes_only_selected_direct_step(self, executor):
+        calls = []
+        executor.execute_step = lambda step, phase: calls.append(step['data'])
+        executor._current_plan_selected_scenario_ids = {'s1'}
+        executor._current_plan_selected_step_map = {'s1': {2}}
+        executor._current_plan_skipped_scenarios = {}
+
+        executor._run_steps([
+            self._scenario('s1', [
+                {'action': 'wait', 'model': '', 'data': 'first'},
+                {'action': 'wait', 'model': '', 'data': 'second'},
+                {'action': 'wait', 'model': '', 'data': 'third'},
+            ]),
+        ], '用例')
+
+        assert calls == ['second']
+        assert executor._current_case_scenario_statuses[0]['status'] == 'PASS'
+
+    def test_apply_plan_case_execute_false_returns_case_skip(self, executor):
+        cases = [{'case_id': 'c001', 'title': 'case', 'scenarios': []}]
+        selection = {'selected': [], 'skipped': [{'type': 'case', 'case_id': 'c001', 'reason': 'plan_case_execute_false'}], 'stale_references': []}
+
+        annotated, case_skips = executor._apply_plan_selection(cases, selection)
+
+        assert annotated == cases
+        assert case_skips == {'c001': 'plan_case_execute_false'}
+        assert executor._case_result_skipped(cases[0], case_skips['c001'])['status'] == 'SKIP'
+
+    def test_apply_plan_default_execute_false_unselected_case_skips(self, executor):
+        cases = [
+            {'case_id': 'c001', 'title': 'case 1', 'scenarios': [self._scenario('s1', [])]},
+            {'case_id': 'c002', 'title': 'case 2', 'scenarios': [self._scenario('s2', [])]},
+        ]
+        selection = {'selected': [{'type': 'scenario', 'case_id': 'c001', 'scenario_id': 's1'}], 'skipped': [], 'stale_references': []}
+
+        executor._apply_plan_selection(cases, selection)
+
+        assert cases[0]['_selected_scenario_ids'] == {'s1'}
+        _, case_skips = executor._apply_plan_selection(cases, selection)
+        assert case_skips['c002'] == 'plan_not_selected'
+
+
+# =====================================================================
+# _compile_plan_selection — selector mode
+# =====================================================================
+class TestCompilePlanSelectionSelectorMode:
+    """_compile_plan_selection uses selector_filters when no plan_path."""
+
+    @pytest.fixture
+    def executor(self):
+        executor = object.__new__(SKIExecutor)
+        executor.plan_path = None
+        executor.model_parser = None
+        return executor
+
+    def test_selector_filters_compile_selection(self, executor):
+        """When selector_filters has active tags, compile_from_selector is used."""
+        executor.selector_filters = {
+            "filter_tags": ["smoke"],
+            "filter_group": None,
+            "exclude_tags": None,
+            "filter_priority": None,
+        }
+        cases = [
+            {
+                "case_id": "tc001",
+                "title": "case 1",
+                "priority": "P0",
+                "tags": ["smoke"],
+                "scenarios": [
+                    {"id": "sc01", "group": "positive", "tag": [], "steps": []},
+                    {"id": "sc02", "group": "negative", "tag": ["slow"], "steps": []},
+                ],
+            },
+            {
+                "case_id": "tc002",
+                "title": "case 2",
+                "priority": "P1",
+                "tags": ["regression"],
+                "scenarios": [
+                    {"id": "sc03", "group": "positive", "tag": [], "steps": []},
+                ],
+            },
+        ]
+        selection = executor._compile_plan_selection(cases)
+
+        assert selection is not None
+        selected_ids = [(e["case_id"], e["scenario_id"]) for e in selection["selected"]]
+        # tc001 has "smoke" tag, both scenarios inherit it
+        assert ("tc001", "sc01") in selected_ids
+        assert ("tc001", "sc02") in selected_ids
+        # tc002 does not have "smoke"
+        assert ("tc002", "sc03") not in selected_ids
+
+    def test_no_selector_no_plan_returns_none(self, executor):
+        """When no plan and no active selector, returns None."""
+        executor.selector_filters = {
+            "filter_tags": None,
+            "filter_group": None,
+            "exclude_tags": None,
+            "filter_priority": None,
+        }
+        cases = [{"case_id": "tc001", "tags": [], "scenarios": []}]
+        selection = executor._compile_plan_selection(cases)
+        assert selection is None
+
+    def test_selector_does_not_read_plan_files(self, executor):
+        """Selector mode should not touch PlanParser."""
+        executor.selector_filters = {
+            "filter_tags": ["smoke"],
+            "filter_group": None,
+            "exclude_tags": None,
+            "filter_priority": None,
+        }
+        cases = [
+            {
+                "case_id": "tc001",
+                "tags": ["smoke"],
+                "priority": "",
+                "scenarios": [{"id": "sc01", "group": "", "tag": [], "steps": []}],
+            },
+        ]
+        with patch("core.ski_executor.PlanParser") as mock_plan_parser:
+            executor._compile_plan_selection(cases)
+            mock_plan_parser.assert_not_called()

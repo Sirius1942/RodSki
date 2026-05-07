@@ -1,7 +1,7 @@
 # RodSki 核心设计约束
 
-**版本**: v6.0
-**日期**: 2026-04-22
+**版本**: v6.3
+**日期**: 2026-05-07
 
 本文档记录 RodSki 框架的核心设计决策与约束规则，所有后续开发必须遵循。
 
@@ -369,7 +369,9 @@ product/                           ← 产品根目录（顶层）
         │       └── *.py
         ├── data/                  ← 测试数据 + 全局变量
         │   ├── globalvalue.xml    ← 全局变量（固定文件名）
-        │   └── data.sqlite    ← 唯一测试数据文件（必须）
+        │   └── data.sqlite        ← 唯一测试数据文件（必须）
+        ├── plan/                  ← 测试计划 XML 文件
+        │   └── *.xml
         └── result/                ← 测试结果 XML（框架自动生成）
             └── result_*.xml
 ```
@@ -381,7 +383,7 @@ product/                           ← 产品根目录（顶层）
 | product/ | 产品根目录，固定名称，是最顶层目录 | `product/` |
 | 测试项目 | 按产品/项目组织，可有多个 | `DEMO/`、`ERP/` |
 | 测试模块 | 按业务模块划分，可有多个 | `demo_site/`、`user_module/` |
-| 固定文件夹 | 每个测试模块下必须包含的 5 个目录 | `case/`、`model/`、`fun/`、`data/`、`result/` |
+| 固定文件夹 | 每个测试模块下必须包含的 6 个目录 | `case/`、`model/`、`fun/`、`data/`、`plan/`、`result/` |
 
 ### 6.3 固定文件夹职责
 
@@ -391,12 +393,13 @@ product/                           ← 产品根目录（顶层）
 | `model/` | 存放页面/接口模型 | `model.xml`（符合 model.xsd） |
 | `fun/` | 存放 run 关键字的代码工程 | `*.py` |
 | `data/` | 存放数据表和全局变量 | `data.sqlite`（必须）、`globalvalue.xml`（符合 globalvalue.xsd） |
+| `plan/` | 存放测试计划定义 | `*.xml`（符合 plan.xsd） |
 | `result/` | 存放测试执行结果 | `result_*.xml`（符合 result.xsd，框架自动生成） |
 
 ### 6.4 禁止变更
 
 - **product 必须是最顶层目录**，不可将项目/模块提升到 product 之上
-- **5 个固定文件夹名称不可更改**（case/model/fun/data/result）
+- **6 个固定文件夹名称不可更改**（case/model/fun/data/plan/result）
 - **固定文件夹只出现在测试模块层级下**，不可出现在测试项目层级
 - **model.xml 是唯一的模型文件名**，不可改名
 
@@ -413,6 +416,7 @@ product/                           ← 产品根目录（顶层）
 | 解析 `case/*.xml` | 用例 | 抛出 `XmlSchemaValidationError`（错误码 `SKI204`） |
 | 解析 `data/*.xml`（不含 globalvalue） | 数据表 | 同上 |
 | 解析 `data/globalvalue.xml` | 全局变量 | 同上 |
+| 解析 `plan/*.xml` | 测试计划 | 同上 |
 | 加载 `model/model.xml` | 模型 | 同上 |
 | 写入 `result/result_*.xml` 前 | 测试结果 | 同上（保证输出符合 `result.xsd`） |
 
@@ -434,6 +438,7 @@ RodskiXmlValidator.validate_file("path/to/case.xml", RodskiXmlValidator.KIND_CAS
 | 模型 XML | `schemas/model.xsd` | `model/` | 元素定位模型 |
 | 数据表 XML | `schemas/data.xsd` | `data/` | 输入数据表 + 验证数据表 |
 | 全局变量 XML | `schemas/globalvalue.xsd` | `data/` | 全局变量定义 |
+| 测试计划 XML | `schemas/plan.xsd` | `plan/` | 测试计划定义 |
 | 结果 XML | `schemas/result.xsd` | `result/` | 测试结果 + 测试摘要 |
 
 ### 7.2 Case XML 格式约束（三阶段 · 多 `test_step`）
@@ -577,6 +582,93 @@ model.xml 格式与之前版本保持一致，仅支持完整格式（`<location
 ```
 
 结果 XML 由框架自动生成，用户不需要手动编写。
+
+### 7.7 Test Plan XML 格式约束（v6.3.0）
+
+测试计划是执行配置，不是测试数据。v6.3.0 起，测试计划固定放在 `plan/*.xml`，每个 XML 文件对应一个测试计划。
+
+**事实来源边界**：
+
+| 信息 | 唯一事实来源 |
+|------|--------------|
+| 测试计划执行范围 | `plan/{测试目的}_{测试类型}.xml` |
+| 用例、场景、步骤定义 | `case/*.xml` |
+| 模型定义 | `model/model.xml` |
+| 测试数据 | `data/data.sqlite` |
+| 全局变量 | `data/globalvalue.xml` |
+
+**强制约束**：
+
+- `plan/` 是测试模块下的固定目录，与 `case/`、`model/`、`data/` 同级。
+- 一个测试计划一个 XML 文件，禁止使用单一 `plan/plan.xml` 聚合全部计划。
+- 文件名采用 `{测试目的}_{测试类型}.xml`，文件名 stem 即计划 ID。
+- `<test_plan id="...">` 必须与文件名 stem 一致。
+- `plan/*.xml` 必须符合 `rodski/schemas/plan.xsd`。
+- plan XML 只引用 case/scenario/step，不复制 title/group/tag/step 内容。
+- plan XML 不得写入 `data/data.sqlite`，不得作为测试数据加载。
+- 不新增 `rs_testsuite`、`rs_test_plan`、`rs_execution_plan` 等 SQLite 计划表。
+- `rodski run` 未指定计划时，优先读取 `plan/project_full.xml`。
+- 若不存在 `project_full.xml` 但 `plan/*_full.xml` 只有一个，可使用该 full 计划；若存在多个 full 计划，必须提示用户显式指定 `@plan_id`。
+
+**执行入口约束**：
+
+| 入口 | 示例 | 执行范围来源 | 是否落盘 |
+|------|------|--------------|----------|
+| 显式 plan | `rodski run @project_full` | `plan/project_full.xml` | 是 |
+| 临时 selector | `rodski run --tag smoke` | `case/*.xml` 中的 scenario 元数据 | 否 |
+
+`@plan_id` 与 `--tag` / `--group` / `--exclude-tag` / `--priority` 等执行范围 selector **固定互斥**。同一次 `rodski run` 只能选择一种执行范围来源，不能做隐式合并、交集过滤或优先级裁决。
+
+```bash
+# ✅ 显式 plan 模式
+rodski run @project_full
+
+# ✅ 临时 selector 模式
+rodski run --tag smoke
+
+# ❌ 不支持：plan 与 selector 同时使用
+rodski run @project_full --tag smoke
+rodski run @project_full --group negative
+rodski run @project_full --priority P0
+```
+
+若 selector 结果需要长期复用，必须先生成 plan XML，再以显式 plan 模式执行：
+
+```bash
+rodski plan create invoice_tax_point_smoke --kind suite --from-tag smoke
+rodski run @invoice_tax_point_smoke
+```
+
+**plan kind 约束**：
+
+| kind | 用途 |
+|------|------|
+| `suite` | 常规测试计划，选择执行哪些 case/scenario/step |
+| `scenario_debug` | 单用例按 scenario 调试 |
+| `step_debug` | 单用例按 step 调试 |
+
+**执行优先级约束**：
+
+```text
+case XML 中 <case execute="否">
+  > test_plan.execute="否"
+  > plan case execute="否"
+  > plan scenario execute="否"
+  > plan step execute="否"
+  > test_plan.default_execute
+```
+
+只要上层关闭，下层即使显式开启也不得执行。
+
+**v6.3.0 suite plan 执行语义**：
+
+- `rodski run @plan_id` 从当前测试模块的 `plan/{plan_id}.xml` 读取显式计划，并把选择结果传入 `SKIExecutor`；`--dry-run` 必须输出 selected / skipped / stale references，不执行关键字。
+- `default_execute="是"`：suite plan 中未显式配置的 case/scenario 默认执行。
+- `default_execute="否"`：只执行 plan 中显式 `execute="是"` 的 case/scenario/step；未选中的 case 返回 `SKIP`，未选中的 scenario 记录 scenario 级 `SKIP`。
+- plan 中 `case` / `scenario` / `step` 的 `execute="否"` 均不得执行，并应写入可追溯的 skip reason。
+- stale 引用（不存在的 case/scenario/step）必须记录在 selection / dry-run 输出中，不得导致执行崩溃。
+- step 选择的 `no` 是 scenario 内直接 `<test_step>` 的 1-based 序号；v6.3.0 首版只过滤 scenario 直接子步骤，不递归选择 `if` / `loop` 内部子步骤。
+- 裸 `<test_step>` 维持兼容规则：只要其所属 case 被执行，裸步骤不受 scenario 选择过滤影响。
 
 ---
 
@@ -1463,6 +1555,7 @@ test:
 | 用例格式 | XML（`case/*.xml`） |
 | 模型格式 | XML（`model/model.xml`） |
 | 数据格式 | SQLite（`data/data.sqlite`，唯一数据文件） |
+| 测试计划格式 | XML（`plan/*.xml`，每个文件一个测试计划） |
 | 定位器格式 | `<location type="类型">值</location>`（唯一格式，v5.4.0 起） |
 | 关键字集合 | navigate / launch / type / send / verify / assert / run / DB / get / set / wait / clear / upload_file / screenshot / evaluate |
 
@@ -1482,6 +1575,7 @@ test:
 | v5.4.0 | 移除简化定位器格式、移除 Excel 支持 |
 | v5.6.0 | LLM 能力统一到 LLMClient |
 | v5.7.0 | 文档叙事统一为执行引擎定位 |
+| v6.3.0 | 新增 `plan/*.xml` 测试计划；显式 plan 与 selector 固定互斥 |
 
 ---
 
@@ -1509,13 +1603,15 @@ test:
 - [ ] SUPPORTED 关键字列表与文档一致（§5）
 - [ ] UI 原子动作（click/hover 等）不在 SUPPORTED 中（§1.2）
 - [ ] 目录结构符合 `product/项目/模块` 规范（§6）
+- [ ] 测试计划只存放在 `plan/*.xml`，不进入 `data.sqlite`（§7.7）
+- [ ] `@plan_id` 与 tag/group/priority selector 固定互斥（§7.7）
 - [ ] 自检不使用 pytest（§9）
 - [ ] 数据表格式符合规范（§7.3）
 - [ ] 视觉定位器类型符合规范（§10）
 
 ---
 
-*文档版本: v4.0 | 最后更新: 2026-04-05*
+*文档版本: v6.3 | 最后更新: 2026-05-07*
 
 ## 统一运行时上下文约束（§10）
 

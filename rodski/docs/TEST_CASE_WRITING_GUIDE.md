@@ -1,8 +1,8 @@
 # RodSki 用例编写指南
 
-**版本**: v3.3  
-**日期**: 2026-03-24  
-**适用框架**: RodSki v3.0+
+**版本**: v6.3  
+**日期**: 2026-05-07  
+**适用框架**: RodSki v6.3+
 
 ---
 
@@ -17,11 +17,12 @@
 7. [数据引用与变量解析](#7-数据引用与变量解析)
 8. [关键字手册](#8-关键字手册)
 9. [完整示例](#9-完整示例)
-10. [固定与动态测试步骤（规划）](#10-固定与动态测试步骤规划)
-11. [视觉定位器（vision / vision_bbox）](#11-视觉定位器vision--vision_bbox)
-12. [桌面端自动化（Desktop）](#12-桌面端自动化desktop)
-13. [附录：常见问题](#附录常见问题)
-14. [附录：测试结果 XML（result.xsd）](#附录测试结果-xmlresultxsd)
+10. [测试计划（plan/*.xml）](#10-测试计划planxml)
+11. [固定与动态测试步骤（规划）](#11-固定与动态测试步骤规划)
+12. [视觉定位器（vision / vision_bbox）](#12-视觉定位器vision--vision_bbox)
+13. [桌面端自动化（Desktop）](#13-桌面端自动化desktop)
+14. [附录：常见问题](#附录常见问题)
+15. [附录：测试结果 XML（result.xsd）](#附录测试结果-xmlresultxsd)
 
 ---
 
@@ -69,6 +70,9 @@ product/                           ← 产品根目录（最顶层）
         ├── data/                  ← 测试数据 + 全局变量
         │   ├── globalvalue.xml    ← 全局变量（固定文件名）
         │   └── data.sqlite        ← 所有测试数据表（唯一数据文件）
+        ├── plan/                  ← 测试计划 XML
+        │   ├── project_full.xml
+        │   └── *_smoke.xml
         └── result/                ← 测试结果（框架自动生成）
             └── result_20260321_100000.xml
 ```
@@ -82,6 +86,7 @@ product/                           ← 产品根目录（最顶层）
 | case/*.xml | `case/` 目录 | 用例定义（三阶段容器 + test_step） |
 | globalvalue.xml | `data/` 目录 | 全局变量 |
 | data.sqlite | `data/` 目录 | 所有测试数据表（唯一数据文件） |
+| plan/*.xml | `plan/` 目录 | 测试计划定义，每个文件一个计划 |
 | result_*.xml | `result/` 目录 | 框架自动生成的测试结果 |
 | model.xml | `model/` 目录 | 元素定位模型 |
 
@@ -91,7 +96,7 @@ product/                           ← 产品根目录（最顶层）
 
 | XSD 文件 | 根元素 | 编写方 | 核心约束（摘要） |
 |----------|--------|--------|------------------|
-| `case.xsd` | `<cases>` | 人工 | 每个 `<case>` **必须且仅有 1 个** `<test_case>` 容器，其内 **至少 1 个** `<test_step>`；`<pre_process>` / `<post_process>` 各 **0～1 个**容器，内为 **0～n 个** `<test_step>`。`execute` 只能是 `是` \| `否`。`component_type`（可选）只能是 `界面` \| `接口` \| `数据库`。每个 `test_step` 的 `action` 为 `ActionType` 枚举（见 [3.5](#35-action-与-casexsd-枚举一致)）。 |
+| `case.xsd` | `<cases>` | 人工 | 每个 `<case>` **必须且仅有 1 个** `<test_case>` 容器，其内 **至少 1 个**执行项；执行项可为裸 `<test_step>`，v6.3.0 起也可为 `<scenario>` 容器。`<pre_process>` / `<post_process>` 各 **0～1 个**容器，内为 **0～n 个** `<test_step>`。`execute` 只能是 `是` \| `否`。`component_type`（可选）只能是 `界面` \| `接口` \| `数据库`。每个 `test_step` 的 `action` 为 `ActionType` 枚举（见 [3.6](#36-action-与-casexsd-枚举一致)）。 |
 | `model.xsd` | `<models>` | 人工 | `<model>` 须 `name`；`<element>` 须 `name`。仅支持**完整格式**（子节点 `<type>` / `<location>` / `<desc>`），~~简化格式已移除（v5.4.0）~~。`DriverType` / `LocatorType` 取值见 [4.2](#42-元素属性说明)、[4.3](#43-定位类型)。接口保留元素名：`_method`、`_url`、`_header_*`（与数据字段一一对应）。 |
 | `data.xsd` | `<datatable>` / `<datatables>` | 人工 | 已废弃（v6.0.0）。测试数据统一存储在 `data.sqlite`，验证数据表名为 `{模型名}_verify`，`table_kind='verify'`。 |
 | `globalvalue.xsd` | `<globalvalue>` | 人工 | 每个 `<group>` 须 `name`；**所有 group 的 `name` 全局唯一**。每组内至少一个 `<var>`，每个 `var` 须同时具备 `name` 与 `value`；**同一 group 内** `var@name` **唯一**（XSD `xs:unique`）。引用格式：`GlobalValue.组名.变量名`。 |
@@ -112,7 +117,7 @@ xmllint --noout --schema rodski/schemas/case.xsd product/DEMO/demo_site/case/dem
 每个 `<case>` 下有三个**阶段容器**（见 `case.xsd`）：
 
 1. **`<pre_process>`**（可选）— 预处理，内含 **0～n** 个 `<test_step>`
-2. **`<test_case>`**（**必选，且每个 case 仅 1 个**）— 用例主体，内含 **至少 1 个** `<test_step>`
+2. **`<test_case>`**（**必选，且每个 case 仅 1 个**）— 用例主体，内含 **至少 1 个** `<test_step>`；v6.3.0 起可混合编排裸 `<test_step>` 与 `<scenario>`
 3. **`<post_process>`**（可选）— 后处理，内含 **0～n** 个 `<test_step>`
 
 早期单文件格式中「测试步骤」「预期结果」等多行语义，在 XML 中统一为 **`<test_case>` 内多条 `<test_step>`**（先 `type` 再 `verify` 等，按书写顺序执行）。
@@ -170,15 +175,50 @@ xmllint --noout --schema rodski/schemas/case.xsd product/DEMO/demo_site/case/dem
 | **用例阶段失败** | **仍执行后处理**（保证 `close`、DB 清理等能跑） |
 | 后处理失败 | 整条用例记为失败 |
 
-### 3.4 `test_step` 属性（与旧版单行步骤含义相同）
+### 3.4 `scenario` 容器（v6.3.0）
+
+`<scenario>` 是 `<test_case>` 内的步骤分组容器，用于把同一 case 的主链路拆成可命名、可依赖的验收片段。它不替代 `<case>`：一个 case 仍只有一个 `<test_case>`，`<scenario>` 只在该 `<test_case>` 内组织步骤。
+
+```xml
+<test_case>
+  <!-- 裸 test_step 仍按原有逻辑执行 -->
+  <test_step action="type" model="LoginForm" data="L001"/>
+
+  <scenario id="S001" title="进入功能页" group="smoke" tag="nav,ui">
+    <test_step action="type" model="NavMenu" data="N001"/>
+  </scenario>
+
+  <scenario id="S002" title="提交表单" group="smoke" tag="form" depends="S001">
+    <test_step action="type" model="TestForm" data="T001"/>
+    <test_step action="verify" model="TestForm" data="V001"/>
+  </scenario>
+</test_case>
+```
 
 | 属性 | 必需 | 说明 |
 |------|------|------|
-| `action` | 是 | 关键字名称，**必须为** `case.xsd` 中 `ActionType` 枚举值之一（见 [3.5](#35-action-与-casexsd-枚举一致)） |
+| `id` | 是 | scenario 在当前 case 内的唯一标识，用于日志、结果状态和 `depends` 引用 |
+| `title` | 否 | scenario 标题，用于日志/报告展示 |
+| `group` | 否 | 分组标签，如 `smoke`、`negative` |
+| `tag` | 否 | 逗号分隔的标签列表，如 `smoke,p0` |
+| `depends` | 否 | 逗号分隔的依赖 scenario id；第一版仅支持同一 case 内依赖 |
+
+执行语义：
+
+- `<test_case>` 中的裸 `<test_step>` 与 `<scenario>` 按书写顺序混合执行。
+- `<scenario>` 内可继续使用 `<test_step>`、`<if>/<elif>/<else>`、`<loop>` 等已有步骤结构。
+- `depends` 只判断同一 case 内已经执行过的 scenario：依赖未通过（`FAIL` 或 `SKIP`）时，当前 scenario 不执行并标记为 `SKIP`。
+- scenario 失败会导致 case 失败；后处理阶段仍按原有语义执行。
+
+### 3.5 `test_step` 属性（与旧版单行步骤含义相同）
+
+| 属性 | 必需 | 说明 |
+|------|------|------|
+| `action` | 是 | 关键字名称，**必须为** `case.xsd` 中 `ActionType` 枚举值之一（见 [3.6](#36-action-与-casexsd-枚举一致)） |
 | `model` | 否 | 模型名。type/verify/send/DB → 模型名；DB 要求该模型为 `type="database"`；navigate/close/wait 等可留空 |
 | `data` | 否 | 数据引用或直接值。DataID / GlobalValue 引用 / URL / CSS 选择器 / 秒数等 |
 
-### 3.5 `action` 与 `case.xsd` 枚举一致
+### 3.6 `action` 与 `case.xsd` 枚举一致
 
 下列取值与 `rodski/schemas/case.xsd` 中 `ActionType` **完全一致**（大小写敏感）；不在表内的字符串无法通过 XSD 校验。
 
@@ -204,7 +244,7 @@ xmllint --noout --schema rodski/schemas/case.xsd product/DEMO/demo_site/case/dem
 
 详细参数约定仍以 [第 8 节](#8-关键字手册) 为准。
 
-### 3.6 用例示例
+### 3.7 用例示例
 
 ```xml
 <cases>
@@ -1181,7 +1221,214 @@ rodski run case/ --headless
 
 ---
 
-## 10. 固定与动态测试步骤（规划）
+## 10. 测试计划（plan/*.xml）
+
+v6.3.0 起，RodSki 支持通过 `plan/*.xml` 定义测试计划，控制"本次执行跑哪些 case/scenario/step"。
+
+### 10.1 核心概念
+
+| 概念 | 说明 |
+|------|------|
+| 测试计划 | 一个 `plan/*.xml` 文件，定义本次执行的 case/scenario/step 范围 |
+| `<scenario>` | case 内一个可独立选择的测试场景，写在 `<test_case>` 内 |
+| 显式 plan 模式 | `rodski run @plan_id`，执行范围来自 plan XML |
+| 临时 selector 模式 | `rodski run --tag smoke`，执行范围来自 case XML 元数据 |
+
+### 10.2 在 case 中使用 `<scenario>`
+
+```xml
+<cases tags="demo" step_wait="500">
+  <case execute="是" id="TC040" title="开票税点判定表" component_type="界面">
+    <pre_process>
+      <test_step action="navigate" data="GlobalValue.DefaultValue.URL"/>
+      <test_step action="type" model="LoginForm" data="L001"/>
+    </pre_process>
+
+    <test_case>
+      <scenario id="INV-001" group="positive" tag="smoke,p0"
+                title="仅开票+普通发票+商品税率13，保存成功">
+        <test_step action="type" model="InvoiceConfig" data="D001"/>
+        <test_step action="verify" model="InvoiceConfig" data="V001"/>
+      </scenario>
+
+      <scenario id="INV-N01" group="negative" tag="p1"
+                title="未选开票类型，保存提示错误">
+        <test_step action="type" model="InvoiceConfig" data="D002"/>
+        <test_step action="verify" model="InvoiceConfig" data="V002"/>
+      </scenario>
+    </test_case>
+
+    <post_process>
+      <test_step action="close" data=""/>
+    </post_process>
+  </case>
+</cases>
+```
+
+**scenario 属性**：
+
+| 属性 | 必填 | 说明 |
+|------|------|------|
+| `id` | 是 | 场景标识，同一 case 内唯一 |
+| `title` | 否 | 场景描述 |
+| `group` | 否 | 单值分组，如 `positive`、`negative` |
+| `tag` | 否 | 多值标签，逗号分隔，如 `smoke,p0` |
+| `depends` | 否 | 依赖的 scenario id，逗号分隔 |
+
+**兼容规则**：不含 `<scenario>` 的旧 case 继续按原有步骤执行，无需改造。
+
+### 10.3 创建测试计划
+
+测试计划放在 `plan/` 目录，文件名格式为 `{测试目的}_{测试类型}.xml`：
+
+```bash
+# 初始化默认全量计划
+rodski plan init
+
+# 创建冒烟计划
+rodski plan create invoice_smoke --kind suite --default-execute 否 --title "开票冒烟"
+
+# 向计划添加 case 和 scenario
+rodski plan add-case invoice_smoke TC040
+rodski plan add-scenario invoice_smoke TC040 INV-001
+
+# 从 tag 选择结果生成计划
+rodski plan create invoice_smoke --kind suite --from-tag smoke --title "开票冒烟"
+```
+
+**plan XML 示例**（`plan/invoice_smoke.xml`）：
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<test_plan id="invoice_smoke"
+           title="开票冒烟测试"
+           kind="suite"
+           execute="是"
+           default_execute="否">
+  <case id="TC040" execute="是">
+    <scenario id="INV-001" execute="是"/>
+  </case>
+</test_plan>
+```
+
+### 10.4 执行测试计划
+
+```bash
+# 执行指定计划
+rodski run @invoice_smoke
+
+# 执行默认计划（优先 plan/project_full.xml）
+rodski run
+
+# 预览计划最终执行范围（不实际执行）
+rodski run @invoice_smoke --dry-run
+
+# 查看计划列表
+rodski plan list
+
+# 校验计划引用是否有效
+rodski plan validate
+```
+
+### 10.5 临时 tag/group 选择器
+
+不需要创建 plan 文件，直接按 scenario 元数据临时筛选：
+
+```bash
+# 按 tag 执行（OR 匹配）
+rodski run --tag smoke
+rodski run --tag smoke,p0
+
+# 按 group 执行（精确匹配）
+rodski run --group negative
+
+# 排除 tag
+rodski run --tag smoke --exclude-tag slow
+
+# 预览临时选择结果
+rodski run --tag smoke --dry-run
+```
+
+临时 selector 不读取、不修改 `plan/*.xml`。
+
+### 10.6 plan 与 selector 不能同时使用
+
+显式 plan 和临时 selector 是两种独立的执行范围来源，**不能在同一次 `rodski run` 中组合**：
+
+```bash
+# ❌ 以下命令全部报错
+rodski run @invoice_smoke --tag smoke
+rodski run @invoice_smoke --group negative
+rodski run @invoice_smoke --exclude-tag slow
+rodski run @invoice_smoke --priority P0
+```
+
+如果需要把 tag 选择结果长期保存，先生成 plan 再执行：
+
+```bash
+rodski plan create invoice_smoke --from-tag smoke
+rodski run @invoice_smoke
+```
+
+### 10.7 调试计划
+
+```bash
+# 创建 scenario 调试计划
+rodski plan debug-scenario inv_debug --case TC040 --scenario INV-001 --prepare auto --cleanup 否
+
+# 创建 step 调试计划
+rodski plan debug-step inv_step_debug --case TC040 --scenario INV-001 --step 2 --step-mode only --prepare auto --cleanup 否
+
+# 执行调试
+rodski run @inv_debug --debug
+rodski run @inv_step_debug --debug
+```
+
+**prepare 选项**：
+
+| 值 | 行为 |
+|----|------|
+| `auto` | 执行 `pre_process` + 目标 step 之前的步骤 |
+| `case` | 只执行 `pre_process` |
+| `none` | 不执行前置，直接执行目标 |
+
+**step_mode 选项**（仅 step_debug）：
+
+| 值 | 行为 |
+|----|------|
+| `all` | 执行整个 scenario |
+| `from` | 从指定 step 执行到 scenario 结束 |
+| `only` | 只执行指定 step |
+
+### 10.8 管理计划
+
+```bash
+# 禁用某个 case
+rodski plan disable-case invoice_smoke TC040
+
+# 启用某个 scenario
+rodski plan enable-scenario invoice_smoke TC040 INV-001
+
+# 预览最终执行范围
+rodski plan preview invoice_smoke
+```
+
+### 10.9 执行优先级
+
+```text
+case XML 中 <case execute="否">（最高，硬关闭）
+  > test_plan.execute="否"
+  > plan case execute="否"
+  > plan scenario execute="否"
+  > plan step execute="否"
+  > test_plan.default_execute（最低）
+```
+
+只要上层关闭，下层即使显式开启也不会执行。
+
+---
+
+## 11. 固定与动态测试步骤（规划）
 
 本节面向**用例编写者**：说明未来「固定 Case 步骤 + 动态插入步骤」并存时的**使用预期**与**编写约束**。具体架构与实现以《核心设计约束》**第 8 节**为准。
 
@@ -1507,5 +1754,5 @@ Return 引用只应写在**数据表 XML 的 field 值中**，不要直接写在
 
 ---
 
-**文档版本**: v3.3
-**最后更新**: 2026-03-26
+**文档版本**: v6.3
+**最后更新**: 2026-05-07

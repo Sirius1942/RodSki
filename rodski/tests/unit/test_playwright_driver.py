@@ -255,7 +255,10 @@ class TestPlaywrightDriver:
         path = driver.start_case_recording(str(tmp_path), "TC001", str(target))
 
         assert path == str(target)
-        mock_browser.new_context.assert_called_once_with(record_video_dir=str(tmp_path))
+        mock_browser.new_context.assert_called_once()
+        call_kwargs = mock_browser.new_context.call_args[1]
+        assert call_kwargs["record_video_dir"] == str(tmp_path)
+        assert "record_video_size" in call_kwargs
         mock_context.new_page.assert_called_once()
         initial_page.close.assert_called_once()
         assert driver.page == recording_page
@@ -279,7 +282,11 @@ class TestPlaywrightDriver:
         path = driver.start_case_recording(str(tmp_path), "TC001", str(target))
 
         assert path == str(target)
-        mock_browser.new_context.assert_called_once_with(record_video_dir=str(tmp_path), no_viewport=True)
+        mock_browser.new_context.assert_called_once()
+        call_kwargs = mock_browser.new_context.call_args[1]
+        assert call_kwargs["record_video_dir"] == str(tmp_path)
+        assert call_kwargs["no_viewport"] is True
+        assert "record_video_size" in call_kwargs
         mock_context.new_page.assert_called_once()
         initial_page.close.assert_called_once()
         assert driver.page == recording_page

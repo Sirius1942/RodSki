@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases step_wait="300" tags="scenario,wave1">
+    <!-- TC040-TC044: scenario 基础验收（多个 scenario、属性、裸步骤混合、scenario 内 if、depends） -->
+    <case execute="是" id="TC040" title="Scenario基础执行验收" component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="navigate" model="" data="http://localhost:8000"/>
+        </pre_process>
+        <test_case>
+            <!-- TC040: 裸步骤与 scenario 混合，登录步骤仍按原逻辑执行 -->
+            <test_step action="type" model="LoginForm" data="L001"/>
+
+            <!-- TC041: 多个 scenario 顺序执行，并携带 id/title/group/tag 元信息 -->
+            <scenario id="TC041" title="进入功能测试页" group="scenario-basic" tag="nav,smoke">
+                <test_step action="type" model="NavMenu" data="N001"/>
+            </scenario>
+
+            <!-- TC042: scenario 内部普通步骤 -->
+            <scenario id="TC042" title="提交测试表单" group="scenario-basic" tag="form" depends="TC041">
+                <test_step action="type" model="TestForm" data="T001"/>
+                <test_step action="verify" model="TestForm" data="V001"/>
+            </scenario>
+
+            <!-- TC043: scenario 内 if/else 边界，if 仅作用于当前 scenario 内部步骤 -->
+            <scenario id="TC043" title="Scenario内条件分支" group="scenario-basic" tag="if" depends="TC042">
+                <if condition="'${Return[-1]}' != ''">
+                    <test_step action="verify" model="TestForm" data="V001"/>
+                    <else>
+                        <test_step action="wait" model="" data="1"/>
+                    </else>
+                </if>
+            </scenario>
+
+            <!-- TC044: depends 链路，TC044 仅在 TC043 PASS 后执行 -->
+            <scenario id="TC044" title="Depends链路验证" group="scenario-basic" tag="depends" depends="TC043">
+                <test_step action="verify" model="TestForm" data="V001"/>
+            </scenario>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+</cases>

@@ -70,6 +70,24 @@ class PhaseReport:
 
 
 @dataclass
+class ScenarioReport:
+    """场景报告（Plan → Case → Scenario 层级）"""
+
+    scenario_id: str = ""
+    title: str = ""
+    group: str = ""
+    tags: list = field(default_factory=list)
+    status: str = "PASS"  # PASS / FAIL / SKIP
+    duration: float = 0.0
+    skip_reason: str = ""
+    steps: list = field(default_factory=list)  # list[StepReport]
+
+    def to_dict(self) -> dict:
+        """序列化为可 JSON 化的 dict"""
+        return _serialize(self)
+
+
+@dataclass
 class CaseReport:
     """用例报告"""
 
@@ -84,6 +102,7 @@ class CaseReport:
     pre_process: Optional[PhaseReport] = None
     test_case: Optional[PhaseReport] = None
     post_process: Optional[PhaseReport] = None
+    scenarios: list = field(default_factory=list)  # list[ScenarioReport]
 
 
 def _serialize(obj: Any) -> Any:
@@ -109,6 +128,8 @@ class ReportData:
     """完整的报告数据"""
 
     run_id: str = ""
+    plan_id: str = ""
+    plan_title: str = ""
     start_time: datetime = field(default_factory=datetime.now)
     end_time: Optional[datetime] = None
     duration: float = 0.0

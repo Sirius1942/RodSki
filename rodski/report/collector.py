@@ -19,6 +19,7 @@ from .data_model import (
     PhaseReport,
     ReportData,
     RunSummary,
+    ScenarioReport,
     StepReport,
 )
 
@@ -64,8 +65,10 @@ class ReportCollector:
         self._report: Optional[ReportData] = None
         self._current_case: Optional[CaseReport] = None
         self._current_phase: Optional[PhaseReport] = None
+        self._current_scenario: Optional[ScenarioReport] = None
         self._phase_start: float = 0.0
         self._case_start: float = 0.0
+        self._scenario_start: float = 0.0
 
     @property
     def report(self) -> Optional[ReportData]:
@@ -155,6 +158,63 @@ class ReportCollector:
         case = self._current_case
         self._current_case = None
         return case
+
+    # ------------------------------------------------------------------
+    # Scenario 级别
+    # ------------------------------------------------------------------
+
+    def start_scenario(self, scenario_info: Dict[str, Any]) -> ScenarioReport:
+        """开始收集一个 scenario 的数据
+
+        Args:
+            scenario_info: scenario 信息字典，支持的字段：
+                - scenario_id: 场景 ID
+                - title: 场景标题
+                - group: 场景分组
+                - tags: 标签列表
+        """
+        self._scenario_start = time.time()
+        self._current_scenario = ScenarioReport(
+            scenario_id=scenario_info.get("scenario_id", ""),
+            title=scenario_info.get("title", ""),
+            group=scenario_info.get("group", ""),
+            tags=scenario_info.get("tags", []),
+        )
+        logger.debug(
+            f"[ReportCollector] 开始场景: {self._current_scenario.scenario_id}"
+        )
+        return self._current_scenario
+
+    def end_scenario(
+        self, status: str, skip_reason: str = ""
+    ) -> Optional[ScenarioReport]:
+        """结束当前 scenario，记录状态和耗时
+
+        Args:
+            status: PASS / FAIL / SKIP
+            skip_reason: 跳过原因（仅 SKIP 时有意义）
+        """
+        if self._current_scenario is None:
+            return None
+
+        self._current_scenario.status = status
+        self._current_scenario.skip_reason = skip_reason
+        self._current_scenario.duration = round(
+            time.time() - self._scenario_start, 3
+        )
+
+        # 挂载到当前 case
+        if self._current_case is not None:
+            self._current_case.scenarios.append(self._current_scenario)
+
+        logger.debug(
+            f"[ReportCollector] 场景结束: {self._current_scenario.scenario_id} "
+            f"status={status} duration={self._current_scenario.duration}s"
+        )
+
+        scenario = self._current_scenario
+        self._current_scenario = None
+        return scenario
 
     # ------------------------------------------------------------------
     # Phase 级别

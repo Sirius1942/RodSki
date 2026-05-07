@@ -27,4 +27,3 @@ class DataSchemaValidator:
                         f"SQLite 逻辑表 '{table_name}' 行 '{data_id}' "
                         f"包含 schema 中未定义的字段: {sorted(extra)}"
                     )
-                    )

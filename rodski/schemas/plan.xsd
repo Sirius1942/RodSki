@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <xs:element name="test_plan">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="debug" type="DebugType" minOccurs="0" maxOccurs="1"/>
+        <xs:element name="case" type="PlanCaseType" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attribute name="id" type="xs:string" use="required"/>
+      <xs:attribute name="title" type="xs:string" use="optional"/>
+      <xs:attribute name="kind" type="PlanKindType" use="required"/>
+      <xs:attribute name="execute" type="ExecuteType" use="optional" default="是"/>
+      <xs:attribute name="default_execute" type="ExecuteType" use="optional" default="否"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:complexType name="DebugType">
+    <xs:attribute name="prepare" type="DebugPrepareType" use="optional" default="auto"/>
+    <xs:attribute name="step_mode" type="DebugStepModeType" use="optional" default="all"/>
+    <xs:attribute name="cleanup" type="ExecuteType" use="optional" default="否"/>
+  </xs:complexType>
+
+  <xs:complexType name="PlanCaseType">
+    <xs:sequence>
+      <xs:element name="scenario" type="PlanScenarioType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="id" type="xs:string" use="required"/>
+    <xs:attribute name="execute" type="ExecuteType" use="optional" default="是"/>
+  </xs:complexType>
+
+  <xs:complexType name="PlanScenarioType">
+    <xs:sequence>
+      <xs:element name="step" type="PlanStepType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="id" type="xs:string" use="required"/>
+    <xs:attribute name="execute" type="ExecuteType" use="optional" default="是"/>
+  </xs:complexType>
+
+  <xs:complexType name="PlanStepType">
+    <xs:attribute name="no" type="xs:positiveInteger" use="required"/>
+    <xs:attribute name="execute" type="ExecuteType" use="optional" default="是"/>
+  </xs:complexType>
+
+  <xs:simpleType name="ExecuteType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="是"/>
+      <xs:enumeration value="否"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="PlanKindType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="suite"/>
+      <xs:enumeration value="scenario_debug"/>
+      <xs:enumeration value="step_debug"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="DebugPrepareType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="auto"/>
+      <xs:enumeration value="case"/>
+      <xs:enumeration value="none"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="DebugStepModeType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="all"/>
+      <xs:enumeration value="from"/>
+      <xs:enumeration value="only"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+</xs:schema>

@@ -13,7 +13,7 @@ from pathlib import Path
 from string import Template
 from typing import List, Optional, Tuple
 
-from .data_model import CaseReport, PhaseReport, ReportData, StepReport
+from .data_model import CaseReport, PhaseReport, ReportData, ScenarioReport, StepReport
 
 
 # ---------------------------------------------------------------------------
@@ -586,6 +586,16 @@ class ReportGenerator:
 </tbody>
 </table>"""
 
+        # -- Plan 信息 --
+        plan_html = ""
+        if self.data.plan_id or self.data.plan_title:
+            plan_parts = []
+            if self.data.plan_id:
+                plan_parts.append(f"Plan ID: {_escape_html(self.data.plan_id)}")
+            if self.data.plan_title:
+                plan_parts.append(f"Plan: {_escape_html(self.data.plan_title)}")
+            plan_html = f'<div class="subtitle" style="margin-bottom:8px;">{" | ".join(plan_parts)}</div>'
+
         return f"""
 <div class="card">
     <h1>RodSki Test Report</h1>
@@ -595,6 +605,7 @@ class ReportGenerator:
         End: {_format_datetime(self.data.end_time)}
         {(' | ' + env_info) if env_info else ''}
     </div>
+    {plan_html}
     {stats_html}
     <div class="charts-row">
         <div class="chart-container">
@@ -643,6 +654,11 @@ class ReportGenerator:
 
         phases_html = "\n".join(phase_sections)
 
+        # Scenario 层级
+        scenarios_html = ""
+        if case.scenarios:
+            scenarios_html = self._render_scenarios(case.scenarios)
+
         desc_html = f'<p style="color:#666;font-size:0.9em;margin:4px 0 12px;">{desc}</p>' if desc else ""
 
         return f"""
@@ -653,7 +669,44 @@ class ReportGenerator:
     </h2>
     {desc_html}
     {timeline_html}
+    {scenarios_html}
     {phases_html}
+</div>"""
+
+    def _render_scenarios(self, scenarios: list) -> str:
+        """渲染 scenario 列表"""
+        rows = []
+        for i, sc in enumerate(scenarios):
+            sid = _escape_html(sc.scenario_id or f"Scenario {i + 1}")
+            title = _escape_html(sc.title or "-")
+            status = sc.status
+            dur = _format_duration(sc.duration)
+            skip_info = ""
+            if sc.skip_reason:
+                skip_info = f'<div class="error-msg" style="color:#666;">{_escape_html(sc.skip_reason)}</div>'
+            rows.append(
+                f'<tr class="{"error-row" if status == "FAIL" else ""}">'
+                f"<td>{i + 1}</td>"
+                f"<td>{sid}</td>"
+                f"<td>{title}{skip_info}</td>"
+                f'<td><span class="status-badge status-{status}">{status}</span></td>'
+                f"<td>{dur}</td>"
+                f"</tr>"
+            )
+
+        return f"""
+<div style="margin-top:12px;">
+    <h3 class="collapsible open" style="color:#1976d2;">
+        Scenarios ({len(scenarios)})
+    </h3>
+    <div class="collapse-content show">
+        <table>
+        <thead><tr><th>#</th><th>Scenario ID</th><th>Title</th><th>Status</th><th>Duration</th></tr></thead>
+        <tbody>
+        {"".join(rows)}
+        </tbody>
+        </table>
+    </div>
 </div>"""
 
     def _render_phase(

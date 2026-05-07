@@ -1,6 +1,6 @@
 # 迭代规划总览
 
-**最近更新**: 2026-05-01
+**最近更新**: 2026-05-07
 
 ---
 
@@ -78,6 +78,37 @@ iteration-31 → iteration-32 → iteration-33
 - `iteration-32` 对应分支：`feature/iteration-32-data-cli`
 - `iteration-33` 对应分支：`feature/iteration-33-init-cli`
 - `v5.9.0` / `v5.10.0` release tag 只从 `main` 打出
+
+---
+
+### Scenario 与测试计划 XML (iteration-35 ~ 39)
+
+**规划来源**: `.pb/design/v6.3.0-scenario-plan-discussion-draft.md`  
+**总体规划**: `.pb/iterations/iteration-35-39-plan.md`  
+**目标**: 将静态执行范围选择从 `<if>` 中移出，形成 `<scenario>`、显式 `plan/*.xml` 与 tag/group 临时选择器
+
+| 迭代 | 版本 | 工时 | 状态 | 主要内容 |
+|------|------|------|------|----------|
+| iteration-35 | v6.3.0-alpha.1 | 6h | 待开始 | `<scenario>` XML、CaseParser、兼容执行、depends 基础语义 |
+| iteration-36 | v6.3.0-alpha.2 | 6h | 待开始 | `plan.xsd`、PlanParser、`TestPlanSelection`、`rodski run @plan_id` |
+| iteration-37 | v6.3.0-beta.1 | 5h | 待开始 | `--tag/--group/--exclude-tag` 临时 selector 与固定互斥裁决 |
+| iteration-38 | v6.3.0-beta.2 | 6h | 待开始 | `rodski plan` 初始化、查看、校验、创建、启停与 from-tag/from-group |
+| iteration-39 | v6.3.0 | 6h | 待开始 | scenario/step debug、报告层级、demo 验收与发布收口 |
+
+**合计**: 29h
+
+### 迭代依赖
+
+```text
+iteration-35 → iteration-36 → iteration-37 → iteration-38 → iteration-39
+```
+
+### 后续版本 backlog
+
+| 候选迭代 | 候选版本 | 内容 |
+|----------|----------|------|
+| iteration-40 | v6.4.0 | rodski-vscode 页面读写 `plan/*.xml` |
+| iteration-41 | v6.5.0 | 失败重跑计划生成 |
 
 ---
 

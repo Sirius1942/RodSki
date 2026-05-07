@@ -46,6 +46,56 @@ _CHROME_MACOS = Path("/Applications/Google Chrome.app/Contents/MacOS/Google Chro
 VISION_LOCATOR_TYPES = {'vision', 'ocr', 'vision_bbox'}
 
 
+def _resolve_video_size(value: str) -> dict:
+    """将录制分辨率配置值解析为 Playwright record_video_size 字典。
+
+    Args:
+        value: 分辨率配置值，支持:
+            - "screen": 当前屏幕分辨率（无法获取时回退到 1920x1080）
+            - "2k": 2560x1440
+            - "hd": 1920x1080
+            - "WxH": 自定义宽高，如 "1920x1080"
+
+    Returns:
+        {"width": int, "height": int}
+
+    Raises:
+        ValueError: 无效的分辨率值
+    """
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"无效的录制分辨率值: {value!r}")
+
+    value = value.strip().lower()
+
+    if value == "screen":
+        try:
+            import mss
+            with mss.mss() as sct:
+                # 使用主显示器（monitors[1] 是第一个物理显示器）
+                monitor = sct.monitors[1] if len(sct.monitors) > 1 else sct.monitors[0]
+                return {"width": monitor["width"], "height": monitor["height"]}
+        except Exception:
+            # 无法获取屏幕分辨率，回退到 1920x1080
+            return {"width": 1920, "height": 1080}
+
+    if value == "2k":
+        return {"width": 2560, "height": 1440}
+
+    if value == "hd":
+        return {"width": 1920, "height": 1080}
+
+    # 尝试解析 WxH 格式
+    import re as _re
+    match = _re.match(r"^(\d+)x(\d+)$", value)
+    if match:
+        w, h = int(match.group(1)), int(match.group(2))
+        if w > 0 and h > 0:
+            return {"width": w, "height": h}
+        raise ValueError(f"无效的录制分辨率值（宽高必须大于 0）: {value!r}")
+
+    raise ValueError(f"无效的录制分辨率值: {value!r}，支持: screen, 2k, hd, WxH")
+
+
 def _launch_channel_chromium(headless: bool, browser: str) -> str | None:
     """返回 chromium.launch(channel=...) 的 channel；无则返回 None。"""
     if browser != "chromium" or headless:
@@ -636,7 +686,7 @@ class PlaywrightDriver(BaseDriver):
             logger.warning(f"获取 cookies 失败: {e}")
             return {}
 
-    def start_case_recording(self, output_dir: str, case_id: str, target_path: str) -> Optional[str]:
+    def start_case_recording(self, output_dir: str, case_id: str, target_path: str, video_size: str = None) -> Optional[str]:
         if self._is_closed:
             return None
         record_dir = Path(output_dir)
@@ -658,13 +708,16 @@ class PlaywrightDriver(BaseDriver):
                     pass
 
             context_options = {"record_video_dir": str(record_dir)}
+            # 解析并设置录制分辨率
+            resolved_size = _resolve_video_size(video_size or "screen")
+            context_options["record_video_size"] = resolved_size
             if not self.headless:
                 context_options["no_viewport"] = True
             self.context = self.browser.new_context(**context_options)
             self._recording_context = self.context
             self.page = self.context.new_page()
             self._recording_video = getattr(self.page, "video", None)
-            logger.info(f"Playwright 原生录制已启动: {self._recording_target_path}")
+            logger.info(f"Playwright 原生录制已启动: {self._recording_target_path} (分辨率: {resolved_size})")
             return str(self._recording_target_path)
         except Exception as e:
             logger.warning(f"Playwright 原生录制启动失败: {e}")

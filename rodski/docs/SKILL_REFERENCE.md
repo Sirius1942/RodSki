@@ -376,9 +376,62 @@
 
 ---
 
-## 5. 使用建议
+## 5. 控制结构
 
-### 5.1 Skill 选择策略
+### 5.1 `<if>` / `<elif>` / `<else>` 条件块
+
+**用途**: 在当前步骤序列中按条件执行分支。`<if>` 不是关键字动作，不写 `action`；它是 case XML 的控制容器。
+
+**语法**:
+```xml
+<if condition="${Return[-1]} != ''">
+  <test_step action="verify" model="TestForm" data="V001"/>
+  <else>
+    <test_step action="wait" model="" data="1"/>
+  </else>
+</if>
+```
+
+**边界**:
+- `<if>` 可出现在 `<test_case>` 的裸步骤序列中，也可出现在 `<scenario>` 内。
+- `<if>` 只控制自身内部的 `test_step` / 嵌套 `if`，不会跨出当前 `<scenario>` 或当前阶段。
+- `<elif>` / `<else>` 必须紧跟对应 `<if>` 链；不要把一个分支拆到其他 `<scenario>` 中。
+
+### 5.2 `<scenario>` 场景容器
+
+**用途**: 在同一个 case 的 `<test_case>` 内，把步骤分组成可命名、可依赖的验收片段。`<scenario>` 不是关键字动作，不写 `action`。
+
+**语法**:
+```xml
+<test_case>
+  <test_step action="type" model="LoginForm" data="L001"/>
+
+  <scenario id="S001" title="进入功能页" group="smoke" tag="nav,ui">
+    <test_step action="type" model="NavMenu" data="N001"/>
+  </scenario>
+
+  <scenario id="S002" title="提交表单" group="smoke" tag="form" depends="S001">
+    <if condition="${Return[-1]} != ''">
+      <test_step action="type" model="TestForm" data="T001"/>
+      <else>
+        <test_step action="wait" model="" data="1"/>
+      </else>
+    </if>
+  </scenario>
+</test_case>
+```
+
+**边界**:
+- `<test_case>` 中裸 `<test_step>` 与 `<scenario>` 按书写顺序混合执行。
+- `<scenario>` 内可使用 `<test_step>`、`<if>/<elif>/<else>`、`<loop>`；`<if>` 的作用域仅限当前 scenario 内部。
+- `depends` 第一版只支持同一 case 内的 scenario id。依赖 scenario 为 `FAIL` 或 `SKIP` 时，当前 scenario 标记为 `SKIP` 且内部步骤不执行。
+- scenario 不是独立 case；case 级预处理、后处理、截图、录制等仍按原 case 语义处理。
+
+---
+
+## 6. 使用建议
+
+### 6.1 Skill 选择策略
 
 | 场景 | 推荐 Skill |
 |------|-----------|
@@ -388,7 +441,7 @@
 | 等待加载 | wait |
 | 桌面应用 | launch + run |
 
-### 5.2 常见错误
+### 6.2 常见错误
 
 | 错误 | 原因 | 解决方案 |
 |------|------|---------|

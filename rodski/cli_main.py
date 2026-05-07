@@ -7,9 +7,9 @@ from pathlib import Path
 
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-    from rodski.rodski_cli import run, model, config, log, report, profile, docs, capabilities, data, init
+    from rodski.rodski_cli import run, model, config, log, report, profile, docs, capabilities, data, init, plan
 else:
-    from .rodski_cli import run, model, config, log, report, profile, docs, capabilities, data, init
+    from .rodski_cli import run, model, config, log, report, profile, docs, capabilities, data, init, plan
 
 from rodski import __version__ as VERSION
 
@@ -89,6 +89,9 @@ def main():
     # init 子命令
     init.setup_parser(subparsers)
 
+    # plan 子命令
+    plan.setup_parser(subparsers)
+
     args = parser.parse_args()
 
     if not args.command:
@@ -107,6 +110,7 @@ def main():
         "capabilities": capabilities.handle,
         "data": data.handle,
         "init": init.handle,
+        "plan": plan.handle,
     }
 
     verbose = getattr(args, "verbose", False)

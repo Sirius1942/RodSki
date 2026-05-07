@@ -22,11 +22,13 @@ import copy
 from collections import deque
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, Optional, Callable, List, Deque
+from typing import Dict, Any, Optional, Callable, List, Deque, Set
 from .model_parser import ModelParser
 from .data_table_parser import DataTableParser
 from .global_value_parser import GlobalValueParser
 from .case_parser import CaseParser
+from .plan_parser import PlanParser
+from .test_plan_selection import TestPlanSelection
 from .result_writer import ResultWriter, write_execution_summary
 from .config_manager import ConfigManager
 try:
@@ -220,6 +222,14 @@ class SKIExecutor:
         """
         cases = self.case_parser.parse_cases()
         cases = self._filter_cases(cases, filter_tags, filter_priority, exclude_tags)
+        plan_selection = self._compile_plan_selection(cases)
+        cases, plan_case_skips = self._apply_plan_selection(cases, plan_selection)
+
+        # Debug mode: 如果启用了 --debug 且 plan kind 是 scenario_debug/step_debug，走调试执行路径
+        if getattr(self, 'debug_mode', False) and hasattr(self, 'plan'):
+            plan_kind = self.plan.get('kind', '')
+            if plan_kind in ('scenario_debug', 'step_debug'):
+                return self._execute_debug_plan(cases, plan_case_skips)
         results = []
         case_count = 0
         total_cases = len(cases)
@@ -233,6 +243,11 @@ class SKIExecutor:
 
         for case in cases:
             case_count += 1
+            case_skip = plan_case_skips.get(case.get('case_id', ''))
+            if case_skip:
+                results.append(self._case_result_skipped(case, case_skip))
+                logger.info(f"  SKIP ({case_skip})")
+                continue
             if self._driver_closed:
                 logger.info(f"用例 {case_count}/{total_cases}: 驱动已关闭，重新创建浏览器...")
                 try:
@@ -283,6 +298,307 @@ class SKIExecutor:
             self.report_collector.end_run()
 
         return results
+
+    def _compile_plan_selection(self, cases: List[Dict[str, Any]]) -> Optional[Dict[str, List[Dict[str, Any]]]]:
+        """Parse ``self.plan_path`` or compile selector filters into plan selection metadata."""
+        plan_path = getattr(self, 'plan_path', None)
+        if plan_path:
+            parser = PlanParser(str(plan_path))
+            parse = getattr(parser, 'parse', None) or parser.parse_plan
+            plan = parse()
+            selection = TestPlanSelection(cases, plan).select()
+            self.plan = plan
+            self.plan_selection_result = selection
+            return selection
+
+        # Selector mode: compile from CLI filters if any are active
+        selector_filters = getattr(self, 'selector_filters', None) or {}
+        has_active = any(
+            selector_filters.get(k)
+            for k in ("filter_tags", "filter_group", "exclude_tags", "filter_priority")
+        )
+        if not has_active:
+            self.plan_selection_result = None
+            return None
+
+        from .test_plan_selection import compile_from_selector
+        metadata = CaseParser.collect_scenario_metadata_from_cases(cases)
+        # compile_from_selector expects filter_priority as a single string
+        raw_priority = selector_filters.get("filter_priority")
+        priority_str = raw_priority[0] if isinstance(raw_priority, list) and raw_priority else raw_priority
+        selection = compile_from_selector(
+            metadata,
+            filter_tags=selector_filters.get("filter_tags"),
+            filter_group=selector_filters.get("filter_group"),
+            exclude_tags=selector_filters.get("exclude_tags"),
+            filter_priority=priority_str,
+        )
+        self.plan_selection_result = selection
+        return selection
+
+    def _apply_plan_selection(
+        self,
+        cases: List[Dict[str, Any]],
+        selection: Optional[Dict[str, List[Dict[str, Any]]]],
+    ) -> tuple[List[Dict[str, Any]], Dict[str, str]]:
+        """Annotate cases with plan scenario/step filters and return case-level skips."""
+        if not selection:
+            return cases, {}
+
+        case_skips: Dict[str, str] = {}
+        case_has_selection: Dict[str, bool] = {}
+        selected_scenarios: Dict[str, Set[str]] = {}
+        selected_steps: Dict[str, Dict[str, Set[int]]] = {}
+        skipped_scenarios: Dict[str, Dict[str, str]] = {}
+
+        for entry in selection.get('selected', []):
+            case_id = entry.get('case_id', '')
+            case_has_selection[case_id] = True
+            if entry.get('type') == 'case':
+                selected_scenarios.setdefault(case_id, set()).add('*')
+            elif entry.get('type') == 'scenario':
+                selected_scenarios.setdefault(case_id, set()).add(entry.get('scenario_id', ''))
+            elif entry.get('type') == 'step':
+                scenario_id = entry.get('scenario_id', '')
+                selected_scenarios.setdefault(case_id, set()).add(scenario_id)
+                selected_steps.setdefault(case_id, {}).setdefault(scenario_id, set()).add(entry.get('step_no'))
+
+        for entry in selection.get('skipped', []):
+            case_id = entry.get('case_id', '')
+            reason = entry.get('reason', 'plan_skipped')
+            if entry.get('type') == 'case':
+                case_skips[case_id] = reason
+            elif entry.get('type') == 'scenario':
+                skipped_scenarios.setdefault(case_id, {})[entry.get('scenario_id', '')] = reason
+
+        for case in cases:
+            case_id = case.get('case_id', '')
+            if case_id in case_skips:
+                continue
+            if not case_has_selection.get(case_id):
+                case_skips[case_id] = 'plan_not_selected'
+                continue
+
+            scenario_ids = selected_scenarios.get(case_id, set())
+            if '*' in scenario_ids:
+                continue
+
+            case['_selected_scenario_ids'] = scenario_ids
+            case['_selected_step_map'] = selected_steps.get(case_id, {})
+            case_skipped = dict(skipped_scenarios.get(case_id, {}))
+            for scenario in case.get('scenarios', []) or []:
+                scenario_id = scenario.get('id', '')
+                if scenario_id not in scenario_ids and scenario_id not in case_skipped:
+                    case_skipped[scenario_id] = 'plan_not_selected'
+            case['_skipped_scenarios'] = case_skipped
+
+        return cases, case_skips
+
+    def _execute_debug_plan(
+        self,
+        cases: List[Dict[str, Any]],
+        plan_case_skips: Dict[str, str],
+    ) -> List[Dict[str, Any]]:
+        """调试模式执行入口：根据 plan kind 分发到 scenario_debug 或 step_debug。"""
+        plan = self.plan
+        plan_kind = plan.get('kind', '')
+        debug_config = plan.get('debug', {})
+        selection = self.plan_selection_result or {}
+        results = []
+
+        # 初始化结果目录
+        self.result_writer._init_run_dir()
+
+        if getattr(self, 'report_collector', None):
+            self.report_collector.start_run()
+
+        for case in cases:
+            case_id = case.get('case_id', '')
+            if case_id in plan_case_skips:
+                results.append(self._case_result_skipped(case, plan_case_skips[case_id]))
+                continue
+
+            # 找到 plan selection 中该 case 对应的选中 scenario/step
+            selected_entries = [
+                e for e in selection.get('selected', [])
+                if e.get('case_id') == case_id
+            ]
+            if not selected_entries:
+                results.append(self._case_result_skipped(case, 'plan_not_selected'))
+                continue
+
+            result = self._execute_debug_case(case, plan_kind, debug_config, selected_entries)
+            results.append(result)
+
+        self.result_writer.write_results(results)
+
+        if getattr(self, 'report_collector', None):
+            self.report_collector.end_run()
+
+        return results
+
+    def _execute_debug_case(
+        self,
+        case: Dict[str, Any],
+        plan_kind: str,
+        debug_config: Dict[str, str],
+        selected_entries: List[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        """执行单个 case 的调试模式。
+
+        根据 plan_kind (scenario_debug / step_debug) 和 debug_config 决定：
+        - 是否执行 pre_process
+        - 执行哪些 scenario 步骤
+        - 是否执行 post_process
+        """
+        start = time.time()
+        self._current_case_steps_log = []
+        self._current_case_scenario_statuses = []
+        resources_snapshot = self._snapshot_runtime_resources()
+        self._current_case_step_wait = case.get('step_wait')
+        self._current_case_id = case.get('case_id', '')
+        self._step_index = 0
+        self._runtime_stopped_graceful = False
+
+        prepare = debug_config.get('prepare', 'auto')
+        cleanup = debug_config.get('cleanup', '否')
+        step_mode = debug_config.get('step_mode', 'all')
+
+        pre_steps: List[Dict[str, str]] = case.get('pre_process') or []
+        post_steps: List[Dict[str, str]] = case.get('post_process') or []
+
+        # 确定目标 scenario 和 step
+        target_scenario_id = None
+        target_step_no = None
+        for entry in selected_entries:
+            if entry.get('type') == 'scenario':
+                target_scenario_id = entry.get('scenario_id', '')
+                break
+            elif entry.get('type') == 'step':
+                target_scenario_id = entry.get('scenario_id', '')
+                target_step_no = entry.get('step_no')
+                break
+            elif entry.get('type') == 'case':
+                # 整个 case 被选中，取第一个 scenario
+                scenarios = case.get('scenarios', []) or []
+                if scenarios:
+                    target_scenario_id = scenarios[0].get('id', '')
+                break
+
+        # 找到目标 scenario 的步骤
+        target_scenario = None
+        target_scenario_steps = []
+        for scenario in (case.get('scenarios', []) or []):
+            if scenario.get('id', '') == target_scenario_id:
+                target_scenario = scenario
+                target_scenario_steps = scenario.get('steps', []) or []
+                break
+
+        err: Optional[Exception] = None
+
+        try:
+            # Phase 1: pre_process
+            if prepare == 'auto' or prepare == 'case':
+                try:
+                    self._run_steps(pre_steps, '预处理')
+                except Exception as e:
+                    logger.error(f"[debug] 预处理失败: {e}")
+                    err = e
+            # prepare=none: 不执行 pre_process
+
+            if err is None:
+                # Phase 2: scenario 步骤执行
+                if plan_kind == 'scenario_debug':
+                    # scenario_debug: 执行完整 scenario
+                    # prepare=auto 时不需要额外前置步骤（scenario_debug 的 auto 只执行 pre_process）
+                    try:
+                        self._execute_step_list(target_scenario_steps, '用例')
+                    except Exception as e:
+                        logger.error(f"[debug] scenario 执行失败: {e}")
+                        err = e
+
+                elif plan_kind == 'step_debug':
+                    # step_debug: 根据 step_mode 决定执行范围
+                    if step_mode == 'all':
+                        # 执行整个 scenario（忽略 step 选择）
+                        try:
+                            self._execute_step_list(target_scenario_steps, '用例')
+                        except Exception as e:
+                            logger.error(f"[debug] step_debug all 执行失败: {e}")
+                            err = e
+                    elif step_mode == 'from':
+                        # 从指定 step no 开始执行到 scenario 结束
+                        step_idx = (target_step_no or 1) - 1  # 1-based to 0-based
+                        # prepare=auto 时执行目标 step 之前的步骤
+                        if prepare == 'auto' and step_idx > 0:
+                            try:
+                                self._execute_step_list(target_scenario_steps[:step_idx], '用例')
+                            except Exception as e:
+                                logger.error(f"[debug] 前置步骤执行失败: {e}")
+                                err = e
+                        if err is None:
+                            try:
+                                self._execute_step_list(target_scenario_steps[step_idx:], '用例')
+                            except Exception as e:
+                                logger.error(f"[debug] step_debug from 执行失败: {e}")
+                                err = e
+                    elif step_mode == 'only':
+                        # 只执行指定 step no
+                        step_idx = (target_step_no or 1) - 1
+                        # prepare=auto 时执行目标 step 之前的步骤
+                        if prepare == 'auto' and step_idx > 0:
+                            try:
+                                self._execute_step_list(target_scenario_steps[:step_idx], '用例')
+                            except Exception as e:
+                                logger.error(f"[debug] 前置步骤执行失败: {e}")
+                                err = e
+                        if err is None and step_idx < len(target_scenario_steps):
+                            try:
+                                self._execute_step_list(
+                                    [target_scenario_steps[step_idx]], '用例'
+                                )
+                            except Exception as e:
+                                logger.error(f"[debug] step_debug only 执行失败: {e}")
+                                err = e
+
+            # Phase 3: post_process
+            if cleanup == '是':
+                try:
+                    self._run_steps(post_steps, '后处理')
+                except Exception as e:
+                    logger.error(f"[debug] 后处理失败: {e}")
+                    if err is None:
+                        err = e
+
+            if err is not None:
+                return {
+                    'case_id': case.get('case_id', ''),
+                    'title': case.get('title', ''),
+                    'status': 'FAIL',
+                    'execution_time': round(time.time() - start, 3),
+                    'error': str(err),
+                    'screenshot_path': '',
+                }
+
+            return {
+                'case_id': case.get('case_id', ''),
+                'title': case.get('title', ''),
+                'status': 'PASS',
+                'execution_time': round(time.time() - start, 3),
+            }
+        finally:
+            self._restore_runtime_resources(resources_snapshot)
+
+    @staticmethod
+    def _case_result_skipped(case: Dict[str, Any], reason: str) -> Dict[str, Any]:
+        return {
+            'case_id': case.get('case_id', ''),
+            'title': case.get('title', ''),
+            'status': 'SKIP',
+            'execution_time': 0,
+            'error': reason,
+            'screenshot_path': '',
+        }
 
     @staticmethod
     def _filter_cases(
@@ -387,7 +703,8 @@ class SKIExecutor:
                 if not hasattr(self.driver, "start_case_recording"):
                     logger.warning("当前驱动不支持 Playwright 原生录制")
                     return ""
-                started = self.driver.start_case_recording(str(output_dir), case_id, str(target_path))
+                video_size = str(self._recording_option("video_size", "screen"))
+                started = self.driver.start_case_recording(str(output_dir), case_id, str(target_path), video_size=video_size)
                 if not started:
                     return ""
                 self._active_recording_backend = "playwright"
@@ -457,6 +774,7 @@ class SKIExecutor:
         screenshot_path = None
         screenshot_attempted = False
         self._current_case_steps_log = []
+        self._current_case_scenario_statuses = []
         resources_snapshot = self._snapshot_runtime_resources()
 
         # 保存当前 case 的 step_wait 配置（优先级高于全局配置）
@@ -469,8 +787,13 @@ class SKIExecutor:
             self._step_index = 0
             self._runtime_stopped_graceful = False
             recording_path = self._start_case_recording(case['case_id'])
+            self._current_plan_selected_scenario_ids = case.get('_selected_scenario_ids')
+            self._current_plan_selected_step_map = case.get('_selected_step_map') or {}
+            self._current_plan_skipped_scenarios = case.get('_skipped_scenarios') or {}
 
             def _finish(result: Dict[str, Any]) -> Dict[str, Any]:
+                if getattr(self, '_current_case_scenario_statuses', None):
+                    result['scenario_statuses'] = list(self._current_case_scenario_statuses)
                 final_recording_path = self._stop_case_recording(case['case_id'], recording_path)
                 return self._attach_recording_path(result, final_recording_path)
 
@@ -661,9 +984,12 @@ class SKIExecutor:
         self.data_manager.tables = snapshot.get('tables', {})
 
     def _run_steps(self, steps: List[Dict[str, str]], phase_label: str) -> None:
-        """顺序执行某阶段内全部 test_step；支持运行时 insert 扩展队列、条件和循环。"""
+        """顺序执行某阶段内全部 test_step；支持 scenario、运行时 insert 扩展队列、条件和循环。"""
         dq = deque([s for s in steps if s.get('action') or s.get('type')])
         self._phase_runtime_seq = 0
+        scenario_states: Dict[str, str] = {}
+        first_scenario_error: Optional[Exception] = None
+
         while dq:
             if self._drain_runtime_at_boundary(dq):
                 return
@@ -680,27 +1006,121 @@ class SKIExecutor:
             step = dq.popleft()
             self._phase_runtime_seq += 1
 
-            # 处理条件步骤
-            if step.get('type') == 'if':
-                self._execute_if_block(step, phase_label)
-            # 处理循环步骤
-            elif step.get('type') == 'loop':
-                loop_range = step.get('range', '')
-                var_name = step.get('var', 'item')
-                items = self.dynamic_executor.parse_loop_range(loop_range)
-                logger.info(f"  [{self._phase_runtime_seq}] loop {var_name} in {loop_range} ({len(items)} 次)")
-                for idx, item in enumerate(items, 1):
-                    self.dynamic_executor.set_variable(var_name, item)
-                    logger.debug(f"    循环 [{idx}/{len(items)}]: {var_name}={item}")
-                    for sub_step in step.get('steps', []):
-                        self.execute_step(sub_step, phase_label)
-            # 普通步骤
+            if step.get('type') == 'scenario':
+                scenario_id = step.get('id', '')
+                skipped_scenarios = getattr(self, '_current_plan_skipped_scenarios', {}) or {}
+                if scenario_id in skipped_scenarios:
+                    reason = skipped_scenarios[scenario_id]
+                    logger.info(f"  [{self._phase_runtime_seq}] scenario {scenario_id} -> SKIP ({reason})")
+                    if scenario_id:
+                        scenario_states[scenario_id] = 'SKIP'
+                    self._record_scenario_status(step, phase_label, 'SKIP', reason)
+                    continue
+                selected_scenarios = getattr(self, '_current_plan_selected_scenario_ids', None)
+                if selected_scenarios is not None and scenario_id not in selected_scenarios:
+                    reason = 'plan_not_selected'
+                    logger.info(f"  [{self._phase_runtime_seq}] scenario {scenario_id} -> SKIP ({reason})")
+                    if scenario_id:
+                        scenario_states[scenario_id] = 'SKIP'
+                    self._record_scenario_status(step, phase_label, 'SKIP', reason)
+                    continue
+                try:
+                    self._execute_scenario(step, phase_label, scenario_states)
+                except Exception as e:
+                    scenario_id = step.get('id', '')
+                    if scenario_id:
+                        scenario_states[scenario_id] = 'FAIL'
+                    self._record_scenario_status(step, phase_label, 'FAIL', str(e))
+                    if first_scenario_error is None:
+                        first_scenario_error = e
             else:
-                logger.debug(f"  [{self._phase_runtime_seq}] {step['action']}")
-                self.execute_step(step, phase_label)
+                self._execute_step_item(step, phase_label)
 
             if self._drain_runtime_at_boundary(dq):
                 return
+
+        if first_scenario_error is not None:
+            raise first_scenario_error
+
+    def _execute_step_item(self, step: Dict[str, Any], phase_label: str) -> None:
+        """执行一个普通步骤 / if / loop 项；scenario 仅由 _run_steps 顶层调度。"""
+        if step.get('type') == 'if':
+            self._execute_if_block(step, phase_label)
+        elif step.get('type') == 'loop':
+            loop_range = step.get('range', '')
+            var_name = step.get('var', 'item')
+            items = self.dynamic_executor.parse_loop_range(loop_range)
+            logger.info(f"  [{self._phase_runtime_seq}] loop {var_name} in {loop_range} ({len(items)} 次)")
+            for idx, item in enumerate(items, 1):
+                self.dynamic_executor.set_variable(var_name, item)
+                logger.debug(f"    循环 [{idx}/{len(items)}]: {var_name}={item}")
+                self._execute_step_list(step.get('steps', []), phase_label)
+        else:
+            logger.debug(f"  [{self._phase_runtime_seq}] {step['action']}")
+            self.execute_step(step, phase_label)
+
+    def _execute_scenario(
+        self,
+        scenario: Dict[str, Any],
+        phase_label: str,
+        scenario_states: Dict[str, str],
+    ) -> None:
+        """执行 scenario 容器，并维护同一 case/phase 内 depends 状态。"""
+        scenario_id = scenario.get('id', '')
+        title = scenario.get('title', '')
+        depends = scenario.get('depends') or []
+        blocked_by = [dep for dep in depends if scenario_states.get(dep) != 'PASS']
+
+        if blocked_by:
+            reason = f"depends not passed: {', '.join(blocked_by)}"
+            logger.info(f"  [{self._phase_runtime_seq}] scenario {scenario_id} - {title} -> SKIP ({reason})")
+            if scenario_id:
+                scenario_states[scenario_id] = 'SKIP'
+            self._record_scenario_status(scenario, phase_label, 'SKIP', reason)
+            return
+
+        logger.info(
+            f"  [{self._phase_runtime_seq}] scenario {scenario_id} - {title} "
+            f"(group={scenario.get('group', '')}, tag={scenario.get('tag') or []})"
+        )
+        scenario_steps = scenario.get('steps', []) or []
+        selected_step_map = getattr(self, '_current_plan_selected_step_map', {}) or {}
+        selected_step_numbers = selected_step_map.get(scenario_id)
+        if selected_step_numbers:
+            scenario_steps = [
+                sub_step
+                for idx, sub_step in enumerate(scenario_steps, 1)
+                if idx in selected_step_numbers
+            ]
+        for sub_step in scenario_steps:
+            self._execute_step_item(sub_step, f"{phase_label}/{scenario_id}" if scenario_id else phase_label)
+
+        if scenario_id:
+            scenario_states[scenario_id] = 'PASS'
+        self._record_scenario_status(scenario, phase_label, 'PASS', '')
+
+    def _record_scenario_status(
+        self,
+        scenario: Dict[str, Any],
+        phase_label: str,
+        status: str,
+        error: str = '',
+    ) -> None:
+        """记录 scenario 级执行状态，供日志/结果对象和测试断言使用。"""
+        statuses = getattr(self, '_current_case_scenario_statuses', None)
+        if statuses is None:
+            self._current_case_scenario_statuses = []
+            statuses = self._current_case_scenario_statuses
+        statuses.append({
+            'id': scenario.get('id', ''),
+            'title': scenario.get('title', ''),
+            'group': scenario.get('group', ''),
+            'tag': list(scenario.get('tag') or []),
+            'depends': list(scenario.get('depends') or []),
+            'phase': phase_label,
+            'status': status,
+            'error': error,
+        })
 
     def _execute_if_block(self, step: Dict[str, Any], phase_label: str) -> None:
         """执行 if / elif / else 条件块（支持嵌套 if，最多 2 层）"""
@@ -753,12 +1173,9 @@ class SKIExecutor:
             logger.debug(f"  [{self._phase_runtime_seq}] if ({condition}) -> False (无 else 跳过)")
 
     def _execute_step_list(self, steps: List[Dict[str, Any]], phase_label: str) -> None:
-        """执行步骤列表，支持嵌套 if 块"""
+        """执行步骤列表，支持嵌套 if/loop 块。"""
         for sub_step in steps:
-            if sub_step.get('type') == 'if':
-                self._execute_if_block(sub_step, phase_label)
-            else:
-                self.execute_step(sub_step, phase_label)
+            self._execute_step_item(sub_step, phase_label)
 
     def _take_failure_screenshot(self, case_id: str) -> Optional[str]:
         """在用例失败时自动截图"""

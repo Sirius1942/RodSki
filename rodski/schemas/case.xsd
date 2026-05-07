@@ -60,23 +60,54 @@
     </xs:sequence>
   </xs:complexType>
 
-  <!-- 预处理 / 后处理：0..n 个步骤（支持 if/elif/else 容器） -->
-  <xs:complexType name="PhaseType">
+  <!-- loop 容器：循环执行一组步骤 -->
+  <xs:complexType name="LoopContainerType">
     <xs:choice minOccurs="0" maxOccurs="unbounded">
       <xs:element name="test_step" type="StepType"/>
       <xs:element name="if" type="IfContainerType"/>
       <xs:element name="elif" type="ElifType"/>
       <xs:element name="else" type="ElseType"/>
     </xs:choice>
+    <xs:attribute name="range" type="xs:string" use="required"/>
+    <xs:attribute name="var" type="xs:string" use="optional"/>
   </xs:complexType>
 
-  <!-- 用例阶段：至少 1 个步骤（支持 if/elif/else 容器） -->
+  <!-- scenario 容器：场景分组，用于组织 test_case 内的步骤 -->
+  <xs:complexType name="ScenarioType">
+    <xs:choice minOccurs="0" maxOccurs="unbounded">
+      <xs:element name="test_step" type="StepType"/>
+      <xs:element name="if" type="IfContainerType"/>
+      <xs:element name="elif" type="ElifType"/>
+      <xs:element name="else" type="ElseType"/>
+      <xs:element name="loop" type="LoopContainerType"/>
+    </xs:choice>
+    <xs:attribute name="id" type="xs:string" use="required"/>
+    <xs:attribute name="title" type="xs:string" use="optional"/>
+    <xs:attribute name="group" type="xs:string" use="optional"/>
+    <xs:attribute name="tag" type="xs:string" use="optional"/>
+    <xs:attribute name="depends" type="xs:string" use="optional"/>
+  </xs:complexType>
+
+  <!-- 预处理 / 后处理：0..n 个步骤（支持 if/elif/else/loop 容器） -->
+  <xs:complexType name="PhaseType">
+    <xs:choice minOccurs="0" maxOccurs="unbounded">
+      <xs:element name="test_step" type="StepType"/>
+      <xs:element name="if" type="IfContainerType"/>
+      <xs:element name="elif" type="ElifType"/>
+      <xs:element name="else" type="ElseType"/>
+      <xs:element name="loop" type="LoopContainerType"/>
+    </xs:choice>
+  </xs:complexType>
+
+  <!-- 用例阶段：至少 1 个步骤（支持 if/elif/else/loop/scenario 容器） -->
   <xs:complexType name="TestCasePhaseType">
     <xs:choice minOccurs="1" maxOccurs="unbounded">
       <xs:element name="test_step" type="StepType"/>
       <xs:element name="if" type="IfContainerType"/>
       <xs:element name="elif" type="ElifType"/>
       <xs:element name="else" type="ElseType"/>
+      <xs:element name="loop" type="LoopContainerType"/>
+      <xs:element name="scenario" type="ScenarioType"/>
     </xs:choice>
   </xs:complexType>
 

@@ -28,7 +28,8 @@
     "prefer_playwright_native_in_headless": true,
     "capture_input": false,
     "event_timeline": false,
-    "monitor_id": null
+    "monitor_id": null,
+    "video_size": "screen"
   },
   "smart_wait_enabled": true,
   "smart_wait_max_retries": 30,

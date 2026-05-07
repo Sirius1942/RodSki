@@ -16,6 +16,7 @@ from report.data_model import (
     PhaseReport,
     ReportData,
     RunSummary,
+    ScenarioReport,
     StepReport,
     _serialize,
 )
@@ -318,3 +319,177 @@ class TestSerialize:
         assert isinstance(result, dict)
         assert result["index"] == 1
         assert result["action"] == "verify"
+
+
+class TestScenarioReport:
+    """场景报告数据模型测试"""
+
+    def test_default_values(self):
+        """默认值应正确初始化"""
+        sc = ScenarioReport()
+        assert sc.scenario_id == ""
+        assert sc.title == ""
+        assert sc.group == ""
+        assert sc.tags == []
+        assert sc.status == "PASS"
+        assert sc.duration == 0.0
+        assert sc.skip_reason == ""
+        assert sc.steps == []
+
+    def test_with_values(self):
+        """可以正常设置所有字段"""
+        sc = ScenarioReport(
+            scenario_id="SC001",
+            title="正常登录场景",
+            group="login",
+            tags=["smoke", "p0"],
+            status="PASS",
+            duration=2.5,
+        )
+        assert sc.scenario_id == "SC001"
+        assert sc.title == "正常登录场景"
+        assert sc.group == "login"
+        assert sc.tags == ["smoke", "p0"]
+        assert sc.duration == 2.5
+
+    def test_skip_with_reason(self):
+        """SKIP 状态应包含 skip_reason"""
+        sc = ScenarioReport(
+            scenario_id="SC002",
+            title="跳过的场景",
+            status="SKIP",
+            skip_reason="前置条件不满足",
+        )
+        assert sc.status == "SKIP"
+        assert sc.skip_reason == "前置条件不满足"
+
+    def test_with_steps(self):
+        """场景可以包含步骤列表"""
+        steps = [
+            StepReport(index=1, action="open", status="ok"),
+            StepReport(index=2, action="type", status="ok"),
+        ]
+        sc = ScenarioReport(scenario_id="SC003", steps=steps)
+        assert len(sc.steps) == 2
+        assert sc.steps[0].action == "open"
+
+    def test_steps_isolation(self):
+        """不同 ScenarioReport 实例的 steps 不应共享"""
+        s1 = ScenarioReport()
+        s2 = ScenarioReport()
+        s1.steps.append(StepReport(index=1, action="open"))
+        assert s2.steps == []
+
+    def test_tags_isolation(self):
+        """不同 ScenarioReport 实例的 tags 不应共享"""
+        s1 = ScenarioReport()
+        s2 = ScenarioReport()
+        s1.tags.append("smoke")
+        assert s2.tags == []
+
+    def test_to_dict_serialization(self):
+        """ScenarioReport.to_dict 应返回可 JSON 序列化的字典"""
+        sc = ScenarioReport(
+            scenario_id="SC001",
+            title="测试场景",
+            group="group1",
+            tags=["tag1"],
+            status="FAIL",
+            duration=1.2,
+            skip_reason="",
+            steps=[StepReport(index=1, action="verify", status="fail", error="断言失败")],
+        )
+        d = sc.to_dict()
+        assert isinstance(d, dict)
+        assert d["scenario_id"] == "SC001"
+        assert d["title"] == "测试场景"
+        assert d["status"] == "FAIL"
+        assert d["duration"] == 1.2
+        assert len(d["steps"]) == 1
+        assert d["steps"][0]["action"] == "verify"
+        # 确保可以 JSON 序列化
+        json_str = json.dumps(d, ensure_ascii=False)
+        assert "SC001" in json_str
+
+
+class TestCaseReportWithScenarios:
+    """CaseReport 包含 scenarios 的测试"""
+
+    def test_default_scenarios_empty(self):
+        """默认 scenarios 应为空列表"""
+        case = CaseReport()
+        assert case.scenarios == []
+
+    def test_scenarios_isolation(self):
+        """不同 CaseReport 实例的 scenarios 不应共享"""
+        c1 = CaseReport()
+        c2 = CaseReport()
+        c1.scenarios.append(ScenarioReport(scenario_id="SC001"))
+        assert c2.scenarios == []
+
+    def test_case_with_scenarios(self):
+        """CaseReport 可以包含多个 scenarios"""
+        scenarios = [
+            ScenarioReport(scenario_id="SC001", title="场景一", status="PASS"),
+            ScenarioReport(scenario_id="SC002", title="场景二", status="SKIP", skip_reason="条件不满足"),
+            ScenarioReport(scenario_id="SC003", title="场景三", status="FAIL"),
+        ]
+        case = CaseReport(case_id="TC001", title="含场景的用例", scenarios=scenarios)
+        assert len(case.scenarios) == 3
+        assert case.scenarios[0].scenario_id == "SC001"
+        assert case.scenarios[1].skip_reason == "条件不满足"
+        assert case.scenarios[2].status == "FAIL"
+
+    def test_case_with_scenarios_serialization(self):
+        """包含 scenarios 的 CaseReport 应正确序列化"""
+        case = CaseReport(
+            case_id="TC001",
+            title="含场景用例",
+            scenarios=[
+                ScenarioReport(scenario_id="SC001", title="场景一", status="PASS", duration=1.0),
+            ],
+        )
+        report = ReportData(
+            run_id="test-sc",
+            start_time=datetime(2026, 1, 1, 12, 0, 0),
+            cases=[case],
+        )
+        d = report.to_dict()
+        json_str = json.dumps(d, ensure_ascii=False)
+        assert "SC001" in json_str
+        assert "场景一" in json_str
+
+
+class TestReportDataWithPlan:
+    """ReportData 包含 plan_id/plan_title 的测试"""
+
+    def test_default_plan_fields(self):
+        """默认 plan_id 和 plan_title 应为空字符串"""
+        report = ReportData(run_id="test")
+        assert report.plan_id == ""
+        assert report.plan_title == ""
+
+    def test_with_plan_info(self):
+        """可以设置 plan_id 和 plan_title"""
+        report = ReportData(
+            run_id="plan-test",
+            plan_id="PLAN001",
+            plan_title="回归测试计划",
+        )
+        assert report.plan_id == "PLAN001"
+        assert report.plan_title == "回归测试计划"
+
+    def test_plan_info_serialization(self):
+        """plan_id 和 plan_title 应正确序列化"""
+        report = ReportData(
+            run_id="plan-ser",
+            plan_id="PLAN002",
+            plan_title="冒烟测试",
+            start_time=datetime(2026, 1, 1, 12, 0, 0),
+        )
+        d = report.to_dict()
+        assert d["plan_id"] == "PLAN002"
+        assert d["plan_title"] == "冒烟测试"
+        json_str = json.dumps(d, ensure_ascii=False)
+        assert "PLAN002" in json_str
+        assert "冒烟测试" in json_str

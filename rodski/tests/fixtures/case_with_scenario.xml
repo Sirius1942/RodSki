@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+  <case execute="是" id="TC_SCENARIO_001" title="场景分组测试">
+    <test_case>
+      <!-- 裸 test_step（不在 scenario 内） -->
+      <test_step action="set" model="env" data="staging"/>
+
+      <!-- SC-001: positive smoke 场景 -->
+      <scenario id="SC-001" title="登录成功" group="positive" tag="smoke,p0">
+        <test_step action="navigate" model="" data="https://example.com/login"/>
+        <test_step action="type" model="Login.username" data="admin"/>
+        <test_step action="verify" model="Login.welcome" data="欢迎"/>
+      </scenario>
+
+      <!-- SC-002: positive slow 场景 -->
+      <scenario id="SC-002" title="批量数据导入" group="positive" tag="slow">
+        <test_step action="navigate" model="" data="https://example.com/import"/>
+        <test_step action="upload_file" model="Import.file" data="/tmp/data.csv"/>
+      </scenario>
+
+      <!-- SC-003: negative 场景，依赖 SC-002 -->
+      <scenario id="SC-003" title="导入失败回滚" group="negative" tag="p1" depends="SC-002">
+        <test_step action="navigate" model="" data="https://example.com/import"/>
+        <test_step action="upload_file" model="Import.file" data="/tmp/bad.csv"/>
+        <test_step action="verify" model="Import.error" data="格式错误"/>
+      </scenario>
+    </test_case>
+  </case>
+</cases>

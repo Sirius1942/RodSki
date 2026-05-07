@@ -53,7 +53,7 @@ def _make_driver() -> Mock:
     driver.wait = Mock(return_value=True)
     driver.screenshot = Mock(return_value=True)
     driver.close = Mock(return_value=True)
-    driver.start_case_recording = Mock(side_effect=lambda output_dir, case_id, target_path: target_path)
+    driver.start_case_recording = Mock(side_effect=lambda output_dir, case_id, target_path, video_size=None: target_path)
     driver.stop_case_recording = Mock(side_effect=lambda case_id, target_path: target_path)
     return driver
 
@@ -73,6 +73,7 @@ def _make_config(tmp_path: Path, enabled: bool) -> ConfigManager:
         "capture_input": False,
         "event_timeline": False,
         "monitor_id": None,
+        "video_size": "screen",
     }
     return config
 

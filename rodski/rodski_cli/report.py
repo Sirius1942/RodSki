@@ -22,6 +22,10 @@ from typing import List, Dict, Any, Optional
 def setup_parser(subparsers):
     """注册 report 子命令（含 generate / trend 二级子命令）"""
     report_parser = subparsers.add_parser("report", help="测试报告管理")
+    report_parser.add_argument("--format", choices=["json", "html"], default="html",
+                               help="旧式报告格式: json/html")
+    report_parser.add_argument("--input", help="旧式结果 JSON 输入文件")
+    report_parser.add_argument("--output", help="旧式报告输出文件")
     report_sub = report_parser.add_subparsers(dest="report_action")
 
     # rodski report generate <result_dir>
@@ -46,11 +50,55 @@ def handle(args):
         return _handle_generate(args)
     elif action == "trend":
         return _handle_trend(args)
+    elif getattr(args, "input", None):
+        return _handle_legacy_report(args)
     else:
         # 未指定二级子命令时打印帮助
         print("用法: rodski report {generate,trend} ...", file=sys.stderr)
         print("  generate  从已有结果生成报告", file=sys.stderr)
         print("  trend     查看历史趋势", file=sys.stderr)
+        print("  --format json|html --input results.json --output report", file=sys.stderr)
+        return 1
+
+
+# ---------------------------------------------------------------------------
+# legacy report options
+# ---------------------------------------------------------------------------
+
+def _handle_legacy_report(args) -> int:
+    """处理旧式 report --format/--input/--output 调用。"""
+    input_path = Path(args.input)
+    if not input_path.exists():
+        print(f"错误: 文件不存在: {input_path}", file=sys.stderr)
+        return 1
+
+    try:
+        results_data = json.loads(input_path.read_text(encoding="utf-8"))
+    except Exception as e:
+        print(f"错误: 无法读取结果文件: {e}", file=sys.stderr)
+        return 1
+
+    output_path = Path(args.output) if args.output else None
+    report_format = getattr(args, "format", "html")
+
+    try:
+        if report_format == "json":
+            content = json.dumps(results_data, ensure_ascii=False, indent=2)
+            if output_path:
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                output_path.write_text(content, encoding="utf-8")
+            else:
+                print(content)
+        else:
+            html = _generate_html(results_data, single_file=True)
+            if output_path:
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                output_path.write_text(html, encoding="utf-8")
+            else:
+                print(html)
+        return 0
+    except Exception as e:
+        print(f"错误: 报告生成失败: {e}", file=sys.stderr)
         return 1
 
 
@@ -346,7 +394,7 @@ def _generate_html(
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RodSki Test Report</title>
+    <title>SKI / RodSki Test Report</title>
     <style>
         :root {{
             --primary: #4F46E5;

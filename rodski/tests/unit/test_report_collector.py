@@ -18,6 +18,7 @@ from report.data_model import (
     PhaseReport,
     ReportData,
     RunSummary,
+    ScenarioReport,
     StepReport,
 )
 
@@ -449,3 +450,106 @@ class TestReportCollectorOptional:
         assert report.cases[1].status == "FAIL"
         assert report.cases[1].test_case.status == "fail"
         assert report.cases[1].test_case.steps[0].error == "断言失败"
+
+
+class TestReportCollectorScenario:
+    """Scenario 级别收集测试"""
+
+    def test_start_scenario_creates_scenario_report(self):
+        """start_scenario 应创建 ScenarioReport 并填充元信息"""
+        collector = ReportCollector()
+        collector.start_run()
+        collector.start_case({"case_id": "TC001"})
+        sc = collector.start_scenario({
+            "scenario_id": "SC001",
+            "title": "正常登录",
+            "group": "login",
+            "tags": ["smoke"],
+        })
+        assert isinstance(sc, ScenarioReport)
+        assert sc.scenario_id == "SC001"
+        assert sc.title == "正常登录"
+        assert sc.group == "login"
+        assert sc.tags == ["smoke"]
+
+    def test_end_scenario_sets_status_and_duration(self):
+        """end_scenario 应设置状态和耗时"""
+        collector = ReportCollector()
+        collector.start_run()
+        collector.start_case({"case_id": "TC001"})
+        collector.start_scenario({"scenario_id": "SC001"})
+        sc = collector.end_scenario("PASS")
+        assert sc is not None
+        assert sc.status == "PASS"
+        assert sc.duration >= 0
+
+    def test_end_scenario_without_start_returns_none(self):
+        """未调用 start_scenario 时 end_scenario 应返回 None"""
+        collector = ReportCollector()
+        collector.start_run()
+        collector.start_case({"case_id": "TC001"})
+        assert collector.end_scenario("PASS") is None
+
+    def test_scenario_skip_with_reason(self):
+        """SKIP 状态的 scenario 应记录 skip_reason"""
+        collector = ReportCollector()
+        collector.start_run()
+        collector.start_case({"case_id": "TC001"})
+        collector.start_scenario({"scenario_id": "SC001", "title": "需要VPN"})
+        sc = collector.end_scenario("SKIP", skip_reason="VPN 未连接")
+        assert sc.status == "SKIP"
+        assert sc.skip_reason == "VPN 未连接"
+
+    def test_scenario_attached_to_case(self):
+        """end_scenario 后 scenario 应挂载到当前 case.scenarios"""
+        collector = ReportCollector()
+        collector.start_run()
+        collector.start_case({"case_id": "TC001"})
+
+        collector.start_scenario({"scenario_id": "SC001", "title": "场景一"})
+        collector.end_scenario("PASS")
+
+        collector.start_scenario({"scenario_id": "SC002", "title": "场景二"})
+        collector.end_scenario("FAIL")
+
+        case = collector.end_case("FAIL")
+        assert len(case.scenarios) == 2
+        assert case.scenarios[0].scenario_id == "SC001"
+        assert case.scenarios[0].status == "PASS"
+        assert case.scenarios[1].scenario_id == "SC002"
+        assert case.scenarios[1].status == "FAIL"
+
+    def test_case_without_scenarios_unchanged(self):
+        """没有 scenario 的 case（旧格式）行为不变"""
+        collector = ReportCollector()
+        collector.start_run()
+        collector.start_case({"case_id": "TC001"})
+        collector.start_phase("test_case")
+        collector.record_step({"index": 1, "action": "open", "status": "ok"})
+        collector.end_phase("ok")
+        case = collector.end_case("PASS")
+        assert case.scenarios == []
+        assert case.test_case is not None
+        assert len(case.test_case.steps) == 1
+
+    def test_multiple_scenarios_in_case(self):
+        """一个 case 可以包含多个 scenarios，包括 SKIP"""
+        collector = ReportCollector()
+        collector.start_run()
+        collector.start_case({"case_id": "TC001", "title": "多场景用例"})
+
+        collector.start_scenario({"scenario_id": "SC001", "title": "场景一"})
+        collector.end_scenario("PASS")
+
+        collector.start_scenario({"scenario_id": "SC002", "title": "场景二"})
+        collector.end_scenario("SKIP", skip_reason="环境不支持")
+
+        collector.start_scenario({"scenario_id": "SC003", "title": "场景三"})
+        collector.end_scenario("FAIL")
+
+        case = collector.end_case("FAIL")
+        assert len(case.scenarios) == 3
+        assert case.scenarios[0].status == "PASS"
+        assert case.scenarios[1].status == "SKIP"
+        assert case.scenarios[1].skip_reason == "环境不支持"
+        assert case.scenarios[2].status == "FAIL"

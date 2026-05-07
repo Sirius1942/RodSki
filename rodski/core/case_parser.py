@@ -63,6 +63,15 @@ class CaseParser:
             if execute != '是':
                 continue
 
+            test_case_steps = self._parse_phase_steps(case_node.find('test_case'))
+            pre_process_steps = self._parse_phase_steps(case_node.find('pre_process'))
+            post_process_steps = self._parse_phase_steps(case_node.find('post_process'))
+            # 收集 test_case 阶段中的 scenario
+            scenarios = [
+                step for step in test_case_steps
+                if isinstance(step, dict) and step.get('type') == 'scenario'
+            ]
+
             case = {
                 'case_id': case_node.get('id', ''),
                 'title': case_node.get('title', ''),
@@ -73,13 +82,46 @@ class CaseParser:
                 'priority': (case_node.get('priority') or '').strip(),
                 'step_wait': step_wait_ms,
                 'metadata': self._parse_metadata(case_node.find('metadata')),
-                'pre_process': self._parse_phase_steps(case_node.find('pre_process')),
-                'test_case': self._parse_phase_steps(case_node.find('test_case')),
-                'post_process': self._parse_phase_steps(case_node.find('post_process')),
+                'pre_process': pre_process_steps,
+                'test_case': test_case_steps,
+                'post_process': post_process_steps,
+                'scenarios': scenarios,
+                'has_scenarios': len(scenarios) > 0,
             }
             cases.append(case)
 
         return cases
+
+    def collect_scenario_metadata(self) -> List[Dict[str, Any]]:
+        """收集 scenario 元数据索引。
+
+        返回一行一个 scenario 的元数据，用于 selector 编译/筛选：
+        - file_tags 来自 <cases tags="...">，当前存储在 case['tags']
+        - scenario_tags 来自 <scenario tag="...">
+        - effective_tags 为文件级 tags + scenario tags，按出现顺序去重
+        """
+        cases = self._cases or self.parse_cases()
+        return self.collect_scenario_metadata_from_cases(cases)
+
+    @staticmethod
+    def collect_scenario_metadata_from_cases(cases: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """从已解析 case 列表生成 scenario 元数据索引。"""
+        metadata: List[Dict[str, Any]] = []
+        for case in cases:
+            file_tags = list(case.get('tags') or [])
+            for scenario in case.get('scenarios') or []:
+                scenario_tags = list(scenario.get('tag') or [])
+                effective_tags = list(dict.fromkeys(file_tags + scenario_tags))
+                metadata.append({
+                    'case_id': case.get('case_id', ''),
+                    'case_priority': case.get('priority', ''),
+                    'file_tags': file_tags,
+                    'scenario_id': scenario.get('id', ''),
+                    'scenario_group': scenario.get('group', ''),
+                    'scenario_tags': scenario_tags,
+                    'effective_tags': effective_tags,
+                })
+        return metadata
 
     @staticmethod
     def _parse_metadata(metadata_node: Optional[ET.Element]) -> Dict[str, str]:
@@ -96,8 +138,8 @@ class CaseParser:
         }
 
     @staticmethod
-    def _parse_phase_steps(phase_node: Optional[ET.Element]) -> List[Dict[str, str]]:
-        """解析一个阶段容器内的全部 test_step，支持 if/elif/else 和 loop"""
+    def _parse_phase_steps(phase_node: Optional[ET.Element]) -> List[Dict[str, Any]]:
+        """解析一个阶段容器内的全部 test_step，支持 if/elif/else、loop 和 scenario"""
         if phase_node is None:
             return []
         steps = []
@@ -146,6 +188,9 @@ class CaseParser:
                 i = j
             elif el.tag == 'loop':
                 steps.append(CaseParser._parse_loop_element(el))
+                i += 1
+            elif el.tag == 'scenario':
+                steps.append(CaseParser._parse_scenario_element(el))
                 i += 1
             else:
                 # 跳过未识别的元素（如独立的 elif/else 不紧跟 if）
@@ -210,6 +255,25 @@ class CaseParser:
             'steps': [CaseParser._parse_step_element(step)
                      for step in el.findall('test_step')
                      if step.get('action')],
+        }
+
+    @staticmethod
+    def _parse_scenario_element(el: ET.Element) -> Dict[str, Any]:
+        """解析 scenario 场景元素
+
+        scenario 内部步骤复用 _parse_phase_steps 递归解析，
+        支持 test_step / if / loop / 嵌套 scenario。
+        """
+        raw_tag = (el.get('tag') or '').strip()
+        raw_depends = (el.get('depends') or '').strip()
+        return {
+            'type': 'scenario',
+            'id': str(el.get('id', '') or '').strip(),
+            'title': str(el.get('title', '') or '').strip(),
+            'group': str(el.get('group', '') or '').strip(),
+            'tag': [t.strip() for t in raw_tag.split(',') if t.strip()] if raw_tag else [],
+            'depends': [d.strip() for d in raw_depends.split(',') if d.strip()] if raw_depends else [],
+            'steps': CaseParser._parse_phase_steps(el),
         }
 
     def close(self):

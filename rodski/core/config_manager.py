@@ -30,6 +30,7 @@ DEFAULTS = {
         "capture_input": False,
         "event_timeline": False,
         "monitor_id": None,
+        "video_size": "screen",
     },
     "smart_wait_enabled": True,
     "smart_wait_max_retries": 30,
