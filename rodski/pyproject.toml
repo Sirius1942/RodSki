@@ -1,6 +1,6 @@
 [project]
 name = "rodski"
-version = "3.1.0"
+version = "6.1.8"
 description = "RodSki 关键字驱动自动化测试框架"
 
 # RodSki 不依赖 pytest 等外部测试框架

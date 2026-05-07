@@ -657,7 +657,10 @@ class PlaywrightDriver(BaseDriver):
                 except Exception:
                     pass
 
-            self.context = self.browser.new_context(record_video_dir=str(record_dir))
+            context_options = {"record_video_dir": str(record_dir)}
+            if not self.headless:
+                context_options["no_viewport"] = True
+            self.context = self.browser.new_context(**context_options)
             self._recording_context = self.context
             self.page = self.context.new_page()
             self._recording_video = getattr(self.page, "video", None)
@@ -695,7 +698,13 @@ class PlaywrightDriver(BaseDriver):
                 except Exception:
                     pass
             if video is not None:
+                original_path = None
+                try:
+                    original_path = Path(video.path())
+                except Exception:
+                    pass
                 video.save_as(str(target_path))
+                self._cleanup_original_recording(original_path, target_path)
             self._recording_saved_path = str(target_path)
             logger.info(f"Playwright 原生录制已保存: {target_path}")
             return self._recording_saved_path
@@ -706,6 +715,16 @@ class PlaywrightDriver(BaseDriver):
             self._recording_context = None
             self._recording_video = None
             self._recording_target_path = None
+
+    @staticmethod
+    def _cleanup_original_recording(original_path: Optional[Path], target_path: Path) -> None:
+        if not original_path:
+            return
+        try:
+            if original_path.exists() and original_path.resolve() != target_path.resolve():
+                original_path.unlink()
+        except Exception as e:
+            logger.debug(f"清理 Playwright 原始录制文件失败: {e}")
 
     def close(self) -> None:
         """关闭驱动"""
