@@ -731,6 +731,8 @@ class SKIExecutor:
             return self._relative_run_path(path)
         except Exception as e:
             logger.warning(f"启动用例录制失败: {e}")
+            import sys as _sys
+            print(f"[录制警告] 用例 {case_id} 录制未启动: {e}", file=_sys.stderr)
             self._screen_recorder = None
             self._active_recording_backend = None
             self._current_recording_path = None

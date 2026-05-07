@@ -230,9 +230,28 @@ def _apply_recording_args(config, args):
         recording["monitor_id"] = record_monitor
     record_resolution = getattr(args, "record_resolution", None)
     if record_resolution is not None:
+        _validate_record_resolution(record_resolution)
         recording["video_size"] = record_resolution
     config.config["recording"] = recording
     return config
+
+
+def _validate_record_resolution(value: str) -> None:
+    """校验 --record-resolution 参数格式，无效时抛出 SystemExit。"""
+    import re
+    valid_presets = {"screen", "2k", "hd"}
+    v = value.strip().lower()
+    if v in valid_presets:
+        return
+    if re.match(r"^\d+x\d+$", v):
+        return
+    import sys
+    print(
+        f"错误: 无效的录制分辨率 '{value}'。\n"
+        f"支持的格式: screen, 2k, hd, WxH（如 1920x1080）",
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
 
 
 def _handle_dry_run(
