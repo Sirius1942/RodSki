@@ -128,15 +128,31 @@ class PlaywrightDriver(BaseDriver):
     DEFAULT_TIMEOUT = 10000
 
     def __init__(self, headless: bool = False, browser: str = "chromium"):
-        from playwright.sync_api import sync_playwright
         self.headless = headless
         self.browser_name = browser
+        self._pw = None
+        self.browser = None
+        self.context = None
+        self.page = None
+        self._is_closed = False
+        self._timeout = self.DEFAULT_TIMEOUT
+        self._vision_locator = None
+        self._recording_context = None
+        self._recording_video = None
+        self._recording_target_path: Optional[Path] = None
+        self._recording_saved_path: Optional[str] = None
+
+    def _ensure_browser(self):
+        """懒加载：首次需要浏览器时才启动 Playwright 和浏览器实例"""
+        if self.browser is not None:
+            return
+        from playwright.sync_api import sync_playwright
         self._pw = sync_playwright().start()
-        browser_type = getattr(self._pw, browser, self._pw.chromium)
-        launch_kw: dict = {"headless": headless}
-        if not headless:
+        browser_type = getattr(self._pw, self.browser_name, self._pw.chromium)
+        launch_kw: dict = {"headless": self.headless}
+        if not self.headless:
             launch_kw["args"] = ["--start-maximized"]
-        ch = _launch_channel_chromium(headless, browser)
+        ch = _launch_channel_chromium(self.headless, self.browser_name)
         if ch:
             launch_kw["channel"] = ch
             logger.info(
@@ -145,18 +161,10 @@ class PlaywrightDriver(BaseDriver):
                 ch,
             )
         self.browser = browser_type.launch(**launch_kw)
-        self.context = None
-        if not headless:
+        if not self.headless:
             self.page = self.browser.new_page(no_viewport=True)
         else:
             self.page = self.browser.new_page()
-        self._is_closed = False
-        self._timeout = self.DEFAULT_TIMEOUT
-        self._vision_locator = None
-        self._recording_context = None
-        self._recording_video = None
-        self._recording_target_path: Optional[Path] = None
-        self._recording_saved_path: Optional[str] = None
 
     def _check_driver_alive(self):
         """检查驱动是否存活"""
@@ -232,6 +240,7 @@ class PlaywrightDriver(BaseDriver):
     def locate_element(self, locator_type: str, locator_value: str) -> Optional[Tuple[int, int, int, int]]:
         """定位元素，返回边界框坐标（BaseDriver 接口）"""
         self._check_driver_alive()
+        self._ensure_browser()
         locator = f"{locator_type}={locator_value}"
         css_locator = self._convert_locator(locator)
         try:
@@ -256,6 +265,7 @@ class PlaywrightDriver(BaseDriver):
             return self.click_locator(locator_or_x, **kwargs)
         x = locator_or_x
         self._check_driver_alive()
+        self._ensure_browser()
         try:
             self.page.mouse.click(x, y)
             return True
@@ -266,12 +276,14 @@ class PlaywrightDriver(BaseDriver):
     def type_text(self, x: int, y: int, text: str) -> None:
         """在指定坐标输入文字（BaseDriver 接口）"""
         self._check_driver_alive()
+        self._ensure_browser()
         self.page.mouse.click(x, y)
         self.page.keyboard.type(text)
 
     def get_text(self, x1: int, y1: int, x2: int, y2: int) -> str:
         """获取指定区域的文字（BaseDriver 接口）"""
         self._check_driver_alive()
+        self._ensure_browser()
         # Playwright 不直接支持坐标区域文本提取，返回空字符串
         logger.warning("PlaywrightDriver.get_text 坐标接口暂不支持")
         return ""
@@ -279,11 +291,13 @@ class PlaywrightDriver(BaseDriver):
     def double_click(self, x: int, y: int) -> None:
         """双击指定坐标（BaseDriver 接口）"""
         self._check_driver_alive()
+        self._ensure_browser()
         self.page.mouse.dblclick(x, y)
 
     def right_click(self, x: int, y: int) -> None:
         """右键点击指定坐标（BaseDriver 接口）"""
         self._check_driver_alive()
+        self._ensure_browser()
         self.page.mouse.click(x, y, button="right")
 
     def hover(self, locator_or_x, y=None) -> bool:
@@ -297,17 +311,20 @@ class PlaywrightDriver(BaseDriver):
             return self.hover_locator(locator_or_x)
         x = locator_or_x
         self._check_driver_alive()
+        self._ensure_browser()
         self.page.mouse.move(x, y)
 
     def scroll(self, x: int, y: int) -> None:
         """滚动指定距离（BaseDriver 接口）"""
         self._check_driver_alive()
+        self._ensure_browser()
         self.page.mouse.wheel(x, y)
 
     def take_screenshot(self) -> str:
         """截图（BaseDriver 接口）"""
         import tempfile
         import time
+        self._ensure_browser()
         path = tempfile.mktemp(suffix='.png', prefix=f'screenshot_{int(time.time())}_')
         self.page.screenshot(path=path)
         return path
@@ -318,6 +335,7 @@ class PlaywrightDriver(BaseDriver):
         自动等待元素可见、稳定、可点击后执行点击
         """
         self._check_driver_alive()
+        self._ensure_browser()
         
         css_locator = self._convert_locator(locator)
         logger.debug(f"点击元素: {locator} -> {css_locator}")
@@ -402,6 +420,7 @@ class PlaywrightDriver(BaseDriver):
         自动等待元素可见、可编辑后执行输入
         """
         self._check_driver_alive()
+        self._ensure_browser()
 
         css_locator = self._convert_locator(locator)
         logger.debug(f"输入文本: {locator} -> {css_locator}")
@@ -476,6 +495,7 @@ class PlaywrightDriver(BaseDriver):
     def check(self, locator: str, **kwargs) -> bool:
         """检查元素可见"""
         self._check_driver_alive()
+        self._ensure_browser()
 
         try:
             self.page.wait_for_selector(locator, state="visible", timeout=3000)
@@ -496,6 +516,7 @@ class PlaywrightDriver(BaseDriver):
     def navigate(self, url: str) -> bool:
         """导航到URL，等待页面加载完成"""
         self._check_driver_alive()
+        self._ensure_browser()
 
         try:
             self.page.goto(url, wait_until="networkidle", timeout=30000)
@@ -513,6 +534,7 @@ class PlaywrightDriver(BaseDriver):
     def screenshot(self, path: str) -> bool:
         """截图"""
         self._check_driver_alive()
+        self._ensure_browser()
         
         try:
             self.page.screenshot(path=path)
@@ -525,6 +547,7 @@ class PlaywrightDriver(BaseDriver):
     def select(self, locator: str, value: str) -> bool:
         """下拉选择"""
         self._check_driver_alive()
+        self._ensure_browser()
         
         try:
             self.page.select_option(locator, value)
@@ -537,6 +560,7 @@ class PlaywrightDriver(BaseDriver):
     def hover_locator(self, locator: str) -> bool:
         """悬停（通过定位器）"""
         self._check_driver_alive()
+        self._ensure_browser()
 
         try:
             self.page.hover(locator)
@@ -549,6 +573,7 @@ class PlaywrightDriver(BaseDriver):
     def drag(self, from_loc: str, to_loc: str) -> bool:
         """拖拽"""
         self._check_driver_alive()
+        self._ensure_browser()
         
         try:
             self.page.drag_and_drop(from_loc, to_loc)
@@ -561,6 +586,7 @@ class PlaywrightDriver(BaseDriver):
     def scroll_page(self, x: int = 0, y: int = 300) -> bool:
         """滚动页面（通过像素距离）"""
         self._check_driver_alive()
+        self._ensure_browser()
 
         try:
             self.page.evaluate(f"window.scrollBy({x}, {y})")
@@ -577,6 +603,7 @@ class PlaywrightDriver(BaseDriver):
     def assert_element(self, locator: str, expected: str) -> bool:
         """断言元素文本包含预期值"""
         self._check_driver_alive()
+        self._ensure_browser()
         
         try:
             text = self.page.text_content(locator) or ""
@@ -593,6 +620,7 @@ class PlaywrightDriver(BaseDriver):
     def clear(self, locator: str) -> bool:
         """清空输入框"""
         self._check_driver_alive()
+        self._ensure_browser()
         
         css_locator = self._convert_locator(locator)
         try:
@@ -605,6 +633,7 @@ class PlaywrightDriver(BaseDriver):
     def double_click_locator(self, locator: str) -> bool:
         """双击（通过定位器）"""
         self._check_driver_alive()
+        self._ensure_browser()
 
         try:
             self.page.dblclick(locator)
@@ -616,6 +645,7 @@ class PlaywrightDriver(BaseDriver):
     def right_click_locator(self, locator: str) -> bool:
         """右键点击（通过定位器）"""
         self._check_driver_alive()
+        self._ensure_browser()
 
         try:
             self.page.click(locator, button="right")
@@ -627,6 +657,7 @@ class PlaywrightDriver(BaseDriver):
     def key_press(self, key: str) -> bool:
         """按键"""
         self._check_driver_alive()
+        self._ensure_browser()
         
         try:
             self.page.keyboard.press(key)
@@ -638,6 +669,7 @@ class PlaywrightDriver(BaseDriver):
     def get_text_locator(self, locator: str) -> str:
         """获取元素文本（通过定位器）"""
         self._check_driver_alive()
+        self._ensure_browser()
 
         try:
             return self.page.text_content(locator)
@@ -648,6 +680,7 @@ class PlaywrightDriver(BaseDriver):
     def upload_file(self, locator: str, file_path: str) -> bool:
         """上传文件"""
         self._check_driver_alive()
+        self._ensure_browser()
         
         try:
             self.page.set_input_files(locator, file_path)
@@ -659,6 +692,7 @@ class PlaywrightDriver(BaseDriver):
     def get_page_text(self) -> str:
         """获取页面所有文本内容"""
         self._check_driver_alive()
+        self._ensure_browser()
         try:
             return self.page.inner_text('body')
         except Exception as e:
@@ -671,7 +705,7 @@ class PlaywrightDriver(BaseDriver):
         Args:
             domain: 可选，只获取指定域名的 cookies
         """
-        if not self.page:
+        if self.browser is None or not self.page:
             return {}
         try:
             context = self.page.context
@@ -689,6 +723,7 @@ class PlaywrightDriver(BaseDriver):
     def start_case_recording(self, output_dir: str, case_id: str, target_path: str, video_size: str = None) -> Optional[str]:
         if self._is_closed:
             return None
+        self._ensure_browser()
         record_dir = Path(output_dir)
         record_dir.mkdir(parents=True, exist_ok=True)
         self._recording_target_path = Path(target_path)

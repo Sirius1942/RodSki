@@ -25,6 +25,12 @@ class TestPlaywrightDriver:
 
         driver = PlaywrightDriver(headless=True)
 
+        # 懒加载：__init__ 不启动浏览器
+        assert driver.browser is None
+        assert driver.page is None
+
+        # 首次调用 _ensure_browser 才启动
+        driver._ensure_browser()
         mock_playwright.chromium.launch.assert_called_once_with(headless=True)
         mock_browser.new_page.assert_called_once()
         assert driver.page == mock_page
@@ -349,4 +355,6 @@ class TestPlaywrightDriver:
         mock_playwright.chromium.launch.return_value = mock_browser
         mock_page = Mock()
         mock_browser.new_page.return_value = mock_page
-        return PlaywrightDriver()
+        driver = PlaywrightDriver()
+        driver._ensure_browser()
+        return driver
