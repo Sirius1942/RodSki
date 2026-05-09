@@ -53,6 +53,8 @@ def _make_driver() -> Mock:
     driver.wait = Mock(return_value=True)
     driver.screenshot = Mock(return_value=True)
     driver.close = Mock(return_value=True)
+    driver.navigate = Mock(return_value=True)
+    driver._is_closed = False
     driver.start_case_recording = Mock(side_effect=lambda output_dir, case_id, target_path, video_size=None: target_path)
     driver.stop_case_recording = Mock(side_effect=lambda case_id, target_path: target_path)
     return driver
@@ -95,6 +97,7 @@ class TestRecordingIntegration:
 
         assert result["status"] == "PASS"
         assert result["recording_path"] == ""
+        assert result["recordings"] == []
         driver.start_case_recording.assert_not_called()
 
     def test_playwright_recording_starts_and_stops(self, tmp_path):
@@ -114,9 +117,56 @@ class TestRecordingIntegration:
 
         assert result["status"] == "PASS"
         assert result["recording_path"].startswith("recordings/TC_REC_")
-        assert result["recording_path"].endswith(".webm")
+        assert result["recording_path"].endswith("_01.webm")
+        assert result["recordings"] == [{
+            "index": 1,
+            "path": result["recording_path"],
+            "backend": "playwright",
+        }]
         driver.start_case_recording.assert_called_once()
         driver.stop_case_recording.assert_called_once()
+
+    def test_playwright_recording_segments_after_close_then_navigate(self, tmp_path):
+        module_dir = _build_module(tmp_path)
+        first_driver = _make_driver()
+        second_driver = _make_driver()
+
+        def close_first_driver():
+            first_driver._is_closed = True
+            return True
+
+        first_driver.close.side_effect = close_first_driver
+        config = _make_config(tmp_path, True)
+        executor = SKIExecutor(
+            str(module_dir / "case" / "test.xml"),
+            first_driver,
+            config,
+            driver_factory=lambda: second_driver,
+            module_dir=str(module_dir),
+        )
+        executor.result_writer._init_run_dir()
+
+        result = executor.execute_case({
+            "case_id": "TC_CLOSE_NAV",
+            "title": "关闭后导航继续录制",
+            "pre_process": [],
+            "test_case": [
+                {"action": "close", "model": "", "data": ""},
+                {"action": "navigate", "model": "", "data": "https://example.com"},
+            ],
+            "post_process": [],
+        })
+
+        assert result["status"] == "PASS"
+        assert len(result["recordings"]) == 2
+        assert result["recording_path"] == result["recordings"][0]["path"]
+        assert result["recordings"][0]["path"].endswith("_01.webm")
+        assert result["recordings"][1]["path"].endswith("_02.webm")
+        first_driver.start_case_recording.assert_called_once()
+        first_driver.stop_case_recording.assert_called_once()
+        second_driver.start_case_recording.assert_called_once()
+        second_driver.stop_case_recording.assert_called_once()
+        second_driver.navigate.assert_called_once_with("https://example.com")
 
     def test_recording_start_failure_does_not_fail_case(self, tmp_path):
         module_dir = _build_module(tmp_path)
@@ -136,6 +186,7 @@ class TestRecordingIntegration:
 
         assert result["status"] == "PASS"
         assert result["recording_path"] == ""
+        assert result["recordings"] == []
 
     def test_result_xml_contains_recording_path(self, tmp_path):
         module_dir = _build_module(tmp_path)
@@ -150,4 +201,8 @@ class TestRecordingIntegration:
         root = ET.parse(result_file).getroot()
         result_elem = root.find("./results/result")
         assert result_elem is not None
-        assert result_elem.get("recording_path", "").endswith(".webm")
+        assert result_elem.get("recording_path", "").endswith("_01.webm")
+        recording_elems = result_elem.findall("./recordings/recording")
+        assert len(recording_elems) == 1
+        assert recording_elems[0].get("path") == result_elem.get("recording_path")
+        assert recording_elems[0].get("backend") == "playwright"

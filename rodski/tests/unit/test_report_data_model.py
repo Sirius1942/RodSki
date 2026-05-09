@@ -146,6 +146,8 @@ class TestCaseReport:
         assert case.test_case is None
         assert case.post_process is None
         assert case.tags == []
+        assert case.recording_path is None
+        assert case.recordings == []
 
     def test_with_phases(self):
         """用例可以包含三个阶段"""
@@ -213,6 +215,8 @@ class TestReportData:
             title="测试用例一",
             status="PASS",
             duration=1.5,
+            recording_path="recordings/TC001_01.webm",
+            recordings=[{"index": 1, "path": "recordings/TC001_01.webm", "backend": "playwright"}],
             pre_process=PhaseReport(
                 name="pre_process",
                 steps=[StepReport(index=1, action="open", model="url", data="http://localhost")],
@@ -226,6 +230,7 @@ class TestReportData:
         assert "test-002" in json_str
         assert "TC001" in json_str
         assert "测试用例一" in json_str
+        assert "recordings/TC001_01.webm" in json_str
         assert "Darwin" in json_str
 
     def test_to_dict_datetime_format(self):

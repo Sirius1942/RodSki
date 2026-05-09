@@ -64,7 +64,9 @@ class JSONFormatter:
             "status": result.get('status', '').lower(),
             "duration": f"{result.get('execution_time', 0):.2f}s",
             "error": result.get('error') if result.get('error') else None,
-            "screenshot": result.get('screenshot_path') if result.get('screenshot_path') else None
+            "screenshot": result.get('screenshot_path') if result.get('screenshot_path') else None,
+            "recording_path": result.get('recording_path') if result.get('recording_path') else None,
+            "recordings": result.get('recordings') or []
         }
 
     @staticmethod

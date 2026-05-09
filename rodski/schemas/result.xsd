@@ -45,6 +45,7 @@
     <xs:sequence>
       <xs:element name="steps" type="StepsType" minOccurs="0" maxOccurs="1"/>
       <xs:element name="variables" type="VariablesType" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="recordings" type="RecordingsType" minOccurs="0" maxOccurs="1"/>
     </xs:sequence>
     <xs:attribute name="case_id" type="xs:string" use="required"/>
     <xs:attribute name="title" type="xs:string" use="optional"/>
@@ -90,6 +91,20 @@
   <xs:complexType name="VariableType">
     <xs:attribute name="name" type="xs:string" use="required"/>
     <xs:attribute name="value" type="xs:string" use="required"/>
+  </xs:complexType>
+
+  <!-- 录制分段集合类型 -->
+  <xs:complexType name="RecordingsType">
+    <xs:sequence>
+      <xs:element name="recording" type="RecordingType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- 单个录制分段 -->
+  <xs:complexType name="RecordingType">
+    <xs:attribute name="index" type="xs:nonNegativeInteger" use="required"/>
+    <xs:attribute name="path" type="xs:string" use="required"/>
+    <xs:attribute name="backend" type="xs:string" use="optional"/>
   </xs:complexType>
 
   <!-- 状态枚举 -->

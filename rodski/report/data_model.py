@@ -103,6 +103,8 @@ class CaseReport:
     test_case: Optional[PhaseReport] = None
     post_process: Optional[PhaseReport] = None
     scenarios: list = field(default_factory=list)  # list[ScenarioReport]
+    recording_path: Optional[str] = None
+    recordings: list = field(default_factory=list)  # list[dict]
 
 
 def _serialize(obj: Any) -> Any:

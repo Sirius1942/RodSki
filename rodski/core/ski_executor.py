@@ -127,6 +127,12 @@ class SKIExecutor:
         self._screen_recorder = None
         self._active_recording_backend: Optional[str] = None
         self._current_recording_path: Optional[str] = None
+        self._recording_segments: List[Dict[str, Any]] = []
+        self._recording_segment_index = 0
+        self._case_recording_active = False
+        self._recording_case_id: Optional[str] = None
+        self._recording_output_dir: Optional[Path] = None
+        self._recording_video_size: Optional[str] = None
 
         # 初始化解析器
         self.model_parser = ModelParser(str(self.model_file)) if self.model_file.exists() else None
@@ -685,9 +691,75 @@ class SKIExecutor:
         else:
             setattr(self.keyword_engine, "_current_recording_path", path)
 
+    def _next_recording_segment_path(self, case_id: str) -> Path:
+        if self._recording_output_dir is None:
+            raise RuntimeError("录制输出目录未初始化")
+        safe_case_id = self._safe_recording_id(case_id)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self._recording_segment_index += 1
+        return self._recording_output_dir / f"{safe_case_id}_{timestamp}_{self._recording_segment_index:02d}.webm"
+
+    def _append_recording_segment(self, path: str, backend: str) -> str:
+        relative_path = self._relative_run_path(path)
+        if not relative_path:
+            return ""
+        for segment in self._recording_segments:
+            if segment.get("path") == relative_path:
+                return relative_path
+        self._recording_segments.append({
+            "index": len(self._recording_segments) + 1,
+            "path": relative_path,
+            "backend": backend,
+        })
+        return relative_path
+
+    def _start_playwright_recording_segment(self, case_id: str) -> str:
+        if not self._case_recording_active or self._active_recording_backend != "playwright":
+            return ""
+        if self._current_recording_path:
+            return self._relative_run_path(self._current_recording_path)
+        if self._recording_output_dir is None or not hasattr(self.driver, "start_case_recording"):
+            return ""
+
+        target_path = self._next_recording_segment_path(case_id)
+        started = self.driver.start_case_recording(
+            str(self._recording_output_dir),
+            case_id,
+            str(target_path),
+            video_size=self._recording_video_size,
+        )
+        if not started:
+            return ""
+
+        self._current_recording_path = str(started if isinstance(started, (str, Path)) else target_path)
+        self._set_keyword_recording_path(self._current_recording_path)
+        return self._relative_run_path(self._current_recording_path)
+
+    def _finalize_current_playwright_segment(self, case_id: str) -> str:
+        if self._active_recording_backend != "playwright" or not self._current_recording_path:
+            self._set_keyword_recording_path(None)
+            return ""
+
+        path = None
+        if hasattr(self.driver, "stop_case_recording"):
+            path = self.driver.stop_case_recording(case_id, self._current_recording_path)
+        final_path = str(path or self._current_recording_path)
+        relative_path = self._append_recording_segment(final_path, "playwright")
+        self._current_recording_path = None
+        self._set_keyword_recording_path(None)
+        return relative_path
+
     def _start_case_recording(self, case_id: str) -> str:
+        self._recording_segments = []
+        self._recording_segment_index = 0
+        self._case_recording_active = False
+        self._recording_case_id = None
+        self._recording_output_dir = None
+        self._recording_video_size = None
+
         backend = self._select_recording_backend()
         if not backend:
+            self._current_recording_path = None
             self._set_keyword_recording_path(None)
             return ""
         try:
@@ -699,18 +771,22 @@ class SKIExecutor:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
             if backend == "playwright":
-                target_path = output_dir / f"{safe_case_id}_{timestamp}.webm"
                 if not hasattr(self.driver, "start_case_recording"):
                     logger.warning("当前驱动不支持 Playwright 原生录制")
                     return ""
-                video_size = str(self._recording_option("video_size", "screen"))
-                started = self.driver.start_case_recording(str(output_dir), case_id, str(target_path), video_size=video_size)
-                if not started:
-                    return ""
                 self._active_recording_backend = "playwright"
-                self._current_recording_path = str(target_path)
-                self._set_keyword_recording_path(str(target_path))
-                return self._relative_run_path(str(target_path))
+                self._case_recording_active = True
+                self._recording_case_id = case_id
+                self._recording_output_dir = output_dir
+                self._recording_video_size = str(self._recording_option("video_size", "screen"))
+                started = self._start_playwright_recording_segment(case_id)
+                if not started:
+                    self._active_recording_backend = None
+                    self._case_recording_active = False
+                    self._current_recording_path = None
+                    self._set_keyword_recording_path(None)
+                    return ""
+                return started
 
             try:
                 from ..vision.screen_recorder import ScreenRecorder
@@ -736,6 +812,10 @@ class SKIExecutor:
             self._screen_recorder = None
             self._active_recording_backend = None
             self._current_recording_path = None
+            self._case_recording_active = False
+            self._recording_case_id = None
+            self._recording_output_dir = None
+            self._recording_video_size = None
             self._set_keyword_recording_path(None)
             return ""
 
@@ -744,12 +824,18 @@ class SKIExecutor:
             self._set_keyword_recording_path(None)
             return started_path or ""
         try:
+            if self._active_recording_backend == "playwright":
+                self._finalize_current_playwright_segment(case_id)
+                return self._recording_segments[0]["path"] if self._recording_segments else (started_path or "")
+
             path = None
-            if self._active_recording_backend == "playwright" and hasattr(self.driver, "stop_case_recording"):
-                path = self.driver.stop_case_recording(case_id, self._current_recording_path)
-            elif self._active_recording_backend == "screen" and self._screen_recorder is not None:
+            if self._active_recording_backend == "screen" and self._screen_recorder is not None:
                 path = self._screen_recorder.stop()
-            return self._relative_run_path(path or self._current_recording_path or started_path)
+                final_path = self._relative_run_path(path or self._current_recording_path or started_path)
+                if final_path:
+                    self._recording_segments = [{"index": 1, "path": final_path, "backend": "screen"}]
+                return final_path
+            return self._relative_run_path(self._current_recording_path or started_path)
         except Exception as e:
             logger.warning(f"停止用例录制失败: {e}")
             return started_path or ""
@@ -757,11 +843,15 @@ class SKIExecutor:
             self._screen_recorder = None
             self._active_recording_backend = None
             self._current_recording_path = None
+            self._case_recording_active = False
+            self._recording_case_id = None
+            self._recording_output_dir = None
+            self._recording_video_size = None
             self._set_keyword_recording_path(None)
 
-    @staticmethod
-    def _attach_recording_path(result: Dict[str, Any], recording_path: str) -> Dict[str, Any]:
+    def _attach_recording_path(self, result: Dict[str, Any], recording_path: str) -> Dict[str, Any]:
         result["recording_path"] = recording_path or ""
+        result["recordings"] = list(self._recording_segments)
         return result
 
     def execute_case(self, case: Dict[str, Any]) -> Dict[str, Any]:
@@ -1212,14 +1302,21 @@ class SKIExecutor:
         data = step['data']
 
         resolved_data = self.data_resolver.resolve(data)
-        history_before = len(self.keyword_engine._context.history)
-        named_before = dict(self.keyword_engine._context.named)
 
         if data and resolved_data != data:
             logger.debug(f"数据解析: '{data}' -> '{resolved_data}'")
 
+        action_key = action.lower()
+        if self._driver_closed and action_key not in ('close', 'wait', 'set', 'send', 'db', 'run'):
+            self._ensure_driver_alive()
+            if self._active_recording_backend == "playwright" and self._case_recording_active:
+                self._start_playwright_recording_segment(getattr(self, '_current_case_id', 'unknown'))
+
+        history_before = len(self.keyword_engine._context.history)
+        named_before = dict(self.keyword_engine._context.named)
+
         # 特殊处理 set 动作：将变量同步到动态执行器
-        if action.lower() == 'set':
+        if action_key == 'set':
             params = {'var_name': model, 'value': resolved_data}
             self.keyword_engine.execute(action, params)
             # 同步到动态执行器
@@ -1296,7 +1393,9 @@ class SKIExecutor:
                 'return_value': last_return,
             })
 
-        if action.lower() == 'close':
+        if action_key == 'close':
+            if self._active_recording_backend == "playwright":
+                self._finalize_current_playwright_segment(getattr(self, '_current_case_id', 'unknown'))
             self._driver_closed = True
             logger.info("浏览器已关闭")
 
@@ -1304,7 +1403,7 @@ class SKIExecutor:
             self.driver = self.keyword_engine.driver
             self._driver_closed = False
 
-        if self.auto_screenshot_on_step and not self._driver_closed and action.lower() not in ('close', 'wait', 'DB'):
+        if self.auto_screenshot_on_step and not self._driver_closed and action_key not in ('close', 'wait', 'db'):
             self._auto_screenshot(step_type)
 
         # 步骤等待：优先使用 case 级别的 step_wait，否则使用全局 default_wait_time

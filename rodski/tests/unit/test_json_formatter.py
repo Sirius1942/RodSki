@@ -63,7 +63,9 @@ class TestFormatSuccess:
     def test_steps_format(self):
         """steps 数组中每个步骤应包含正确字段"""
         results = [{"case_id": "c001", "title": "测试", "status": "PASS",
-                     "execution_time": 1.234, "screenshot_path": "/tmp/ss.png"}]
+                     "execution_time": 1.234, "screenshot_path": "/tmp/ss.png",
+                     "recording_path": "recordings/c001_01.webm",
+                     "recordings": [{"index": 1, "path": "recordings/c001_01.webm", "backend": "playwright"}]}]
         output = JSONFormatter.format_success(results, duration=1.234)
 
         step = output["steps"][0]
@@ -73,6 +75,8 @@ class TestFormatSuccess:
         assert step["status"] == "pass"       # 应转为小写
         assert step["duration"] == "1.23s"
         assert step["screenshot"] == "/tmp/ss.png"
+        assert step["recording_path"] == "recordings/c001_01.webm"
+        assert step["recordings"] == [{"index": 1, "path": "recordings/c001_01.webm", "backend": "playwright"}]
 
     def test_step_no_error_is_none(self):
         """步骤没有错误时 error 字段应为 None"""

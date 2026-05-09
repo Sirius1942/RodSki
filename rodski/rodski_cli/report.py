@@ -10,9 +10,32 @@ run 子命令集成:
 """
 import sys
 import json
+from html import escape as _html_escape
 from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Any, Optional
+
+
+def _normalise_recordings(recording_path: str = "", recordings: Optional[List[Dict[str, Any]]] = None) -> List[Dict[str, Any]]:
+    items: List[Dict[str, Any]] = []
+    for idx, item in enumerate(recordings or [], 1):
+        if isinstance(item, dict):
+            path = str(item.get("path", ""))
+            if not path:
+                continue
+            items.append({
+                "index": item.get("index", idx),
+                "path": path,
+                "backend": item.get("backend", ""),
+            })
+        elif item:
+            items.append({"index": idx, "path": str(item), "backend": ""})
+
+    if recording_path and not any(item.get("path") == recording_path for item in items):
+        items.insert(0, {"index": 1, "path": recording_path, "backend": ""})
+        for idx, item in enumerate(items, 1):
+            item["index"] = idx
+    return items
 
 
 # ---------------------------------------------------------------------------
@@ -183,12 +206,23 @@ def _parse_result_xml(xml_path: Path) -> Optional[dict]:
         results = []
         if results_elem is not None:
             for r_elem in results_elem.findall("result"):
+                recording_path = r_elem.get("recording_path", "")
+                recordings = []
+                for rec_elem in r_elem.findall("./recordings/recording"):
+                    recordings.append({
+                        "index": int(rec_elem.get("index", 0) or 0),
+                        "path": rec_elem.get("path", ""),
+                        "backend": rec_elem.get("backend", ""),
+                    })
+                recordings = _normalise_recordings(recording_path, recordings)
                 results.append({
                     "step": r_elem.get("case_id", ""),
                     "keyword": r_elem.get("title", ""),
                     "success": r_elem.get("status", "").upper() == "PASS",
                     "message": r_elem.get("error_message", ""),
                     "duration": float(r_elem.get("execution_time", 0) or 0),
+                    "recording_path": recording_path or (recordings[0]["path"] if recordings else ""),
+                    "recordings": recordings,
                 })
 
         return {
@@ -275,12 +309,16 @@ def _normalize_run_results(results: list) -> list:
     normalized = []
     for i, r in enumerate(results, 1):
         status = r.get("status", "FAIL").upper()
+        recording_path = r.get("recording_path", "")
+        recordings = _normalise_recordings(recording_path, r.get("recordings") or [])
         normalized.append({
             "step": r.get("case_id", f"Case {i}"),
             "keyword": r.get("title", ""),
             "success": status == "PASS",
             "message": r.get("error", ""),
             "duration": r.get("execution_time", 0) or 0,
+            "recording_path": recording_path or (recordings[0]["path"] if recordings else ""),
+            "recordings": recordings,
         })
     return normalized
 
@@ -317,12 +355,20 @@ def _generate_html(
         step_duration = r.get("duration", 0)
         message = r.get("message", "")
 
+        recordings = _normalise_recordings(r.get("recording_path", ""), r.get("recordings") or [])
+        recording_links = "<br>".join(
+            f'<a href="{_html_escape(str(item.get("path", "")))}">Recording {item.get("index", idx)}</a>'
+            for idx, item in enumerate(recordings, 1)
+            if item.get("path")
+        ) or "-"
+
         msg_display = (message[:50] + "...") if len(message) > 50 else message
         rows += f'''<tr class="{status_class}">
             <td>{i}</td>
             <td>{step_name}</td>
             <td><code>{keyword}</code></td>
             <td><span class="status-badge {status_class}">{status}</span></td>
+            <td>{recording_links}</td>
             <td class="message">{msg_display}</td>
         </tr>\n'''
 
@@ -572,6 +618,7 @@ def _generate_html(
                     <th>Step</th>
                     <th>Keyword</th>
                     <th>Status</th>
+                    <th>Recordings</th>
                     <th>Details</th>
                 </tr>
             </thead>

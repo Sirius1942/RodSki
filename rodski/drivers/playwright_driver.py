@@ -762,6 +762,8 @@ class PlaywrightDriver(BaseDriver):
             return None
 
     def stop_case_recording(self, case_id: str = "", target_path: Optional[str] = None) -> Optional[str]:
+        if self._recording_saved_path:
+            return self._recording_saved_path
         if target_path:
             self._recording_target_path = Path(target_path)
         return self._finalize_case_recording()
@@ -780,11 +782,14 @@ class PlaywrightDriver(BaseDriver):
                     self.page.close()
                 except Exception:
                     pass
+                self.page = None
             if self._recording_context is not None:
                 try:
                     self._recording_context.close()
                 except Exception:
                     pass
+                if self.context is self._recording_context:
+                    self.context = None
             if video is not None:
                 original_path = None
                 try:

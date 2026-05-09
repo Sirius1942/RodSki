@@ -46,6 +46,30 @@ class TestWriteResult:
         assert result_elem.get("case_id") == "TC001"
         assert result_elem.get("status") == "PASS"
 
+    def test_recording_metadata_written(self, result_dir):
+        rw = ResultWriter(result_dir)
+        rw.write_result({
+            "case_id": "TC010",
+            "title": "录制测试",
+            "status": "PASS",
+            "execution_time": 1.23,
+            "recording_path": "recordings/TC010_01.webm",
+            "recordings": [
+                {"index": 1, "path": "recordings/TC010_01.webm", "backend": "playwright"},
+                {"index": 2, "path": "recordings/TC010_02.webm", "backend": "playwright"},
+            ],
+        })
+
+        result_files = list(Path(result_dir).glob("rodski_*/result.xml"))
+        tree = ET.parse(result_files[0])
+        root = tree.getroot()
+        result_elem = root.find("results/result")
+        assert result_elem.get("recording_path") == "recordings/TC010_01.webm"
+        recording_elems = result_elem.findall("recordings/recording")
+        assert len(recording_elems) == 2
+        assert recording_elems[0].get("path") == "recordings/TC010_01.webm"
+        assert recording_elems[1].get("path") == "recordings/TC010_02.webm"
+
     def test_fail_result_with_error(self, result_dir):
         rw = ResultWriter(result_dir)
         rw.write_result({

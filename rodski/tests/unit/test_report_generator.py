@@ -671,6 +671,22 @@ class TestReportGeneratorCaseDetail:
         assert "TC001" in html
 
 
+    def test_case_detail_shows_recordings(self):
+        """用例详情应显示录制分段链接"""
+        case = _make_case("TC001")
+        case.recording_path = "recordings/TC001_01.webm"
+        case.recordings = [
+            {"index": 1, "path": "recordings/TC001_01.webm", "backend": "playwright"},
+            {"index": 2, "path": "recordings/TC001_02.webm", "backend": "playwright"},
+        ]
+        report = _make_report(cases=[case])
+        gen = ReportGenerator(report)
+        html = gen._render_case_detail(case)
+        assert "Recordings" in html
+        assert "recordings/TC001_01.webm" in html
+        assert "recordings/TC001_02.webm" in html
+
+
 class TestReportGeneratorScreenshots:
     """截图处理测试"""
 

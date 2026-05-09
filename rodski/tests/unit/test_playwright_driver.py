@@ -322,6 +322,30 @@ class TestPlaywrightDriver:
         recording_video.save_as.assert_called_once_with(str(target))
 
     @patch('playwright.sync_api.sync_playwright')
+    def test_close_then_stop_case_recording_is_idempotent(self, mock_pw, tmp_path):
+        mock_playwright = MagicMock()
+        mock_pw.return_value.start.return_value = mock_playwright
+        mock_browser = Mock()
+        mock_playwright.chromium.launch.return_value = mock_browser
+        mock_browser.new_page.return_value = Mock()
+        mock_context = Mock()
+        mock_browser.new_context.return_value = mock_context
+        recording_page = Mock()
+        recording_video = Mock()
+        recording_page.video = recording_video
+        mock_context.new_page.return_value = recording_page
+
+        driver = PlaywrightDriver(headless=True)
+        target = tmp_path / "TC001.webm"
+        driver.start_case_recording(str(tmp_path), "TC001", str(target))
+
+        driver.close()
+        path = driver.stop_case_recording("TC001", str(target))
+
+        assert path == str(target)
+        recording_video.save_as.assert_called_once_with(str(target))
+
+    @patch('playwright.sync_api.sync_playwright')
     def test_stop_case_recording_removes_original_video(self, mock_pw, tmp_path):
         mock_playwright = MagicMock()
         mock_pw.return_value.start.return_value = mock_playwright

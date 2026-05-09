@@ -172,7 +172,14 @@ class TestRunReportIntegration:
         from rodski_cli.report import generate_html_from_run_results
 
         results = [
-            {"case_id": "TC-001", "title": "Login", "status": "PASS", "execution_time": 1.5},
+            {
+                "case_id": "TC-001",
+                "title": "Login",
+                "status": "PASS",
+                "execution_time": 1.5,
+                "recording_path": "recordings/TC-001_01.webm",
+                "recordings": [{"index": 1, "path": "recordings/TC-001_01.webm", "backend": "playwright"}],
+            },
             {"case_id": "TC-002", "title": "Search", "status": "FAIL", "error": "element not found", "execution_time": 2.0},
         ]
         report_path = generate_html_from_run_results(
@@ -182,6 +189,7 @@ class TestRunReportIntegration:
         content = Path(report_path).read_text(encoding="utf-8")
         assert "TC-001" in content
         assert "TC-002" in content
+        assert "recordings/TC-001_01.webm" in content
         assert "50.0%" in content  # pass rate
 
     def test_generate_report_empty_results(self, tmp_path, monkeypatch):
@@ -240,7 +248,12 @@ class TestParseResultXml:
 <testresult>
   <summary total="2" passed="1" failed="1" pass_rate="50.0%" total_time="3.5s"/>
   <results>
-    <result case_id="TC-001" title="Login" status="PASS" execution_time="1.5" error_message=""/>
+    <result case_id="TC-001" title="Login" status="PASS" execution_time="1.5" error_message="" recording_path="recordings/TC-001_01.webm">
+      <recordings>
+        <recording index="1" path="recordings/TC-001_01.webm" backend="playwright"/>
+        <recording index="2" path="recordings/TC-001_02.webm" backend="playwright"/>
+      </recordings>
+    </result>
     <result case_id="TC-002" title="Search" status="FAIL" execution_time="2.0" error_message="timeout"/>
   </results>
 </testresult>'''
@@ -253,6 +266,8 @@ class TestParseResultXml:
         assert data["summary"]["passed"] == 1
         assert len(data["results"]) == 2
         assert data["results"][0]["success"] is True
+        assert data["results"][0]["recording_path"] == "recordings/TC-001_01.webm"
+        assert len(data["results"][0]["recordings"]) == 2
         assert data["results"][1]["success"] is False
 
     def test_parse_invalid_xml(self, tmp_path):

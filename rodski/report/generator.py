@@ -624,6 +624,35 @@ class ReportGenerator:
     {case_table}
 </div>"""
 
+    def _render_case_recordings(self, case: CaseReport) -> str:
+        recordings = list(case.recordings or [])
+        if not recordings and case.recording_path:
+            recordings = [{"index": 1, "path": case.recording_path, "backend": ""}]
+        if not recordings:
+            return ""
+
+        items = []
+        for idx, item in enumerate(recordings, 1):
+            if isinstance(item, dict):
+                path = str(item.get("path", ""))
+                label = item.get("index", idx)
+                backend = str(item.get("backend", ""))
+            else:
+                path = str(item)
+                label = idx
+                backend = ""
+            if not path:
+                continue
+            path_html = _escape_html(path)
+            backend_html = f" ({_escape_html(backend)})" if backend else ""
+            items.append(
+                f'<li><a href="{path_html}">Recording {label}</a>{backend_html} '
+                f'<code>{path_html}</code></li>'
+            )
+        if not items:
+            return ""
+        return f'<div style="margin:8px 0 12px;"><strong>Recordings</strong><ul style="margin-left:20px;">{"".join(items)}</ul></div>'
+
     def _render_case_detail(
         self, case: CaseReport, single_file: bool = False
     ) -> str:
@@ -660,6 +689,7 @@ class ReportGenerator:
             scenarios_html = self._render_scenarios(case.scenarios)
 
         desc_html = f'<p style="color:#666;font-size:0.9em;margin:4px 0 12px;">{desc}</p>' if desc else ""
+        recordings_html = self._render_case_recordings(case)
 
         return f"""
 <div class="card case-anchor" id="{anchor}">
@@ -668,6 +698,7 @@ class ReportGenerator:
         <span style="font-size:0.7em;color:#999;margin-left:8px;font-weight:400;">{dur}</span>
     </h2>
     {desc_html}
+    {recordings_html}
     {timeline_html}
     {scenarios_html}
     {phases_html}

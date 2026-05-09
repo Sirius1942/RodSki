@@ -114,6 +114,11 @@ class TestValidateElement:
         r = ET.SubElement(res, "result")
         r.set("case_id", "c1")
         r.set("status", "PASS")
+        recordings = ET.SubElement(r, "recordings")
+        recording = ET.SubElement(recordings, "recording")
+        recording.set("index", "1")
+        recording.set("path", "recordings/c1_01.webm")
+        recording.set("backend", "playwright")
         RodskiXmlValidator.validate_element(root, RodskiXmlValidator.KIND_RESULT)
 
 

@@ -122,6 +122,29 @@ class ResultWriter:
         fh.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
         rodski_logger.addHandler(fh)
 
+    @staticmethod
+    def _normalize_recordings(result: Dict[str, Any]) -> List[Dict[str, str]]:
+        recordings: List[Dict[str, str]] = []
+        for idx, item in enumerate(result.get("recordings") or [], 1):
+            if isinstance(item, dict):
+                path = str(item.get("path", ""))
+                if not path:
+                    continue
+                recordings.append({
+                    "index": str(item.get("index", idx)),
+                    "path": path,
+                    "backend": str(item.get("backend", "")),
+                })
+            elif item:
+                recordings.append({"index": str(idx), "path": str(item), "backend": ""})
+
+        legacy_path = str(result.get("recording_path", ""))
+        if legacy_path and not any(item.get("path") == legacy_path for item in recordings):
+            recordings.insert(0, {"index": "1", "path": legacy_path, "backend": ""})
+            for idx, item in enumerate(recordings, 1):
+                item["index"] = str(idx)
+        return recordings
+
     def write_result(self, result: Dict[str, Any]) -> None:
         self.write_results([result])
 
@@ -166,7 +189,11 @@ class ResultWriter:
             result_elem.set("error_type", str(result.get("error_type", "")))
             result_elem.set("error_message", str(result.get("error", "")))
             result_elem.set("screenshot_path", str(result.get("screenshot_path", "")))
-            result_elem.set("recording_path", str(result.get("recording_path", "")))
+            recordings = self._normalize_recordings(result)
+            primary_recording_path = str(
+                result.get("recording_path", "") or (recordings[0]["path"] if recordings else "")
+            )
+            result_elem.set("recording_path", primary_recording_path)
             result_elem.set("updated_at", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
             # 添加步骤详情
@@ -192,6 +219,16 @@ class ResultWriter:
                     var_elem = ET.SubElement(vars_elem, "variable")
                     var_elem.set("name", str(name))
                     var_elem.set("value", str(value))
+
+            # 添加录制分段信息
+            if recordings:
+                recordings_elem = ET.SubElement(result_elem, "recordings")
+                for item in recordings:
+                    rec_elem = ET.SubElement(recordings_elem, "recording")
+                    rec_elem.set("index", item.get("index", ""))
+                    rec_elem.set("path", item.get("path", ""))
+                    if item.get("backend"):
+                        rec_elem.set("backend", item.get("backend", ""))
 
         RodskiXmlValidator.validate_element(
             root, RodskiXmlValidator.KIND_RESULT, source_path=self.result_dir / "<result_output>"
