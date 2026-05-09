@@ -133,6 +133,8 @@ class SKIExecutor:
         self._recording_case_id: Optional[str] = None
         self._recording_output_dir: Optional[Path] = None
         self._recording_video_size: Optional[str] = None
+        self._current_scenario_id: Optional[str] = None
+        self._current_scenario_title: Optional[str] = None
 
         # 初始化解析器
         self.model_parser = ModelParser(str(self.model_file)) if self.model_file.exists() else None
@@ -878,6 +880,8 @@ class SKIExecutor:
             self._current_case_id = case['case_id']
             self._step_index = 0
             self._runtime_stopped_graceful = False
+            self._current_scenario_id = None
+            self._current_scenario_title = None
             recording_path = self._start_case_recording(case['case_id'])
             self._current_plan_selected_scenario_ids = case.get('_selected_scenario_ids')
             self._current_plan_selected_step_map = case.get('_selected_step_map') or {}
@@ -1175,6 +1179,8 @@ class SKIExecutor:
             f"  [{self._phase_runtime_seq}] scenario {scenario_id} - {title} "
             f"(group={scenario.get('group', '')}, tag={scenario.get('tag') or []})"
         )
+        self._current_scenario_id = scenario_id
+        self._current_scenario_title = title
         scenario_steps = scenario.get('steps', []) or []
         selected_step_map = getattr(self, '_current_plan_selected_step_map', {}) or {}
         selected_step_numbers = selected_step_map.get(scenario_id)
@@ -1190,6 +1196,8 @@ class SKIExecutor:
         if scenario_id:
             scenario_states[scenario_id] = 'PASS'
         self._record_scenario_status(scenario, phase_label, 'PASS', '')
+        self._current_scenario_id = None
+        self._current_scenario_title = None
 
     def _record_scenario_status(
         self,
@@ -1426,13 +1434,29 @@ class SKIExecutor:
             if not self.result_writer.current_run_dir:
                 return
 
-            screenshot_dir = self.result_writer.current_run_dir / "screenshots"
-            screenshot_dir.mkdir(parents=True, exist_ok=True)
-
             self._step_index = getattr(self, '_step_index', 0) + 1
             case_id = getattr(self, '_current_case_id', 'unknown')
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"{case_id}_{self._step_index:02d}_{step_type}_{timestamp}.png"
+
+            scenario_id = getattr(self, '_current_scenario_id', None)
+            scenario_title = getattr(self, '_current_scenario_title', None)
+
+            if scenario_id:
+                # 场景步骤：存入 screenshots/{caseid}_{scenarioid}_{scenariotitle}/
+                safe_title = re.sub(r'[^\w一-鿿-]', '_', scenario_title or '').strip('_')
+                folder_name = f"{case_id}_{scenario_id}"
+                if safe_title:
+                    folder_name = f"{folder_name}_{safe_title}"
+                screenshot_dir = self.result_writer.current_run_dir / "screenshots" / folder_name
+                screenshot_dir.mkdir(parents=True, exist_ok=True)
+                filename = f"{self._step_index:02d}_{timestamp}.png"
+            else:
+                # 非场景步骤：直接存 screenshots/
+                screenshot_dir = self.result_writer.current_run_dir / "screenshots"
+                screenshot_dir.mkdir(parents=True, exist_ok=True)
+                safe_phase = re.sub(r'[/\\]', '_', step_type)
+                filename = f"{case_id}_{self._step_index:02d}_{safe_phase}_{timestamp}.png"
+
             path = screenshot_dir / filename
             self.driver.screenshot(str(path))
             logger.debug(f"步骤截图: {path}")

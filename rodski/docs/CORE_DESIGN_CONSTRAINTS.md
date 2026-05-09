@@ -1564,9 +1564,22 @@ test:
 | 项目 | 规范 |
 |------|------|
 | 结果文件 | `execution_summary.json` |
-| 截图 | `result/screenshots/` |
+| 截图 | `result/screenshots/`（见下方截图目录规则） |
 | 日志 | `result/execution.log` |
 | Return 值 | 通过 `${Return[-1]}` 在数据表中引用 |
+
+#### 截图目录规则
+
+| 场景 | 存放路径 | 文件名格式 |
+|------|---------|-----------|
+| 非场景步骤（预处理/后处理/普通用例步骤） | `screenshots/` | `{caseid}_{stepindex}_{phase}_{timestamp}.png` |
+| 场景步骤（`test_case` 内 `<scenario>` 容器中的步骤） | `screenshots/{caseid}_{scenarioid}_{scenariotitle}/` | `{stepindex}_{timestamp}.png` |
+| 失败截图 | `screenshots/` | `{caseid}_{timestamp}_failure.png` |
+
+**约束**：
+- 场景截图必须保存在以 `{caseid}_{scenarioid}_{scenariotitle}` 命名的子目录中，同一用例的同一场景所有步骤截图集中在该目录
+- 非场景步骤截图直接存放在 `screenshots/` 根目录，不创建额外子目录
+- 截图路径中不允许出现 `/` 等路径分隔符（`phase` 字段中的 `/` 必须在生成文件名前替换为 `_`）
 
 ### 版本兼容性
 
