@@ -1,10 +1,16 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "rodski"
 version = "6.7.0"
 description = "RodSki 关键字驱动自动化测试框架"
+requires-python = ">=3.8"
 
-# RodSki 不依赖 pytest 等外部测试框架
-# 自检使用自有执行器: python selftest.py
+[tool.setuptools.packages.find]
+include = ["rodski*"]
+exclude = ["rodski.tests*", "rodski.docs*"]
 
 [tool.black]
 line-length = 120
