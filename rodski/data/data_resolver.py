@@ -3,6 +3,11 @@ import re
 from typing import Any, Callable, Dict, Optional
 from pathlib import Path
 
+from data.builtin_functions import call_function
+
+_FUNC_PATTERN = re.compile(r'\$\{(\w+)\(([^)]*)\)\}')
+_ESCAPE_PATTERN = re.compile(r'\$\$\{')
+
 
 class DataResolver:
     def __init__(self, data_source: Optional[Dict[str, Any]] = None,
@@ -27,6 +32,7 @@ class DataResolver:
         """解析数据引用（Case Sheet 层面，不含 Return）"""
         if not isinstance(text, str):
             return str(text) if text is not None else ""
+        text = self._resolve_functions(text)
         text = self._resolve_vars(text)
         text = self._resolve_models(text)
         text = self._resolve_ski_refs(text)
@@ -37,6 +43,7 @@ class DataResolver:
         if not isinstance(text, str):
             return str(text) if text is not None else ""
         text = self._resolve_returns(text)
+        text = self._resolve_functions(text)
         text = self._resolve_vars(text)
         text = self._resolve_models(text)
         text = self._resolve_ski_refs(text)
@@ -73,6 +80,24 @@ class DataResolver:
             return str(value) if value is not None else match.group(0)
 
         return re.sub(pattern, replacer, text)
+
+    def _resolve_functions(self, text: str) -> str:
+        """解析内置函数引用 ${func(args...)}"""
+        _ESCAPE_PLACEHOLDER = '\x00ESCAPE\x00'
+        text = _ESCAPE_PATTERN.sub(_ESCAPE_PLACEHOLDER, text)
+
+        def replacer(match):
+            func_name = match.group(1)
+            args_str = match.group(2)
+            args = [a.strip() for a in args_str.split(',') if a.strip()]
+            try:
+                return str(call_function(func_name, args))
+            except ValueError:
+                return match.group(0)
+
+        text = _FUNC_PATTERN.sub(replacer, text)
+        text = text.replace(_ESCAPE_PLACEHOLDER, '${')
+        return text
 
     def _resolve_vars(self, text: str) -> str:
         pattern = r'\$\{([^}]+)\}'

@@ -923,6 +923,70 @@ Return 索引适合步骤紧邻且无歧义的场景：
 
 > **注意**：Return 索引仍然完全支持，不会被废弃。set/get 是推荐的首选方式，Return 索引是合法的进阶用法。
 
+### 7.7 内置函数：random() 和 date()（v6.7.0）
+
+数据表字段值中可使用内置函数生成动态数据，语法为 `${函数名(type, 参数...)}`。
+
+**仅支持两个函数**：
+
+#### `${random(type, ...)}` — 随机数据
+
+| 写法 | 结果示例 | 说明 |
+|------|----------|------|
+| `${random(int, 1000, 9999)}` | `3847` | 指定范围的随机整数 |
+| `${random(int, 4)}` | `3847` | 4 位随机整数 |
+| `${random(float, 10.00, 999.99)}` | `156.73` | 随机浮点数 |
+| `${random(str, 6)}` | `aB3kP9` | 6 位随机字母数字 |
+| `${random(digits, 8)}` | `03847291` | 8 位纯数字 |
+| `${random(phone)}` | `13812345678` | 随机中国手机号 |
+| `${random(email)}` | `a3k9pm@test.com` | 随机邮箱 |
+| `${random(choice, A, B, C)}` | `B` | 从候选值中随机选一个 |
+| `${random(uuid)}` | `550e8400-e29b-...` | UUID v4 |
+
+#### `${date(type, ...)}` — 时间数据
+
+| 写法 | 结果示例 | 说明 |
+|------|----------|------|
+| `${date(now)}` | `2026-05-12 14:30:00` | 当前日期时间 |
+| `${date(now, %Y%m%d_%H%M%S)}` | `20260512_143000` | 自定义格式 |
+| `${date(today)}` | `2026-05-12` | 当前日期 |
+| `${date(today, %Y%m%d)}` | `20260512` | 紧凑日期 |
+| `${date(time)}` | `14:30:00` | 当前时间 |
+| `${date(timestamp)}` | `1778745000` | Unix 时间戳（秒） |
+| `${date(timestamp_ms)}` | `1778745000123` | Unix 时间戳（毫秒） |
+| `${date(offset, 30)}` | `2026-06-11` | 30 天后 |
+| `${date(offset, -7)}` | `2026-05-05` | 7 天前 |
+| `${date(offset, -2h)}` | `2026-05-12 12:30:00` | 2 小时前 |
+| `${date(offset, -2h, %H:%M)}` | `12:30` | 2 小时前，自定义格式 |
+
+#### 字符串拼接
+
+函数可出现在字段值任意位置，前后拼接静态文本：
+
+```sql
+-- 唯一用户名
+INSERT INTO rs_field VALUES ('RegisterAPI', 'D001', 'username', 'user_${random(int, 4)}');
+
+-- 测试邮箱
+INSERT INTO rs_field VALUES ('RegisterAPI', 'D001', 'email', 'test_${random(str, 6)}@example.com');
+
+-- 订单号 = 前缀 + 日期 + 随机数
+INSERT INTO rs_field VALUES ('OrderAPI', 'D001', 'order_no', 'ORD_${date(today, %Y%m%d)}_${random(digits, 4)}');
+
+-- 有效期
+INSERT INTO rs_field VALUES ('OrderAPI', 'D001', 'expire_date', '${date(offset, 30)}');
+
+-- 交易流水号
+INSERT INTO rs_field VALUES ('PayAPI', 'D001', 'txn_no', 'TXN${date(today, %Y%m%d)}${random(digits, 8)}');
+```
+
+#### 注意事项
+
+- 内置函数**只在数据表字段值中生效**，不要写在 Case XML 的 `data` 属性中
+- 每次执行时重新计算，不缓存结果
+- 不支持嵌套调用（如 `${random(int, ${date(...)})}`）
+- 需要字面量 `${` 时使用 `$${` 转义
+
 ---
 
 ## 8. 关键字手册
