@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases step_wait="500">
+    <!-- TC050: 内置函数验收（v6.7.0）
+         验证 ${random(...)} 和 ${date(...)} 在数据表字段值中的解析能力。
+         依赖 demosite 的注册接口和测试表单。
+    -->
+
+    <!-- ═══════════════════════════════════════════════════════
+         random() 函数验收
+         ═══════════════════════════════════════════════════════ -->
+
+    <case execute="是" id="TC050-001" title="random(int)-随机整数" component_type="接口">
+        <test_case>
+            <test_step action="send" model="RegisterAPI" data="R001"/>
+            <test_step action="verify" model="RegisterAPI" data="V001"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC050-002" title="random(str)-随机字符串拼接" component_type="接口">
+        <test_case>
+            <test_step action="send" model="RegisterAPI" data="R002"/>
+            <test_step action="verify" model="RegisterAPI" data="V002"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC050-003" title="random(phone)-随机手机号" component_type="接口">
+        <test_case>
+            <test_step action="send" model="RegisterAPI" data="R003"/>
+            <test_step action="verify" model="RegisterAPI" data="V003"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC050-004" title="random(email)-随机邮箱" component_type="接口">
+        <test_case>
+            <test_step action="send" model="RegisterAPI" data="R004"/>
+            <test_step action="verify" model="RegisterAPI" data="V004"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC050-005" title="random(uuid)-UUID生成" component_type="接口">
+        <test_case>
+            <test_step action="send" model="RegisterAPI" data="R005"/>
+            <test_step action="verify" model="RegisterAPI" data="V005"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC050-006" title="random(choice)-随机选取" component_type="接口">
+        <test_case>
+            <test_step action="send" model="RegisterAPI" data="R006"/>
+            <test_step action="verify" model="RegisterAPI" data="V006"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC050-007" title="random(float)-随机浮点数" component_type="接口">
+        <test_case>
+            <test_step action="send" model="RegisterAPI" data="R007"/>
+            <test_step action="verify" model="RegisterAPI" data="V007"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC050-008" title="random(digits)-纯数字串" component_type="接口">
+        <test_case>
+            <test_step action="send" model="RegisterAPI" data="R008"/>
+            <test_step action="verify" model="RegisterAPI" data="V008"/>
+        </test_case>
+    </case>
+
+    <!-- ═══════════════════════════════════════════════════════
+         date() 函数验收
+         ═══════════════════════════════════════════════════════ -->
+
+    <case execute="是" id="TC050-011" title="date(now)-当前日期时间" component_type="接口">
+        <test_case>
+            <test_step action="send" model="RegisterAPI" data="R011"/>
+            <test_step action="verify" model="RegisterAPI" data="V011"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC050-012" title="date(today)-当前日期" component_type="接口">
+        <test_case>
+            <test_step action="send" model="RegisterAPI" data="R012"/>
+            <test_step action="verify" model="RegisterAPI" data="V012"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC050-013" title="date(timestamp)-时间戳" component_type="接口">
+        <test_case>
+            <test_step action="send" model="RegisterAPI" data="R013"/>
+            <test_step action="verify" model="RegisterAPI" data="V013"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC050-014" title="date(offset)-日期偏移" component_type="接口">
+        <test_case>
+            <test_step action="send" model="RegisterAPI" data="R014"/>
+            <test_step action="verify" model="RegisterAPI" data="V014"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC050-015" title="date(offset,Nh)-小时偏移" component_type="接口">
+        <test_case>
+            <test_step action="send" model="RegisterAPI" data="R015"/>
+            <test_step action="verify" model="RegisterAPI" data="V015"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC050-016" title="date(today)-自定义格式" component_type="接口">
+        <test_case>
+            <test_step action="send" model="RegisterAPI" data="R016"/>
+            <test_step action="verify" model="RegisterAPI" data="V016"/>
+        </test_case>
+    </case>
+
+    <!-- ═══════════════════════════════════════════════════════
+         字符串拼接验收
+         ═══════════════════════════════════════════════════════ -->
+
+    <case execute="是" id="TC050-021" title="前缀+random拼接" component_type="接口">
+        <test_case>
+            <test_step action="send" model="RegisterAPI" data="R021"/>
+            <test_step action="verify" model="RegisterAPI" data="V021"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC050-022" title="random+后缀拼接" component_type="接口">
+        <test_case>
+            <test_step action="send" model="RegisterAPI" data="R022"/>
+            <test_step action="verify" model="RegisterAPI" data="V022"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC050-023" title="前缀+date+后缀拼接" component_type="接口">
+        <test_case>
+            <test_step action="send" model="RegisterAPI" data="R023"/>
+            <test_step action="verify" model="RegisterAPI" data="V023"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC050-024" title="多函数串联拼接" component_type="接口">
+        <test_case>
+            <test_step action="send" model="RegisterAPI" data="R024"/>
+            <test_step action="verify" model="RegisterAPI" data="V024"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC050-025" title="random+date混合拼接" component_type="接口">
+        <test_case>
+            <test_step action="send" model="RegisterAPI" data="R025"/>
+            <test_step action="verify" model="RegisterAPI" data="V025"/>
+        </test_case>
+    </case>
+
+    <!-- ═══════════════════════════════════════════════════════
+         边界场景验收
+         ═══════════════════════════════════════════════════════ -->
+
+    <case execute="是" id="TC050-031" title="转义-不解析字面量" component_type="接口">
+        <test_case>
+            <test_step action="send" model="RegisterAPI" data="R031"/>
+            <test_step action="verify" model="RegisterAPI" data="V031"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC050-032" title="未知函数-保持原样" component_type="接口">
+        <test_case>
+            <test_step action="send" model="RegisterAPI" data="R032"/>
+            <test_step action="verify" model="RegisterAPI" data="V032"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC050-033" title="UI场景-表单输入含random" component_type="界面">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.DefaultValue.URL"/>
+            <test_step action="type" model="LoginForm" data="L001"/>
+            <test_step action="type" model="NavMenu" data="N001"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="TestForm" data="T050"/>
+            <test_step action="get" model="TestForm" data="formResult"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+</cases>
