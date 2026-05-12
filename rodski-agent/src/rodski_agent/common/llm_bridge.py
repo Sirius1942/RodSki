@@ -58,8 +58,10 @@ def get_chat_model(agent_type: str = "design") -> Any:
     else:
         provider_config = llm_config.design
 
-    # 获取 API key
+    # 获取 API key：先查配置指定的 env var，再 fallback 到 ANTHROPIC_AUTH_TOKEN
     api_key = os.environ.get(provider_config.api_key_env, "")
+    if not api_key:
+        api_key = os.environ.get("ANTHROPIC_AUTH_TOKEN", "")
     if not api_key:
         raise LLMError(
             f"API key not found: environment variable '{provider_config.api_key_env}' is not set",

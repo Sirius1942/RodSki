@@ -432,6 +432,62 @@ def diagnose(ctx: click.Context, result: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# narrate
+# ---------------------------------------------------------------------------
+
+@main.command()
+@click.option("--case", required=True, type=click.Path(exists=False), help="Path to the test case XML file.")
+@click.option("--id", "case_ids", multiple=True, help="Case ID(s) to narrate; omit for all cases.")
+@click.option("--log", "log_path", default=None, type=click.Path(exists=False), help="Path to execution log for enrichment.")
+@click.pass_context
+def narrate(ctx: click.Context, case: str, case_ids: tuple[str, ...], log_path: str | None) -> None:
+    """Generate human-readable Markdown narratives from test cases."""
+    try:
+        from rodski_agent.narrator.graph import build_narrator_graph
+
+        state: dict[str, Any] = {
+            "case_path": os.path.abspath(case),
+            "case_ids": list(case_ids) if case_ids else None,
+            "log_path": os.path.abspath(log_path) if log_path else None,
+        }
+
+        graph = build_narrator_graph()
+        result = graph.invoke(state)
+
+        status = result.get("status", "error")
+        written_files = result.get("written_files", [])
+        error = result.get("error", "")
+
+        agent_out = AgentOutput(
+            status=status,
+            command="narrate",
+            output={"written_files": written_files, "count": len(written_files)},
+            error=error if error else None,
+        )
+
+        fmt = ctx.obj.get("format", "human") if ctx.obj else "human"
+        if fmt == "json":
+            click.echo(agent_out.to_json())
+        else:
+            if status == "error":
+                click.echo(f"Error: {error}")
+            else:
+                click.echo(f"Generated {len(written_files)} narrative file(s):")
+                for f in written_files:
+                    click.echo(f"  {f}")
+
+        if status == "error":
+            ctx.exit(2)
+
+    except AgentError as err:
+        _handle_agent_error(ctx, err, "narrate")
+    except (SystemExit, click.exceptions.Exit):
+        raise
+    except Exception as exc:
+        _handle_unexpected_error(ctx, exc, "narrate")
+
+
+# ---------------------------------------------------------------------------
 # config (sub-group)
 # ---------------------------------------------------------------------------
 

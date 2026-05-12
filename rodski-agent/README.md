@@ -22,7 +22,63 @@ pip install rodski-agent
 pip install -e "rodski-agent/[dev]"
 ```
 
-### Dependencies
+## API Key Setup
+
+rodski-agent needs an Anthropic (or OpenAI) API key to call LLMs.
+
+**Step 1 — Set the environment variable**
+
+```bash
+# Anthropic (Claude)
+export ANTHROPIC_API_KEY=sk-ant-...
+
+# OpenAI
+export OPENAI_API_KEY=sk-...
+```
+
+**Step 2 — Create your local config**
+
+```bash
+cp rodski-agent/config/agent_config.yaml.example rodski-agent/config/agent_config.yaml
+```
+
+Edit `agent_config.yaml` to set your model and (optionally) a custom endpoint:
+
+```yaml
+llm:
+  design:
+    provider: claude
+    model: claude-sonnet-4-6
+    base_url: ""              # leave empty for official API
+    api_key_env: ANTHROPIC_API_KEY
+  execution:
+    provider: claude
+    model: claude-sonnet-4-6
+    base_url: ""
+    api_key_env: ANTHROPIC_API_KEY
+```
+
+`agent_config.yaml` is gitignored — your endpoint and key name stay local.
+
+**Using a proxy or internal endpoint**
+
+If your team routes API calls through an internal proxy (e.g. a one-api gateway):
+
+```yaml
+llm:
+  design:
+    base_url: "http://your-internal-proxy.example.com"
+    api_key_env: ANTHROPIC_API_KEY   # env var name pointing to the proxy key
+```
+
+**Environment variable override**
+
+Any config value can be overridden at runtime without editing the file:
+
+```bash
+RODSKI_AGENT_LLM__DESIGN__MODEL=claude-opus-4-7 rodski-agent design ...
+RODSKI_AGENT_LLM__EXECUTION__BASE_URL=http://proxy.example.com rodski-agent run ...
+```
 
 | Package | Purpose | Required |
 |---------|---------|----------|
@@ -93,7 +149,26 @@ rodski-agent diagnose --result output/login/result/
 rodski-agent diagnose --result output/login/execution_summary.json --format json
 ```
 
-### 5. View configuration
+### 5. Narrate test cases (human-readable docs)
+
+Generate Markdown documentation from test case XML — no execution needed.
+
+```bash
+# Narrate all cases in a file
+rodski-agent narrate --case path/to/case/tc_login.xml
+
+# Narrate a single case
+rodski-agent narrate --case path/to/case/tc_login.xml --id TC001
+
+# Enrich with execution log (shows actual SQL, return values, timing)
+rodski-agent narrate \
+  --case path/to/case/tc_database.xml \
+  --log path/to/result/rodski_20260507_153712/execution.log
+```
+
+Output files are written to `{project_root}/narrative/{case_id}_{title}.md`.
+
+### 6. View configuration
 
 ```bash
 rodski-agent config show
@@ -164,15 +239,15 @@ Design and Execution agents use separate LLM configurations:
 llm:
   design:
     provider: claude
-    model: claude-sonnet-4-20250514
-    base_url: "http://code.casstime.ai"
+    model: claude-sonnet-4-6
+    base_url: ""              # leave empty for official API
     api_key_env: ANTHROPIC_API_KEY
     temperature: 0.7
     max_tokens: 4096
   execution:
     provider: claude
-    model: claude-sonnet-4-20250514
-    base_url: "http://code.casstime.ai"
+    model: claude-sonnet-4-6
+    base_url: ""
     api_key_env: ANTHROPIC_API_KEY
     temperature: 0.1
     max_tokens: 2048

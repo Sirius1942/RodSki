@@ -88,3 +88,26 @@ class DesignState(TypedDict, total=False):
     error: str                       # 错误信息
     debug_round: int                 # 当前调试轮次（0=初次，最大3）
     debug_hints: Optional[List[Any]] # 调试建议列表（来自 debugger）
+
+
+# ============================================================
+# Narrator Agent State
+# ============================================================
+
+class NarratorState(TypedDict, total=False):
+    """Narrator Agent 的运行状态。"""
+
+    # -- 输入 ----------------------------------------------------------
+    case_path: str                          # case XML 文件路径
+    log_path: Optional[str]                 # 执行日志路径（可选）
+    case_ids: Optional[List[str]]           # 指定用例 ID；None = 全部
+
+    # -- 中间状态 ------------------------------------------------------
+    resolved_cases: List[Dict[str, Any]]    # CaseResolver.to_dict() 序列化结果
+    narratives: List[Dict[str, Any]]        # [{case_id, markdown}, ...]
+
+    # -- 输出 ----------------------------------------------------------
+    output_dir: str                         # narrative/ 目录路径
+    written_files: List[str]                # 已写入的文件路径列表
+    status: str                             # "success" | "error"
+    error: str                              # 错误信息
