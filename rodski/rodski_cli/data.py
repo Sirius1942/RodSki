@@ -40,7 +40,7 @@ def setup_parser(subparsers):
 
 def _load(module: str):
     try:
-        from ..core.data_table_parser import DataTableParser
+        from core.data_table_parser import DataTableParser
     except ImportError:
         from core.data_table_parser import DataTableParser
     data_dir = Path(module) / "data"
@@ -103,7 +103,7 @@ def handle(args):
 
     elif cmd == "validate":
         try:
-            from ..core.exceptions import DataParseError
+            from core.exceptions import DataParseError
         except ImportError:
             from core.exceptions import DataParseError
         try:

@@ -193,7 +193,7 @@ def handle(args):
     plan_path_str = str(plan_path) if plan_path else None
     try:
         try:
-            from ..core.test_plan_selection import check_plan_selector_conflict
+            from core.test_plan_selection import check_plan_selector_conflict
         except ImportError:
             from core.test_plan_selection import check_plan_selector_conflict
         check_plan_selector_conflict(plan_path_str, selector_filters)
@@ -263,10 +263,10 @@ def _handle_dry_run(
 ) -> int:
     """验证用例可执行性但不实际执行"""
     try:
-        from ..core.case_parser import CaseParser
-        from ..core.model_parser import ModelParser
-        from ..core.plan_parser import PlanParser
-        from ..core.test_plan_selection import TestPlanSelection, compile_from_selector
+        from core.case_parser import CaseParser
+        from core.model_parser import ModelParser
+        from core.plan_parser import PlanParser
+        from core.test_plan_selection import TestPlanSelection, compile_from_selector
     except ImportError:
         from core.case_parser import CaseParser
         from core.model_parser import ModelParser
@@ -428,11 +428,11 @@ def _print_plan_dry_run_selection(plan, selection) -> None:
 def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional[Path] = None, selector_filters: Optional[Dict[str, Any]] = None) -> int:
     """实际执行测试用例"""
     try:
-        from ..core.ski_executor import SKIExecutor
-        from ..core.config_manager import ConfigManager
-        from ..drivers.playwright_driver import PlaywrightDriver
-        from ..core.json_formatter import JSONFormatter
-        from ..core.runtime_control import RuntimeCommandQueue
+        from core.ski_executor import SKIExecutor
+        from core.config_manager import ConfigManager
+        from drivers.playwright_driver import PlaywrightDriver
+        from core.json_formatter import JSONFormatter
+        from core.runtime_control import RuntimeCommandQueue
     except ImportError:
         from core.ski_executor import SKIExecutor
         from core.config_manager import ConfigManager

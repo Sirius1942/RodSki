@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Dict, Any
 
 try:
-    from ..core.sqlite_schema import SQLITE_DDL
+    from core.sqlite_schema import SQLITE_DDL
 except ImportError:
     from core.sqlite_schema import SQLITE_DDL
 

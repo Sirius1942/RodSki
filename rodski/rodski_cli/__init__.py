@@ -3,7 +3,12 @@ import sys
 import argparse
 from . import run, model, config, log, report, docs, data, init, plan
 
-from rodski import __version__ as VERSION
+from importlib.metadata import PackageNotFoundError, version
+
+try:
+    VERSION = version("rodski")
+except PackageNotFoundError:
+    VERSION = "dev"
 
 def main():
     parser = argparse.ArgumentParser(

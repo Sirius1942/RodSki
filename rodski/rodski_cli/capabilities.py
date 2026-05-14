@@ -17,14 +17,19 @@ def setup_parser(subparsers):
 
 def handle(args):
     """输出 JSON 格式的 rodski 能力清单。"""
-    from rodski import __version__
-    from rodski.core.keyword_engine import KeywordEngine
-    from rodski.core.driver_factory import DriverFactory
-    from rodski.core.model_parser import VALID_LOCATOR_TYPES
-    from rodski.core.xml_schema_validator import SCHEMA_FILES
+    from importlib.metadata import PackageNotFoundError, version
+    from core.keyword_engine import KeywordEngine
+    from core.driver_factory import DriverFactory
+    from core.model_parser import VALID_LOCATOR_TYPES
+    from core.xml_schema_validator import SCHEMA_FILES
+
+    try:
+        framework_version = version("rodski")
+    except PackageNotFoundError:
+        framework_version = "dev"
 
     capabilities = {
-        "version": __version__,
+        "version": framework_version,
         "supported_keywords": list(KeywordEngine.SUPPORTED),
         "compat_keywords": ["check"],
         "locator_types": list(VALID_LOCATOR_TYPES),

@@ -6,12 +6,15 @@ import traceback
 from pathlib import Path
 
 if __package__ in (None, ""):
-    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-    from rodski.rodski_cli import run, model, config, log, report, profile, docs, capabilities, data, init, plan
-else:
-    from .rodski_cli import run, model, config, log, report, profile, docs, capabilities, data, init, plan
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from rodski import __version__ as VERSION
+from rodski_cli import run, model, config, log, report, profile, docs, capabilities, data, init, plan
+from importlib.metadata import PackageNotFoundError, version
+
+try:
+    VERSION = version("rodski")
+except PackageNotFoundError:
+    VERSION = "dev"
 
 
 def format_error(e, verbose=False):
