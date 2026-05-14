@@ -100,12 +100,13 @@ git commit -m "chore(v${VERSION}): 版本号更新到 ${VERSION}"
 git tag -a "v${VERSION}" -m "v${VERSION}"
 echo "  ✓ 已提交并创建 tag v${VERSION}"
 
-# 9. 构建 + 发布 PyPI
-echo "[9/10] 构建并发布到 PyPI..."
+# 9. 构建 + 发布包验收 + 发布 PyPI
+echo "[9/10] 构建、验收并发布到 PyPI..."
 rm -rf "$RODSKI_DIR/dist/"
 python3 -m build "$RODSKI_DIR/"
+"$PROJECT_ROOT/scripts/release_check.sh" "$VERSION"
 python3 -m twine upload "$RODSKI_DIR/dist/rodski-${VERSION}"*
-echo "  ✓ 已发布到 PyPI"
+echo "  ✓ 已通过发布包验收并发布到 PyPI"
 
 # 10. 推送远端
 echo "[10/10] 推送到 GitHub 和 GitLab..."
