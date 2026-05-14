@@ -4,13 +4,30 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rodski"
-version = "6.7.0"
+version = "6.7.1"
 description = "RodSki 关键字驱动自动化测试框架"
 requires-python = ">=3.8"
 
 [tool.setuptools.packages.find]
-include = ["rodski*"]
-exclude = ["rodski.tests*", "rodski.docs*"]
+where = ["."]
+include = [
+    "api*",
+    "builtin_ops*",
+    "config*",
+    "core*",
+    "data*",
+    "drivers*",
+    "llm*",
+    "observability*",
+    "report*",
+    "reviewers*",
+    "rodski_cli*",
+    "rodski_docs*",
+    "ui*",
+    "utils*",
+    "vision*",
+]
+exclude = ["tests*", "docs*", "examples*", "scripts*", "schemas*"]
 
 [tool.black]
 line-length = 120
