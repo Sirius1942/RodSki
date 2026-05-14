@@ -4,7 +4,7 @@ import sqlite3
 from pathlib import Path
 
 try:
-    from ..core.sqlite_schema import SQLITE_DDL
+    from core.sqlite_schema import SQLITE_DDL
 except ImportError:
     from core.sqlite_schema import SQLITE_DDL
 
