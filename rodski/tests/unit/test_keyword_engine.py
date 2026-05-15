@@ -1091,7 +1091,7 @@ class TestSpecialValues:
         assert result is True  # BLANK 字段被跳过，不影响通过
 
     def test_verify_null_skips_ui_field(self, mock_driver):
-        """verify 批量模式（UI）：NULL 值应跳过该字段不验证"""
+        """verify 批量模式（UI）：所有字段为 NULL 导致 0 比较 → 报错（T42-002）"""
         mock_model_parser = MagicMock()
         mock_model_parser.get_model.return_value = {
             '__model_type__': MODEL_TYPE_UI,
@@ -1100,13 +1100,14 @@ class TestSpecialValues:
         mock_model_parser.get_model_type.return_value = MODEL_TYPE_UI
         mock_data_manager = MagicMock()
         mock_data_manager.get_data.return_value = {
-            'amount': 'NULL',  # 应跳过不验证
+            'amount': 'NULL',  # UI 模式跳过
         }
-        mock_driver.get_text_locator.return_value = '999'  # 不匹配但应被跳过
+        mock_driver.get_text_locator.return_value = '999'
 
         engine = KeywordEngine(mock_driver,
                                model_parser=mock_model_parser,
                                data_manager=mock_data_manager)
-        result = engine.execute("verify", {"model": "Order", "data": "V001"})
-        assert result is True  # NULL 字段被跳过
+        # T42-002: 所有字段被跳过导致比较数为 0，应报错
+        with pytest.raises(AssertionFailedError, match="比较字段数为 0"):
+            engine.execute("verify", {"model": "Order", "data": "V001"})
 

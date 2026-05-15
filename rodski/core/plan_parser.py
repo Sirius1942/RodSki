@@ -3,22 +3,13 @@ from __future__ import annotations
 
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict
 
-from .xml_schema_validator import RodskiXmlValidator, schemas_directory
-
-try:
-    import xmlschema
-    from xmlschema.validators.exceptions import XMLSchemaValidationError as _XsdValidationError
-except ImportError:  # pragma: no cover
-    xmlschema = None  # type: ignore
-    _XsdValidationError = Exception  # type: ignore
+from .xml_schema_validator import RodskiXmlValidator
 
 
 class PlanParser:
     """Parse and validate a single ``test_plan`` XML file."""
-
-    KIND_PLAN = "plan"
 
     def __init__(self, plan_path: str):
         self.plan_path = Path(plan_path)
@@ -28,7 +19,7 @@ class PlanParser:
         if not self.plan_path.is_file():
             raise FileNotFoundError(f"Plan XML 文件不存在: {self.plan_path}")
 
-        self._validate_file(self.plan_path)
+        RodskiXmlValidator.validate_file(self.plan_path, RodskiXmlValidator.KIND_PLAN)
         tree = ET.parse(self.plan_path)
         root = tree.getroot()
 
@@ -56,27 +47,6 @@ class PlanParser:
             "debug": debug,
             "cases": [self._parse_case(case_node) for case_node in root.findall("case")],
         }
-
-    @classmethod
-    def _validate_file(cls, xml_path: Path) -> None:
-        """Validate with RodskiXmlValidator when it supports plans, otherwise local XSD."""
-        plan_kind = getattr(RodskiXmlValidator, "KIND_PLAN", cls.KIND_PLAN)
-        try:
-            RodskiXmlValidator.validate_file(xml_path, plan_kind)
-            return
-        except ValueError:
-            cls._validate_file_locally(xml_path)
-
-    @staticmethod
-    def _validate_file_locally(xml_path: Path) -> None:
-        if xmlschema is None:  # pragma: no cover
-            raise ImportError("缺少依赖 xmlschema，无法进行 plan.xsd 校验。请执行: pip install xmlschema")
-        xsd_path = schemas_directory() / "plan.xsd"
-        schema = xmlschema.XMLSchema(str(xsd_path))
-        try:
-            schema.validate(str(xml_path))
-        except _XsdValidationError as exc:
-            raise ValueError(f"Plan XML 不符合 Schema 约束 ({xsd_path}): {xml_path}\n{exc}") from exc
 
     @staticmethod
     def _parse_case(case_node: ET.Element) -> Dict[str, Any]:

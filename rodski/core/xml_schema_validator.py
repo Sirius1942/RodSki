@@ -27,6 +27,7 @@ SCHEMA_FILES: Dict[str, str] = {
     "data": "data.xsd",
     "globalvalue": "globalvalue.xsd",
     "model": "model.xsd",
+    "plan": "plan.xsd",
     "result": "result.xsd",
 }
 
@@ -91,6 +92,7 @@ class RodskiXmlValidator:
     KIND_DATA = "data"
     KIND_GLOBALVALUE = "globalvalue"
     KIND_MODEL = "model"
+    KIND_PLAN = "plan"
     KIND_RESULT = "result"
 
     @classmethod

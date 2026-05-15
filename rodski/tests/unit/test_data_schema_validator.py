@@ -15,13 +15,14 @@ class TestCheckSqliteSchema:
         with pytest.raises(DataParseError, match="缺少 schema"):
             DataSchemaValidator.check_sqlite_schema(tables, {})
 
-    def test_missing_field_allowed(self):
+    def test_missing_field_raises(self):
         tables = {"Login": {"L001": {"username": "a"}}}
         schemas = {"Login": ["username", "password"]}
-        DataSchemaValidator.check_sqlite_schema(tables, schemas)
+        with pytest.raises(DataParseError, match="missing="):
+            DataSchemaValidator.check_sqlite_schema(tables, schemas)
 
     def test_extra_field_raises(self):
         tables = {"Login": {"L001": {"username": "a", "extra": "x"}}}
         schemas = {"Login": ["username"]}
-        with pytest.raises(DataParseError, match="未定义的字段"):
+        with pytest.raises(DataParseError, match="extra="):
             DataSchemaValidator.check_sqlite_schema(tables, schemas)

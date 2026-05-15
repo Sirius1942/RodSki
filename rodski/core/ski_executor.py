@@ -1309,7 +1309,7 @@ class SKIExecutor:
         model = step['model']
         data = step['data']
 
-        resolved_data = self.data_resolver.resolve(data)
+        resolved_data = self.data_resolver.resolve_case_data(data)
 
         if data and resolved_data != data:
             logger.debug(f"数据解析: '{data}' -> '{resolved_data}'")

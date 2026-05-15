@@ -9,6 +9,7 @@ from core.model_parser import (
     MODEL_TYPE_UI,
     MODEL_TYPE_INTERFACE,
 )
+from core.exceptions import ModelParseError, XmlSchemaValidationError
 
 
 @pytest.fixture
@@ -208,7 +209,7 @@ def test_multi_locator_primary_locator(multi_locator_parser):
 
 
 def test_legacy_simplified_format_is_no_longer_supported(tmp_path):
-    """旧版简化格式 type="id" value="xxx" 已移除，应返回 None。"""
+    """旧版简化格式 type="id" value="xxx" 已移除，应抛出 XmlSchemaValidationError。"""
     xml = tmp_path / "model.xml"
     xml.write_text(
         '''<?xml version="1.0" encoding="UTF-8"?>
@@ -219,26 +220,26 @@ def test_legacy_simplified_format_is_no_longer_supported(tmp_path):
 </models>''',
         encoding='utf-8'
     )
-    parser = ModelParser(str(xml))
-    result = parser.get_element("Legacy.username")
-    assert result is None
+    with pytest.raises((XmlSchemaValidationError, ModelParseError)):
+        ModelParser(str(xml))
 
 
 def test_locator_attribute_format_is_no_longer_supported(tmp_path):
-    """旧版 locator="type:value" 属性格式已移除，应返回 None。"""
+    """旧版 locator="type:value" 属性格式已移除，应抛出 XmlSchemaValidationError。"""
     xml = tmp_path / "model.xml"
     xml.write_text(
         '''<?xml version="1.0" encoding="UTF-8"?>
 <models>
   <model name="Legacy">
-    <element name="searchBtn" locator="vision:搜索按钮"/>
+    <element name="searchBtn" locator="vision:搜索按钮">
+      <location type="vision">搜索按钮</location>
+    </element>
   </model>
 </models>''',
         encoding='utf-8'
     )
-    parser = ModelParser(str(xml))
-    result = parser.get_element("Legacy.searchBtn")
-    assert result is None
+    with pytest.raises((XmlSchemaValidationError, ModelParseError)):
+        ModelParser(str(xml))
 
 
 def test_location_element_format_works(tmp_path):

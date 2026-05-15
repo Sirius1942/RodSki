@@ -14,7 +14,11 @@ from importlib.metadata import PackageNotFoundError, version
 try:
     VERSION = version("rodski")
 except PackageNotFoundError:
-    VERSION = "dev"
+    try:
+        import __init__ as _pkg
+        VERSION = _pkg.__version__
+    except (ImportError, AttributeError):
+        VERSION = "dev"
 
 
 def format_error(e, verbose=False):

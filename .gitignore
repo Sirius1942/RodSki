@@ -59,3 +59,7 @@ CassMall_examples.zip
 # RodSki demo 运行产物（不纳入版本控制）
 rodski-demo/**/result/
 rodski-demo/**/result/**
+rodski-demo/**/narrative/
+
+# rodski-agent 本地配置（含内部 endpoint，不纳入版本控制）
+rodski-agent/config/agent_config.yaml

@@ -12,6 +12,9 @@ hero:
     - theme: alt
       text: 用例编写指南
       link: /TEST_CASE_WRITING_GUIDE
+    - theme: alt
+      text: 架构经验总结
+      link: /ARCHITECTURE_DESIGN_EXPERIENCE_SUMMARY
 
 features:
   - title: 关键字驱动
@@ -20,4 +23,6 @@ features:
     details: Web / Android / iOS / 桌面端，统一编写方式
   - title: Agent 集成
     details: AI Agent 生成 XML，RodSki 负责执行
+  - title: 架构经验
+    details: 总结 RodSki 在 AI Agent 时代下的架构边界、取舍与演进原则
 ---

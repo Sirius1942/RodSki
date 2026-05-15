@@ -13,7 +13,7 @@
       3. model 的 type 表示模型类型（ui / interface）
       4. element 的 type 表示元素类型，location 的 type 表示定位/取值类型
       5. 接口模型中 _method/_url/_header_* 为保留元素名
-      6. 支持完整格式（带 location 子节点）和旧版简化格式（type+value 属性）
+      6. 唯一支持的定位格式：&lt;location type="..."&gt;value&lt;/location&gt; 子元素
       7. 支持多定位器格式，按 priority 依次尝试，失败自动切换
     </xs:documentation>
   </xs:annotation>
@@ -75,18 +75,16 @@
     <xs:attribute name="path" type="xs:string" use="optional"/>
   </xs:complexType>
 
-  <!-- 元素类型 - 支持完整格式和旧版简化格式 -->
+  <!-- 元素类型 - 唯一格式：<location type="...">value</location> 子元素 -->
   <xs:complexType name="ElementType">
     <xs:sequence>
       <xs:element name="type" type="xs:string" minOccurs="0" maxOccurs="1"/>
-      <xs:element name="location" type="LocationType" minOccurs="0" maxOccurs="unbounded"/>
+      <xs:element name="location" type="LocationType" minOccurs="1" maxOccurs="unbounded"/>
       <xs:element name="assertion" type="AssertionDetailType" minOccurs="0" maxOccurs="1"/>
       <xs:element name="desc" type="xs:string" minOccurs="0" maxOccurs="1"/>
     </xs:sequence>
     <xs:attribute name="name" type="xs:string" use="required"/>
     <xs:attribute name="type" type="xs:string" use="optional"/>
-    <xs:attribute name="value" type="xs:string" use="optional"/>
-    <xs:attribute name="locator" type="xs:string" use="optional"/>
     <xs:attribute name="desc" type="xs:string" use="optional"/>
     <xs:attribute name="interfacename" type="xs:string" use="optional" default=""/>
     <xs:attribute name="group" type="xs:string" use="optional" default=""/>

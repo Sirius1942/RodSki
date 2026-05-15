@@ -3,7 +3,10 @@ import re
 from typing import Any, Callable, Dict, Optional
 from pathlib import Path
 
-from data.builtin_functions import call_function
+try:
+    from rodski.data.builtin_functions import call_function
+except ImportError:
+    from data.builtin_functions import call_function
 
 _FUNC_PATTERN = re.compile(r'\$\{(\w+)\(([^)]*)\)\}')
 _ESCAPE_PATTERN = re.compile(r'\$\$\{')
@@ -33,6 +36,29 @@ class DataResolver:
         if not isinstance(text, str):
             return str(text) if text is not None else ""
         text = self._resolve_functions(text)
+        text = self._resolve_vars(text)
+        text = self._resolve_models(text)
+        text = self._resolve_ski_refs(text)
+        return text
+
+    def resolve_case_data(self, text: str) -> str:
+        """解析 Case XML data 属性 — 禁止内置函数，仅允许变量/Return/GlobalValue 引用。
+
+        内置函数 (${random(...)}, ${date(...)}) 只能写在 data.sqlite 字段值中，
+        不能写在 Case XML 的 data 属性里。
+        """
+        if not isinstance(text, str):
+            return str(text) if text is not None else ""
+        # 检测内置函数模式
+        match = _FUNC_PATTERN.search(text)
+        if match:
+            func_name = match.group(1)
+            raise ValueError(
+                f"内置函数 ${{{func_name}(...)}} 只能写在 data.sqlite 字段值中，"
+                f"不能写在 Case XML data 属性中"
+            )
+        # 允许的解析：Return 引用、变量、Model、SKI 引用
+        text = self._resolve_returns(text)
         text = self._resolve_vars(text)
         text = self._resolve_models(text)
         text = self._resolve_ski_refs(text)

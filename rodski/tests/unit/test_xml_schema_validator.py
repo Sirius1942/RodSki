@@ -138,8 +138,12 @@ class TestValidateFileModel:
             '<?xml version="1.0" encoding="UTF-8"?>\n'
             '<models>\n'
             '  <model name="Login" type="ui">\n'
-            '    <element name="username" type="id" value="uname"/>\n'
-            '    <element name="password" type="css" value="#pwd"/>\n'
+            '    <element name="username" type="id">\n'
+            '      <location type="id">uname</location>\n'
+            '    </element>\n'
+            '    <element name="password" type="css">\n'
+            '      <location type="css">#pwd</location>\n'
+            '    </element>\n'
             '  </model>\n'
             '</models>',
             encoding="utf-8",
@@ -153,9 +157,15 @@ class TestValidateFileModel:
             '<?xml version="1.0" encoding="UTF-8"?>\n'
             '<models>\n'
             '  <model name="LoginAPI" type="interface">\n'
-            '    <element name="_method" type="static" value="POST"/>\n'
-            '    <element name="_url" type="static" value="http://api.example.com/login"/>\n'
-            '    <element name="username" type="field" value="username"/>\n'
+            '    <element name="_method" type="static">\n'
+            '      <location type="static">POST</location>\n'
+            '    </element>\n'
+            '    <element name="_url" type="static">\n'
+            '      <location type="static">http://api.example.com/login</location>\n'
+            '    </element>\n'
+            '    <element name="username" type="field">\n'
+            '      <location type="field">username</location>\n'
+            '    </element>\n'
             '  </model>\n'
             '</models>',
             encoding="utf-8",
@@ -183,7 +193,9 @@ class TestValidateFileModel:
             '<?xml version="1.0" encoding="UTF-8"?>\n'
             '<models>\n'
             '  <model name="Bad" type="invalid_type">\n'
-            '    <element name="x" type="id" value="x"/>\n'
+            '    <element name="x">\n'
+            '      <location type="id">x</location>\n'
+            '    </element>\n'
             '  </model>\n'
             '</models>',
             encoding="utf-8",
@@ -223,7 +235,9 @@ class TestValidateFileModel:
             '<?xml version="1.0" encoding="UTF-8"?>\n'
             '<models>\n'
             '  <model type="ui">\n'
-            '    <element name="x" type="id" value="x"/>\n'
+            '    <element name="x">\n'
+            '      <location type="id">x</location>\n'
+            '    </element>\n'
             '  </model>\n'
             '</models>',
             encoding="utf-8",

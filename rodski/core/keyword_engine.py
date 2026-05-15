@@ -31,6 +31,7 @@ from .model_parser import (
     ModelParser,
     MODEL_TYPE_UI,
     MODEL_TYPE_INTERFACE,
+    MODEL_TYPE_DATABASE,
     LEGACY_DRIVER_TYPE_WEB,
     LEGACY_DRIVER_TYPE_INTERFACE,
 )
@@ -779,7 +780,11 @@ class KeywordEngine:
             if element_name.startswith('__'):
                 continue
             if element_name not in data_row:
-                continue
+                raise InvalidParameterError(
+                    keyword="type",
+                    param_name="data",
+                    reason=f"type 批量输入失败: 模型元素 '{element_name}' 在数据行 '{data_id}' 中缺少对应字段"
+                )
             value = str(data_row[element_name])
             if self.data_resolver:
                 value = self.data_resolver.resolve_with_return(value)
@@ -1114,42 +1119,44 @@ class KeywordEngine:
 
         Web 模型: 等同于 navigate，打开 URL
         Desktop 模型: 启动桌面应用
+        接口模型: 不支持，抛出明确错误
         """
         model_name = params.get("model", "")
         data_ref = params.get("data", "")
 
-        # 批量模式: launch ModelName DataID
+        # 检查模型类型：接口模型不支持 launch
+        model_type = self.model_parser.get_model_type(model_name) if self.model_parser else None
         if model_type == MODEL_TYPE_INTERFACE:
             raise InvalidParameterError(
                 keyword="launch",
                 param_name="model",
-                reason=f"launch 不支持接口模型: '{model_name}'"
+                reason=f"launch 不支持接口模型，请使用 send: '{model_name}'"
             )
+
         driver_type = self.model_parser.get_model_driver_type(model_name) if self.model_parser else LEGACY_DRIVER_TYPE_WEB
-        target_driver = self._get_driver_for_type(driver_type)
         if driver_type == LEGACY_DRIVER_TYPE_WEB:
-            result = self._execute_navigate(model_name, data_ref)
+            # Web 模型或无模型名时，尝试作为 URL 导航
+            target = data_ref
+            if not target:
+                raise InvalidParameterError(
+                    keyword="launch",
+                    param_name="data",
+                    reason="缺少必需参数（URL 或应用路径）"
+                )
+            if target.startswith(("http://", "https://")):
+                logger.info(f"打开页面: {target}")
+                self._ensure_driver()
+                result = self.driver.navigate(target)
+            else:
+                # 非 URL 且无特定驱动，当作桌面应用启动
+                logger.info(f"启动应用: {target}")
+                self._ensure_driver()
+                result = self.driver.launch(app_path=target)
         else:
+            # Desktop 模型: 启动桌面应用
+            target_driver = self._get_driver_for_type(driver_type)
             result = self._execute_desktop_launch(model_name, data_ref, target_driver)
-        self.store_return(True)
-        return result
 
-        # 单参数模式: launch app_path 或 launch url
-        target = params.get("app_path") or params.get("url") or data_ref
-        if not target:
-            raise InvalidParameterError(
-                keyword="launch",
-                param_name="app_path/url",
-                reason="缺少必需参数"
-            )
-
-        # 判断是 URL 还是应用路径
-        if target.startswith(("http://", "https://")):
-            logger.info(f"打开页面: {target}")
-            result = self.driver.navigate(target)
-        else:
-            logger.info(f"启动应用: {target}")
-            result = self.driver.launch(app_path=target)
         self.store_return(True)
         return result
 
@@ -1440,22 +1447,36 @@ class KeywordEngine:
         model_type = self.model_parser.get_model_type(model_name)
         target_driver = self._get_driver_for_type(self.model_parser.get_model_driver_type(model_name))
 
+        # 自引用检测：非 UI 模型的 verify 数据中不应使用 ${Return[-1]}
+        # 接口/DB 的实际值自动从 Return[-1] 读取，期望值再引用 Return[-1] 等于自比较
+        if model_type != MODEL_TYPE_UI:
+            for _field_name, _field_val in data_row.items():
+                if '${Return[-1]' in str(_field_val):
+                    raise InvalidParameterError(
+                        keyword="verify",
+                        param_name=_field_name,
+                        reason=(
+                            "接口/DB verify 的实际值已自动从 Return[-1] 读取，"
+                            "_verify 期望值必须写字面值或 GlobalValue，"
+                            "不能使用 ${Return[-1]}"
+                        ),
+                    )
+
+        # ── DB verify: 由 _verify 数据行字段驱动比较 ──────────────────
+        if model_type == MODEL_TYPE_DATABASE:
+            return self._batch_verify_db(data_row, model_name)
+
         for element_name, element_info in model.items():
             if element_name.startswith('__'):
                 continue
             if element_name not in data_row:
-                continue
+                raise InvalidParameterError(
+                    keyword="verify",
+                    param_name="data",
+                    reason=f"verify 批量验证失败: 字段 '{element_name}' 在验证数据行 '{data_id}' 中缺失"
+                )
 
             raw_expected = str(data_row[element_name])
-
-            # 自引用检测：非 UI 模型的 verify 数据中不应使用 ${Return[-1]}
-            if model_type != MODEL_TYPE_UI and '${Return[-1]}' in raw_expected:
-                logger.warning(
-                    f"[空校验警告] {element_name}: 期望值 '{raw_expected}' "
-                    f"引用了 Return[-1]，但 verify 在接口/DB 模式下实际值也取自 "
-                    f"Return[-1]，这会导致自己跟自己比较，断言永远通过。"
-                    f"请改为具体的期望字面值。"
-                )
 
             expected = raw_expected
             if self.data_resolver:
@@ -1537,11 +1558,142 @@ class KeywordEngine:
                 details={'mismatches': mismatches},
             )
 
+        if len(results) == 0:
+            raise AssertionFailedError(
+                message="verify 失败: 比较字段数为 0，不允许空校验通过",
+                details={'data_id': data_id, 'model': model_name},
+            )
+
         success_payload = dict(results)
         success_payload['_verify_passed'] = True
         success_payload['passed'] = True
         self.store_return(success_payload)
         logger.info(f"批量验证通过: {len(results)} 个字段全部匹配")
+        return True
+
+    def _batch_verify_db(self, data_row: Dict, model_name: str) -> bool:
+        """DB verify: 由 _verify 数据行字段驱动比较
+
+        - 实际值来自 Return[-1]（查询结果）
+        - 若 Return[-1] 是 list，自动取第一项（设计决策 D2）
+        - 遍历 data_row 中非 __* 字段，逐一与实际值比较
+        """
+        last_return = self.get_return(-1)
+
+        # 若查询结果为空 → 直接失败
+        if last_return is None or (isinstance(last_return, list) and len(last_return) == 0):
+            raise AssertionFailedError(
+                message="DB verify 失败: 查询结果为空",
+                details={'model': model_name},
+            )
+
+        # list 结果自动取第一项（设计决策 D2）
+        actual_data = last_return
+        if isinstance(actual_data, list):
+            actual_data = actual_data[0]
+
+        results = {}
+        mismatches = []
+        compared_count = 0
+
+        for field, raw_expected in data_row.items():
+            if field.startswith('__'):
+                continue
+
+            raw_expected = str(raw_expected)
+
+            # 自引用检测
+            if '${Return[-1]' in raw_expected:
+                raise InvalidParameterError(
+                    keyword="verify",
+                    param_name=field,
+                    reason=(
+                        "接口/DB verify 的实际值已自动从 Return[-1] 读取，"
+                        "_verify 期望值必须写字面值或 GlobalValue，"
+                        "不能使用 ${Return[-1]}"
+                    ),
+                )
+
+            expected = raw_expected
+            if self.data_resolver:
+                expected = self.data_resolver.resolve_with_return(expected)
+
+            expected_upper = expected.strip().upper()
+
+            # BLANK → 跳过该字段不验证
+            if expected_upper == 'BLANK':
+                logger.debug(f"{field}: BLANK → 跳过验证")
+                continue
+
+            # 检查字段是否存在于实际结果中
+            if not isinstance(actual_data, dict):
+                raise AssertionFailedError(
+                    message="DB verify 失败: 查询结果不是字典类型，无法按字段比较",
+                    details={'model': model_name, 'actual_type': type(actual_data).__name__},
+                )
+
+            if field not in actual_data:
+                raise AssertionFailedError(
+                    message=f"DB verify 失败: 查询结果中缺少字段 '{field}'",
+                    details={'model': model_name, 'field': field},
+                )
+
+            actual_val = actual_data[field]
+
+            # NULL/NONE 特殊处理
+            if expected_upper in ('NULL', 'NONE'):
+                expected_mapped = expected.lower()
+                actual_str = str(actual_val) if actual_val is not None else "null"
+                results[field] = actual_val
+                compared_count += 1
+                matched = actual_str == expected_mapped or (expected_mapped == "null" and actual_val is None)
+                if not matched:
+                    mismatches.append({'element': field, 'expected': expected_mapped, 'actual': actual_str})
+                logger.debug(f"{field}: 实际={actual_str}, 期望={expected_mapped} → {'OK' if matched else 'FAIL'}")
+                continue
+
+            actual_str = str(actual_val) if actual_val is not None else ""
+            results[field] = actual_str
+            compared_count += 1
+            matched = actual_str == expected
+            logger.debug(f"{field}: 实际='{actual_str}', 期望='{expected}' → {'OK' if matched else 'FAIL'}")
+
+            if not matched:
+                mismatches.append({
+                    'element': field,
+                    'expected': expected,
+                    'actual': actual_str,
+                })
+
+        # 0 字段比较 → 失败
+        if compared_count == 0:
+            raise AssertionFailedError(
+                message="verify 失败: 比较字段数为 0，不允许空校验通过",
+                details={'model': model_name},
+            )
+
+        if mismatches:
+            failure_payload = dict(results)
+            failure_payload['_verify_passed'] = False
+            failure_payload['passed'] = False
+            failure_payload['_verify_mismatches'] = mismatches
+            self.store_return(failure_payload)
+
+            detail = "; ".join(
+                f"{m['element']}(期望='{m['expected']}', 实际='{m['actual']}')"
+                for m in mismatches
+            )
+            logger.error(f"批量验证失败: {detail}")
+            raise AssertionFailedError(
+                message=f"批量验证失败: {detail}",
+                details={'mismatches': mismatches},
+            )
+
+        success_payload = dict(results)
+        success_payload['_verify_passed'] = True
+        success_payload['passed'] = True
+        self.store_return(success_payload)
+        logger.info(f"DB 批量验证通过: {compared_count} 个字段全部匹配")
         return True
 
     # 选择器前缀：含这些前缀的 data 视为 UI 选择器模式
@@ -1754,18 +1906,33 @@ class KeywordEngine:
             )
         base_dir = Path(base_dir).resolve()
         fun_dir = base_dir / "fun"
+
+        # ── 解析 code_path：分离脚本路径和参数 ──
+        parts = code_path.split(None, 1)
+        script_file = parts[0]
+        script_args = parts[1].split() if len(parts) > 1 else []
+
+        # ── 路径规范化：防止 fun/fun/ 双重前缀 ──
+        # 如果 data 以 "fun/" 开头，去掉该前缀（因为会自动拼接 fun_dir）
+        if script_file.startswith("fun/") or script_file.startswith("fun\\"):
+            script_file = script_file[4:]  # strip "fun/"
+
         if project_name:
             project_dir = (fun_dir / project_name).resolve()
-            parts = code_path.split(None, 1)
-            script_file = parts[0]
-            script_args = parts[1].split() if len(parts) > 1 else []
             script_path = (project_dir / script_file).resolve()
         else:
-            parts = code_path.split(None, 1)
-            script_file = parts[0]
-            script_args = parts[1].split() if len(parts) > 1 else []
             project_dir = fun_dir.resolve()
             script_path = (fun_dir / script_file).resolve()
+
+        # ── 路径安全检查：禁止逃出 fun/ 目录 ──
+        fun_dir_resolved = fun_dir.resolve()
+        try:
+            script_path.relative_to(fun_dir_resolved)
+        except ValueError:
+            raise InvalidParameterError(
+                keyword="run", param_name="data",
+                reason="run 脚本路径不能逃出 fun/ 目录"
+            )
 
         if not script_path.exists():
             raise InvalidParameterError(
@@ -1865,13 +2032,25 @@ class KeywordEngine:
         return (func_name, args, kwargs)
 
     def _try_builtin_call(self, expr: str) -> Optional[bool]:
-        """尝试将 data 作为内置函数调用
+        """尝试将 data 作为内置函数调用（官方进程内扩展点）。
+
+        这是 run 关键字的内置函数分发机制。当 model 为空且 data 匹配
+        "函数名(参数...)" 格式时，优先在 BUILTIN_REGISTRY 中查找并执行，
+        不走外部脚本逻辑。
+
+        扩展方式：
+            1. 在 builtin_ops/ 包中新建模块
+            2. 用 @register_builtin 装饰器注册函数
+            3. 函数签名接收 _context kwarg（包含 driver, context, global_vars）
+
+        已注册的内置函数：mock_route, wait_for_response, clear_routes
 
         Args:
-            expr: data 列的值
+            expr: data 列的值，格式为 "函数名(参数1, key=value, ...)"
 
         Returns:
-            True（调用成功）/ None（非内置函数格式或未注册）
+            True — 调用成功，结果已通过 store_return 保存
+            None — 非内置函数格式或函数未注册，调用方应继续走脚本逻辑
         """
         parsed = self._parse_builtin_call(expr)
         if parsed is None:

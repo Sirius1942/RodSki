@@ -1,7 +1,7 @@
 # RodSki 核心设计约束
 
-**版本**: v6.3
-**日期**: 2026-05-07
+**版本**: v6.7.6
+**日期**: 2026-05-15
 
 本文档记录 RodSki 框架的核心设计决策与约束规则，所有后续开发必须遵循。
 
@@ -70,6 +70,22 @@ key_press【按键】 / drag【目标】 / scroll / scroll【x,y】
 <test_step action="run" model="" data="fun/utils/data_process.py"/>
 ```
 
+**in-process 内置函数扩展点（v6.7.6）**：
+
+`run` 在执行脚本前会先查找内置函数注册表。如果 `data` 匹配已注册的内置函数名，则在当前进程内直接调用（不走子进程）。
+
+已注册内置函数：
+- `mock_route(url_pattern, status, body, content_type)` — Mock API 响应（仅 Playwright）
+- `wait_for_response(url_pattern, timeout)` — 等待网络请求完成
+- `clear_routes()` — 清除所有 mock route
+
+用法示例：
+```xml
+<test_step action="run" model="" data="mock_route(url_pattern='/api/users', status=200, body='{&quot;users&quot;:[]}')"/>
+```
+
+**约束**：内置函数需要访问进程内 driver 实例，因此不走子进程。扩展新内置函数通过 `builtin_ops/` 模块注册。
+
 ---
 
 ## 2. 数据表命名与引用规则
@@ -121,6 +137,7 @@ Case XML 的 data 属性中，只需要写 DataID，不需要写表名前缀：
 - `data.sqlite` 是唯一测试数据文件，v6.0.0 起不再支持 XML 数据文件
 - SQLite 中的同一逻辑表必须显式声明 schema，且所有数据行字段集合完全一致
 - 若 `data.xml` 或 `data_verify.xml` 存在，运行时立即报错，不加载任何数据
+- v6.7.6 起，缺字段不再静默跳过，而是直接报错。必须显式填写 BLANK/NULL/NONE 表示跳过。
 
 ---
 
@@ -296,6 +313,8 @@ RodSki 支持 12 种定位器类型，分为传统定位器和视觉定位器两
 verify 对接口和数据库模型的实际值**自动从 Return[-1] 提取**（按模型元素的 locator 字段匹配）。
 如果期望值也写 ${Return[-1]}，则期望值和实际值取自同一数据源，比较结果永远相等，
 断言失去验证价值（"空校验"）。
+
+**v6.7.6 起，此检查为硬性约束：框架检测到接口/DB _verify 表中存在 ${Return[-1]} 时直接失败（不再仅警告）。**
 
 ```xml
 <!-- 禁止：接口/DB verify 的期望值引用 Return[-1]（自己比自己） -->
@@ -1679,7 +1698,7 @@ test:
 
 ---
 
-*文档版本: v6.3 | 最后更新: 2026-05-07*
+*文档版本: v6.7.6 | 最后更新: 2026-05-15*
 
 ## 统一运行时上下文约束（§10）
 

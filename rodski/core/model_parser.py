@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Union, Any
 
+from .exceptions import ModelParseError
 from .xml_schema_validator import RodskiXmlValidator
 
 logger = logging.getLogger("rodski")
@@ -136,7 +137,21 @@ class ModelParser:
         """解析单个 element 节点。
 
         唯一支持的格式：<location type="...">value</location> 子元素。
+        如果检测到旧版 value/locator 属性格式，抛出 ModelParseError。
         """
+        element_name = elem_node.get('name', '<unknown>')
+
+        # 检测已废弃的旧格式属性
+        legacy_value = elem_node.get('value')
+        legacy_locator = elem_node.get('locator')
+        if legacy_value is not None or legacy_locator is not None:
+            deprecated_attr = 'value' if legacy_value is not None else 'locator'
+            raise ModelParseError(
+                f"元素 '{element_name}' 使用了已废弃的定位器格式 ({deprecated_attr} 属性)。"
+                f"请迁移为 <location type=\"...\">值</location> 格式",
+                model_file=str(self.xml_path),
+            )
+
         raw_type = (elem_node.get('type') or '').strip()
         legacy_driver_type = raw_type if raw_type in LEGACY_DRIVER_TYPES else ''
         type_node = elem_node.find('type')

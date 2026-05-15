@@ -591,9 +591,135 @@ else:
 
 ---
 
-**文档版本**: v3.0
-**最后更新**: 2026-04-13
-**框架版本**: v5.7.0
+**文档版本**: v3.1
+**最后更新**: 2026-05-10
+**框架版本**: v6.4.0
+
+---
+
+## 9. rodski-agent CLI 使用指南
+
+`rodski-agent` 是 RodSki 的 AI Agent 层，提供 CLI 命令直接调用即可使用全部能力。
+
+### 9.1 安装
+
+```bash
+pip install -e "rodski-agent/[dev]"
+```
+
+### 9.2 API Key 配置
+
+```bash
+# 设置环境变量（二选一）
+export ANTHROPIC_API_KEY=sk-ant-...
+# 或
+export ANTHROPIC_AUTH_TOKEN=sk-...
+```
+
+首次使用需创建本地配置：
+
+```bash
+cp rodski-agent/config/agent_config.yaml.example rodski-agent/config/agent_config.yaml
+```
+
+如需使用内部代理 endpoint，编辑 `agent_config.yaml` 中的 `base_url` 字段。
+
+### 9.3 命令一览
+
+| 命令 | 用途 | 是否需要 LLM |
+|------|------|:---:|
+| `rodski-agent run --case <path>` | 执行测试用例（含智能重试） | 失败诊断时需要 |
+| `rodski-agent design --requirement <text> --output <dir>` | 从需求生成测试用例 | 是 |
+| `rodski-agent narrate --case <path>` | 生成人类可读的用例文档 | 是 |
+| `rodski-agent diagnose --result <path>` | 诊断失败原因 | 是 |
+| `rodski-agent pipeline --requirement <text> --output <dir>` | 设计+执行全流程 | 是 |
+| `rodski-agent config show` | 查看当前配置 | 否 |
+
+### 9.4 narrate — 用例解读
+
+将结构化的 XML 测试用例转换为人类可读的 Markdown 文档，方便测试评审和非技术人员阅读。
+
+```bash
+# 解读整个 case 文件（批量）
+rodski-agent narrate --case rodski-demo/case/tc_database.xml
+
+# 只解读单条用例
+rodski-agent narrate --case rodski-demo/case/tc_keywords.xml --id TC032
+
+# 附加执行日志（展示实际 SQL、返回值、耗时）
+rodski-agent narrate \
+  --case rodski-demo/case/tc_database.xml \
+  --log rodski-demo/result/rodski_20260507_153712/execution.log
+```
+
+输出文件写入 `{项目根}/narrative/{用例ID}_{标题}.md`。
+
+**工作原理**：
+1. 解析 case XML + model.xml + data.xml，将引用替换为实际值
+2. 可选：从执行日志提取运行时数据（SQL 语句、返回值）
+3. 调用 LLM 理解业务意图，生成自然语言 Markdown
+
+### 9.5 run — 执行测试
+
+```bash
+# 基础执行
+rodski-agent run --case path/to/case/tc_login.xml
+
+# 指定浏览器和有头模式
+rodski-agent run --case path/to/case/ --browser firefox --no-headless
+
+# 设置最大重试次数
+rodski-agent run --case path/to/case/ --max-retry 5
+
+# JSON 输出（适合 CI/CD 集成）
+rodski-agent run --case path/to/case/ --format json
+```
+
+执行失败时自动诊断并尝试修复（等待/定位器/数据三种策略）。
+
+### 9.6 design — 从需求生成用例
+
+```bash
+rodski-agent design \
+  --requirement "测试用户登录功能，包括正常登录和错误密码" \
+  --url "http://localhost:8000" \
+  --output output/login/
+```
+
+生成完整的 case/model/data XML 文件，通过 `rodski validate` 校验。
+
+### 9.7 pipeline — 设计+执行全流程
+
+```bash
+rodski-agent pipeline \
+  --requirement "测试订单创建流程" \
+  --url "http://localhost:8000" \
+  --output output/order/ \
+  --parallel --max-workers 4
+```
+
+### 9.8 diagnose — 诊断失败
+
+```bash
+# 从结果目录诊断
+rodski-agent diagnose --result output/login/result/
+
+# 从具体结果文件诊断
+rodski-agent diagnose --result output/login/execution_summary.json
+```
+
+### 9.9 输出格式
+
+所有命令支持 `--format json`（默认 `human`），JSON 输出遵循统一契约：
+
+```json
+{
+  "status": "success | failure | error",
+  "command": "run | design | narrate | pipeline | diagnose",
+  "output": { ... },
+  "error": null
+}
+```
 
 ## execution_summary.json 消费说明
 

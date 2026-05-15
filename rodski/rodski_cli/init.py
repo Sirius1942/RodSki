@@ -1,10 +1,11 @@
 """init 子命令 — 创建 RodSki 测试模块骨架"""
 import sys
 import sqlite3
+import warnings
 from pathlib import Path
 
 try:
-    from core.sqlite_schema import SQLITE_DDL
+    from rodski.core.sqlite_schema import SQLITE_DDL
 except ImportError:
     from core.sqlite_schema import SQLITE_DDL
 
@@ -16,7 +17,7 @@ _GLOBALVALUE_XML = '<?xml version="1.0" encoding="UTF-8"?>\n<globalvalue>\n</glo
 def setup_parser(subparsers):
     p = subparsers.add_parser("init", help="创建 RodSki 测试模块骨架")
     p.add_argument("target", help="目标目录路径")
-    p.add_argument("--no-sqlite", action="store_true", help="不创建 data.sqlite（不推荐）")
+    p.add_argument("--no-sqlite", action="store_true", help="不创建 data.sqlite（已废弃）")
     p.add_argument("--force", action="store_true", help="覆盖已有模板文件")
 
 
@@ -32,7 +33,11 @@ def _write(path: Path, content: str, force: bool) -> bool:
 def handle(args):
     target = Path(args.target).expanduser().resolve()
 
-    dirs = ["case", "model", "fun", "data", "result"]
+    if args.no_sqlite:
+        print("警告: --no-sqlite 已废弃，v6.0+ 要求使用 data.sqlite 作为唯一测试数据文件",
+              file=sys.stderr)
+
+    dirs = ["case", "model", "fun", "data", "plan", "result"]
     for d in dirs:
         (target / d).mkdir(parents=True, exist_ok=True)
         print(f"  目录: {target / d}")

@@ -1,8 +1,8 @@
 # RodSki 用例编写指南
 
-**版本**: v6.3  
-**日期**: 2026-05-07  
-**适用框架**: RodSki v6.3+
+**版本**: v6.7.6  
+**日期**: 2026-05-15  
+**适用框架**: RodSki v6.7.6+
 
 ---
 
@@ -364,6 +364,8 @@ RodSki 支持 12 种定位器类型，分为传统定位器和视觉定位器两
 2. `type` 属性必须为 LocatorType 枚举值之一
 3. 值写在 location 标签内容中
 
+> **v6.7.6 起，model.xsd 不再接受旧格式（element@value、element@locator）。ModelParser 遇到旧格式会抛出明确错误。**
+
 **正确示例**：
 ```xml
 <!-- ✅ 正确：完整格式（唯一支持的格式） -->
@@ -510,6 +512,7 @@ model.xml 元素 name  ===  数据表 XML 的 field name
 - 逻辑表名必须与模型名一致
 - 同一逻辑表所有行的字段集合必须完全一致（与 schema 一致）
 - 验证数据表（`_verify` 后缀）`table_kind='verify'`，输入数据表 `table_kind='data'`
+- v6.7.6 起，SQLite 数据表严格校验字段一致性。同一逻辑表的每一行必须包含 schema 声明的全部字段。缺字段必须显式填写 BLANK、NULL 或 NONE。
 
 ### 5.2 写入数据的方式
 
@@ -1156,6 +1159,10 @@ DB 用例格式：
 ```xml
 <test_step action="run" model="data_gen" data="gen_phone.py"/>
 ```
+
+> **v6.7.6 起，`run` 支持带或不带 `fun/` 前缀的路径写法，两者等价：**
+> - `data="fun/desktop/key_combo.py Ctrl+A"`
+> - `data="desktop/key_combo.py Ctrl+A"`
 
 #### 脚本编写规范
 
@@ -1818,5 +1825,5 @@ Return 引用只应写在**数据表 XML 的 field 值中**，不要直接写在
 
 ---
 
-**文档版本**: v6.3
-**最后更新**: 2026-05-07
+**文档版本**: v6.7.6
+**最后更新**: 2026-05-15

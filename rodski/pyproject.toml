@@ -1,11 +1,17 @@
+# ============================================================
+# DEPRECATED: This file is for local dev-install only.
+# The sole release entry point is the root /pyproject.toml.
+# Do NOT use this file for building release wheels/sdists.
+# ============================================================
+
 [build-system]
 requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "rodski"
-version = "6.7.3"
-description = "RodSki 关键字驱动自动化测试框架"
+version = "6.7.6"
+description = "RodSki 关键字驱动自动化测试框架 (DEV-ONLY, see root pyproject.toml)"
 requires-python = ">=3.8"
 
 [project.scripts]
