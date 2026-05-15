@@ -63,3 +63,7 @@ rodski-demo/**/narrative/
 
 # rodski-agent 本地配置（含内部 endpoint，不纳入版本控制）
 rodski-agent/config/agent_config.yaml
+
+# 发布包目录（仅推送到 GitLab，不推送到 GitHub）
+# 通过 scripts/git_push.sh 自动处理双 remote 推送策略
+releases/
