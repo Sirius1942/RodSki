@@ -47,12 +47,12 @@ echo ""
 
 # ── Step 1: 构建 ──────────────────────────────────────────────
 if [ "$DO_BUILD" = true ]; then
-    echo "[1/8] 构建 wheel + sdist..."
+    echo "[1/9] 构建 wheel + sdist..."
     rm -rf "$DIST_DIR" build/
     python3 -m build -q
     echo "  构建完成: $(ls "$DIST_DIR")"
 else
-    echo "[1/8] 跳过构建（使用已有产物）"
+    echo "[1/9] 跳过构建（使用已有产物）"
 fi
 
 # ── Step 2: 构建产物存在性 ────────────────────────────────────
@@ -65,7 +65,7 @@ if [ ! -f "$SDIST" ]; then
     echo "错误: sdist 不存在: $SDIST"
     exit 1
 fi
-echo "[2/8] 构建产物存在"
+echo "[2/9] 构建产物存在"
 
 # ── Step 3: wheel 内容完整性 ──────────────────────────────────
 REQUIRED_FILES=(
@@ -96,7 +96,7 @@ for file in "${REQUIRED_FILES[@]}"; do
         exit 1
     fi
 done
-echo "[3/8] wheel 内容完整（${#REQUIRED_FILES[@]} 个关键文件已确认）"
+echo "[3/9] wheel 内容完整（${#REQUIRED_FILES[@]} 个关键文件已确认）"
 
 # ── Step 4: 干净 venv 安装 + 验证 ─────────────────────────────
 python3 -m venv "$TMP_DIR/venv"
@@ -121,12 +121,12 @@ print('  安装态验证全部通过')
 "
 cd "$PROJECT_ROOT"
 
-echo "[4/8] 干净 venv 安装态验证通过"
+echo "[4/9] 干净 venv 安装态验证通过"
 
 # ── Step 5: CLI 版本验证 ──────────────────────────────────────
 CLI_VERSION=$("$TMP_DIR/venv/bin/rodski" --version 2>&1 || true)
 if echo "$CLI_VERSION" | grep -q "$VERSION"; then
-    echo "[5/8] CLI 版本验证通过: $CLI_VERSION"
+    echo "[5/9] CLI 版本验证通过: $CLI_VERSION"
 else
     echo "警告: CLI 版本不匹配: $CLI_VERSION (期望包含 $VERSION)"
     echo "  可能是 entry_point 配置问题，继续..."
@@ -134,7 +134,7 @@ fi
 
 # ── Step 6: 发布到 releases/ ──────────────────────────────────
 if [ "$DO_PUBLISH" = true ]; then
-    echo "[6/8] 发布到 $RELEASE_DIR ..."
+    echo "[6/9] 发布到 $RELEASE_DIR ..."
     mkdir -p "$RELEASE_DIR"
     cp "$WHEEL" "$RELEASE_DIR/"
     cp "$SDIST" "$RELEASE_DIR/"
@@ -180,7 +180,7 @@ EOF
     echo "  已发布: wheel + sdist + SHA256SUMS + README.md"
 
     # ── Step 7: 下载离线依赖 ──────────────────────────────────
-    echo "[7/8] 下载离线依赖到 $RELEASE_DIR/deps/ ..."
+    echo "[7/9] 下载离线依赖到 $RELEASE_DIR/deps/ ..."
     mkdir -p "$RELEASE_DIR/deps"
     pip3 download --dest "$RELEASE_DIR/deps" --no-cache-dir \
         xmlschema pyyaml tqdm psutil requests setuptools wheel \
@@ -253,7 +253,7 @@ OFFLINE_EOF
 
     # ── Step 8: 推送到 GitLab ─────────────────────────────────
     echo ""
-    echo "[8/8] 推送 releases/ 到 GitLab..."
+    echo "[8/9] 推送 releases/ 到 GitLab..."
     cd "$PROJECT_ROOT"
     git add -f releases/
     if git diff --cached --quiet; then
@@ -264,10 +264,124 @@ OFFLINE_EOF
         echo "  已推送到 GitLab"
     fi
 
+    # ── Step 9: 发布完整性自检 ────────────────────────────────
+    echo ""
+    echo "[9/9] 发布完整性自检..."
+    CHECKS_PASSED=0
+    CHECKS_TOTAL=0
+
+    # 检查 1: wheel 存在
+    CHECKS_TOTAL=$((CHECKS_TOTAL + 1))
+    if [ -f "$RELEASE_DIR/rodski-${VERSION}-py3-none-any.whl" ]; then
+        echo "  ✓ wheel 包存在"
+        CHECKS_PASSED=$((CHECKS_PASSED + 1))
+    else
+        echo "  ✗ wheel 包缺失"
+    fi
+
+    # 检查 2: sdist 存在
+    CHECKS_TOTAL=$((CHECKS_TOTAL + 1))
+    if [ -f "$RELEASE_DIR/rodski-${VERSION}.tar.gz" ]; then
+        echo "  ✓ sdist 源码包存在"
+        CHECKS_PASSED=$((CHECKS_PASSED + 1))
+    else
+        echo "  ✗ sdist 源码包缺失"
+    fi
+
+    # 检查 3: SHA256SUMS 存在且校验通过
+    CHECKS_TOTAL=$((CHECKS_TOTAL + 1))
+    if [ -f "$RELEASE_DIR/SHA256SUMS" ] && (cd "$RELEASE_DIR" && shasum -a 256 -c SHA256SUMS >/dev/null 2>&1); then
+        echo "  ✓ SHA256SUMS 校验通过"
+        CHECKS_PASSED=$((CHECKS_PASSED + 1))
+    else
+        echo "  ✗ SHA256SUMS 缺失或校验失败"
+    fi
+
+    # 检查 4: README.md 存在
+    CHECKS_TOTAL=$((CHECKS_TOTAL + 1))
+    if [ -f "$RELEASE_DIR/README.md" ]; then
+        echo "  ✓ README.md 存在"
+        CHECKS_PASSED=$((CHECKS_PASSED + 1))
+    else
+        echo "  ✗ README.md 缺失"
+    fi
+
+    # 检查 5: OFFLINE_INSTALL.md 存在
+    CHECKS_TOTAL=$((CHECKS_TOTAL + 1))
+    if [ -f "$RELEASE_DIR/OFFLINE_INSTALL.md" ]; then
+        echo "  ✓ OFFLINE_INSTALL.md 存在"
+        CHECKS_PASSED=$((CHECKS_PASSED + 1))
+    else
+        echo "  ✗ OFFLINE_INSTALL.md 缺失"
+    fi
+
+    # 检查 6: deps/ 目录存在且非空
+    CHECKS_TOTAL=$((CHECKS_TOTAL + 1))
+    DEPS_COUNT=$(ls "$RELEASE_DIR/deps/"*.whl 2>/dev/null | wc -l | tr -d ' ')
+    if [ "$DEPS_COUNT" -gt 0 ]; then
+        echo "  ✓ deps/ 包含 ${DEPS_COUNT} 个依赖包"
+        CHECKS_PASSED=$((CHECKS_PASSED + 1))
+    else
+        echo "  ✗ deps/ 为空或不存在"
+    fi
+
+    # 检查 7: 核心依赖包完整（xmlschema, pyyaml, psutil, requests, tqdm）
+    CHECKS_TOTAL=$((CHECKS_TOTAL + 1))
+    REQUIRED_DEPS=("xmlschema" "PyYAML\|pyyaml" "psutil" "requests" "tqdm")
+    DEPS_MISSING=()
+    DEPS_LIST=$(ls "$RELEASE_DIR/deps/" 2>/dev/null)
+    for dep in "${REQUIRED_DEPS[@]}"; do
+        if ! echo "$DEPS_LIST" | grep -iq "$dep"; then
+            DEPS_MISSING+=("$dep")
+        fi
+    done
+    if [ ${#DEPS_MISSING[@]} -eq 0 ]; then
+        echo "  ✓ 核心依赖包完整 (xmlschema, pyyaml, psutil, requests, tqdm)"
+        CHECKS_PASSED=$((CHECKS_PASSED + 1))
+    else
+        echo "  ✗ 缺少核心依赖: ${DEPS_MISSING[*]}"
+    fi
+
+    # 检查 8: 离线安装验证通过
+    CHECKS_TOTAL=$((CHECKS_TOTAL + 1))
+    if [ "${OFFLINE_VER:-}" = "$VERSION" ]; then
+        echo "  ✓ 离线安装验证通过 (version=$VERSION)"
+        CHECKS_PASSED=$((CHECKS_PASSED + 1))
+    else
+        echo "  ✗ 离线安装验证未通过"
+    fi
+
+    # 检查 9: releases/ 已提交到 GitLab
+    CHECKS_TOTAL=$((CHECKS_TOTAL + 1))
+    if git log --oneline -1 | grep -q "releases/\|发布 rodski"; then
+        echo "  ✓ releases/ 已提交到 GitLab"
+        CHECKS_PASSED=$((CHECKS_PASSED + 1))
+    else
+        echo "  ✗ releases/ 未提交到 GitLab"
+    fi
+
+    # 检查 10: releases/ 不在 GitHub tracking 中
+    CHECKS_TOTAL=$((CHECKS_TOTAL + 1))
+    if git ls-files releases/ | grep -q .; then
+        echo "  ✗ releases/ 仍在 git tracking 中（GitHub 会包含）"
+    else
+        echo "  ✓ releases/ 不在 git tracking 中（GitHub 不含）"
+        CHECKS_PASSED=$((CHECKS_PASSED + 1))
+    fi
+
+    echo ""
+    if [ "$CHECKS_PASSED" -eq "$CHECKS_TOTAL" ]; then
+        echo "  发布完整性自检: 全部通过 ($CHECKS_PASSED/$CHECKS_TOTAL)"
+    else
+        echo "  发布完整性自检: $CHECKS_PASSED/$CHECKS_TOTAL 通过，存在问题"
+        exit 1
+    fi
+
 else
-    echo "[6/8] 跳过发布（使用 --publish 参数启用）"
-    echo "[7/8] 跳过离线依赖下载"
-    echo "[8/8] 跳过 GitLab 推送"
+    echo "[6/9] 跳过发布（使用 --publish 参数启用）"
+    echo "[7/9] 跳过离线依赖下载"
+    echo "[8/9] 跳过 GitLab 推送"
+    echo "[9/9] 跳过完整性自检"
 fi
 
 echo ""
