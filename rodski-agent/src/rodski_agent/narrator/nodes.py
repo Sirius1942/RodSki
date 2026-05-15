@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -91,10 +90,6 @@ def resolve_case(state: dict[str, Any]) -> dict[str, Any]:
 
 def narrate(state: dict[str, Any]) -> dict[str, Any]:
     """调用 LLM，为每个已解析的用例生成 Markdown 叙述。"""
-    from langchain_core.messages import HumanMessage, SystemMessage
-    from rodski_agent.common.llm_bridge import get_chat_model
-    from rodski_agent.narrator.prompts import SYSTEM_PROMPT, build_narrate_prompt
-
     resolved_cases = state.get("resolved_cases", [])
     case_path = state.get("case_path", "")
     log_path = state.get("log_path")
@@ -102,21 +97,19 @@ def narrate(state: dict[str, Any]) -> dict[str, Any]:
     if not resolved_cases:
         return {"status": "error", "error": "没有可解读的用例"}
 
-    try:
-        model = get_chat_model("execution")  # 低温度，忠实输出
-    except Exception as exc:
-        return {"status": "error", "error": f"LLM 初始化失败: {exc}"}
+    llm_model = None
 
     narratives: list[dict[str, Any]] = []
     for case_dict in resolved_cases:
         try:
-            user_prompt = build_narrate_prompt(case_dict, case_path, log_path)
-            messages = [
-                SystemMessage(content=SYSTEM_PROMPT),
-                HumanMessage(content=user_prompt),
-            ]
-            response = model.invoke(messages)
-            markdown = response.content if hasattr(response, "content") else str(response)
+            if _is_database_case(case_dict):
+                markdown = _render_database_case(case_dict, case_path, log_path)
+            else:
+                if llm_model is None:
+                    from rodski_agent.common.llm_bridge import get_chat_model
+
+                    llm_model = get_chat_model("execution")  # 低温度，忠实输出
+                markdown = _render_llm_case(case_dict, case_path, log_path, llm_model)
             narratives.append({
                 "case_id": case_dict["id"],
                 "title": case_dict["title"],
@@ -132,6 +125,172 @@ def narrate(state: dict[str, Any]) -> dict[str, Any]:
             })
 
     return {"narratives": narratives}
+
+
+def _render_llm_case(
+    case_dict: dict[str, Any],
+    case_path: str,
+    log_path: str | None,
+    model: Any,
+) -> str:
+    from langchain_core.messages import HumanMessage, SystemMessage
+    from rodski_agent.narrator.prompts import SYSTEM_PROMPT, build_narrate_prompt
+
+    user_prompt = build_narrate_prompt(case_dict, case_path, log_path)
+    messages = [
+        SystemMessage(content=SYSTEM_PROMPT),
+        HumanMessage(content=user_prompt),
+    ]
+    response = model.invoke(messages)
+    return response.content if hasattr(response, "content") else str(response)
+
+
+def _is_database_case(case_dict: dict[str, Any]) -> bool:
+    if case_dict.get("component_type") == "数据库":
+        return True
+    return any(step.get("db_info") for step in case_dict.get("steps", []))
+
+
+def _render_database_case(
+    case_dict: dict[str, Any],
+    case_path: str,
+    log_path: str | None,
+) -> str:
+    case_file = Path(case_path).name
+    db_steps = [step for step in case_dict.get("steps", []) if step.get("db_info")]
+    all_steps = case_dict.get("steps", [])
+    primary = db_steps[0] if db_steps else (all_steps[0] if all_steps else {})
+    db_info = primary.get("db_info", {})
+    data_fields = primary.get("data_fields", {})
+    parameters = db_info.get("parameters") or {
+        key: value
+        for key, value in data_fields.items()
+        if key not in {"query", "Query", "sql", "SQL", "operation", "Operation"}
+        and str(value).strip().upper() != "NONE"
+    }
+    sql_tables = db_info.get("sql_tables") or []
+    verify = db_info.get("verify") or {}
+    verify_fields = verify.get("fields") or {}
+
+    lines: list[str] = [
+        f"## {case_dict.get('id', '')}: {case_dict.get('title', '')}",
+        "",
+        f"**测试目标**: {case_dict.get('description') or case_dict.get('title') or '验证数据库查询结果'}",
+        "",
+        "**依赖前置**: 数据库连接配置可用，测试数据已写入 `data/data.sqlite`",
+        "",
+        "**数据库信息**",
+    ]
+
+    if db_info.get("service_name"):
+        lines.append(f"- 服务/库说明: {db_info['service_name']}")
+    if db_info.get("connection_name"):
+        lines.append(f"- 连接配置: {db_info['connection_name']}")
+    if db_info.get("database_type"):
+        lines.append(f"- 数据库类型: {db_info['database_type']}")
+    if db_info.get("database"):
+        lines.append(f"- 数据库: {db_info['database']}")
+    if db_info.get("database_path") and db_info.get("database_path") != db_info.get("database"):
+        lines.append(f"- 解析路径: {db_info['database_path']}")
+    if sql_tables:
+        lines.append(f"- 业务数据表: {', '.join(sql_tables)}")
+
+    lines.extend(["", "**关键数据**"])
+    if db_info.get("data_table"):
+        lines.append(f"- 查询数据表: {db_info['data_table']}")
+    if primary.get("data_id"):
+        lines.append(f"- 查询数据ID: {primary['data_id']}")
+    if db_info.get("query_name"):
+        query_label = db_info["query_name"]
+        if db_info.get("query_remark"):
+            query_label += f"（{db_info['query_remark']}）"
+        lines.append(f"- 查询模板: {query_label}")
+    for key, value in parameters.items():
+        lines.append(f"- 参数 `{key}`: {value}")
+    if verify.get("table_name"):
+        verify_label = verify["table_name"]
+        if verify.get("data_id"):
+            verify_label += f" / {verify['data_id']}"
+        lines.append(f"- 校验数据表: {verify_label}")
+    for key, value in verify_fields.items():
+        lines.append(f"- 期望 `{key}`: {value}")
+
+    lines.extend(["", "**SQL语句**", ""])
+    sql_template = (db_info.get("sql_template") or "").strip()
+    resolved_sql = (db_info.get("resolved_sql") or "").strip()
+    if sql_template:
+        lines.extend(["模板SQL:", "```sql", sql_template, "```"])
+    if resolved_sql and resolved_sql != sql_template:
+        lines.extend(["", "带入参数后的SQL:", "```sql", resolved_sql, "```"])
+    elif not sql_template:
+        lines.append("未解析到 SQL。")
+
+    lines.extend(["", "**步骤**", "", "测试执行："])
+    if db_steps:
+        for idx, step in enumerate(db_steps, 1):
+            step_db = step.get("db_info", {})
+            step_params = step_db.get("parameters") or {}
+            action = _db_operation_label(step_db.get("operation", ""))
+            target = step_db.get("query_remark") or step_db.get("query_name") or step.get("model_name", "")
+            param_text = _format_inline_params(step_params)
+            table_text = ", ".join(step_db.get("sql_tables") or [])
+            sentence = f"{idx}. 执行数据库{action}"
+            if target:
+                sentence += f"：{target}"
+            if table_text:
+                sentence += f"；表：{table_text}"
+            if param_text:
+                sentence += f"；参数：{param_text}"
+            log_info = step.get("log_info") or {}
+            if log_info.get("status"):
+                sentence += f"；执行结果：{log_info['status']}"
+            sentence += "。"
+            lines.append(sentence)
+    else:
+        lines.append("1. 执行数据库步骤。")
+
+    lines.extend(["", "**关键校验**"])
+    if verify_fields:
+        table_text = ", ".join(sql_tables) if sql_tables else "查询结果"
+        for key, value in verify_fields.items():
+            lines.append(f"- {table_text} 中 `{key}` 应包含/等于 `{value}`")
+    elif db_info.get("operation") == "query":
+        lines.append("- 数据库查询应正常返回结果集")
+    else:
+        lines.append("- 数据库操作应执行成功")
+
+    for step in db_steps:
+        log_info = step.get("log_info") or {}
+        if log_info.get("return_value"):
+            lines.extend(["", "**运行返回摘要**", "```text", _truncate_text(log_info["return_value"], 1000), "```"])
+            break
+
+    source_line = f"*来源: {case_file}*"
+    if log_path:
+        source_line += f"\n*执行日志: {log_path}*"
+    lines.extend(["", source_line])
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _db_operation_label(operation: str) -> str:
+    labels = {
+        "query": "查询",
+        "execute": "执行",
+        "insert": "插入",
+        "update": "更新",
+        "delete": "删除",
+    }
+    return labels.get(operation, operation or "操作")
+
+
+def _format_inline_params(params: dict[str, Any]) -> str:
+    return "，".join(f"{key}={value}" for key, value in params.items())
+
+
+def _truncate_text(value: str, limit: int) -> str:
+    if len(value) <= limit:
+        return value
+    return value[:limit] + "..."
 
 
 # ============================================================
