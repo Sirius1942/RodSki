@@ -342,9 +342,9 @@ def _handle_validate(args):
 
 def _handle_preview(args):
     try:
-        from core.plan_parser import PlanParser
-        from core.case_parser import CaseParser
-        from core.test_plan_selection import TestPlanSelection
+        from ..core.plan_parser import PlanParser
+        from ..core.case_parser import CaseParser
+        from ..core.test_plan_selection import TestPlanSelection
     except ImportError:
         from core.plan_parser import PlanParser
         from core.case_parser import CaseParser
@@ -404,8 +404,8 @@ def _handle_create(args):
     # --from-tag / --from-group: populate cases from selector
     if args.from_tag or args.from_group:
         try:
-            from core.case_parser import CaseParser
-            from core.test_plan_selection import compile_from_selector
+            from ..core.case_parser import CaseParser
+            from ..core.test_plan_selection import compile_from_selector
         except ImportError:
             from core.case_parser import CaseParser
             from core.test_plan_selection import compile_from_selector

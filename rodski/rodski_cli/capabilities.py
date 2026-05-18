@@ -17,16 +17,45 @@ def setup_parser(subparsers):
 
 def handle(args):
     """输出 JSON 格式的 rodski 能力清单。"""
+    import ast
     from importlib.metadata import PackageNotFoundError, version
-    from core.keyword_engine import KeywordEngine
-    from core.driver_factory import DriverFactory
-    from core.model_parser import VALID_LOCATOR_TYPES
-    from core.xml_schema_validator import SCHEMA_FILES
-
+    from pathlib import Path
     try:
-        framework_version = version("rodski")
-    except PackageNotFoundError:
-        framework_version = "dev"
+        from ..core.keyword_engine import KeywordEngine
+        from ..core.driver_factory import DriverFactory
+        from ..core.model_parser import VALID_LOCATOR_TYPES
+        from ..core.xml_schema_validator import SCHEMA_FILES
+    except ImportError:
+        from core.keyword_engine import KeywordEngine
+        from core.driver_factory import DriverFactory
+        from core.model_parser import VALID_LOCATOR_TYPES
+        from core.xml_schema_validator import SCHEMA_FILES
+
+    def _load_version_from_file(path: Path):
+        try:
+            module = ast.parse(path.read_text(encoding="utf-8"))
+        except OSError:
+            return None
+        for node in module.body:
+            if not isinstance(node, ast.Assign):
+                continue
+            if not any(isinstance(target, ast.Name) and target.id == "__version__" for target in node.targets):
+                continue
+            if isinstance(node.value, ast.Constant) and isinstance(node.value.value, str):
+                return node.value.value
+        return None
+
+    framework_version = _load_version_from_file(Path(__file__).resolve().parents[1] / "__init__.py")
+    try:
+        if not framework_version:
+            from rodski import __version__ as framework_version
+    except (ImportError, AttributeError):
+        framework_version = None
+    if not framework_version:
+        try:
+            framework_version = version("rodski")
+        except PackageNotFoundError:
+            framework_version = "dev"
 
     capabilities = {
         "version": framework_version,

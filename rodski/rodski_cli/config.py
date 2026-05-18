@@ -19,7 +19,10 @@ def setup_parser(subparsers):
 
 
 def handle(args):
-    from core.config_manager import ConfigManager
+    try:
+        from ..core.config_manager import ConfigManager
+    except ImportError:
+        from core.config_manager import ConfigManager
 
     manager = ConfigManager()
 
