@@ -1,0 +1,1098 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RodSki 架构总结：架构设计经验汇报</title>
+  <style>
+    :root {
+      --black: #080b10;
+      --black-2: #111827;
+      --black-3: #1f2937;
+      --white: #f8fafc;
+      --muted: #a8b3c7;
+      --line: rgba(248, 250, 252, 0.14);
+      --red: #ef233c;
+      --red-2: #b91c1c;
+      --blue: #2563eb;
+      --blue-2: #38bdf8;
+      --card: rgba(17, 24, 39, 0.82);
+      --card-2: rgba(8, 11, 16, 0.78);
+      --shadow: 0 24px 80px rgba(0, 0, 0, 0.36);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      background: var(--black);
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--white);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      letter-spacing: 0;
+      background:
+        radial-gradient(circle at 12% 10%, rgba(239, 35, 60, 0.28), transparent 32%),
+        radial-gradient(circle at 88% 12%, rgba(37, 99, 235, 0.32), transparent 34%),
+        linear-gradient(135deg, #05070b 0%, #0b1020 45%, #111827 100%);
+      overflow-x: hidden;
+    }
+
+    .deck {
+      min-height: 100vh;
+      scroll-snap-type: y mandatory;
+      overflow-y: auto;
+    }
+
+    .slide {
+      position: relative;
+      min-height: 100vh;
+      padding: 72px clamp(28px, 6vw, 96px);
+      display: flex;
+      align-items: center;
+      scroll-snap-align: start;
+      isolation: isolate;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .slide::before {
+      content: "";
+      position: absolute;
+      inset: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    .slide::after {
+      content: "";
+      position: absolute;
+      left: clamp(28px, 6vw, 96px);
+      right: clamp(28px, 6vw, 96px);
+      bottom: 42px;
+      height: 2px;
+      background: linear-gradient(90deg, var(--red), var(--blue), transparent);
+      opacity: 0.62;
+      z-index: -1;
+    }
+
+    .content {
+      width: min(1180px, 100%);
+      margin: 0 auto;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--blue-2);
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 22px;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 34px;
+      height: 3px;
+      background: var(--red);
+      display: inline-block;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      max-width: 980px;
+      font-size: clamp(48px, 7.5vw, 92px);
+      line-height: 0.98;
+      font-weight: 900;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      max-width: 980px;
+      font-size: clamp(36px, 5.2vw, 68px);
+      line-height: 1.04;
+      font-weight: 900;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      font-size: clamp(20px, 2.2vw, 30px);
+      line-height: 1.2;
+      font-weight: 850;
+      letter-spacing: 0;
+    }
+
+    .lead {
+      max-width: 820px;
+      margin-top: 26px;
+      color: #d7deea;
+      font-size: clamp(19px, 2vw, 27px);
+      line-height: 1.55;
+      font-weight: 500;
+    }
+
+    .accent-red {
+      color: var(--red);
+    }
+
+    .accent-blue {
+      color: var(--blue-2);
+    }
+
+    .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 34px;
+    }
+
+    .pill {
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      background: rgba(255, 255, 255, 0.06);
+      color: #dbeafe;
+      padding: 9px 13px;
+      font-size: 14px;
+      font-weight: 750;
+    }
+
+    .grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .grid.two {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grid.three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .grid.four {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .grid.five {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+
+    .card {
+      background: linear-gradient(145deg, rgba(17, 24, 39, 0.92), rgba(8, 11, 16, 0.78));
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      padding: 24px;
+      min-height: 100%;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 5px;
+      height: 100%;
+      background: linear-gradient(180deg, var(--red), var(--blue));
+    }
+
+    .card.blue::before {
+      background: var(--blue);
+    }
+
+    .card.red::before {
+      background: var(--red);
+    }
+
+    .card h3 {
+      margin-bottom: 14px;
+    }
+
+    .card p,
+    .card li {
+      color: #c8d2e2;
+      font-size: clamp(15px, 1.45vw, 18px);
+      line-height: 1.58;
+    }
+
+    .card ul {
+      margin: 12px 0 0;
+      padding-left: 1.1em;
+    }
+
+    .card li + li {
+      margin-top: 8px;
+    }
+
+    .quote {
+      margin-top: 34px;
+      padding: 28px 30px;
+      background: linear-gradient(90deg, rgba(239, 35, 60, 0.18), rgba(37, 99, 235, 0.16));
+      border-left: 6px solid var(--red);
+      color: #f8fafc;
+      font-size: clamp(22px, 2.4vw, 34px);
+      line-height: 1.32;
+      font-weight: 850;
+      max-width: 1040px;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr auto 1fr;
+      align-items: stretch;
+      gap: 14px;
+      margin-top: 34px;
+    }
+
+    .node {
+      border: 1px solid var(--line);
+      background: rgba(8, 11, 16, 0.7);
+      padding: 22px;
+      min-height: 142px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .node strong {
+      color: var(--white);
+      font-size: clamp(20px, 2vw, 28px);
+      line-height: 1.1;
+      margin-bottom: 10px;
+    }
+
+    .node span {
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.45;
+    }
+
+    .arrow {
+      align-self: center;
+      color: var(--blue-2);
+      font-size: 34px;
+      font-weight: 900;
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+      gap: clamp(24px, 4vw, 52px);
+      align-items: center;
+    }
+
+    .big-number {
+      font-size: clamp(72px, 10vw, 132px);
+      line-height: 0.85;
+      font-weight: 950;
+      color: transparent;
+      -webkit-text-stroke: 2px rgba(248, 250, 252, 0.72);
+      margin-bottom: 20px;
+    }
+
+    .matrix {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      margin-top: 30px;
+    }
+
+    .matrix-block {
+      padding: 26px;
+      border: 1px solid var(--line);
+      background: rgba(8, 11, 16, 0.7);
+    }
+
+    .matrix-block.bad {
+      border-color: rgba(239, 35, 60, 0.42);
+    }
+
+    .matrix-block.good {
+      border-color: rgba(56, 189, 248, 0.42);
+    }
+
+    .matrix-block .label {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 850;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 12px;
+    }
+
+    .matrix-block.bad .label {
+      color: #fecaca;
+    }
+
+    .matrix-block.good .label {
+      color: #bae6fd;
+    }
+
+    .matrix-block p {
+      color: #edf2fb;
+      font-size: clamp(18px, 1.8vw, 24px);
+      line-height: 1.36;
+      font-weight: 800;
+    }
+
+    .code {
+      margin-top: 22px;
+      padding: 22px;
+      border: 1px solid rgba(56, 189, 248, 0.22);
+      background: rgba(2, 6, 23, 0.72);
+      color: #dbeafe;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: clamp(14px, 1.35vw, 18px);
+      line-height: 1.62;
+      white-space: pre-wrap;
+    }
+
+    .summary-line {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 34px;
+    }
+
+    .summary-item {
+      padding: 22px;
+      min-height: 150px;
+      background: rgba(255, 255, 255, 0.055);
+      border: 1px solid var(--line);
+    }
+
+    .summary-item .k {
+      color: var(--red);
+      font-size: 32px;
+      font-weight: 950;
+      line-height: 1;
+      margin-bottom: 12px;
+    }
+
+    .summary-item p {
+      color: #d7deea;
+      font-size: 17px;
+      line-height: 1.5;
+    }
+
+    .footer-mark {
+      position: fixed;
+      right: 24px;
+      bottom: 16px;
+      z-index: 10;
+      color: rgba(248, 250, 252, 0.42);
+      font-size: 12px;
+      font-weight: 700;
+      pointer-events: none;
+    }
+
+    .progress {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 4px;
+      width: 0%;
+      background: linear-gradient(90deg, var(--red), var(--blue-2));
+      z-index: 20;
+    }
+
+    .toc {
+      position: fixed;
+      left: 22px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 12;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+
+    .toc a {
+      display: block;
+      width: 9px;
+      height: 9px;
+      border: 1px solid rgba(248, 250, 252, 0.5);
+      background: rgba(248, 250, 252, 0.1);
+    }
+
+    .toc a:hover,
+    .toc a.active {
+      background: var(--red);
+      border-color: var(--red);
+    }
+
+    @media (max-width: 900px) {
+      .slide {
+        padding: 58px 22px;
+      }
+
+      .slide::before {
+        inset: 12px;
+      }
+
+      .grid.two,
+      .grid.three,
+      .grid.four,
+      .grid.five,
+      .split,
+      .matrix,
+      .summary-line,
+      .flow {
+        grid-template-columns: 1fr;
+      }
+
+      .arrow {
+        transform: rotate(90deg);
+        justify-self: center;
+      }
+
+      .toc {
+        display: none;
+      }
+    }
+
+    @media print {
+      @page {
+        size: 16in 9in;
+        margin: 0;
+      }
+
+      * {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      html,
+      body,
+      .deck {
+        background:
+          radial-gradient(circle at 12% 10%, rgba(239, 35, 60, 0.28), transparent 32%),
+          radial-gradient(circle at 88% 12%, rgba(37, 99, 235, 0.32), transparent 34%),
+          linear-gradient(135deg, #05070b 0%, #0b1020 45%, #111827 100%);
+        color: var(--white);
+        overflow: visible;
+      }
+
+      .slide {
+        min-height: 100vh;
+        width: 100vw;
+        height: 100vh;
+        page-break-after: always;
+        break-after: page;
+        color: var(--white);
+        background:
+          radial-gradient(circle at 12% 10%, rgba(239, 35, 60, 0.18), transparent 30%),
+          radial-gradient(circle at 88% 12%, rgba(37, 99, 235, 0.22), transparent 32%),
+          linear-gradient(135deg, #05070b 0%, #0b1020 45%, #111827 100%);
+      }
+
+      .card,
+      .node,
+      .matrix-block,
+      .summary-item,
+      .quote,
+      .code {
+        box-shadow: none;
+      }
+
+      .toc,
+      .progress,
+      .footer-mark {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="progress" id="progress"></div>
+  <nav class="toc" aria-label="章节导航">
+    <a href="#s1" aria-label="封面"></a>
+    <a href="#s2" aria-label="核心结论"></a>
+    <a href="#s3" aria-label="取舍"></a>
+    <a href="#s4" aria-label="边界"></a>
+    <a href="#s5" aria-label="变化"></a>
+    <a href="#s6" aria-label="复杂性"></a>
+    <a href="#s7" aria-label="社会技术系统"></a>
+    <a href="#s8" aria-label="Playwright 对比"></a>
+    <a href="#s9" aria-label="架构模型"></a>
+    <a href="#s10" aria-label="结论"></a>
+    <a href="#s11" aria-label="项目总览"></a>
+    <a href="#s12" aria-label="核心能力"></a>
+    <a href="#s13" aria-label="核心架构"></a>
+    <a href="#s14" aria-label="Agent 架构"></a>
+    <a href="#s15" aria-label="项目基础信息"></a>
+    <a href="#s16" aria-label="项目总结"></a>
+  </nav>
+  <div class="footer-mark">RodSki Architecture Report</div>
+
+  <main class="deck">
+    <section class="slide" id="s1">
+      <div class="content">
+        <div class="eyebrow">Architecture Experience Summary</div>
+        <h1>RodSki 架构总结：架构设计经验汇报</h1>
+        <p class="lead">AI Agent 时代的自动化测试框架，不是把自己做得越来越聪明，而是成为 Agent 稳定可靠的确定性执行底座。</p>
+        <div class="meta-row">
+          <span class="pill">主色调：红 / 黑 / 蓝</span>
+          <span class="pill">主题：架构取舍</span>
+          <span class="pill">关键词：Agent、协议、确定性、活文档</span>
+        </div>
+        <div class="quote">Agent 负责智能，RodSki 负责确定性。</div>
+      </div>
+    </section>
+
+    <section class="slide" id="s2">
+      <div class="content">
+        <div class="eyebrow">Core Message</div>
+        <h2>RodSki 的核心定位：不是智能平台，而是确定性执行引擎</h2>
+        <div class="flow">
+          <div class="node">
+            <strong>Agent</strong>
+            <span>探索、判断、生成、诊断、修复、选择执行范围</span>
+          </div>
+          <div class="arrow">→</div>
+          <div class="node">
+            <strong>XML / SQLite / Plan</strong>
+            <span>可读、可写、可校验、可版本化的活文档协议</span>
+          </div>
+          <div class="arrow">→</div>
+          <div class="node">
+            <strong>RodSki</strong>
+            <span>解析、执行、验证、记录、返回结构化结果</span>
+          </div>
+        </div>
+        <div class="quote">架构的关键不是让框架替 Agent 思考，而是让 Agent 有一个长期可靠的落脚点。</div>
+      </div>
+    </section>
+
+    <section class="slide" id="s3">
+      <div class="content">
+        <div class="eyebrow">Trade-off 01</div>
+        <h2>架构不是画图，而是管理取舍</h2>
+        <div class="matrix">
+          <div class="matrix-block bad">
+            <div class="label">放弃</div>
+            <p>大而全智能测试平台、复杂内置 Agent 编排、无限扩展关键字、历史格式过度兼容。</p>
+          </div>
+          <div class="matrix-block good">
+            <div class="label">换来</div>
+            <p>清晰职责边界、稳定协议、可验证执行、更低维护成本和 Agent 友好测试资产。</p>
+          </div>
+        </div>
+        <div class="summary-line">
+          <div class="summary-item">
+            <div class="k">01</div>
+            <p>AI 的变化很快，执行引擎不能被模型能力和推理策略拖着走。</p>
+          </div>
+          <div class="summary-item">
+            <div class="k">02</div>
+            <p>测试执行必须确定，不能依赖自然语言直接猜测动作。</p>
+          </div>
+          <div class="summary-item">
+            <div class="k">03</div>
+            <p>框架能力越多，Agent 生成错误和协议漂移的概率越高。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" id="s4">
+      <div class="content">
+        <div class="eyebrow">Trade-off 02</div>
+        <h2>架构首先服务业务边界，而不是技术边界</h2>
+        <div class="split">
+          <div>
+            <div class="big-number">2</div>
+            <p class="lead">RodSki 把系统拆成两个认知边界：Agent 负责高变化的智能层，RodSki 负责低歧义的执行层。</p>
+          </div>
+          <div class="grid two">
+            <div class="card red">
+              <h3>Agent 负责</h3>
+              <ul>
+                <li>需求理解与页面探索</li>
+                <li>用例、数据、定位器生成</li>
+                <li>失败诊断与修复策略</li>
+                <li>执行范围选择与报告解读</li>
+              </ul>
+            </div>
+            <div class="card blue">
+              <h3>RodSki 负责</h3>
+              <ul>
+                <li>XML / data / plan 协议校验</li>
+                <li>关键字执行与驱动适配</li>
+                <li>结果、截图、录屏、报告记录</li>
+                <li>dry-run / preview / JSON 输出</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <div class="quote">边界划错了，技术越先进，系统越容易乱。</div>
+      </div>
+    </section>
+
+    <section class="slide" id="s5">
+      <div class="content">
+        <div class="eyebrow">Trade-off 03</div>
+        <h2>架构要面向变化，而不是面向当下需求</h2>
+        <div class="grid two" style="margin-top: 34px;">
+          <div class="card red">
+            <h3>变化快的部分放外层</h3>
+            <ul>
+              <li>LLM 模型能力</li>
+              <li>页面探索策略</li>
+              <li>视觉识别方案</li>
+              <li>用例生成与失败修复策略</li>
+            </ul>
+          </div>
+          <div class="card blue">
+            <h3>必须稳定的部分沉淀为协议</h3>
+            <ul>
+              <li>XML / SQLite / plan 结构</li>
+              <li>关键字语义和数据引用规则</li>
+              <li>CLI 输入输出契约</li>
+              <li>dry-run / validate / preview 语义</li>
+            </ul>
+          </div>
+        </div>
+        <div class="code">&lt;location type="vision"&gt;img/login_btn.png&lt;/location&gt;
+&lt;location type="ocr"&gt;登录&lt;/location&gt;
+&lt;location type="vision_bbox"&gt;100,200,150,250&lt;/location&gt;</div>
+        <p class="lead">视觉能力是定位能力的增强，不是测试流程语义的扩张。</p>
+      </div>
+    </section>
+
+    <section class="slide" id="s6">
+      <div class="content">
+        <div class="eyebrow">Trade-off 04</div>
+        <h2>架构必须把复杂性关进笼子</h2>
+        <div class="grid three" style="margin-top: 34px;">
+          <div class="card">
+            <h3>动作复杂性</h3>
+            <p>通过 `type / send / verify / run` 收敛关键字，而不是无限增加动作。</p>
+          </div>
+          <div class="card">
+            <h3>定位复杂性</h3>
+            <p>关进 `model.xml`，让 case 表达流程，model 表达元素知识。</p>
+          </div>
+          <div class="card">
+            <h3>数据复杂性</h3>
+            <p>关进 `data.sqlite` 和 `globalvalue.xml`，用一致命名减少歧义。</p>
+          </div>
+          <div class="card">
+            <h3>执行复杂性</h3>
+            <p>通过 `plan / selector / debug plan` 隔离执行选择，不污染 case。</p>
+          </div>
+          <div class="card">
+            <h3>特殊复杂性</h3>
+            <p>通过 `run` 脚本承接，不为少数场景污染关键字体系。</p>
+          </div>
+          <div class="card">
+            <h3>AI 复杂性</h3>
+            <p>放到 Agent 层或可选能力层，核心执行链路不依赖 LLM。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" id="s7">
+      <div class="content">
+        <div class="eyebrow">Trade-off 05</div>
+        <h2>架构是社会技术系统，不只是代码系统</h2>
+        <p class="lead">在 Agent 时代，文档不一致不只是影响人读文档，还会直接导致 Agent 生成错误资产。</p>
+        <div class="flow">
+          <div class="node">
+            <strong>文档</strong>
+            <span>告诉 Agent 应该如何表达测试资产</span>
+          </div>
+          <div class="arrow">→</div>
+          <div class="node">
+            <strong>Schema / dry-run</strong>
+            <span>限制错误输入，提前发现协议漂移</span>
+          </div>
+          <div class="arrow">→</div>
+          <div class="node">
+            <strong>Demo / Report</strong>
+            <span>证明协议真的可跑，并把结果反馈给 Agent</span>
+          </div>
+        </div>
+        <div class="quote">文档、Schema、CLI、demo、测试共同构成 RodSki 的架构契约。</div>
+      </div>
+    </section>
+
+    <section class="slide" id="s8">
+      <div class="content">
+        <div class="eyebrow">Key Comparison</div>
+        <h2>为什么不是让 AI 直接生成 Playwright 测试代码？</h2>
+        <div class="matrix">
+          <div class="matrix-block bad">
+            <div class="label">AI 直接生成代码</div>
+            <p>短期快，但测试意图、定位器、数据、断言、等待策略容易混在脚本里，长期治理成本高。</p>
+          </div>
+          <div class="matrix-block good">
+            <div class="label">RodSki 协议化资产</div>
+            <p>用 XML / SQLite / plan 分离测试流程、定位知识、测试数据和执行选择，便于 Agent 稳定维护。</p>
+          </div>
+        </div>
+        <div class="code">直接生成 Playwright 代码：
+需求 -> Agent -> Playwright / Pytest 脚本 -> 执行
+
+RodSki 的方式：
+需求 -> Agent -> XML / SQLite / plan -> RodSki -> Playwright / Appium / API / DB -> 结构化结果</div>
+        <div class="quote">直接生成代码解决“快速写出能跑的测试”；RodSki 解决“持续维护可验证、可演进、可审计的测试资产”。</div>
+      </div>
+    </section>
+
+    <section class="slide" id="s9">
+      <div class="content">
+        <div class="eyebrow">Architecture Model</div>
+        <h2>RodSki 的分层模型</h2>
+        <div class="grid five" style="margin-top: 34px;">
+          <div class="node">
+            <strong>需求层</strong>
+            <span>自然语言，适合人和 Agent 沟通</span>
+          </div>
+          <div class="node">
+            <strong>协议层</strong>
+            <span>XML / SQLite / plan，沉淀测试资产</span>
+          </div>
+          <div class="node">
+            <strong>执行层</strong>
+            <span>RodSki keyword engine，确定性调度</span>
+          </div>
+          <div class="node">
+            <strong>驱动层</strong>
+            <span>Playwright / Appium / API / DB 执行动作</span>
+          </div>
+          <div class="node">
+            <strong>分析层</strong>
+            <span>Agent 诊断、修复、决策</span>
+          </div>
+        </div>
+        <div class="summary-line">
+          <div class="summary-item">
+            <div class="k">少</div>
+            <p>少关键字、少歧义、少等价写法。</p>
+          </div>
+          <div class="summary-item">
+            <div class="k">稳</div>
+            <p>协议稳定、执行稳定、结果稳定。</p>
+          </div>
+          <div class="summary-item">
+            <div class="k">活</div>
+            <p>Agent 可生成、可校验、可修复、可演进。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" id="s10">
+      <div class="content">
+        <div class="eyebrow">Conclusion</div>
+        <h2>最终结论：给 AI Agent 让道，但守住确定性边界</h2>
+        <div class="grid two" style="margin-top: 34px;">
+          <div class="card red">
+            <h3>不要做什么</h3>
+            <ul>
+              <li>不要把 RodSki 做成大而全 Agent 平台</li>
+              <li>不要把自然语言直接作为执行协议</li>
+              <li>不要让关键字、定位器、数据引用无限扩张</li>
+              <li>不要让 AI 任意修改核心测试资产</li>
+            </ul>
+          </div>
+          <div class="card blue">
+            <h3>应该做什么</h3>
+            <ul>
+              <li>稳定 XML / SQLite / plan 活文档协议</li>
+              <li>强化 dry-run、validate、preview、JSON 输出</li>
+              <li>把变化快的智能能力放到 Agent 层</li>
+              <li>让 RodSki 成为可靠的执行底座</li>
+            </ul>
+          </div>
+        </div>
+        <div class="quote">好的 AI 自动化测试架构：需求自然语言表达，测试资产结构化沉淀，执行过程确定可复现，失败结果可诊断，修复动作可验证，智能能力可替换，核心协议长期稳定。</div>
+      </div>
+    </section>
+
+    <section class="slide" id="s11">
+      <div class="content">
+        <div class="eyebrow">Project Overview</div>
+        <h2>RodSki 项目总结：面向 AI Agent 的跨平台确定性测试执行引擎</h2>
+        <p class="lead">RodSki 的项目定位不是传统自动化脚本库，也不是完整 Agent 平台，而是位于 Agent 与底层自动化工具之间的协议层和执行层。</p>
+        <div class="summary-line">
+          <div class="summary-item">
+            <div class="k">定位</div>
+            <p>AI Agent 执行内核 + XML 活文档协议层。</p>
+          </div>
+          <div class="summary-item">
+            <div class="k">目标</div>
+            <p>让测试资产可生成、可校验、可执行、可诊断、可演进。</p>
+          </div>
+          <div class="summary-item">
+            <div class="k">边界</div>
+            <p>Agent 负责思考，RodSki 负责稳定执行。</p>
+          </div>
+        </div>
+        <div class="code">Agent (探索 / 决策)
+  -> XML / SQLite / plan 活文档
+  -> RodSki 确定性执行
+  -> JSON / report / screenshot / recording
+  -> Agent 分析与修复</div>
+      </div>
+    </section>
+
+    <section class="slide" id="s12">
+      <div class="content">
+        <div class="eyebrow">Core Capabilities</div>
+        <h2>RodSki 的核心能力</h2>
+        <div class="grid three" style="margin-top: 34px;">
+          <div class="card">
+            <h3>活文档协议</h3>
+            <p>通过 case / model / data / plan 表达测试流程、元素定位、测试数据和执行选择。</p>
+          </div>
+          <div class="card">
+            <h3>跨平台执行</h3>
+            <p>支持 Web、Android、iOS、Desktop、API、DB 等测试对象，上层语义尽量统一。</p>
+          </div>
+          <div class="card">
+            <h3>核心关键字</h3>
+            <p>以 `type / send / verify / run` 收敛测试动作，降低 Agent 生成和维护成本。</p>
+          </div>
+          <div class="card">
+            <h3>数据驱动</h3>
+            <p>以 SQLite 作为主数据路径，保留全局变量独立管理，保持数据与流程解耦。</p>
+          </div>
+          <div class="card">
+            <h3>视觉定位</h3>
+            <p>支持传统定位器、OCR、图片匹配、坐标等方式，视觉能力作为 locator type 扩展。</p>
+          </div>
+          <div class="card">
+            <h3>Agent 友好 CLI</h3>
+            <p>提供 run、dry-run、explain、data、init、plan 等命令，输出结构化结果供 Agent 消费。</p>
+          </div>
+        </div>
+        <div class="quote">核心能力不是“功能越多越好”，而是“协议稳定、执行确定、反馈可解析”。</div>
+      </div>
+    </section>
+
+    <section class="slide" id="s13">
+      <div class="content">
+        <div class="eyebrow">Core Engine Architecture</div>
+        <h2>RodSki 核心架构：协议解析、关键字执行、驱动适配、结果输出</h2>
+        <div class="flow">
+          <div class="node">
+            <strong>CLI Layer</strong>
+            <span>rodski run / data / init / explain / dry-run / plan</span>
+          </div>
+          <div class="arrow">→</div>
+          <div class="node">
+            <strong>Parser Layer</strong>
+            <span>CaseParser、ModelParser、DataParser、PlanParser</span>
+          </div>
+          <div class="arrow">→</div>
+          <div class="node">
+            <strong>Core Engine</strong>
+            <span>TaskExecutor、KeywordEngine、ResultWriter、配置与日志</span>
+          </div>
+        </div>
+        <div class="flow" style="margin-top: 16px;">
+          <div class="node">
+            <strong>Driver Layer</strong>
+            <span>Playwright、Appium、PyWinAuto、REST、DB Driver</span>
+          </div>
+          <div class="arrow">→</div>
+          <div class="node">
+            <strong>Capability Layer</strong>
+            <span>智能等待、视觉定位、录屏、诊断、报告、观测</span>
+          </div>
+          <div class="arrow">→</div>
+          <div class="node">
+            <strong>Output Layer</strong>
+            <span>JSON summary、XML report、log、screenshot、recording</span>
+          </div>
+        </div>
+        <div class="matrix">
+          <div class="matrix-block good">
+            <div class="label">设计重点</div>
+            <p>上层协议稳定，底层驱动可替换。</p>
+          </div>
+          <div class="matrix-block bad">
+            <div class="label">避免问题</div>
+            <p>不让测试资产直接绑定底层工具 API。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" id="s14">
+      <div class="content">
+        <div class="eyebrow">Agent Architecture</div>
+        <h2>rodski-agent 架构：设计、执行、诊断、修复的智能层</h2>
+        <div class="flow">
+          <div class="node">
+            <strong>Design Agent</strong>
+            <span>需求分析、页面探索、元素识别、用例规划、数据设计、XML 生成</span>
+          </div>
+          <div class="arrow">→</div>
+          <div class="node">
+            <strong>Execution Agent</strong>
+            <span>预检查、调用 rodski run、解析结果、判断失败类型</span>
+          </div>
+          <div class="arrow">→</div>
+          <div class="node">
+            <strong>Repair / Diagnose</strong>
+            <span>定位失败、数据失败、断言失败、等待问题，生成修复建议或补丁</span>
+          </div>
+        </div>
+        <div class="grid two" style="margin-top: 34px;">
+          <div class="card blue">
+            <h3>Agent 层做什么</h3>
+            <ul>
+              <li>从自然语言需求生成测试资产</li>
+              <li>通过页面探索生成 model 和数据</li>
+              <li>根据执行结果诊断失败原因</li>
+              <li>在受控边界内修复资产并重试</li>
+            </ul>
+          </div>
+          <div class="card red">
+            <h3>Agent 层不做什么</h3>
+            <ul>
+              <li>不替代 RodSki 的确定性执行</li>
+              <li>不把自然语言直接当执行协议</li>
+              <li>不绕过 XML / data / plan 契约</li>
+              <li>不把 LLM 推理混入核心执行结果</li>
+            </ul>
+          </div>
+        </div>
+        <div class="code">rodski-agent design -> generate XML / SQLite / plan
+rodski-agent run -> call rodski -> parse JSON result
+rodski-agent pipeline -> design + validate + execute + diagnose
+rodski-agent diagnose -> failure analysis + repair direction</div>
+      </div>
+    </section>
+
+    <section class="slide" id="s15">
+      <div class="content">
+        <div class="eyebrow">Basic Project Data</div>
+        <h2>项目基础数据信息</h2>
+        <div class="grid four" style="margin-top: 34px;">
+          <div class="card">
+            <h3>技术栈</h3>
+            <p>Python 3.9+，Playwright，Appium，PyWinAuto，SQLite，Click，LangGraph，LangChain provider。</p>
+          </div>
+          <div class="card">
+            <h3>核心目录</h3>
+            <p>`rodski/` 执行引擎，`rodski-agent/` 智能层，`rodski-demo/` 示例，`rodski/docs/` 文档。</p>
+          </div>
+          <div class="card">
+            <h3>测试资产</h3>
+            <p>`case/*.xml`、`model/model.xml`、`data/data.sqlite`、`data/globalvalue.xml`、`plan/*.xml`。</p>
+          </div>
+          <div class="card">
+            <h3>输出资产</h3>
+            <p>JSON 结果、XML 报告、执行日志、截图、录屏、Return 值、skipped 原因。</p>
+          </div>
+        </div>
+        <div class="matrix">
+          <div class="matrix-block good">
+            <div class="label">安装入口</div>
+            <p>`pip install -e .`、`pip install -e ".[web]"`、`pip install -e rodski-agent/`。</p>
+          </div>
+          <div class="matrix-block good">
+            <div class="label">常用命令</div>
+            <p>`rodski run`、`rodski run --dry-run`、`rodski explain`、`rodski data validate`、`rodski-agent pipeline`。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" id="s16">
+      <div class="content">
+        <div class="eyebrow">Project Summary</div>
+        <h2>项目总结：RodSki 的价值是让 AI 自动化测试从“脚本生成”走向“资产治理”</h2>
+        <div class="grid two" style="margin-top: 34px;">
+          <div class="card red">
+            <h3>RodSki 解决的问题</h3>
+            <ul>
+              <li>AI 生成测试代码难以长期治理</li>
+              <li>多平台测试语义分裂</li>
+              <li>测试数据、定位器、断言和流程耦合</li>
+              <li>失败结果难以被 Agent 结构化理解</li>
+              <li>测试资产缺少稳定协议和校验边界</li>
+            </ul>
+          </div>
+          <div class="card blue">
+            <h3>RodSki 形成的能力闭环</h3>
+            <ul>
+              <li>Agent 生成结构化测试资产</li>
+              <li>RodSki 校验并确定性执行</li>
+              <li>结果结构化返回给 Agent</li>
+              <li>Agent 基于失败原因修复资产</li>
+              <li>测试资产持续沉淀和演进</li>
+            </ul>
+          </div>
+        </div>
+        <div class="quote">RodSki 的最终价值：把 AI 的创造力放在测试设计和修复上，把执行确定性、协议一致性和资产可治理性留在框架内。</div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const slides = Array.from(document.querySelectorAll(".slide"));
+    const dots = Array.from(document.querySelectorAll(".toc a"));
+    const progress = document.getElementById("progress");
+
+    function updateProgress() {
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      const pct = max > 0 ? (window.scrollY / max) * 100 : 0;
+      progress.style.width = `${pct}%`;
+
+      let activeIndex = 0;
+      slides.forEach((slide, index) => {
+        const rect = slide.getBoundingClientRect();
+        if (rect.top <= window.innerHeight * 0.45) activeIndex = index;
+      });
+      dots.forEach((dot, index) => dot.classList.toggle("active", index === activeIndex));
+    }
+
+    window.addEventListener("scroll", updateProgress, { passive: true });
+    window.addEventListener("resize", updateProgress);
+
+    window.addEventListener("keydown", (event) => {
+      const current = dots.findIndex((dot) => dot.classList.contains("active"));
+      if (event.key === "ArrowDown" || event.key === "PageDown" || event.key === " ") {
+        event.preventDefault();
+        const next = Math.min(slides.length - 1, current + 1);
+        slides[next].scrollIntoView({ behavior: "smooth" });
+      }
+      if (event.key === "ArrowUp" || event.key === "PageUp") {
+        event.preventDefault();
+        const prev = Math.max(0, current - 1);
+        slides[prev].scrollIntoView({ behavior: "smooth" });
+      }
+      if (event.key === "Home") {
+        event.preventDefault();
+        slides[0].scrollIntoView({ behavior: "smooth" });
+      }
+      if (event.key === "End") {
+        event.preventDefault();
+        slides[slides.length - 1].scrollIntoView({ behavior: "smooth" });
+      }
+    });
+
+    updateProgress();
+  </script>
+</body>
+</html>
