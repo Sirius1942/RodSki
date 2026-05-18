@@ -800,6 +800,7 @@ class SKIExecutor:
                 max_duration=int(self._recording_option("max_duration", 600)),
                 scope=str(self._recording_option("scope", "target")),
                 monitor_id=self._recording_option("monitor_id", None),
+                overlay_step=bool(self._recording_option("overlay_step", True)),
             )
             path = recorder.start(session_id=f"{safe_case_id}_{timestamp}")
             self._screen_recorder = recorder
@@ -1320,6 +1321,16 @@ class SKIExecutor:
             if self._active_recording_backend == "playwright" and self._case_recording_active:
                 self._start_playwright_recording_segment(getattr(self, '_current_case_id', 'unknown'))
 
+        # 更新录像步骤文字叠加
+        if self._active_recording_backend == "screen" and self._screen_recorder is not None:
+            step_no = len(self._current_case_steps_log) + 1
+            parts = [f"Step {step_no}", action]
+            if model:
+                parts.append(model)
+            if data:
+                parts.append(data)
+            self._screen_recorder.set_step("  |  ".join(parts))
+
         history_before = len(self.keyword_engine._context.history)
         named_before = dict(self.keyword_engine._context.named)
 
@@ -1427,6 +1438,10 @@ class SKIExecutor:
         if wait_time > 0 and action.lower() not in ('wait', 'close'):
             logger.debug(f"步骤等待 {wait_time}s")
             time.sleep(wait_time)
+
+        # 步骤完成后清空叠加文字
+        if self._active_recording_backend == "screen" and self._screen_recorder is not None:
+            self._screen_recorder.set_step(None)
 
     def _auto_screenshot(self, step_type: str) -> None:
         """步骤执行后自动截图"""
