@@ -180,6 +180,7 @@ RodSki/
 | [关键字参考](rodski/docs/SKILL_REFERENCE.md) | 全部关键字语法说明 |
 | [架构说明](rodski/docs/ARCHITECTURE.md) | 框架内部架构 |
 | [视觉定位](rodski/docs/VISION_LOCATION.md) | OmniParser 视觉定位能力 |
+| [移动端 App 模式设计](rodski/docs/MOBILE_APP_MODE_DESIGN.md) | v7.x Android / iOS App 自动化目标设计 |
 
 ## 智能等待
 

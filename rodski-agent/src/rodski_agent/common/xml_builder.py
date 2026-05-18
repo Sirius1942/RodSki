@@ -8,20 +8,18 @@ Python 3.9 兼容：使用 ``from __future__ import annotations`` 延迟求值�
 
 from __future__ import annotations
 
+import sqlite3
 import xml.etree.ElementTree as ET
+from pathlib import Path
 from xml.dom import minidom
 
 from rodski_agent.common.rodski_knowledge import (
+    CASE_PHASES,
+    COMPONENT_TYPES,
+    EXECUTE_VALUES,
     validate_action,
     validate_locator_type,
-    validate_element_data_consistency,
-    validate_verify_table_name,
-    CASE_PHASES,
-    EXECUTE_VALUES,
-    COMPONENT_TYPES,
     VERIFY_TABLE_SUFFIX,
-    INTERFACE_RESERVED_ELEMENTS,
-    INTERFACE_HEADER_PREFIX,
 )
 
 
@@ -163,6 +161,12 @@ def build_model_xml(models: list[dict]) -> str:
 
         model_elem = ET.SubElement(root, "model")
         model_elem.set("name", model_name)
+        model_type = model_data.get("model_type") or model_data.get("category")
+        if model_type:
+            model_elem.set("type", model_type)
+        driver_type = model_data.get("driver_type", "")
+        if driver_type:
+            model_elem.set("driver_type", driver_type)
 
         elements = model_data.get("elements", [])
         if not elements:
@@ -203,6 +207,104 @@ def build_model_xml(models: list[dict]) -> str:
                 location.text = loc_value
                 if len(locators) > 1:
                     location.set("priority", str(i + 1))
+
+    return _pretty_xml(root)
+
+
+def write_data_sqlite(path: str | Path, datatables: list[dict], verify_tables: list[dict] | None = None) -> None:
+    """Write RodSki data.sqlite from datatable dictionaries.
+
+    This is the v6+ data format used by executable RodSki modules. It mirrors
+    ``rodski/core/sqlite_schema.py`` without importing RodSki core from the agent.
+    """
+    db_path = Path(path)
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    if db_path.exists():
+        db_path.unlink()
+
+    conn = sqlite3.connect(str(db_path))
+    try:
+        conn.executescript(
+            """
+CREATE TABLE IF NOT EXISTS rs_datatable (
+    table_name TEXT PRIMARY KEY,
+    model_name TEXT NOT NULL,
+    table_kind TEXT NOT NULL CHECK (table_kind IN ('data', 'verify')),
+    row_mode TEXT NOT NULL CHECK (row_mode IN ('standard', 'db_query', 'db_sql')),
+    remark TEXT DEFAULT '',
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS rs_datatable_field (
+    table_name TEXT NOT NULL,
+    field_name TEXT NOT NULL,
+    field_order INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (table_name, field_name),
+    FOREIGN KEY (table_name) REFERENCES rs_datatable(table_name)
+);
+CREATE TABLE IF NOT EXISTS rs_row (
+    table_name TEXT NOT NULL,
+    data_id TEXT NOT NULL,
+    remark TEXT DEFAULT '',
+    PRIMARY KEY (table_name, data_id),
+    FOREIGN KEY (table_name) REFERENCES rs_datatable(table_name)
+);
+CREATE TABLE IF NOT EXISTS rs_field (
+    table_name TEXT NOT NULL,
+    data_id TEXT NOT NULL,
+    field_name TEXT NOT NULL,
+    field_value TEXT NOT NULL,
+    PRIMARY KEY (table_name, data_id, field_name),
+    FOREIGN KEY (table_name, data_id) REFERENCES rs_row(table_name, data_id),
+    FOREIGN KEY (table_name, field_name) REFERENCES rs_datatable_field(table_name, field_name)
+);
+"""
+        )
+        for table_data in datatables:
+            _insert_sqlite_table(conn, table_data, "data")
+        for table_data in verify_tables or []:
+            _insert_sqlite_table(conn, table_data, "verify")
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def build_plan_xml(
+    cases: list[dict],
+    plan_id: str = "project_full",
+    title: str = "Project Full",
+    execute: str = "是",
+    default_execute: str = "是",
+) -> str:
+    """Generate a suite plan XML that references generated case IDs."""
+    if not plan_id:
+        raise ValueError("plan_id must not be empty")
+    if execute not in EXECUTE_VALUES:
+        raise ValueError(f"plan execute='{execute}' invalid; must be one of {EXECUTE_VALUES}")
+    if default_execute not in EXECUTE_VALUES:
+        raise ValueError(
+            f"plan default_execute='{default_execute}' invalid; must be one of {EXECUTE_VALUES}"
+        )
+
+    root = ET.Element("test_plan")
+    root.set("id", plan_id)
+    root.set("title", title)
+    root.set("kind", "suite")
+    root.set("execute", execute)
+    root.set("default_execute", default_execute)
+
+    for case_data in cases:
+        case_id = case_data.get("id", "")
+        if not case_id:
+            raise ValueError("plan case 'id' is required")
+        case_execute = case_data.get("plan_execute", case_data.get("execute", "是"))
+        if case_execute not in EXECUTE_VALUES:
+            raise ValueError(
+                f"plan case '{case_id}' execute='{case_execute}' invalid; "
+                f"must be one of {EXECUTE_VALUES}"
+            )
+        case_elem = ET.SubElement(root, "case")
+        case_elem.set("id", case_id)
+        case_elem.set("execute", case_execute)
 
     return _pretty_xml(root)
 
@@ -382,6 +484,67 @@ def build_globalvalue_xml(groups: list[dict]) -> str:
 # ============================================================
 # Internal helpers
 # ============================================================
+
+
+def _insert_sqlite_table(conn: sqlite3.Connection, table_data: dict, table_kind: str) -> None:
+    table_name = table_data.get("name", "")
+    if not table_name:
+        raise ValueError("datatable 'name' is required")
+    if table_kind == "verify" and not table_name.endswith(VERIFY_TABLE_SUFFIX):
+        raise ValueError(
+            f"verify table name '{table_name}' must end with '{VERIFY_TABLE_SUFFIX}'"
+        )
+
+    rows = table_data.get("rows", [])
+    if not rows:
+        raise ValueError(f"datatable '{table_name}' must have at least one row")
+
+    field_names: list[str] = []
+    row_ids: set[str] = set()
+    for row_data in rows:
+        row_id = row_data.get("id", "")
+        if not row_id:
+            raise ValueError(f"datatable '{table_name}': row 'id' is required")
+        if row_id in row_ids:
+            raise ValueError(f"datatable '{table_name}': duplicate row id '{row_id}'")
+        row_ids.add(row_id)
+
+        fields = row_data.get("fields", [])
+        if not fields:
+            raise ValueError(
+                f"datatable '{table_name}', row '{row_id}': at least one field is required"
+            )
+        for field_data in fields:
+            field_name = field_data.get("name", "")
+            if not field_name:
+                raise ValueError(
+                    f"datatable '{table_name}', row '{row_id}': field 'name' is required"
+                )
+            if field_name not in field_names:
+                field_names.append(field_name)
+
+    model_name = table_name[:-len(VERIFY_TABLE_SUFFIX)] if table_kind == "verify" else table_name
+    conn.execute(
+        "INSERT INTO rs_datatable VALUES (?,?,?,?,?,CURRENT_TIMESTAMP)",
+        (table_name, model_name, table_kind, "standard", table_data.get("remark", "")),
+    )
+    for order, field_name in enumerate(field_names):
+        conn.execute(
+            "INSERT INTO rs_datatable_field VALUES (?,?,?)",
+            (table_name, field_name, order),
+        )
+    for row_data in rows:
+        row_id = row_data["id"]
+        conn.execute(
+            "INSERT INTO rs_row VALUES (?,?,?)",
+            (table_name, row_id, row_data.get("remark", "")),
+        )
+        row_fields = {f.get("name", ""): str(f.get("value", "")) for f in row_data.get("fields", [])}
+        for field_name in field_names:
+            conn.execute(
+                "INSERT INTO rs_field VALUES (?,?,?,?)",
+                (table_name, row_id, field_name, row_fields.get(field_name, "")),
+            )
 
 
 def _pretty_xml(root: ET.Element) -> str:

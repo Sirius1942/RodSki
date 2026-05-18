@@ -1,16 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <globalvalue>
+  <group name="DefaultValue">
+    <var name="WaitTime" value="2"/>
+    <var name="Headless" value="False"/>
+  </group>
+
   <group name="Mobile">
     <var name="Platform" value="android"/>
+    <var name="AutomationBackend" value="appium"/>
     <var name="AppiumServer" value="http://127.0.0.1:4723"/>
-    <var name="DeviceName" value="AKRSUT1618000209"/>
-    <var name="AppPackage" value="com.rodski.demo"/>
-    <var name="AppActivity" value="com.rodski.demo.LoginActivity"/>
-    <var name="AppTarget" value="app://android/com.rodski.demo/com.rodski.demo.LoginActivity"/>
+    <var name="DeviceName" value="Android Emulator"/>
+    <var name="AppPackage" value="com.rodski.demoapp"/>
+    <var name="AppActivity" value=".MainActivity"/>
+    <var name="AppTarget" value="app://android/com.rodski.demoapp/.MainActivity"/>
     <var name="NoReset" value="true"/>
-    <var name="WaitTime" value="3"/>
-  </group>
-  <group name="DemoSite">
-    <var name="BaseURL" value="http://10.118.34.160:8000"/>
+    <var name="NewCommandTimeout" value="120"/>
   </group>
 </globalvalue>

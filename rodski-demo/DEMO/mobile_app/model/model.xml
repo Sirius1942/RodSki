@@ -1,34 +1,46 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <models>
-  <model name="LoginScreen" type="ui" driver_type="android">
-    <element name="username" type="android">
+  <model name="LoginScreen" type="ui" driver_type="android" servicename="">
+    <element name="phone" type="mobile">
       <type>input</type>
-      <location type="id" priority="1">com.rodski.demo:id/username</location>
+      <location type="id" priority="1">com.rodski.demoapp:id/phoneInput</location>
+      <location type="name" priority="2">phoneInput</location>
+      <location type="ocr" priority="3">手机号</location>
+      <desc>手机号输入框</desc>
     </element>
-    <element name="password" type="android">
+
+    <element name="password" type="mobile">
       <type>input</type>
-      <location type="id" priority="1">com.rodski.demo:id/password</location>
+      <location type="id" priority="1">com.rodski.demoapp:id/passwordInput</location>
+      <location type="name" priority="2">passwordInput</location>
+      <location type="ocr" priority="3">密码</location>
+      <desc>密码输入框</desc>
     </element>
-    <element name="loginBtn" type="android">
+
+    <element name="loginBtn" type="mobile">
       <type>button</type>
-      <location type="id" priority="1">com.rodski.demo:id/loginBtn</location>
-    </element>
-    <element name="welcomeText" type="android">
-      <type>text</type>
-      <location type="id" priority="1">com.rodski.demo:id/welcomeText</location>
-    </element>
-    <element name="errorMsg" type="android">
-      <type>text</type>
-      <location type="id" priority="1">com.rodski.demo:id/errorMsg</location>
+      <location type="id" priority="1">com.rodski.demoapp:id/loginButton</location>
+      <location type="text" priority="2">登录</location>
+      <location type="ocr" priority="3">登录</location>
+      <location type="vision_bbox" priority="4">80,420,640,500</location>
+      <desc>登录按钮</desc>
     </element>
   </model>
 
-  <model name="HomeScreen" type="ui" driver_type="android">
-    <element name="welcomeText" type="android">
-      <location type="id" priority="1">com.rodski.demo:id/welcomeText</location>
+  <model name="HomeScreen" type="ui" driver_type="android" servicename="">
+    <element name="welcomeText" type="mobile">
+      <type>text</type>
+      <location type="id" priority="1">com.rodski.demoapp:id/welcomeText</location>
+      <location type="text" priority="2">欢迎使用 RodSki Mobile Demo</location>
+      <location type="ocr" priority="3">欢迎使用 RodSki Mobile Demo</location>
+      <desc>登录成功欢迎文案</desc>
     </element>
-    <element name="orderListBtn" type="android">
-      <location type="id" priority="1">com.rodski.demo:id/orderListBtn</location>
+
+    <element name="signedInPhone" type="mobile">
+      <type>text</type>
+      <location type="id" priority="1">com.rodski.demoapp:id/signedInPhone</location>
+      <location type="ocr" priority="2">13800000000</location>
+      <desc>登录后的手机号展示</desc>
     </element>
   </model>
 </models>

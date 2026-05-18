@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 默认不执行：当前移动端 App 协议尚未完成实现，不能计入验收通过。 -->
+<test_plan id="mobile_app_smoke"
+           title="移动端 App 准备性冒烟示例"
+           kind="suite"
+           execute="否"
+           default_execute="否">
+  <case id="MOB-APP-001" execute="否">
+    <scenario id="S001" execute="否"/>
+    <scenario id="S002" execute="否"/>
+  </case>
+  <case id="MOB-APP-002" execute="否"/>
+</test_plan>

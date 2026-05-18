@@ -4,6 +4,8 @@
 """
 from __future__ import annotations
 
+import sqlite3
+
 import pytest
 
 from rodski_agent.common.xml_builder import (
@@ -12,6 +14,8 @@ from rodski_agent.common.xml_builder import (
     build_data_xml,
     build_verify_xml,
     build_globalvalue_xml,
+    build_plan_xml,
+    write_data_sqlite,
 )
 
 
@@ -477,3 +481,90 @@ class TestBuildGlobalvalueXml:
         xml = build_globalvalue_xml(groups)
         assert 'name="G1"' in xml
         assert 'name="G2"' in xml
+
+
+# ============================================================
+# build_plan_xml
+# ============================================================
+
+
+class TestBuildPlanXml:
+    """测试 project_full plan 生成"""
+
+    def test_valid_plan(self):
+        xml = build_plan_xml(
+            [
+                {"id": "MOB-001", "execute": "是"},
+                {"id": "MOB-002", "execute": "否"},
+            ],
+            plan_id="project_full",
+            title="Mobile Full",
+        )
+
+        assert '<?xml version="1.0" encoding="UTF-8"?>' in xml
+        assert '<test_plan id="project_full"' in xml
+        assert 'kind="suite"' in xml
+        assert '<case id="MOB-001" execute="是"/>' in xml
+        assert '<case id="MOB-002" execute="否"/>' in xml
+
+    def test_missing_plan_case_id_raises(self):
+        with pytest.raises(ValueError, match="plan case 'id' is required"):
+            build_plan_xml([{"title": "missing id"}])
+
+    def test_invalid_plan_execute_raises(self):
+        with pytest.raises(ValueError, match="plan execute='maybe' invalid"):
+            build_plan_xml([{"id": "C001"}], execute="maybe")
+
+
+# ============================================================
+# write_data_sqlite
+# ============================================================
+
+
+class TestWriteDataSqlite:
+    """测试 data.sqlite 生成"""
+
+    def test_write_data_and_verify_tables(self, tmp_path):
+        db_path = tmp_path / "data.sqlite"
+
+        write_data_sqlite(
+            db_path,
+            [{
+                "name": "Login",
+                "rows": [{"id": "L001", "fields": [
+                    {"name": "username", "value": "admin"},
+                    {"name": "login_button", "value": "click"},
+                ]}],
+            }],
+            [{
+                "name": "Login_verify",
+                "rows": [{"id": "V001", "fields": [
+                    {"name": "username", "value": "BLANK"},
+                    {"name": "login_button", "value": "BLANK"},
+                    {"name": "welcome_text", "value": "Welcome"},
+                ]}],
+            }],
+        )
+
+        conn = sqlite3.connect(str(db_path))
+        try:
+            tables = {
+                row[0]: row[1]
+                for row in conn.execute("SELECT table_name, table_kind FROM rs_datatable ORDER BY table_name")
+            }
+            assert tables == {"Login": "data", "Login_verify": "verify"}
+            value = conn.execute(
+                "SELECT field_value FROM rs_field "
+                "WHERE table_name='Login' AND data_id='L001' AND field_name='login_button'"
+            ).fetchone()[0]
+            assert value == "click"
+        finally:
+            conn.close()
+
+    def test_verify_table_without_suffix_raises(self, tmp_path):
+        with pytest.raises(ValueError, match="must end with '_verify'"):
+            write_data_sqlite(
+                tmp_path / "data.sqlite",
+                [],
+                [{"name": "Login", "rows": [{"id": "V001", "fields": [{"name": "x", "value": "y"}]}]}],
+            )

@@ -73,6 +73,8 @@ PLAN_CASES_PROMPT: str = f"""\
 是 UI 原子动作，**不是独立关键字**，不能出现在 action 字段中
 3. UI 原子动作（click/hover/select 等）作为 type 关键字的数据表字段值使用
 4. component_type 只能是：{', '.join(COMPONENT_TYPES)}
+5. 移动端 App 模式只使用 navigate/type/verify/run/close；禁止生成 swipe/long_press/press_keycode/hide_keyboard/tap 等 action
+6. 移动端启动使用 navigate，data 写 app://android/...、app://ios/... 或 GlobalValue.Mobile.AppTarget
 
 【任务】
 根据提供的测试场景列表，为每个场景生成 RodSki 用例结构。
@@ -122,9 +124,10 @@ DESIGN_DATA_PROMPT: str = f"""\
    - NONE = 不发送该字段
 6. 接口保留元素：{', '.join(INTERFACE_RESERVED_ELEMENTS)}，前缀 {INTERFACE_HEADER_PREFIX}
 7. UI 原子动作（click / hover / select【值】 等）作为 field 值使用
+8. 新模块数据必须写入 data.sqlite，不要生成或引用 data.xml / data_verify.xml
 
 【DB 测试幂等性规则 — 必须遵守】
-8. 数据库写入操作（INSERT/UPDATE）的用例 **必须可重复执行**：
+9. 数据库写入操作（INSERT/UPDATE）的用例 **必须可重复执行**：
    - INSERT 前必须先有 DELETE 清理步骤，防止唯一约束冲突
    - 清理步骤使用 cleanup 查询模板：DELETE FROM 表 WHERE 条件列 = :参数
    - 清理数据行放在插入数据行之前，用例步骤中清理在插入之前执行
@@ -194,7 +197,8 @@ DESIGN_MODEL_PROMPT: str = f"""\
 
 【element 规则】
 - element name **必须与数据表 field name 完全一致**（区分大小写）
-- element type（驱动类型）：web / interface / other / windows / macos
+- model driver_type：web / interface / android / ios / windows / macos / other
+- element type 表示元素语义（如 input/button/text），不要把 android/ios 写成 element type
 - 接口模型保留元素：{', '.join(INTERFACE_RESERVED_ELEMENTS)}，前缀 {INTERFACE_HEADER_PREFIX}
 
 【任务】
@@ -235,6 +239,7 @@ DESIGN_MODEL_PROMPT: str = f"""\
 【规则】
 - 定位器 type 只能是 12 种之一：{_locator_types_str}
 - element name 使用有意义的英文名称（小写下划线风格）
+- 移动端 App 模型使用 driver_type="android" 或 driver_type="ios"，定位器仍只能使用 12 种既有类型
 - 接口模型必须包含 _method 和 _url 保留元素
 - 每个 element 至少一个 locator
 """

@@ -101,6 +101,8 @@ LOCATOR_TYPES: list[str] = TRADITIONAL_LOCATORS + VISION_LOCATORS
 DRIVER_TYPES: list[str] = [
     "web",
     "interface",
+    "android",
+    "ios",
     "other",
     "windows",
     "macos",
@@ -122,11 +124,10 @@ ALL_MODULE_DIRS: list[str] = REQUIRED_DIRS + OPTIONAL_DIRS
 
 FIXED_FILES: dict[str, str] = {
     "model": "model.xml",
-    "data": "data.xml",
-    "data_verify": "data_verify.xml",
+    "data": "data.sqlite",
     "globalvalue": "globalvalue.xml",
 }
-"""固定文件名映射。model.xml 是唯一的模型文件名；data.xml / data_verify.xml / globalvalue.xml 固定。"""
+"""固定文件名映射。model.xml 是唯一模型文件名；data.sqlite 是唯一测试数据文件；globalvalue.xml 独立维护。"""
 
 # ============================================================
 # 4. Case XML 约束  (CORE_DESIGN_CONSTRAINTS §7.2)
@@ -390,9 +391,10 @@ vision, ocr, vision_bbox
 - 接口模型保留元素：_method, _url, _header_*（前缀模式）
 - element name **必须与数据表 field name 完全一致**（区分大小写）
 
-【Data XML 格式】
-- 操作数据：data/data.xml（根元素 <datatables> 或 <datatable>）
-- 验证数据：data/data_verify.xml（可选，也可放在 data.xml 中）
+【Data 格式】
+- 操作数据和验证数据统一写入 data/data.sqlite
+- data/globalvalue.xml 独立维护
+- 禁止新生成 data.xml / data_verify.xml
 - datatable@name 必须与模型名一致
 - 验证数据表名 = {模型名}_verify
 - 每个 <row> 须有唯一 id（DataID）
@@ -402,11 +404,18 @@ vision, ocr, vision_bbox
 - ${Return[-1]} 只能出现在数据表 field 值中，不可写在 Case XML data 属性
 - 接口/DB 模型的 _verify 表禁止使用 ${Return[-1]}（自引用=空校验）
 
+【Mobile App 模式】
+- model 使用 driver_type="android" 或 driver_type="ios"
+- 启动 / 切换使用 navigate，data 写 app://android/... / app://ios/... 或 GlobalValue.Mobile.AppTarget
+- Case action 只使用 navigate/type/verify/run/close
+- 禁止把 swipe/long_press/press_keycode/hide_keyboard/tap 等写成 Case action
+- 移动端点击、滚动等动作写在 data.sqlite 字段值中，由 type 批量模式执行
+
 【目录结构】
 - product/{项目}/{模块}/
   - case/（必须）— 用例 XML
   - model/（必须）— model.xml（唯一文件名）
-  - data/（必须）— data.xml + data_verify.xml(可选) + globalvalue.xml
+  - data/（必须）— data.sqlite + globalvalue.xml
   - fun/（可选）— run 关键字的 Python 工程
   - result/（可选）— 框架自动生成结果 XML
 """

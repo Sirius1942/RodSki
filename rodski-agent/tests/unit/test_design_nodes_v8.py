@@ -1,5 +1,6 @@
 """Integration tests for v8 new nodes: load_skills, gap_analysis, design_model, generate_xml."""
 
+import sqlite3
 import textwrap
 from pathlib import Path
 from unittest.mock import patch
@@ -129,6 +130,25 @@ def test_design_model_fills_designed_models():
     assert result["designed_models"]["LoginPage"][0]["name"] == "username"
 
 
+def test_design_model_preserves_mobile_model_metadata():
+    response = (
+        '[{"name": "LoginScreen", "model_type": "ui", "driver_type": "android", '
+        '"elements": [{"name": "phone", "type": "input", '
+        '"locators": [{"type": "id", "value": "com.example:id/phone"}]}]}]'
+    )
+    state = {
+        "case_plan": _plan([{"model": "LoginScreen", "action": "type", "data": "L001"}]),
+    }
+
+    with patch("rodski_agent.common.llm_bridge.call_llm_text", return_value=response):
+        result = design_model(state)
+
+    model = result["designed_models"]["LoginScreen"]
+    assert model["driver_type"] == "android"
+    assert model["model_type"] == "ui"
+    assert model["elements"][0]["name"] == "phone"
+
+
 def test_design_model_empty_plan_returns_empty():
     """design_model: empty case_plan returns empty designed_models."""
     result = design_model({"case_plan": []})
@@ -170,3 +190,92 @@ def test_generate_xml_uses_designed_models_not_stub(tmp_path):
     # LLM-designed: locator type=id, value=username; stub would use css:#field1
     assert 'type="id"' in content
     assert "username" in content
+
+
+def test_generate_xml_mobile_app_mode_writes_sqlite_and_globalvalue(tmp_path):
+    state = {
+        "requirement": "Android 移动端 App 登录",
+        "target_url": "app://android/com.example/.MainActivity",
+        "output_dir": str(tmp_path),
+        "case_plan": _plan([
+            {"phase": "pre_process", "action": "navigate", "model": "", "data": "GlobalValue.Mobile.AppTarget"},
+            {"phase": "test_case", "action": "type", "model": "LoginScreen", "data": "L001"},
+            {"phase": "test_case", "action": "swipe", "model": "LoginScreen", "data": "S001"},
+            {"phase": "test_case", "action": "verify", "model": "LoginScreen", "data": "V001"},
+            {"phase": "post_process", "action": "close", "model": "", "data": ""},
+        ]),
+        "test_data": {
+            "datatables": [{
+                "name": "LoginScreen",
+                "rows": [{"id": "L001", "fields": [
+                    {"name": "username", "value": "admin"},
+                    {"name": "password", "value": "123456"},
+                    {"name": "login_button", "value": "click"},
+                ]}],
+            }],
+            "verify_tables": [{
+                "name": "LoginScreen_verify",
+                "rows": [{"id": "V001", "fields": [
+                    {"name": "welcome_text", "value": "Welcome"},
+                ]}],
+            }],
+        },
+        "designed_models": {
+            "LoginScreen": {
+                "driver_type": "android",
+                "elements": [
+                    {"name": "username", "type": "input", "locators": [{"type": "id", "value": "com.example:id/username"}]},
+                    {"name": "password", "type": "input", "locators": [{"type": "id", "value": "com.example:id/password"}]},
+                    {"name": "login_button", "type": "button", "locators": [{"type": "text", "value": "登录"}]},
+                    {"name": "welcome_text", "type": "text", "locators": [{"type": "text", "value": "Welcome"}]},
+                ],
+            }
+        },
+    }
+
+    result = generate_xml(state)
+
+    assert result["status"] == "running"
+    assert not (tmp_path / "data" / "data.xml").exists()
+    assert not (tmp_path / "data" / "data_verify.xml").exists()
+    assert (tmp_path / "data" / "data.sqlite").exists()
+    assert (tmp_path / "data" / "globalvalue.xml").exists()
+
+    case_xml = (tmp_path / "case" / "test_case.xml").read_text(encoding="utf-8")
+    assert 'action="swipe"' not in case_xml
+    assert 'action="navigate"' in case_xml
+    assert 'action="type"' in case_xml
+    assert 'action="verify"' in case_xml
+    assert 'action="close"' in case_xml
+
+    model_xml = (tmp_path / "model" / "model.xml").read_text(encoding="utf-8")
+    assert 'driver_type="android"' in model_xml
+    assert '<location type="id">com.example:id/username</location>' in model_xml
+    assert 'value="com.example:id/username"' not in model_xml
+
+    globalvalue_xml = (tmp_path / "data" / "globalvalue.xml").read_text(encoding="utf-8")
+    assert 'name="Mobile"' in globalvalue_xml
+    assert 'name="AppTarget"' in globalvalue_xml
+    assert 'app://android/com.example/.MainActivity' in globalvalue_xml
+
+    conn = sqlite3.connect(str(tmp_path / "data" / "data.sqlite"))
+    try:
+        tables = {
+            row[0]: row[1]
+            for row in conn.execute("SELECT table_name, table_kind FROM rs_datatable")
+        }
+        assert tables == {"LoginScreen": "data", "LoginScreen_verify": "verify"}
+        fields = [
+            row[0]
+            for row in conn.execute(
+                "SELECT field_name FROM rs_datatable_field WHERE table_name='LoginScreen' ORDER BY field_order"
+            )
+        ]
+        assert fields == ["username", "password", "login_button", "welcome_text"]
+        verify_blank = conn.execute(
+            "SELECT field_value FROM rs_field "
+            "WHERE table_name='LoginScreen_verify' AND data_id='V001' AND field_name='username'"
+        ).fetchone()[0]
+        assert verify_blank == "BLANK"
+    finally:
+        conn.close()
