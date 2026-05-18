@@ -1,10 +1,38 @@
 """run 子命令 - 通过 SKIExecutor 执行测试用例（XML 版本）"""
 import sys
 import logging
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger("rodski")
+
+# 需要浏览器驱动的 action 集合
+_BROWSER_ACTIONS = frozenset({
+    'navigate', 'click', 'type', 'evaluate', 'hover', 'screenshot',
+    'get', 'select', 'upload', 'launch', 'double_click', 'right_click',
+    'upload_file', 'clear', 'get_text', 'assert',
+})
+
+
+def _needs_browser(case_path: Path) -> bool:
+    """扫描 case XML，判断是否有需要浏览器的步骤"""
+    xml_files: List[Path] = []
+    if case_path.is_dir():
+        xml_files = list(case_path.glob("*.xml"))
+    elif case_path.is_file():
+        xml_files = [case_path]
+
+    for xml_file in xml_files:
+        try:
+            root = ET.parse(xml_file).getroot()
+            for step in root.iter('test_step'):
+                action = (step.get('action') or '').strip().lower()
+                if action in _BROWSER_ACTIONS:
+                    return True
+        except ET.ParseError:
+            pass
+    return False
 
 
 def setup_parser(subparsers):
@@ -201,16 +229,21 @@ def handle(args):
         print(f"错误: {e}", file=sys.stderr)
         return 1
 
+    needs_browser = _needs_browser(case_path)
+
     print(f"用例路径: {case_path}")
     if plan_path is not None:
         print(f"测试计划: {plan_path}")
     print(f"模型文件: {model_path}")
-    print(f"浏览器: {args.browser}")
+    if needs_browser:
+        print(f"浏览器: {args.browser}")
+    else:
+        print(f"执行模式: 接口 / 浏览器: 未启用")
 
     if dry_run:
         return _handle_dry_run(case_path, model_path, verbose, plan_path=plan_path, selector_filters=selector_filters)
 
-    return _handle_execute(case_path, module_dir, args, plan_path=plan_path, selector_filters=selector_filters)
+    return _handle_execute(case_path, module_dir, args, plan_path=plan_path, selector_filters=selector_filters, needs_browser=needs_browser)
 
 
 def _apply_recording_args(config, args):
@@ -425,7 +458,7 @@ def _print_plan_dry_run_selection(plan, selection) -> None:
         print("    (none)")
 
 
-def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional[Path] = None, selector_filters: Optional[Dict[str, Any]] = None) -> int:
+def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional[Path] = None, selector_filters: Optional[Dict[str, Any]] = None, needs_browser: bool = True) -> int:
     """实际执行测试用例"""
     try:
         from core.ski_executor import SKIExecutor
@@ -457,6 +490,8 @@ def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional
     config = _apply_recording_args(ConfigManager(), args)
 
     def create_driver():
+        if not needs_browser:
+            return None
         return PlaywrightDriver(headless=headless, browser=browser)
 
     driver = create_driver()

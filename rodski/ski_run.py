@@ -19,6 +19,7 @@ case_path 支持:
 """
 import sys
 import argparse
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 if __package__ in (None, ""):
@@ -44,6 +45,28 @@ def create_driver(headless: bool = False, browser: str = "chromium", driver_type
     else:
         from .drivers.playwright_driver import PlaywrightDriver
     return PlaywrightDriver(headless=headless, browser=browser)
+
+
+_BROWSER_ACTIONS = frozenset({
+    'navigate', 'click', 'type', 'evaluate', 'hover', 'screenshot',
+    'get', 'select', 'upload', 'launch', 'double_click', 'right_click',
+    'upload_file', 'clear', 'get_text', 'assert',
+})
+
+
+def _needs_browser(case_path: Path) -> bool:
+    """扫描 case XML，判断是否有需要浏览器的步骤"""
+    xml_files = list(case_path.glob("*.xml")) if case_path.is_dir() else ([case_path] if case_path.is_file() else [])
+    for xml_file in xml_files:
+        try:
+            root = ET.parse(xml_file).getroot()
+            for step in root.iter('test_step'):
+                action = (step.get('action') or '').strip().lower()
+                if action in _BROWSER_ACTIONS:
+                    return True
+        except ET.ParseError:
+            pass
+    return False
 
 
 def resolve_case_path(input_path: Path) -> Path:
@@ -120,13 +143,17 @@ def main():
     print(f"📋 用例路径: {case_path}")
     print(f"📁 测试模块: {module_dir}")
     print(f"🏗️  模型文件: {model_file}")
-    print(f"🌐 浏览器: {args.browser}")
+    needs_browser = _needs_browser(case_path)
+    if needs_browser:
+        print(f"🌐 浏览器: {args.browser}")
+    else:
+        print(f"⚡ 执行模式: 接口 / 浏览器: 未启用")
     print("-" * 60)
 
     if not model_file.exists():
         print(f"⚠️  模型文件不存在: {model_file}（将在无模型模式下运行）")
 
-    driver = create_driver(headless=args.headless, browser=args.browser)
+    driver = create_driver(headless=args.headless, browser=args.browser) if needs_browser else None
 
     config = apply_recording_args(ConfigManager(), args)
 
@@ -134,9 +161,9 @@ def main():
         str(case_path),
         driver,
         config=config,
-        driver_factory=lambda driver_type="web": create_driver(
+        driver_factory=(lambda driver_type="web": create_driver(
             headless=args.headless, browser=args.browser, driver_type=driver_type
-        ),
+        )) if needs_browser else None,
         module_dir=str(module_dir),
     )
     results = executor.execute_all_cases()
