@@ -51,7 +51,7 @@ def _resolve_video_size(value: str) -> dict:
 
     Args:
         value: 分辨率配置值，支持:
-            - "screen": 当前屏幕分辨率（无法获取时回退到 1920x1080）
+            - "screen": 可用屏幕区域（macOS 排除菜单栏/Dock，其他平台用全屏）
             - "2k": 2560x1440
             - "hd": 1920x1080
             - "WxH": 自定义宽高，如 "1920x1080"
@@ -68,14 +68,24 @@ def _resolve_video_size(value: str) -> dict:
     value = value.strip().lower()
 
     if value == "screen":
+        # macOS: 使用 visibleFrame（排除菜单栏和 Dock），避免录像底部出现空白
+        if sys.platform == "darwin":
+            try:
+                from AppKit import NSScreen
+                vf = NSScreen.mainScreen().visibleFrame()
+                w = int(vf.size.width)
+                h = int(vf.size.height)
+                if w > 0 and h > 0:
+                    return {"width": w, "height": h}
+            except Exception:
+                pass
+        # 其他平台或 AppKit 不可用：使用 mss 全屏尺寸
         try:
             import mss
             with mss.mss() as sct:
-                # 使用主显示器（monitors[1] 是第一个物理显示器）
                 monitor = sct.monitors[1] if len(sct.monitors) > 1 else sct.monitors[0]
                 return {"width": monitor["width"], "height": monitor["height"]}
         except Exception:
-            # 无法获取屏幕分辨率，回退到 1920x1080
             return {"width": 1920, "height": 1080}
 
     if value == "2k":
