@@ -1322,7 +1322,7 @@ class SKIExecutor:
                 self._start_playwright_recording_segment(getattr(self, '_current_case_id', 'unknown'))
 
         # 更新录像步骤文字叠加
-        if self._active_recording_backend == "screen" and self._screen_recorder is not None:
+        if getattr(self, '_active_recording_backend', None) == "screen" and getattr(self, '_screen_recorder', None) is not None:
             step_no = len(self._current_case_steps_log) + 1
             parts = [f"Step {step_no}", action]
             if model:
@@ -1440,7 +1440,7 @@ class SKIExecutor:
             time.sleep(wait_time)
 
         # 步骤完成后清空叠加文字
-        if self._active_recording_backend == "screen" and self._screen_recorder is not None:
+        if getattr(self, '_active_recording_backend', None) == "screen" and getattr(self, '_screen_recorder', None) is not None:
             self._screen_recorder.set_step(None)
 
     def _auto_screenshot(self, step_type: str) -> None:
