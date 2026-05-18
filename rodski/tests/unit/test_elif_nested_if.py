@@ -204,6 +204,7 @@ class TestExecuteIfBlock:
         ex.keyword_engine._context.named = {}
         ex.data_resolver = MagicMock()
         ex.data_resolver.resolve.side_effect = lambda v: v
+        ex.data_resolver.resolve_case_data.side_effect = lambda v: v
         ex.result_writer = MagicMock()
         ex.result_writer.current_run_dir = None
         ex.default_wait_time = 0.0
