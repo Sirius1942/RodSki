@@ -753,8 +753,23 @@ class PlaywrightDriver(BaseDriver):
                     pass
 
             context_options = {"record_video_dir": str(record_dir)}
-            # 解析并设置录制分辨率，viewport 与 record_video_size 保持一致避免黑边
-            resolved_size = _resolve_video_size(video_size or "screen")
+            # 动态读取当前 page 的实际 viewport 尺寸作为录制分辨率
+            # 这样无论 headless/headed、任何屏幕，录像始终与页面内容完全匹配
+            if video_size and video_size.lower() != "screen":
+                # 用户显式指定了分辨率（hd/2k/WxH），尊重用户设置
+                resolved_size = _resolve_video_size(video_size)
+            else:
+                # 默认：从当前 page viewport 动态获取
+                resolved_size = None
+                if self.page is not None:
+                    try:
+                        vp = self.page.viewport_size
+                        if vp and vp.get("width") and vp.get("height"):
+                            resolved_size = {"width": vp["width"], "height": vp["height"]}
+                    except Exception:
+                        pass
+                if resolved_size is None:
+                    resolved_size = _resolve_video_size("screen")
             context_options["record_video_size"] = resolved_size
             context_options["viewport"] = resolved_size
             self.context = self.browser.new_context(**context_options)

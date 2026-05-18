@@ -15,7 +15,58 @@ _BROWSER_ACTIONS = frozenset({
 })
 
 
-def _needs_browser(case_path: Path) -> bool:
+def _model_driver_types(model_path: Optional[Path]) -> Dict[str, str]:
+    if not model_path or not model_path.exists():
+        return {}
+    try:
+        root = ET.parse(model_path).getroot()
+    except ET.ParseError:
+        return {}
+    result: Dict[str, str] = {}
+    for model in root.findall("model"):
+        name = (model.get("name") or "").strip()
+        if not name:
+            continue
+        model_type = (model.get("type") or "ui").strip()
+        driver_type = (model.get("driver_type") or "").strip()
+        if driver_type:
+            result[name] = driver_type
+        elif model_type in {"interface", "database"}:
+            result[name] = model_type
+        else:
+            result[name] = "web"
+    return result
+
+
+def _is_mobile_app_target(value: str) -> bool:
+    lower = (value or "").strip().lower()
+    return lower.startswith("app://android/") or lower.startswith("app://ios/")
+
+
+def _resolve_globalvalue_for_browser_scan(module_dir: Path, value: str) -> str:
+    if not isinstance(value, str) or not value.startswith("GlobalValue."):
+        return value
+    parts = value.split(".", 2)
+    if len(parts) != 3:
+        return value
+    _, group_name, var_name = parts
+    globalvalue_path = module_dir / "data" / "globalvalue.xml"
+    if not globalvalue_path.exists():
+        return value
+    try:
+        root = ET.parse(globalvalue_path).getroot()
+    except ET.ParseError:
+        return value
+    for group in root.findall("group"):
+        if group.get("name") != group_name:
+            continue
+        for var in group.findall("var"):
+            if var.get("name") == var_name:
+                return var.get("value") or value
+    return value
+
+
+def _needs_browser(case_path: Path, model_path: Optional[Path] = None) -> bool:
     """扫描 case XML，判断是否有需要浏览器的步骤"""
     xml_files: List[Path] = []
     if case_path.is_dir():
@@ -23,11 +74,27 @@ def _needs_browser(case_path: Path) -> bool:
     elif case_path.is_file():
         xml_files = [case_path]
 
+    model_driver_types = _model_driver_types(model_path)
+    module_dir = _resolve_module_dir(case_path)
+
     for xml_file in xml_files:
         try:
             root = ET.parse(xml_file).getroot()
             for step in root.iter('test_step'):
                 action = (step.get('action') or '').strip().lower()
+                if action not in _BROWSER_ACTIONS:
+                    continue
+                data_value = _resolve_globalvalue_for_browser_scan(module_dir, step.get("data") or "")
+                if action == "navigate" and _is_mobile_app_target(data_value):
+                    continue
+                model_name = (step.get("model") or "").strip()
+                driver_type = model_driver_types.get(model_name, "web") if model_name else "web"
+                if driver_type in {"android", "ios", "interface", "database"}:
+                    continue
+                if action == "launch" and driver_type in {"windows", "macos", "other"}:
+                    continue
+                if action in {"type", "verify", "get", "get_text", "clear"} and driver_type in {"windows", "macos", "other"}:
+                    continue
                 if action in _BROWSER_ACTIONS:
                     return True
         except ET.ParseError:
@@ -221,7 +288,7 @@ def handle(args):
     plan_path_str = str(plan_path) if plan_path else None
     try:
         try:
-            from core.test_plan_selection import check_plan_selector_conflict
+            from ..core.test_plan_selection import check_plan_selector_conflict
         except ImportError:
             from core.test_plan_selection import check_plan_selector_conflict
         check_plan_selector_conflict(plan_path_str, selector_filters)
@@ -229,7 +296,7 @@ def handle(args):
         print(f"错误: {e}", file=sys.stderr)
         return 1
 
-    needs_browser = _needs_browser(case_path)
+    needs_browser = _needs_browser(case_path, model_path)
 
     print(f"用例路径: {case_path}")
     if plan_path is not None:
@@ -296,10 +363,10 @@ def _handle_dry_run(
 ) -> int:
     """验证用例可执行性但不实际执行"""
     try:
-        from core.case_parser import CaseParser
-        from core.model_parser import ModelParser
-        from core.plan_parser import PlanParser
-        from core.test_plan_selection import TestPlanSelection, compile_from_selector
+        from ..core.case_parser import CaseParser
+        from ..core.model_parser import ModelParser
+        from ..core.plan_parser import PlanParser
+        from ..core.test_plan_selection import TestPlanSelection, compile_from_selector
     except ImportError:
         from core.case_parser import CaseParser
         from core.model_parser import ModelParser
@@ -461,11 +528,11 @@ def _print_plan_dry_run_selection(plan, selection) -> None:
 def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional[Path] = None, selector_filters: Optional[Dict[str, Any]] = None, needs_browser: bool = True) -> int:
     """实际执行测试用例"""
     try:
-        from core.ski_executor import SKIExecutor
-        from core.config_manager import ConfigManager
-        from drivers.playwright_driver import PlaywrightDriver
-        from core.json_formatter import JSONFormatter
-        from core.runtime_control import RuntimeCommandQueue
+        from ..core.ski_executor import SKIExecutor
+        from ..core.config_manager import ConfigManager
+        from ..drivers.playwright_driver import PlaywrightDriver
+        from ..core.json_formatter import JSONFormatter
+        from ..core.runtime_control import RuntimeCommandQueue
     except ImportError:
         from core.ski_executor import SKIExecutor
         from core.config_manager import ConfigManager
@@ -489,12 +556,18 @@ def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional
 
     config = _apply_recording_args(ConfigManager(), args)
 
-    def create_driver():
-        if not needs_browser:
-            return None
-        return PlaywrightDriver(headless=headless, browser=browser)
+    def create_driver(driver_type: str = "web", **kwargs):
+        if driver_type in ("", "web"):
+            if not needs_browser:
+                return None
+            return PlaywrightDriver(headless=headless, browser=browser)
+        try:
+            from ..core.driver_factory import DriverFactory
+        except ImportError:
+            from core.driver_factory import DriverFactory
+        return DriverFactory.get_driver(driver_type, **kwargs)
 
-    driver = create_driver()
+    driver = create_driver("web")
     executor = None
     start_time = time.time()
     runtime_control = RuntimeCommandQueue() if insert_steps else None
@@ -504,7 +577,7 @@ def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional
             str(case_path),
             driver,
             config=config,
-            driver_factory=lambda: create_driver(),
+            driver_factory=create_driver,
             module_dir=str(module_dir),
             runtime_control=runtime_control,
         )
