@@ -151,23 +151,54 @@ class KeywordEngine:
 
     # ── 驱动自动路由 ──────────────────────────────────────────────
 
-    DESKTOP_DRIVER_TYPES = {"macos", "windows", "other"}
+    NON_WEB_DRIVER_TYPES = {"macos", "windows", "other", "android", "ios"}
+    DESKTOP_DRIVER_TYPES = NON_WEB_DRIVER_TYPES  # 向后兼容别名
 
     def _get_driver_for_type(self, driver_type: str) -> BaseDriver:
         """根据 driver_type 返回对应的驱动实例
 
         遵循设计约束：驱动类型由模型元素的 type 属性决定。
         - web/interface → 使用 self.driver（PlaywrightDriver/InterfaceDriver）
+        - android/ios → 懒加载创建 AppiumDriver 并缓存
         - macos/windows/other → 懒加载创建 DesktopDriver 并缓存
         """
-        if driver_type not in self.DESKTOP_DRIVER_TYPES:
+        if driver_type not in self.NON_WEB_DRIVER_TYPES:
             return self.driver
 
         # 已缓存则返回
         if driver_type in self._desktop_drivers:
             return self._desktop_drivers[driver_type]
 
-        # 尝试通过 driver_factory 创建
+        # android/ios → 从 global_vars['Mobile'] 提取配置，通过 DriverFactory 创建
+        if driver_type in ("android", "ios"):
+            mobile_group = (self._global_vars or {}).get("Mobile", {})
+            mobile_caps = {
+                "device_name": mobile_group.get("DeviceName", "Android"),
+                "server_url": mobile_group.get("AppiumServer", "http://localhost:4723"),
+                "app_package": mobile_group.get("AppPackage"),
+                "app_activity": mobile_group.get("AppActivity"),
+                "bundle_id": mobile_group.get("BundleId"),
+            }
+
+            if self._driver_factory:
+                try:
+                    mobile_driver = self._driver_factory(driver_type=driver_type, **mobile_caps)
+                    self._desktop_drivers[driver_type] = mobile_driver
+                    logger.info(f"自动创建移动端驱动: {driver_type}")
+                    return mobile_driver
+                except Exception as e:
+                    logger.warning(f"通过 driver_factory 创建移动端驱动失败: {e}")
+
+            try:
+                from ..core.driver_factory import DriverFactory
+            except ImportError:
+                from core.driver_factory import DriverFactory
+            mobile_driver = DriverFactory.get_driver(driver_type, **mobile_caps)
+            self._desktop_drivers[driver_type] = mobile_driver
+            logger.info(f"直接创建移动端驱动: {driver_type}")
+            return mobile_driver
+
+        # 尝试通过 driver_factory 创建桌面驱动
         if self._driver_factory:
             try:
                 desktop_driver = self._driver_factory(driver_type=driver_type)
@@ -191,6 +222,15 @@ class KeywordEngine:
             raise DriverError(
                 "DesktopDriver 不可用，请确认 pyautogui 已安装: pip install pyautogui"
             )
+
+    def _get_mobile_driver(self, platform: str = None) -> BaseDriver:
+        """获取移动端驱动（navigate App URI 专用）
+
+        platform 为 'android' 或 'ios'，不传时从 global_vars['Mobile']['Platform'] 读取。
+        """
+        if platform is None:
+            platform = (self._global_vars or {}).get("Mobile", {}).get("Platform", "android")
+        return self._get_driver_for_type(platform)
 
     @monitor_performance
     def execute(self, keyword: str, params: Dict[str, Any]) -> bool:
@@ -1106,6 +1146,25 @@ class KeywordEngine:
                 param_name="url",
                 reason="缺少必需参数 'url'"
             )
+
+        # 移动端 App URI 路由（在 HTTP URL 处理之前）
+        if url.startswith("app://android/"):
+            parts = url[len("app://android/"):].split("/", 1)
+            package = parts[0]
+            activity = parts[1] if len(parts) > 1 else None
+            mobile_driver = self._get_mobile_driver("android")
+            result = mobile_driver.start_app(package, activity)
+            self.store_return(True)
+            return result
+
+        if url.startswith("app://ios/"):
+            bundle_id = url[len("app://ios/"):]
+            mobile_driver = self._get_mobile_driver("ios")
+            result = mobile_driver.start_app(bundle_id)
+            self.store_return(True)
+            return result
+
+        # 原有 HTTP URL 逻辑
         self._ensure_driver()
         logger.info(f"导航: {url}")
         result = self.driver.navigate(url)
@@ -1445,7 +1504,8 @@ class KeywordEngine:
         results = {}
         mismatches = []
         model_type = self.model_parser.get_model_type(model_name)
-        target_driver = self._get_driver_for_type(self.model_parser.get_model_driver_type(model_name))
+        driver_type = self.model_parser.get_model_driver_type(model_name)
+        target_driver = self._get_driver_for_type(driver_type)
 
         # 自引用检测：非 UI 模型的 verify 数据中不应使用 ${Return[-1]}
         # 接口/DB 的实际值自动从 Return[-1] 读取，期望值再引用 Return[-1] 等于自比较
@@ -1512,7 +1572,12 @@ class KeywordEngine:
             locator = f"{locator_type}={locator_value}"
 
             if model_type == MODEL_TYPE_UI:
-                if hasattr(target_driver, 'get_text_locator'):
+                if driver_type in ("android", "ios"):
+                    # 移动端：通过 locator 直接读取元素文本
+                    actual = target_driver.get_element_text_by_locator(
+                        locator_type, locator_value
+                    )
+                elif hasattr(target_driver, 'get_text_locator'):
                     if locator_type == 'id':
                         actual = target_driver.get_text_locator(f"#{locator_value}")
                     elif locator_type == 'css':

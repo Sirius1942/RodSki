@@ -106,6 +106,8 @@
       <xs:enumeration value="interface"/>
       <xs:enumeration value="windows"/>
       <xs:enumeration value="macos"/>
+      <xs:enumeration value="android"/>
+      <xs:enumeration value="ios"/>
       <xs:enumeration value="other"/>
     </xs:restriction>
   </xs:simpleType>

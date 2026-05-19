@@ -1,7 +1,7 @@
 # RodSki 核心设计约束
 
-**版本**: v6.7.6
-**日期**: 2026-05-15
+**版本**: v7.0.0
+**日期**: 2026-05-19
 
 本文档记录 RodSki 框架的核心设计决策与约束规则，所有后续开发必须遵循。
 
@@ -42,8 +42,13 @@ key_press【按键】 / drag【目标】 / scroll / scroll【x,y】
 
 | 关键字 | 适用场景 | 参数格式 | 行为 |
 |--------|---------|---------|------|
-| **navigate** | Web / Mobile | URL 地址 | 如果当前没有浏览器实例 → 自动通过 `driver_factory` 创建；如果已有浏览器实例 → 复用现有实例，导航到目标 URL |
+| **navigate** | Web / Mobile | URL 地址或 App URI | 如果当前没有浏览器实例 → 自动通过 `driver_factory` 创建；如果已有浏览器实例 → 复用现有实例，导航到目标 URL。Mobile 场景下支持 App URI 格式启动原生 App |
 | **launch** | Desktop (Windows/macOS) | 应用路径或应用名 | 如果应用未运行 → 启动应用；如果应用已运行 → 切换到该应用窗口 |
+
+**Mobile App URI 格式（v7.0.0）**：
+- `app://android/{package}/{activity}` — 启动 Android App 指定 Activity
+- `app://android/{package}` — 启动 Android App 默认 Activity
+- `app://ios/{bundleId}` — 启动 iOS App
 
 **约束**：
 - `navigate` 替代了 `open`（已废弃）
@@ -1698,7 +1703,7 @@ test:
 
 ---
 
-*文档版本: v6.7.6 | 最后更新: 2026-05-15*
+*文档版本: v7.0.0 | 最后更新: 2026-05-19*
 
 ## 统一运行时上下文约束（§10）
 

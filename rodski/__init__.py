@@ -1,2 +1,2 @@
 """RodSki Test Framework"""
-__version__ = "6.7.10"
+__version__ = "7.0.0"

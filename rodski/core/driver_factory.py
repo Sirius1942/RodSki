@@ -46,7 +46,7 @@ class DriverFactory:
     _driver_configs: Dict[str, Dict[str, Any]] = {}
 
     # 支持的驱动类型
-    SUPPORTED_DRIVER_TYPES = ["web", "interface", "windows", "macos"]
+    SUPPORTED_DRIVER_TYPES = ["web", "interface", "windows", "macos", "android", "ios"]
 
     @classmethod
     def get_driver(cls, driver_type: str, **kwargs) -> BaseDriver:
@@ -118,6 +118,10 @@ class DriverFactory:
             return cls._create_desktop_driver("windows", **kwargs)
         elif driver_type == "macos":
             return cls._create_desktop_driver("macos", **kwargs)
+        elif driver_type == "android":
+            return cls._create_android_driver(**kwargs)
+        elif driver_type == "ios":
+            return cls._create_ios_driver(**kwargs)
         else:
             raise ValueError(f"不支持的驱动类型: {driver_type}")
 
@@ -248,6 +252,58 @@ class DriverFactory:
                 "请创建 drivers/pyxa_driver.py 实现 BaseDriver 接口。"
             )
             return MockMacOSDriver(**kwargs)
+
+    @classmethod
+    def _create_android_driver(cls, **kwargs) -> BaseDriver:
+        """创建 Android 驱动 (Appium 2.x)
+
+        Args:
+            device_name: 设备名称
+            app_package: 应用包名 (可选)
+            app_activity: 启动 Activity (可选)
+            server_url: Appium 服务地址
+            udid: 设备 UDID (可选)
+
+        Returns:
+            AndroidDriver 实例
+        """
+        try:
+            from ..drivers.android_driver import AndroidDriver
+        except ImportError:
+            from drivers.android_driver import AndroidDriver
+        return AndroidDriver(
+            device_name=kwargs.get("device_name", "Android"),
+            app_package=kwargs.get("app_package"),
+            app_activity=kwargs.get("app_activity"),
+            server_url=kwargs.get("server_url", "http://localhost:4723"),
+            **{k: v for k, v in kwargs.items()
+               if k not in ("device_name", "app_package", "app_activity", "server_url")},
+        )
+
+    @classmethod
+    def _create_ios_driver(cls, **kwargs) -> BaseDriver:
+        """创建 iOS 驱动 (Appium 2.x)
+
+        Args:
+            device_name: 设备名称
+            bundle_id: 应用 Bundle ID (可选)
+            server_url: Appium 服务地址
+            udid: 设备 UDID (可选)
+
+        Returns:
+            IOSDriver 实例
+        """
+        try:
+            from ..drivers.ios_driver import IOSDriver
+        except ImportError:
+            from drivers.ios_driver import IOSDriver
+        return IOSDriver(
+            device_name=kwargs.get("device_name", "iPhone"),
+            bundle_id=kwargs.get("bundle_id"),
+            server_url=kwargs.get("server_url", "http://localhost:4723"),
+            **{k: v for k, v in kwargs.items()
+               if k not in ("device_name", "bundle_id", "server_url")},
+        )
 
     @classmethod
     def release_driver(cls, driver_type: str) -> None:

@@ -10,13 +10,33 @@ import logging
 
 logger = logging.getLogger("rodski")
 
+# 定位器类型到 AppiumBy 的映射
+_LOCATOR_MAP = {
+    "id":    AppiumBy.ID,
+    "name":  AppiumBy.ACCESSIBILITY_ID,
+    "class": AppiumBy.CLASS_NAME,
+    "xpath": AppiumBy.XPATH,
+    "text":  None,  # 特殊处理：构造 XPath
+    "css":   AppiumBy.CSS_SELECTOR,  # 仅 WebView 上下文
+}
+
+# Android keycode 映射
+_ANDROID_KEYCODES = {
+    "BACK": 4, "HOME": 3, "ENTER": 66, "DELETE": 67,
+    "MENU": 82, "SEARCH": 84, "VOLUME_UP": 24, "VOLUME_DOWN": 25,
+    "TAB": 61, "ESCAPE": 111,
+}
+
 
 class AppiumDriver(BaseDriver):
     """Appium 驱动基类，支持 Android 和 iOS"""
 
-    def __init__(self, capabilities: dict, server_url: str = "http://localhost:4723"):
+    def __init__(self, capabilities: dict = None, server_url: str = "http://localhost:4723", options=None):
         logger.info(f"初始化 Appium 驱动: server={server_url}")
-        self.driver = webdriver.Remote(server_url, capabilities)
+        if options is not None:
+            self.driver = webdriver.Remote(server_url, options=options)
+        else:
+            self.driver = webdriver.Remote(server_url, capabilities)
         self.wait = WebDriverWait(self.driver, 10)
         logger.info("Appium 驱动初始化成功")
 
@@ -30,9 +50,9 @@ class AppiumDriver(BaseDriver):
             self.driver.quit()
 
     def locate_element(self, locator_type: str, locator_value: str) -> Optional[Tuple[int, int, int, int]]:
-        """定位元素"""
+        """定位元素，按 locator_type 映射到正确的 AppiumBy"""
         try:
-            by, value = self._parse_locator(f"{locator_type}={locator_value}")
+            by, value = self._resolve_locator(locator_type, locator_value)
             element = self.driver.find_element(by, value)
             rect = element.rect
             bbox = (rect['x'], rect['y'], rect['x'] + rect['width'], rect['y'] + rect['height'])
@@ -41,6 +61,43 @@ class AppiumDriver(BaseDriver):
         except Exception as e:
             logger.warning(f"元素定位失败: {locator_type}={locator_value}, error={e}")
             return None
+
+    def _resolve_locator(self, locator_type: str, locator_value: str) -> tuple:
+        """将 locator_type/locator_value 解析为 (AppiumBy, value) 元组"""
+        lt = locator_type.lower()
+        if lt == "text":
+            # Android: //*[@text='值']
+            xpath = f"//*[@text='{locator_value}']"
+            return AppiumBy.XPATH, xpath
+        by = _LOCATOR_MAP.get(lt)
+        if by is None:
+            # 未知类型回退到 ID
+            logger.debug(f"未知定位器类型 '{locator_type}'，回退到 AppiumBy.ID")
+            return AppiumBy.ID, locator_value
+        return by, locator_value
+
+    def get_element_text_by_locator(self, locator_type: str, locator_value: str) -> str:
+        """通过定位器找到元素，按优先级读取文本属性（移动端 verify 专用）"""
+        from core.exceptions import ElementNotFoundError
+        try:
+            by, value = self._resolve_locator(locator_type, locator_value)
+            element = self.driver.find_element(by, value)
+        except Exception as e:
+            raise ElementNotFoundError(
+                f"元素未找到: {locator_type}={locator_value}",
+                locator=locator_value
+            ) from e
+
+        # 按优先级读取文本属性（Android: text/content-desc，iOS: label/value/name）
+        for attr in ["text", "value", "label", "name", "content-desc"]:
+            val = element.text if attr == "text" else element.get_attribute(attr)
+            if val:
+                return val
+
+        raise ElementNotFoundError(
+            f"元素文本为空: {locator_type}={locator_value}",
+            locator=locator_value
+        )
 
     # ── BaseDriver 坐标接口（两阶段 API）───────────────────────────
 
@@ -69,11 +126,44 @@ class AppiumDriver(BaseDriver):
             self.driver.tap([(x, y)])
 
     def type_text(self, x: int, y: int, text: str) -> None:
-        """输入文字"""
+        """输入文字（先 tap 获取焦点，再通过 active_element.send_keys 输入）"""
         logger.debug(f"输入文字: ({x}, {y}), text={text}")
         self.driver.tap([(x, y)])
         time.sleep(0.1)
-        self.driver.execute_script("mobile: type", {"text": text})
+        active = self.driver.switch_to.active_element
+        if active is not None:
+            active.clear()
+            active.send_keys(text)
+        else:
+            # 回退：直接用 mobile: type 脚本
+            self.driver.execute_script("mobile: type", {"text": text})
+
+    def key_press(self, key: str) -> bool:
+        """按下按键，支持 Android keycode 名称（大小写不敏感）"""
+        keycode = _ANDROID_KEYCODES.get(key.upper())
+        if keycode is not None:
+            self.driver.press_keycode(keycode)
+            return True
+        logger.warning(f"未知按键: {key}，跳过")
+        return False
+
+    def start_app(self, package_or_bundle: str, activity: str = None) -> bool:
+        """启动 App（Appium 2.x）
+
+        Android: activate_app(package) + mobile: startActivity（如有 activity）
+        iOS:     activate_app(bundle_id)
+        """
+        try:
+            self.driver.activate_app(package_or_bundle)
+            if activity:
+                self.driver.execute_script("mobile: startActivity", {
+                    "appPackage": package_or_bundle,
+                    "appActivity": activity
+                })
+            return True
+        except Exception as e:
+            logger.error(f"启动 App 失败: {package_or_bundle}/{activity}, {e}")
+            return False
 
     def get_text(self, x1: int, y1: int, x2: int, y2: int) -> str:
         """获取文字"""
@@ -112,14 +202,28 @@ class AppiumDriver(BaseDriver):
         # 移动端悬停不支持，直接 pass
 
     def scroll(self, x: int, y: int) -> bool:
-        """滚动（BaseDriver API）"""
+        """滚动（Appium 2.x W3C Actions — mobile: scrollGesture）"""
         try:
             size = self.driver.get_window_size()
-            start_x = size['width'] // 2
-            start_y = size['height'] // 2
-            self.driver.swipe(start_x, start_y, start_x + x, start_y + y, 500)
+            w, h = size['width'], size['height']
+            cx, cy = w // 2, h // 2
+
+            if abs(y) >= abs(x):
+                direction = "down" if y > 0 else "up"
+                percent = min(abs(y) / h, 0.9)
+            else:
+                direction = "right" if x > 0 else "left"
+                percent = min(abs(x) / w, 0.9)
+
+            self.driver.execute_script("mobile: scrollGesture", {
+                "left": cx - 100, "top": cy - 200,
+                "width": 200, "height": 400,
+                "direction": direction,
+                "percent": max(percent, 0.1)
+            })
             return True
-        except Exception:
+        except Exception as e:
+            logger.warning(f"scroll 失败: {e}")
             return False
 
     # ── 旧 API（定位器接口，保留用于兼容性和测试）───────────────────
@@ -151,15 +255,29 @@ class AppiumDriver(BaseDriver):
             return False
 
     def drag(self, from_locator: str, to_locator: str) -> bool:
-        """拖拽操作（旧 API）"""
+        """拖拽（Appium 2.x W3C Actions — mobile: dragGesture）"""
         try:
-            by1, val1 = self._parse_locator(from_locator)
-            by2, val2 = self._parse_locator(to_locator)
-            el1 = self.driver.find_element(by1, val1)
-            el2 = self.driver.find_element(by2, val2)
-            self.driver.drag_and_drop(el1, el2)
+            from_type, from_val = from_locator.split("=", 1)
+            to_type, to_val = to_locator.split("=", 1)
+
+            from_bbox = self.locate_element(from_type, from_val)
+            to_bbox = self.locate_element(to_type, to_val)
+
+            if not from_bbox or not to_bbox:
+                return False
+
+            fx = (from_bbox[0] + from_bbox[2]) // 2
+            fy = (from_bbox[1] + from_bbox[3]) // 2
+            tx = (to_bbox[0] + to_bbox[2]) // 2
+            ty = (to_bbox[1] + to_bbox[3]) // 2
+
+            self.driver.execute_script("mobile: dragGesture", {
+                "startX": fx, "startY": fy,
+                "endX": tx, "endY": ty
+            })
             return True
-        except Exception:
+        except Exception as e:
+            logger.warning(f"drag 失败: {e}")
             return False
 
     def assert_element(self, locator: str, expected: str) -> bool:

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<globalvalue>
+  <group name="Mobile">
+    <var name="Platform" value="android"/>
+    <var name="AppiumServer" value="http://127.0.0.1:4723"/>
+    <var name="DeviceName" value="AKRSUT1618000209"/>
+    <var name="AppPackage" value="com.rodski.demo"/>
+    <var name="AppActivity" value="com.rodski.demo.LoginActivity"/>
+    <var name="AppTarget" value="app://android/com.rodski.demo/com.rodski.demo.LoginActivity"/>
+    <var name="WaitTime" value="3"/>
+  </group>
+  <group name="DemoSite">
+    <var name="BaseURL" value="http://10.118.34.160:8000"/>
+  </group>
+</globalvalue>

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases tags="mobile,android,smoke">
+  <case execute="否" id="APP001" title="Android App 登录成功"
+        component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model=""
+                 data="GlobalValue.Mobile.AppTarget"/>
+      <test_step action="wait" model="" data="2"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="LoginScreen" data="L001"/>
+      <test_step action="verify" model="LoginScreen" data="V001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+
+  <case execute="否" id="APP002" title="Android App 登录失败"
+        component_type="界面" priority="P1">
+    <pre_process>
+      <test_step action="navigate" model=""
+                 data="GlobalValue.Mobile.AppTarget"/>
+      <test_step action="wait" model="" data="2"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="LoginScreen" data="L002"/>
+      <test_step action="verify" model="LoginScreen" data="V002"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+</cases>

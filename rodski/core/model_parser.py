@@ -22,6 +22,8 @@ LEGACY_DRIVER_TYPES = {
     LEGACY_DRIVER_TYPE_OTHER,
     "windows",
     "macos",
+    "android",
+    "ios",
 }
 
 # 有效的定位器类型

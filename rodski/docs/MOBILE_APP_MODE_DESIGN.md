@@ -1,11 +1,11 @@
 # RodSki 移动端 App 模式设计
 
-**版本**: v0.2  
-**日期**: 2026-05-18  
+**版本**: v1.0  
+**日期**: 2026-05-19  
 **目标版本**: RodSki v7.0.0  
-**状态**: P0/P1 最小协议接入中；真实设备验收仍未完成  
+**状态**: P0-P3 已实现（v7.0.0）；真机验收通过（华为 NTH-AN00 Android 14）  
 **输入来源**: `.pb/tmp/chat_mobile_design_20260518.md`  
-**约束基准**: `rodski/docs/CORE_DESIGN_CONSTRAINTS.md` v7.0.0-draft
+**约束基准**: `rodski/docs/CORE_DESIGN_CONSTRAINTS.md` v7.0.0
 
 本文档把 2026-05-18 关于移动端 App 自动化的讨论整理为后续 RodSki 设计文档。设计目标是补齐 Android / iOS 原生 App 执行能力，同时严格保持 RodSki 的核心定位：Agent 负责探索、决策和生成 XML；RodSki 负责解析 XML、执行确定性动作并返回结构化结果。
 

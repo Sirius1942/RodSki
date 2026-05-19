@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<models>
+  <model name="LoginScreen" type="ui" driver_type="android">
+    <element name="username" type="android">
+      <type>input</type>
+      <location type="id" priority="1">com.rodski.demo:id/username</location>
+    </element>
+    <element name="password" type="android">
+      <type>input</type>
+      <location type="id" priority="1">com.rodski.demo:id/password</location>
+    </element>
+    <element name="loginBtn" type="android">
+      <type>button</type>
+      <location type="id" priority="1">com.rodski.demo:id/loginBtn</location>
+    </element>
+    <element name="welcomeText" type="android">
+      <type>text</type>
+      <location type="id" priority="1">com.rodski.demo:id/welcomeText</location>
+    </element>
+    <element name="errorMsg" type="android">
+      <type>text</type>
+      <location type="id" priority="1">com.rodski.demo:id/errorMsg</location>
+    </element>
+  </model>
+</models>

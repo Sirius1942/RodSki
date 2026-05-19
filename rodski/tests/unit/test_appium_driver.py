@@ -156,12 +156,17 @@ class TestAppiumDriver:
     def test_drag_success(self, mock_remote):
         driver = AppiumDriver({"platformName": "Android"})
         driver.driver = Mock()
-        el1 = Mock()
-        el2 = Mock()
-        driver.driver.find_element.side_effect = [el1, el2]
+        # mock locate_element to return bboxes for the new W3C dragGesture API
+        driver.locate_element = Mock(side_effect=[
+            (10, 20, 60, 70),
+            (200, 300, 250, 350),
+        ])
 
         assert driver.drag("id=source", "id=target") == True
-        driver.driver.drag_and_drop.assert_called_once_with(el1, el2)
+        driver.driver.execute_script.assert_called_once_with("mobile: dragGesture", {
+            "startX": 35, "startY": 45,
+            "endX": 225, "endY": 325,
+        })
 
     @patch('drivers.appium_driver.webdriver.Remote')
     def test_drag_failure(self, mock_remote):
@@ -178,7 +183,11 @@ class TestAppiumDriver:
         driver.driver.get_window_size.return_value = {"width": 1080, "height": 1920}
 
         assert driver.scroll(0, 300) == True
-        driver.driver.swipe.assert_called_once()
+        # New W3C Actions API uses execute_script("mobile: scrollGesture", ...)
+        driver.driver.execute_script.assert_called_once()
+        call_args = driver.driver.execute_script.call_args
+        assert call_args[0][0] == "mobile: scrollGesture"
+        assert call_args[0][1]["direction"] == "down"
 
     @patch('drivers.appium_driver.webdriver.Remote')
     def test_scroll_failure(self, mock_remote):
