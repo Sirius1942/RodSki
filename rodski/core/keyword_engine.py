@@ -172,12 +172,14 @@ class KeywordEngine:
         # android/ios → 从 global_vars['Mobile'] 提取配置，通过 DriverFactory 创建
         if driver_type in ("android", "ios"):
             mobile_group = (self._global_vars or {}).get("Mobile", {})
+            no_reset_val = mobile_group.get("NoReset", "false")
             mobile_caps = {
                 "device_name": mobile_group.get("DeviceName", "Android"),
                 "server_url": mobile_group.get("AppiumServer", "http://localhost:4723"),
                 "app_package": mobile_group.get("AppPackage"),
                 "app_activity": mobile_group.get("AppActivity"),
                 "bundle_id": mobile_group.get("BundleId"),
+                "no_reset": str(no_reset_val).lower() == "true",
             }
 
             if self._driver_factory:
@@ -586,9 +588,26 @@ class KeywordEngine:
                 )
 
     def _kw_close(self, params: Dict) -> bool:
-        """关闭浏览器"""
-        logger.info("关闭浏览器")
-        self.driver.close()
+        """关闭浏览器或移动端驱动"""
+        logger.info("关闭驱动")
+        # 关闭移动端驱动（android/ios）
+        for mobile_type in ("android", "ios"):
+            if mobile_type in self._desktop_drivers:
+                try:
+                    self._desktop_drivers[mobile_type].close()
+                except Exception:
+                    pass
+                del self._desktop_drivers[mobile_type]
+            # 同时释放 DriverFactory 全局缓存，避免新 KeywordEngine 复用旧 session
+            try:
+                from ..core.driver_factory import DriverFactory
+            except ImportError:
+                from core.driver_factory import DriverFactory
+            if DriverFactory.has_driver(mobile_type):
+                DriverFactory.release_driver(mobile_type)
+        # 关闭主驱动（web/desktop）
+        if self.driver is not None:
+            self.driver.close()
         self.store_return(True)
         return True
 
@@ -1131,9 +1150,10 @@ class KeywordEngine:
 
     def _kw_wait(self, params: Dict) -> bool:
         """等待"""
+        import time
         seconds = params.get("seconds") or params.get("data", "1.0")
         logger.info(f"等待: {seconds}秒")
-        self.driver.wait(float(seconds))
+        time.sleep(float(seconds))
         self.store_return(True)
         return True
 

@@ -3,7 +3,11 @@ try:
     from appium.options import UiAutomator2Options
     _HAS_APPIUM_OPTIONS = True
 except ImportError:
-    _HAS_APPIUM_OPTIONS = False
+    try:
+        from appium.options.android.uiautomator2.base import UiAutomator2Options
+        _HAS_APPIUM_OPTIONS = True
+    except ImportError:
+        _HAS_APPIUM_OPTIONS = False
 
 from .appium_driver import AppiumDriver
 
@@ -24,6 +28,8 @@ class AndroidDriver(AppiumDriver):
                 options.app_activity = app_activity
             if kwargs.get("udid"):
                 options.udid = kwargs["udid"]
+            if kwargs.get("no_reset"):
+                options.no_reset = True
             super().__init__(options=options, server_url=server_url)
         else:
             # 回退：旧格式（Appium 1.x 兼容）

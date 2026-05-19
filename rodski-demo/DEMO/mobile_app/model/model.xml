@@ -22,4 +22,13 @@
       <location type="id" priority="1">com.rodski.demo:id/errorMsg</location>
     </element>
   </model>
+
+  <model name="HomeScreen" type="ui" driver_type="android">
+    <element name="welcomeText" type="android">
+      <location type="id" priority="1">com.rodski.demo:id/welcomeText</location>
+    </element>
+    <element name="orderListBtn" type="android">
+      <location type="id" priority="1">com.rodski.demo:id/orderListBtn</location>
+    </element>
+  </model>
 </models>

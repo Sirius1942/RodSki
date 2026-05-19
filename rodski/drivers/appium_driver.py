@@ -99,6 +99,33 @@ class AppiumDriver(BaseDriver):
             locator=locator_value
         )
 
+    def type_locator(self, locator: str, text: str, **kwargs) -> bool:
+        """输入文本（通过定位器）— 供 keyword_engine 调用"""
+        try:
+            strategy, value = locator.split("=", 1) if "=" in locator else ("id", locator)
+            by, val = self._resolve_locator(strategy, value)
+            element = self.wait.until(EC.presence_of_element_located((by, val)))
+            element.clear()
+            element.send_keys(text)
+            logger.debug(f"type_locator 成功: {locator} <- '{text}'")
+            return True
+        except Exception as e:
+            logger.warning(f"type_locator 失败: {locator}, error={e}")
+            return False
+
+    def click_locator(self, locator: str, **kwargs) -> bool:
+        """点击元素（通过定位器）— 供 keyword_engine 调用"""
+        try:
+            strategy, value = locator.split("=", 1) if "=" in locator else ("id", locator)
+            by, val = self._resolve_locator(strategy, value)
+            element = self.wait.until(EC.presence_of_element_located((by, val)))
+            element.click()
+            logger.debug(f"click_locator 成功: {locator}")
+            return True
+        except Exception as e:
+            logger.warning(f"click_locator 失败: {locator}, error={e}")
+            return False
+
     # ── BaseDriver 坐标接口（两阶段 API）───────────────────────────
 
     def click(self, locator_or_x, y=None) -> bool:
@@ -150,17 +177,27 @@ class AppiumDriver(BaseDriver):
     def start_app(self, package_or_bundle: str, activity: str = None) -> bool:
         """启动 App（Appium 2.x）
 
-        Android: activate_app(package) + mobile: startActivity（如有 activity）
+        Android: adb am start 强制跳转到指定 Activity（noReset 场景下也生效）
         iOS:     activate_app(bundle_id)
         """
         try:
-            self.driver.activate_app(package_or_bundle)
             if activity:
-                self.driver.execute_script("mobile: startActivity", {
-                    "appPackage": package_or_bundle,
-                    "appActivity": activity
-                })
-            return True
+                import subprocess
+                import shutil
+                adb = shutil.which("adb") or "/Users/sirius.chen/bin/adb"
+                short = activity if activity.startswith(".") else f".{activity.split('.')[-1]}"
+                result = subprocess.run(
+                    [adb, "shell", "am", "start", "-n", f"{package_or_bundle}/{short}"],
+                    capture_output=True, text=True, timeout=10
+                )
+                if result.returncode != 0:
+                    logger.error(f"adb am start 失败: {result.stderr}")
+                    return False
+                logger.info(f"adb am start 成功: {package_or_bundle}/{short}")
+                return True
+            else:
+                self.driver.activate_app(package_or_bundle)
+                return True
         except Exception as e:
             logger.error(f"启动 App 失败: {package_or_bundle}/{activity}, {e}")
             return False

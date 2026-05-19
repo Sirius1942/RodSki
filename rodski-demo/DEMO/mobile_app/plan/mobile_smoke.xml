@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<test_plan id="mobile_smoke"
+           title="Android 移动端冒烟测试 v7.0.0"
+           kind="suite"
+           execute="是"
+           default_execute="是">
+</test_plan>

@@ -7,6 +7,7 @@
     <var name="AppPackage" value="com.rodski.demo"/>
     <var name="AppActivity" value="com.rodski.demo.LoginActivity"/>
     <var name="AppTarget" value="app://android/com.rodski.demo/com.rodski.demo.LoginActivity"/>
+    <var name="NoReset" value="true"/>
     <var name="WaitTime" value="3"/>
   </group>
   <group name="DemoSite">
