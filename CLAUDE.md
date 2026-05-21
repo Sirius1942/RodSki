@@ -27,12 +27,13 @@
 
 ## 不可违反的核心约束（摘自 CORE_DESIGN_CONSTRAINTS.md）
 
-### 关键字清单（15 个，不可随意新增）
+### 关键字清单（17 个，不可随意新增）
 
 ```python
 SUPPORTED = [
     "close", "type", "verify", "wait", "navigate", "launch",
-    "assert", "upload_file", "clear", "get_text", "get",
+    "assert", "evaluate", "screenshot",
+    "upload_file", "clear", "get_text", "get",
     "send", "set", "DB", "run",
 ]
 # 兼容关键字：check（等同 verify）

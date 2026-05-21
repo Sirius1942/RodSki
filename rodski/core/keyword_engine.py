@@ -108,7 +108,7 @@ class KeywordEngine:
     
     SUPPORTED = [
         "close", "type", "verify", "wait", "navigate", "launch",
-        "assert", "evaluate",
+        "assert", "evaluate", "screenshot",
         "upload_file", "clear", "get_text", "get",
         "send", "set", "DB", "run",
     ]

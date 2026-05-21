@@ -10,7 +10,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rodski"
-version = "7.0.1"
+version = "7.0.2"
 description = "RodSki 关键字驱动自动化测试框架 (DEV-ONLY, see root pyproject.toml)"
 requires-python = ">=3.8"
 

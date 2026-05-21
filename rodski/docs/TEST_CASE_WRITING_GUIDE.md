@@ -1,8 +1,8 @@
 # RodSki 用例编写指南
 
-**版本**: v7.0.0  
-**日期**: 2026-05-19  
-**适用框架**: RodSki v7.0.0+
+**版本**: v7.0.1  
+**日期**: 2026-05-21  
+**适用框架**: RodSki v7.0.1+
 
 ---
 
@@ -21,8 +21,9 @@
 11. [固定与动态测试步骤（规划）](#11-固定与动态测试步骤规划)
 12. [视觉定位器（vision / vision_bbox）](#12-视觉定位器vision--vision_bbox)
 13. [桌面端自动化（Desktop）](#13-桌面端自动化desktop)
-14. [附录：常见问题](#附录常见问题)
-15. [附录：测试结果 XML（result.xsd）](#附录测试结果-xmlresultxsd)
+14. [移动端自动化（Mobile）](#14-移动端自动化mobile)
+15. [附录：常见问题](#附录常见问题)
+16. [附录：测试结果 XML（result.xsd）](#附录测试结果-xmlresultxsd)
 
 ---
 
@@ -162,6 +163,28 @@ xmllint --noout --schema rodski/schemas/case.xsd product/DEMO/demo_site/case/dem
 | `priority` | 否 | 优先级 | `P0` / `P1` / `P2` / `P3`，CLI 可按优先级过滤 |
 | `expect_fail` | 否 | 预期失败 | `是` / `否`（默认 `否`），标记为预期失败的用例失败时不计入 FAIL |
 
+#### `<metadata>` 可选子元素
+
+每个 `<case>` 可包含一个 `<metadata>` 子元素（位于 `<pre_process>` 之前），用于记录用例元信息：
+
+| 属性 | 说明 |
+|------|------|
+| `created_by` | 创建者 |
+| `created_at` | 创建时间 |
+| `updated_by` | 最后修改者 |
+| `updated_at` | 最后修改时间 |
+| `success_rate` | 历史成功率 |
+| `last_run` | 最后执行时间 |
+
+```xml
+<case execute="是" id="c001" title="登录测试">
+  <metadata created_by="agent" created_at="2026-05-20" success_rate="95%"/>
+  <test_case>
+    <test_step action="type" model="Login" data="L001"/>
+  </test_case>
+</case>
+```
+
 ### 3.3 三阶段执行顺序与失败语义
 
 ```
@@ -279,6 +302,46 @@ xmllint --noout --schema rodski/schemas/case.xsd product/DEMO/demo_site/case/dem
 </cases>
 ```
 
+### 3.8 控制流结构（if/elif/else/loop）
+
+`case.xsd` 支持在 `<pre_process>`、`<test_case>`、`<post_process>` 及 `<scenario>` 内使用条件分支和循环容器。这些结构**不是独立关键字**，不在 SUPPORTED 列表中。
+
+#### `<if>` 条件分支
+
+```xml
+<test_case>
+  <test_step action="send" model="QueryAPI" data="Q001"/>
+  <if condition="${Return[-1].status} == 200">
+    <test_step action="verify" model="QueryAPI" data="V001"/>
+  <else>
+    <test_step action="screenshot" data="error.png"/>
+  </else>
+  </if>
+</test_case>
+```
+
+| 属性 | 必需 | 说明 |
+|------|------|------|
+| `condition` | 是 | 条件表达式，支持 `${Return[-N]}` 和变量引用 |
+
+**嵌套规则**：`<if>` 最多嵌套 2 层（外层 `<if>` 内可再嵌套一层 `<if>`，但第 2 层内不可再嵌套）。
+
+#### `<loop>` 循环
+
+```xml
+<test_case>
+  <loop range="1,5" var="i">
+    <test_step action="type" model="ItemForm" data="D00${i}"/>
+    <test_step action="verify" model="ItemForm" data="V00${i}"/>
+  </loop>
+</test_case>
+```
+
+| 属性 | 必需 | 说明 |
+|------|------|------|
+| `range` | 是 | 循环范围，如 `1,5`（从 1 到 5） |
+| `var` | 否 | 循环变量名，可在内部步骤中通过 `${var}` 引用 |
+
 ---
 
 ## 4. model.xml — 模型编写
@@ -288,7 +351,7 @@ xmllint --noout --schema rodski/schemas/case.xsd product/DEMO/demo_site/case/dem
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <models>
-  <model name="模型名称" servicename="">
+  <model name="模型名称" type="ui" driver_type="web" servicename="">
     <element name="元素名称" interfacename="" group="" type="web">
       <type>元素类型</type>
       <location type="定位类型" item="">定位值</location>
@@ -297,6 +360,16 @@ xmllint --noout --schema rodski/schemas/case.xsd product/DEMO/demo_site/case/dem
   </model>
 </models>
 ```
+
+#### `<model>` 属性
+
+| 属性 | 必需 | 说明 | 取值 |
+|------|------|------|------|
+| `name` | 是 | 模型名称，必须与数据表名一致 | — |
+| `type` | 否 | 模型类别（默认 `ui`） | `ui` / `interface` / `database` |
+| `driver_type` | 否 | 驱动类型，决定使用哪个驱动执行 | `web` / `interface` / `windows` / `macos` / `android` / `ios` / `other` |
+| `servicename` | 否 | 服务名（保留） | — |
+| `connection` | 否 | 数据库连接组名（仅 `type="database"` 时使用） | GlobalValue 中的组名 |
 
 ### 4.2 元素属性说明
 
@@ -998,8 +1071,8 @@ INSERT INTO rs_field VALUES ('PayAPI', 'D001', 'txn_no', 'TXN${date(today, %Y%m%
 
 | 关键字 | 说明 | model 属性 | data 属性 |
 |--------|------|-----------|-----------|
-| **navigate** | 导航到 URL（无浏览器时自动创建） | — | URL 或 GlobalValue 引用 |
-| **close** | 关闭浏览器 | — | — |
+| **navigate** | 导航到 URL（无浏览器时自动创建）；移动端支持 `app://android/包名/Activity` 和 `app://ios/BundleId` 格式启动 App | — | URL / GlobalValue 引用 / app:// URI |
+| **close** | 关闭浏览器及移动端驱动（同时释放 android/ios 驱动缓存） | — | — |
 | **type** | UI 批量输入（PC 端 / 移动端统一） | 模型名 | DataID |
 | **verify** | 批量验证（UI / 接口通用） | 模型名 | DataID（自动查 `模型名_verify` 表） |
 | **wait** | 等待指定秒数 | — | 秒数（如 `3`） |
@@ -1503,7 +1576,7 @@ case XML 中 <case execute="否">（最高，硬关闭）
 
 本节面向**用例编写者**：说明未来「固定 Case 步骤 + 动态插入步骤」并存时的**使用预期**与**编写约束**。具体架构与实现以《核心设计约束》**第 8 节**为准。
 
-### 10.1 你将看到什么
+### 11.1 你将看到什么
 
 | 类型 | 说明 |
 |------|------|
@@ -1512,21 +1585,21 @@ case XML 中 <case execute="否">（最高，硬关闭）
 
 两者将组成**一条实际执行序列**；日志与截图会使用**运行时序号**（包含动态步），而 Case 文件中的行序仍对应**固定步骤序号**。
 
-### 10.2 编写侧建议
+### 11.2 编写侧建议
 
 - 仍优先把**可重复、可评审**的步骤写进 Case XML；动态步骤适合「调试、探活、临时补一刀」等场景。
 - 需要在固定步与动态步之间传数据时，首版请使用 **GlobalValue** 或 **`set`** 等已有机制，**不要**在数据表字段里写依赖「动态步返回值」的 `${Return[...]}`（过渡期不支持）。
 
-### 10.3 `${Return[-1]}` 与 `-1` 语义（重要）
+### 11.3 `${Return[-1]}` 与 `-1` 语义（重要）
 
 - **`${Return[-1]}`**（及现有负索引）表示**固定步骤**执行链路上的「上一步」返回值，与当前版本语义一致。
 - **动态步骤**：在数据表 XML 中**不要**使用 `${Return}` 去引用动态步骤产生的结果；若框架后续支持，会在《核心设计约束》与本文单独发版说明。
 
-### 10.4 结果报告
+### 11.4 结果报告
 
 - 当前 `result/*.xml` 以**用例级**结果为主；若未来增加步骤级节点，会同步更新 **result.xsd** 与本文附录。
 
-### 10.5 暂停、插入、终止与服务端命令（规划）
+### 11.5 暂停、插入、终止与服务端命令（规划）
 
 在固定步骤**执行过程中**，可通过外部手段（CLI、GUI、**服务端**等）下发**控制类命令**，改变后续执行：
 
@@ -1543,16 +1616,16 @@ case XML 中 <case execute="否">（最高，硬关闭）
 
 ---
 
-## 11. 视觉定位器（vision / vision_bbox）
+## 12. 视觉定位器（vision / vision_bbox）
 
-### 11.1 概念
+### 12.1 概念
 
 视觉定位器通过 **OmniParser 服务** + **多模态 LLM** 实现语义定位，无需编写 xpath/css 选择器。
 
 **RodSki 职责**：执行 XML 定义的操作，支持视觉定位器  
 **Agent 职责**：探索页面，生成包含视觉定位器的 XML
 
-### 11.2 定位器格式
+### 12.2 定位器格式
 
 在 `model.xml` 中使用 `<location type="...">` 子元素：
 
@@ -1572,7 +1645,7 @@ case XML 中 <case execute="否">（最高，硬关闭）
 - `<location type="vision">描述</location>` — 语义描述，由 LLM 匹配
 - `<location type="vision_bbox">x1,y1,x2,y2</location>` — 像素坐标（Web）或屏幕绝对坐标（Desktop）
 
-### 11.3 Web 平台完整示例
+### 12.3 Web 平台完整示例
 
 **model.xml**：
 ```xml
@@ -1606,7 +1679,7 @@ case XML 中 <case execute="否">（最高，硬关闭）
 </row>
 ```
 
-### 11.4 配置要求
+### 12.4 配置要求
 
 **vision_config.yaml**（`rodski/config/vision_config.yaml`）：
 ```yaml
@@ -1626,7 +1699,7 @@ llm:
 export ANTHROPIC_API_KEY=your_api_key
 ```
 
-### 11.5 适用场景
+### 12.5 适用场景
 
 | 场景 | 推荐定位器 |
 |------|-----------|
@@ -1639,9 +1712,9 @@ export ANTHROPIC_API_KEY=your_api_key
 
 ---
 
-## 12. 桌面端自动化（Desktop）
+## 13. 桌面端自动化（Desktop）
 
-### 12.1 平台标识
+### 13.1 平台标识
 
 桌面平台使用操作系统类型作为 `driver_type`：
 
@@ -1659,7 +1732,7 @@ export ANTHROPIC_API_KEY=your_api_key
 </model>
 ```
 
-### 12.2 launch 关键字
+### 13.2 launch 关键字
 
 启动桌面应用（与 `navigate` 功能相同，场景不同）：
 
@@ -1671,7 +1744,7 @@ export ANTHROPIC_API_KEY=your_api_key
 <test_step action="launch" model="" data="TextEdit.app"/>
 ```
 
-### 12.3 vision_bbox 坐标约定
+### 13.3 vision_bbox 坐标约定
 
 桌面场景下 `vision_bbox` 使用**屏幕绝对坐标**：
 
@@ -1685,7 +1758,7 @@ export ANTHROPIC_API_KEY=your_api_key
 - 坐标为屏幕绝对像素坐标（左上角为 0,0）
 - 桌面应用执行时**默认全屏**，避免窗口位置变化导致坐标偏移
 
-### 12.4 桌面操作脚本（run 关键字）
+### 13.4 桌面操作脚本（run 关键字）
 
 桌面特有操作（剪贴板、组合键、窗口管理）通过 `run` 调用脚本：
 
@@ -1705,7 +1778,7 @@ export ANTHROPIC_API_KEY=your_api_key
 {"status": "success", "result": "..."}
 ```
 
-### 12.5 完整示例
+### 13.5 完整示例
 
 **case/desktop_demo.xml**：
 ```xml
@@ -1724,12 +1797,157 @@ export ANTHROPIC_API_KEY=your_api_key
 </case>
 ```
 
-### 12.6 约束
+### 13.6 约束
 
 - ❌ 桌面端不支持接口测试（无 `send` 关键字）
 - ❌ 不新增 `clipboard`、`key_combination`、`window` 等独立关键字
 - ✅ 桌面操作通过 `run` 调用脚本实现
 - ✅ 视觉定位为主，辅以命令行工具
+
+## 14. 移动端自动化（Mobile）
+
+### 14.1 平台标识
+
+移动端模型使用 `driver_type="android"` 或 `driver_type="ios"`：
+
+```xml
+<model name="QQMusicSearch" type="ui" driver_type="android">
+  <element name="searchInput" type="android">
+    <type>input</type>
+    <location type="id" priority="1">com.tencent.qqmusic:id/searchItem</location>
+    <location type="vision" priority="2">搜索输入框</location>
+  </element>
+</model>
+```
+
+### 14.2 启动 App（navigate + app:// URI）
+
+移动端通过 `navigate` + `app://` URI 启动应用：
+
+```xml
+<!-- Android -->
+<test_step action="navigate" model="" data="app://android/com.example.app/com.example.app.MainActivity"/>
+
+<!-- iOS -->
+<test_step action="navigate" model="" data="app://ios/com.example.app"/>
+```
+
+**URI 格式**：
+- Android: `app://android/{包名}/{Activity名}`（Activity 可省略）
+- iOS: `app://ios/{BundleId}`
+
+也可通过 GlobalValue 引用：
+
+```xml
+<test_step action="navigate" model="" data="GlobalValue.Mobile.AppTarget"/>
+```
+
+### 14.3 Mobile GlobalValue 配置
+
+```xml
+<globalvalue>
+  <group name="Mobile">
+    <var name="Platform" value="android"/>
+    <var name="AppiumServer" value="http://127.0.0.1:4723"/>
+    <var name="DeviceName" value="设备序列号"/>
+    <var name="AppPackage" value="com.example.app"/>
+    <var name="AppActivity" value="com.example.app.MainActivity"/>
+    <var name="AppTarget" value="app://android/com.example.app/com.example.app.MainActivity"/>
+    <var name="NoReset" value="true"/>
+    <var name="WaitTime" value="3"/>
+  </group>
+</globalvalue>
+```
+
+| Key | 说明 |
+|-----|------|
+| `Platform` | 平台类型：`android` / `ios` |
+| `AppiumServer` | Appium 服务地址 |
+| `DeviceName` | 设备名称或序列号 |
+| `AppPackage` | Android 包名 |
+| `AppActivity` | Android 启动 Activity |
+| `BundleId` | iOS Bundle ID |
+| `AppTarget` | app:// URI（供 navigate 使用） |
+| `NoReset` | 是否保留应用状态（`true`/`false`） |
+| `WaitTime` | 步骤间等待秒数 |
+
+### 14.4 视觉定位降级策略（v7.0.1）
+
+移动端 `vision` / `ocr` 定位器采用两级降级策略：
+
+1. **Accessibility Tree 匹配**（快速路径）：解析 View Hierarchy，按文本/content-desc 精确匹配
+2. **OmniParser 视觉模式**（降级路径）：截图后调用 OmniParser + LLM 语义匹配
+
+```
+vision 定位请求
+  → 尝试 Accessibility Tree 文本匹配（毫秒级）
+  → 匹配失败 → 截图 + OmniParser + LLM（秒级）
+  → 均失败 → ElementNotFoundError
+```
+
+**推荐实践**：移动端模型优先使用 `id`/`text` 传统定位器（priority=1），`vision` 作为降级兜底（priority=2）。
+
+### 14.5 完整示例
+
+**globalvalue.xml**：
+```xml
+<globalvalue>
+  <group name="Mobile">
+    <var name="Platform" value="android"/>
+    <var name="AppiumServer" value="http://127.0.0.1:4723"/>
+    <var name="DeviceName" value="AKRSUT1618000209"/>
+    <var name="AppPackage" value="com.tencent.qqmusic"/>
+    <var name="AppActivity" value="com.tencent.qqmusic.activity.AppStarterActivity"/>
+    <var name="AppTarget" value="app://android/com.tencent.qqmusic/com.tencent.qqmusic.activity.AppStarterActivity"/>
+    <var name="NoReset" value="true"/>
+  </group>
+</globalvalue>
+```
+
+**model.xml**：
+```xml
+<models>
+  <model name="QQMusicSearch" type="ui" driver_type="android">
+    <element name="searchInput" type="android">
+      <type>input</type>
+      <location type="id" priority="1">com.tencent.qqmusic:id/searchItem</location>
+      <location type="vision" priority="2">搜索输入框</location>
+    </element>
+    <element name="searchBtn" type="android">
+      <type>button</type>
+      <location type="text" priority="1">搜索</location>
+      <location type="vision" priority="2">搜索按钮</location>
+    </element>
+  </model>
+</models>
+```
+
+**case.xml**：
+```xml
+<cases tags="mobile,android">
+  <case execute="是" id="QQ001" title="QQ音乐搜索" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Mobile.AppTarget"/>
+      <test_step action="wait" model="" data="5"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="QQMusicSearch" data="S001"/>
+      <test_step action="wait" model="" data="3"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+</cases>
+```
+
+### 14.6 约束
+
+- ✅ 移动端 UI 操作统一使用 `type` 关键字（与 PC Web 一致）
+- ✅ `close` 同时关闭移动端驱动并释放 Appium session
+- ✅ 视觉定位器（vision/ocr/vision_bbox）在移动端完全支持
+- ❌ 移动端不支持 `evaluate`（无 JavaScript 执行环境）
+- ❌ 不新增 `swipe`、`long_press` 等独立关键字，通过数据表动作值或 `run` 脚本实现
 
 ## 附录：常见问题
 
@@ -1790,7 +2008,7 @@ Return 引用只应写在**数据表 XML 的 field 值中**，不要直接写在
 | `upload_file` | 上传文件 |
 | `clear` | 清空输入框 |
 | `get_text` | 已废弃，请改用 `get` |
-| `get` | 双模式取值：CSS 选择器 → UI 元素文本（低级补充）；变量名 → 命名变量读取（主路径） |
+| `get` | 三模式取值：model+DataID → 模型元素文本（推荐）；CSS 选择器 → UI 元素文本（低级补充）；变量名 → 命名变量读取 |
 | `screenshot` | 手动截图 |
 
 ### B. 接口关键字
@@ -1825,5 +2043,5 @@ Return 引用只应写在**数据表 XML 的 field 值中**，不要直接写在
 
 ---
 
-**文档版本**: v7.0.0
-**最后更新**: 2026-05-19
+**文档版本**: v7.0.1
+**最后更新**: 2026-05-21
