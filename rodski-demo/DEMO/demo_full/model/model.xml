@@ -71,7 +71,7 @@
         <sql>SELECT order_no, customer_name, total_amount FROM orders LIMIT :limit</sql>
     </query>
     <query name="insert" remark="插入订单">
-        <sql>INSERT INTO orders (order_no, customer_name, customer_phone, product_name, quantity, price, total_amount, status)
+        <sql>INSERT OR REPLACE INTO orders (order_no, customer_name, customer_phone, product_name, quantity, price, total_amount, status)
              VALUES (:order_no, :customer_name, :customer_phone, :product_name, :quantity, :price, :total_amount, :status)</sql>
     </query>
     <query name="get_by_id" remark="根据订单号查询">
