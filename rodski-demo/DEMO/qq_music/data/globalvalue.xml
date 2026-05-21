@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<globalvalue>
+  <group name="Mobile">
+    <var name="Platform" value="android"/>
+    <var name="AppiumServer" value="http://127.0.0.1:4723"/>
+    <var name="DeviceName" value="AKRSUT1618000209"/>
+    <var name="AppPackage" value="com.tencent.qqmusic"/>
+    <var name="AppActivity" value="com.tencent.qqmusic.activity.AppStarterActivity"/>
+    <var name="AppTarget" value="app://android/com.tencent.qqmusic/com.tencent.qqmusic.activity.AppStarterActivity"/>
+    <var name="NoReset" value="true"/>
+    <var name="WaitTime" value="3"/>
+  </group>
+</globalvalue>

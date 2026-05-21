@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases tags="mobile,android,qq_music">
+  <case execute="是" id="QQ001" title="QQ音乐搜索歌曲（vision locator 验收）"
+        component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model=""
+                 data="GlobalValue.Mobile.AppTarget"/>
+      <test_step action="wait" model="" data="5"/>
+    </pre_process>
+    <test_case>
+      <!-- 点击搜索入口（vision locator + Accessibility Tree） -->
+      <test_step action="type" model="QQMusicHome" data="H001"/>
+      <test_step action="wait" model="" data="2"/>
+      <!-- 输入歌曲名并搜索（vision 降级 + key_press） -->
+      <test_step action="type" model="QQMusicSearch" data="S001"/>
+      <test_step action="wait" model="" data="3"/>
+      <!-- 点击第一首搜索结果 -->
+      <test_step action="type" model="QQMusicSearch" data="S002"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+</cases>
