@@ -108,7 +108,7 @@ class KeywordEngine:
     
     SUPPORTED = [
         "close", "type", "verify", "wait", "navigate", "launch",
-        "assert", "evaluate",
+        "assert", "evaluate", "screenshot",
         "upload_file", "clear", "get_text", "get",
         "send", "set", "DB", "run",
     ]
@@ -879,10 +879,14 @@ class KeywordEngine:
                 try:
                     action_result = self._execute_element_action(value, locator, element_name, driver=target_driver)
                     if action_result is not None:
-                        operations.append(action_result)
-                        op_done = True
-                        logger.debug(f"  ↳ 定位器 {locator} 成功 (priority={loc.get('priority',1)})")
-                        break
+                        if action_result[2]:  # 操作成功
+                            operations.append(action_result)
+                            op_done = True
+                            logger.debug(f"  ↳ 定位器 {locator} 成功 (priority={loc.get('priority',1)})")
+                            break
+                        else:
+                            logger.debug(f"  ↳ 定位器 {locator} 动作失败，尝试下一个...")
+                            continue
 
                     display_value = value
                     input_value = value
@@ -897,7 +901,6 @@ class KeywordEngine:
                         logger.debug(f"  ↳ 定位器 {locator} 成功 (priority={loc.get('priority',1)})")
                         break
                     else:
-                        operations.append(('type', element_name, False))
                         logger.debug(f"  ↳ 定位器 {locator} 失败，尝试下一个...")
                 except Exception as e:
                     last_error = e

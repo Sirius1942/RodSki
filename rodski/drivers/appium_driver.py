@@ -10,6 +10,8 @@ import logging
 
 logger = logging.getLogger("rodski")
 
+_VISION_TYPES = {"vision", "ocr", "vision_bbox"}
+
 # 定位器类型到 AppiumBy 的映射
 _LOCATOR_MAP = {
     "id":    AppiumBy.ID,
@@ -51,6 +53,8 @@ class AppiumDriver(BaseDriver):
 
     def locate_element(self, locator_type: str, locator_value: str) -> Optional[Tuple[int, int, int, int]]:
         """定位元素，按 locator_type 映射到正确的 AppiumBy"""
+        if locator_type.lower() in _VISION_TYPES:
+            return self._locate_with_vision(locator_type, locator_value)
         try:
             by, value = self._resolve_locator(locator_type, locator_value)
             element = self.driver.find_element(by, value)
@@ -61,6 +65,69 @@ class AppiumDriver(BaseDriver):
         except Exception as e:
             logger.warning(f"元素定位失败: {locator_type}={locator_value}, error={e}")
             return None
+
+    def _locate_with_vision(self, locator_type: str, locator_value: str) -> Optional[Tuple[int, int, int, int]]:
+        """视觉定位：优先 Accessibility Tree 匹配，降级到 OmniParser"""
+        import tempfile, os
+        # 先尝试 Accessibility Tree 文本匹配（快速路径）
+        tree_bbox = self._locate_by_accessibility_tree(locator_value)
+        if tree_bbox:
+            return tree_bbox
+        # 降级到 OmniParser 视觉模式
+        from rodski.vision.locator import VisionLocator
+        tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+        tmp.close()
+        try:
+            self.driver.save_screenshot(tmp.name)
+            locator = VisionLocator(getattr(self, '_cfg', None))
+            return locator.locate(locator_type.lower(), locator_value, tmp.name)
+        except Exception as e:
+            logger.warning(f"视觉定位失败: {locator_type}={locator_value}, error={e}")
+            return None
+        finally:
+            os.unlink(tmp.name)
+
+    def _locate_by_accessibility_tree(self, semantic_label: str) -> Optional[Tuple[int, int, int, int]]:
+        """通过 Accessibility Tree 文本匹配定位元素"""
+        try:
+            tree_text, index_map = self.get_accessibility_tree()
+        except Exception as e:
+            logger.debug(f"获取 Accessibility Tree 失败: {e}")
+            return None
+        if len(index_map) < 10:
+            logger.debug("Tree 节点不足 10 个，跳过 Tree 匹配")
+            return None
+        # 精确文本匹配
+        label = semantic_label.strip().lower()
+        for idx, line in enumerate(tree_text.split('\n')):
+            content = line.split('>')[-1].replace('</>', '').strip().lower()
+            if label in content or content in label:
+                if idx in index_map:
+                    logger.info(f"Accessibility Tree 匹配成功: '{semantic_label}' -> index {idx}")
+                    return index_map[idx]
+        return None
+
+    def get_accessibility_tree(self) -> Tuple[str, dict]:
+        """序列化 View Hierarchy，返回 (文本, {index: (x1,y1,x2,y2)})"""
+        import xml.etree.ElementTree as ET
+        import re
+        root = ET.fromstring(self.driver.page_source)
+        lines, index_map, idx = [], {}, 0
+        for elem in root.iter():
+            text = (elem.get('text') or elem.get('label') or
+                    elem.get('content-desc') or '').strip()
+            rid = (elem.get('resource-id') or elem.get('name') or '').strip()
+            cls = (elem.get('class') or elem.get('type') or '').split('.')[-1]
+            clickable = elem.get('clickable') == 'true'
+            bounds = elem.get('bounds', '')
+            if not (text or (clickable and rid)):
+                continue
+            nums = re.findall(r'\d+', bounds)
+            if len(nums) == 4:
+                index_map[idx] = tuple(int(v) for v in nums)
+            lines.append(f"[{idx}]<{cls} clickable={clickable}>{text or rid}</>")
+            idx += 1
+        return '\n'.join(lines), index_map
 
     def _resolve_locator(self, locator_type: str, locator_value: str) -> tuple:
         """将 locator_type/locator_value 解析为 (AppiumBy, value) 元组"""
@@ -103,6 +170,13 @@ class AppiumDriver(BaseDriver):
         """输入文本（通过定位器）— 供 keyword_engine 调用"""
         try:
             strategy, value = locator.split("=", 1) if "=" in locator else ("id", locator)
+            if strategy.lower() in _VISION_TYPES:
+                bbox = self._locate_with_vision(strategy, value)
+                if bbox:
+                    x, y = (bbox[0] + bbox[2]) // 2, (bbox[1] + bbox[3]) // 2
+                    self.type_text(x, y, text)
+                    return True
+                return False
             by, val = self._resolve_locator(strategy, value)
             element = self.wait.until(EC.presence_of_element_located((by, val)))
             element.clear()
@@ -117,6 +191,13 @@ class AppiumDriver(BaseDriver):
         """点击元素（通过定位器）— 供 keyword_engine 调用"""
         try:
             strategy, value = locator.split("=", 1) if "=" in locator else ("id", locator)
+            if strategy.lower() in _VISION_TYPES:
+                bbox = self._locate_with_vision(strategy, value)
+                if bbox:
+                    x, y = (bbox[0] + bbox[2]) // 2, (bbox[1] + bbox[3]) // 2
+                    self.driver.tap([(x, y)])
+                    return True
+                return False
             by, val = self._resolve_locator(strategy, value)
             element = self.wait.until(EC.presence_of_element_located((by, val)))
             element.click()
@@ -156,14 +237,19 @@ class AppiumDriver(BaseDriver):
         """输入文字（先 tap 获取焦点，再通过 active_element.send_keys 输入）"""
         logger.debug(f"输入文字: ({x}, {y}), text={text}")
         self.driver.tap([(x, y)])
-        time.sleep(0.1)
-        active = self.driver.switch_to.active_element
-        if active is not None:
-            active.clear()
-            active.send_keys(text)
-        else:
-            # 回退：直接用 mobile: type 脚本
-            self.driver.execute_script("mobile: type", {"text": text})
+        time.sleep(0.3)
+        try:
+            active = self.driver.switch_to.active_element
+            if active is not None:
+                try:
+                    active.clear()
+                except Exception:
+                    pass
+                active.send_keys(text)
+                return
+        except Exception:
+            pass
+        self.driver.execute_script("mobile: type", {"text": text})
 
     def key_press(self, key: str) -> bool:
         """按下按键，支持 Android keycode 名称（大小写不敏感）"""
@@ -203,8 +289,20 @@ class AppiumDriver(BaseDriver):
             return False
 
     def get_text(self, x1: int, y1: int, x2: int, y2: int) -> str:
-        """获取文字"""
-        return ""
+        """获取指定区域内元素的文字"""
+        cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+        try:
+            elems = self.driver.find_elements(
+                AppiumBy.XPATH, '//*[@text!="" or @content-desc!=""]'
+            )
+            for e in elems:
+                r = e.rect
+                if (r['x'] <= cx <= r['x'] + r['width'] and
+                        r['y'] <= cy <= r['y'] + r['height']):
+                    return e.text or e.get_attribute('content-desc') or ''
+        except Exception as ex:
+            logger.warning(f"get_text 失败: ({x1},{y1},{x2},{y2}), {ex}")
+        return ''
 
     def take_screenshot(self) -> str:
         """截图"""

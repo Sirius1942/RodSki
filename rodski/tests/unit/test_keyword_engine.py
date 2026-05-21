@@ -112,7 +112,7 @@ class TestKeywordEngine:
 
     def test_get_keywords(self, engine):
         keywords = engine.get_keywords()
-        assert len(keywords) == 16
+        assert len(keywords) == 17
         assert "click" not in keywords
         assert "verify" in keywords
         assert "open" not in keywords

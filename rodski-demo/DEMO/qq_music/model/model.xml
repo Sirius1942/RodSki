@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<models>
+  <!-- QQ音乐首页 -->
+  <model name="QQMusicHome" type="ui" driver_type="android">
+    <element name="searchEntry" type="android">
+      <type>button</type>
+      <location type="vision" priority="1">搜索入口</location>
+    </element>
+  </model>
+
+  <!-- QQ音乐搜索页 -->
+  <model name="QQMusicSearch" type="ui" driver_type="android">
+    <element name="searchInput" type="android">
+      <type>input</type>
+      <location type="id" priority="1">com.tencent.qqmusic:id/searchItem</location>
+      <location type="vision" priority="2">搜索输入框</location>
+    </element>
+    <element name="searchBtn" type="android">
+      <type>button</type>
+      <location type="text" priority="1">搜索</location>
+      <location type="vision" priority="2">搜索按钮</location>
+    </element>
+    <element name="firstResult" type="android">
+      <type>button</type>
+      <location type="vision" priority="1">第一首歌曲</location>
+    </element>
+  </model>
+
+  <!-- QQ音乐播放验证 -->
+  <model name="QQMusicPlayer" type="ui" driver_type="android">
+    <element name="playStatus" type="android">
+      <type>text</type>
+      <location type="vision" priority="1">播放控制区域</location>
+    </element>
+    <element name="songTitle" type="android">
+      <type>text</type>
+      <location type="vision" priority="1">歌曲标题</location>
+    </element>
+  </model>
+</models>

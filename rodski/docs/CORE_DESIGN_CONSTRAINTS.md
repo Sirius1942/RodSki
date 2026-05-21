@@ -1,7 +1,7 @@
 # RodSki 核心设计约束
 
-**版本**: v7.0.0
-**日期**: 2026-05-19
+**版本**: v7.0.2
+**日期**: 2026-05-21
 
 本文档记录 RodSki 框架的核心设计决策与约束规则，所有后续开发必须遵循。
 
@@ -168,16 +168,17 @@ RodSki 支持 12 种定位器类型，分为传统定位器和视觉定位器两
 
 | 类型 | 格式 | 说明 | 示例 |
 |------|------|------|------|
-| `vision` | 图片匹配 | 通过截图/图片模板匹配定位 | `<location type="vision">img/login_btn.png</location>` |
+| `vision` | 语义描述 | 通过 OmniParser + LLM 语义匹配定位（移动端优先 Accessibility Tree） | `<location type="vision">登录按钮</location>` |
 | `ocr` | 文字识别 | 通过 OCR 识别文字定位 | `<location type="ocr">登录</location>` |
 | `vision_bbox` | 坐标定位 | 直接使用坐标 `x1,y1,x2,y2` | `<location type="vision_bbox">100,200,150,250</location>` |
 
 **视觉定位器说明**：
 
-- **`vision` 图片定位器**：
-  - 值为图片路径（相对于 `images/` 目录）
-  - 通过图像匹配算法（如 OpenCV 模板匹配）定位
-  - 适用于：按钮图标、Logo、固定 UI 元素
+- **`vision` 语义定位器**：
+  - 值为语义描述文本（如"登录按钮"、"搜索输入框"）
+  - 通过 OmniParser 解析页面元素 + LLM 语义匹配定位
+  - 移动端优先通过 Accessibility Tree 文本匹配（快速路径），失败后降级到 OmniParser
+  - 适用于：动态 ID/class 的元素、无明显属性的元素、跨语言测试
 
 - **`ocr` 文字定位器**：
   - 值为要识别的文字内容
@@ -412,18 +413,18 @@ test_${random(str, 6)}@example.com        → test_aB3kP9@example.com
 
 ---
 
-## 5. 当前关键字清单（15 个）
+## 5. 当前关键字清单（17 个）
 
 ```
 SUPPORTED = [
     "close", "type", "verify", "wait", "navigate", "launch",
-    "assert",
+    "assert", "evaluate", "screenshot",
     "upload_file", "clear", "get_text", "get",
     "send", "set", "DB", "run",
 ]
 ```
 
-加上 1 个兼容关键字 `check`（等同 `verify`）。
+加上兼容关键字：`check`（等同 `verify`）。
 
 **设计原则**：关键字数量应保持精简，新增关键字前需评估是否可以通过现有批量模式（数据表字段值）实现。
 
@@ -930,17 +931,17 @@ RodSki 的测试必须严格区分为两层：
 
 | 定位器类型 | 格式 | 说明 | 示例 |
 |-----------|------|------|------|
-| `vision` | `<location type="vision">图片路径</location>` | 图片模板匹配定位 | `<location type="vision">img/login_btn.png</location>` |
+| `vision` | `<location type="vision">语义描述</location>` | OmniParser + LLM 语义匹配定位 | `<location type="vision">登录按钮</location>` |
 | `ocr` | `<location type="ocr">文字</location>` | OCR文字识别定位 | `<location type="ocr">登录</location>` |
 | `vision_bbox` | `<location type="vision_bbox">x1,y1,x2,y2</location>` | 坐标定位（Agent 探索生成） | `<location type="vision_bbox">100,200,150,250</location>` |
 
 ### 10.3 模型定义格式
 
 ```xml
-<!-- 图片定位 -->
+<!-- 语义定位（OmniParser + LLM 匹配） -->
 <element name="loginBtn" type="web">
     <type>button</type>
-    <location type="vision">img/login_btn.png</location>
+    <location type="vision">登录按钮</location>
 </element>
 
 <!-- OCR文字定位 -->
@@ -1028,7 +1029,7 @@ rodski generate-model --elements elements.json \
 - ❌ 不新增 `vision_click`、`vision_input` 等关键字
 - ❌ 不在 Case XML 中直接写坐标
 - ✅ 视觉定位作为模型定位器类型
-- ✅ 复用现有 14 个关键字
+- ✅ 复用现有关键字（见 §5）
 - ✅ 坐标信息记录在模型 XML 中
 
 ---
@@ -1703,7 +1704,7 @@ test:
 
 ---
 
-*文档版本: v7.0.0 | 最后更新: 2026-05-19*
+*文档版本: v7.0.2 | 最后更新: 2026-05-21*
 
 ## 统一运行时上下文约束（§10）
 
