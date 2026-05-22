@@ -14,8 +14,5 @@
             <test_step action="wait" model="" data="0.5"/>
             <test_step action="run" model="desktop_ops" data="mouse_click.py 200 200 left"/>
         </test_case>
-        <post_process>
-            <test_step action="run" model="desktop_ops" data="key_combo.py command+q"/>
-        </post_process>
     </case>
 </cases>

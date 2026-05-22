@@ -15,9 +15,6 @@
             <test_step action="wait" model="" data="2"/>
             <test_step action="screenshot" model="" data="tc040_02_after_refresh.png"/>
         </test_case>
-        <post_process>
-            <test_step action="run" model="desktop_ops" data="close_tab.py"/>
-        </post_process>
     </case>
 
 </cases>

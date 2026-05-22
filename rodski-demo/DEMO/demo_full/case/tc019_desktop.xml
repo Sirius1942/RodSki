@@ -24,13 +24,6 @@
             <test_step action="run" model="desktop_ops" data="key_combo.py ctrl+c"/>
             <test_step action="wait" model="" data="0.5"/>
 
-            <!-- 关闭应用 (Windows: Alt+F4, macOS: Cmd+Q) -->
-            <!-- Windows: -->
-            <!-- <test_step action="run" model="desktop_ops" data="key_combo.py alt+f4"/> -->
-
-            <!-- macOS: -->
-            <!-- <test_step action="run" model="desktop_ops" data="key_combo.py command+q"/> -->
-
             <!-- 鼠标点击示例 (坐标需要根据实际屏幕调整) -->
             <!-- <test_step action="run" model="desktop_ops" data="mouse_click.py 100 200 left"/> -->
         </test_case>

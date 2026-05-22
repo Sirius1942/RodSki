@@ -10,8 +10,5 @@
       <test_step action="run" model="" data="fun/desktop/key_combo.py Ctrl+A"/>
       <test_step action="run" model="" data="fun/desktop/clipboard_copy.py"/>
     </test_case>
-    <post_process>
-      <test_step action="run" model="" data="fun/desktop/key_combo.py Alt+F4"/>
-    </post_process>
   </case>
 </cases>
