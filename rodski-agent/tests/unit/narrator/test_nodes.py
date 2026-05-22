@@ -72,6 +72,69 @@ def demo_project(tmp_path):
     return tmp_path, case_file
 
 
+@pytest.fixture
+def database_demo_project(tmp_path):
+    case_dir = tmp_path / "case"
+    model_dir = tmp_path / "model"
+    data_dir = tmp_path / "data"
+    case_dir.mkdir()
+    model_dir.mkdir()
+    data_dir.mkdir()
+
+    (data_dir / "globalvalue.xml").write_text(dedent("""\
+        <?xml version="1.0" encoding="UTF-8"?>
+        <globalvalue>
+            <group name="DbConfig">
+                <var name="type" value="sqlite"/>
+                <var name="database" value="data/test.db"/>
+            </group>
+        </globalvalue>
+    """), encoding="utf-8")
+
+    (model_dir / "model.xml").write_text(dedent("""\
+        <?xml version="1.0" encoding="UTF-8"?>
+        <models>
+            <model name="QuerySQL" type="database" connection="DbConfig" servicename="订单查询">
+                <query name="QueryByOrderNo" remark="按订单号查询">
+                    <sql>SELECT order_no, status FROM orders WHERE order_no = :order_no</sql>
+                </query>
+            </model>
+        </models>
+    """), encoding="utf-8")
+
+    (data_dir / "data.xml").write_text(dedent("""\
+        <?xml version="1.0" encoding="UTF-8"?>
+        <datatables>
+            <datatable name="QuerySQL">
+                <row id="Q001">
+                    <field name="query">QueryByOrderNo</field>
+                    <field name="order_no">ORD001</field>
+                </row>
+            </datatable>
+            <datatable name="QuerySQL_verify">
+                <row id="V001">
+                    <field name="order_no">ORD001</field>
+                    <field name="status">PAID</field>
+                </row>
+            </datatable>
+        </datatables>
+    """), encoding="utf-8")
+
+    case_file = case_dir / "tc_database.xml"
+    case_file.write_text(dedent("""\
+        <?xml version="1.0" encoding="UTF-8"?>
+        <cases>
+            <case execute="是" id="TC020" title="SQLite查询订单" description="数据库查询订单" component_type="数据库">
+                <test_case>
+                    <test_step action="DB" model="QuerySQL" data="Q001"/>
+                </test_case>
+            </case>
+        </cases>
+    """), encoding="utf-8")
+
+    return tmp_path, case_file
+
+
 # ============================================================
 # resolve_case 节点
 # ============================================================
@@ -188,6 +251,63 @@ def test_narrate_llm_failure_graceful(demo_project):
 
     assert len(result["narratives"]) == 1
     assert "生成失败" in result["narratives"][0]["markdown"]
+
+
+def test_narrate_database_case_renders_sql(database_demo_project):
+    from rodski_agent.narrator.nodes import narrate
+
+    _, case_file = database_demo_project
+    state = {
+        "case_path": str(case_file),
+        "resolved_cases": [
+            {
+                "id": "TC020",
+                "title": "SQLite查询订单",
+                "description": "数据库查询订单",
+                "component_type": "数据库",
+                "steps": [
+                    {
+                        "action": "DB",
+                        "model_name": "QuerySQL",
+                        "data_id": "Q001",
+                        "display_data": "Q001",
+                        "data_fields": {"query": "QueryByOrderNo", "order_no": "ORD001"},
+                        "db_info": {
+                            "model_type": "database",
+                            "service_name": "订单查询",
+                            "connection_name": "DbConfig",
+                            "database_type": "sqlite",
+                            "database": "data/test.db",
+                            "database_path": str(Path(database_demo_project[0]) / "data" / "test.db"),
+                            "data_table": "QuerySQL",
+                            "query_name": "QueryByOrderNo",
+                            "query_remark": "按订单号查询",
+                            "operation": "query",
+                            "sql_template": "SELECT order_no, status FROM orders WHERE order_no = :order_no",
+                            "resolved_sql": "SELECT order_no, status FROM orders WHERE order_no = 'ORD001'",
+                            "sql_tables": ["orders"],
+                            "parameters": {"order_no": "ORD001"},
+                            "verify": {
+                                "table_name": "QuerySQL_verify",
+                                "data_id": "V001",
+                                "fields": {"order_no": "ORD001", "status": "PAID"},
+                            },
+                        },
+                    }
+                ],
+            }
+        ],
+    }
+
+    result = narrate(state)
+
+    assert len(result["narratives"]) == 1
+    markdown = result["narratives"][0]["markdown"]
+    assert "## TC020: SQLite查询订单" in markdown
+    assert "模板SQL" in markdown
+    assert "SELECT order_no, status FROM orders WHERE order_no = :order_no" in markdown
+    assert "ORD001" in markdown
+    assert "关键校验" in markdown
 
 
 # ============================================================

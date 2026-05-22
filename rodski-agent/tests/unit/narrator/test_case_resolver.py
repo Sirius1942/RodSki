@@ -95,6 +95,70 @@ def demo_project(tmp_path):
     return tmp_path, case_file
 
 
+@pytest.fixture
+def database_demo_project(tmp_path):
+    """创建最小化的数据库 narrate 项目结构。"""
+    case_dir = tmp_path / "case"
+    model_dir = tmp_path / "model"
+    data_dir = tmp_path / "data"
+    case_dir.mkdir()
+    model_dir.mkdir()
+    data_dir.mkdir()
+
+    (data_dir / "globalvalue.xml").write_text(dedent("""\
+        <?xml version="1.0" encoding="UTF-8"?>
+        <globalvalue>
+            <group name="DbConfig">
+                <var name="type" value="sqlite"/>
+                <var name="database" value="data/test.db"/>
+            </group>
+        </globalvalue>
+    """), encoding="utf-8")
+
+    (model_dir / "model.xml").write_text(dedent("""\
+        <?xml version="1.0" encoding="UTF-8"?>
+        <models>
+            <model name="QuerySQL" type="database" connection="DbConfig" servicename="订单查询">
+                <query name="QueryByOrderNo" remark="按订单号查询">
+                    <sql>SELECT order_no, status FROM orders WHERE order_no = :order_no</sql>
+                </query>
+            </model>
+        </models>
+    """), encoding="utf-8")
+
+    (data_dir / "data.xml").write_text(dedent("""\
+        <?xml version="1.0" encoding="UTF-8"?>
+        <datatables>
+            <datatable name="QuerySQL">
+                <row id="Q001">
+                    <field name="query">QueryByOrderNo</field>
+                    <field name="order_no">ORD001</field>
+                </row>
+            </datatable>
+            <datatable name="QuerySQL_verify">
+                <row id="V001">
+                    <field name="order_no">ORD001</field>
+                    <field name="status">PAID</field>
+                </row>
+            </datatable>
+        </datatables>
+    """), encoding="utf-8")
+
+    case_file = case_dir / "tc_database.xml"
+    case_file.write_text(dedent("""\
+        <?xml version="1.0" encoding="UTF-8"?>
+        <cases>
+            <case execute="是" id="TC020" title="SQLite查询订单" description="数据库查询订单" component_type="数据库">
+                <test_case>
+                    <test_step action="DB" model="QuerySQL" data="Q001"/>
+                </test_case>
+            </case>
+        </cases>
+    """), encoding="utf-8")
+
+    return tmp_path, case_file
+
+
 # ============================================================
 # 测试：基础解析
 # ============================================================
@@ -220,3 +284,20 @@ def test_missing_model_graceful(demo_project):
     cases = resolver.resolve()
     assert cases[0].steps[0].elements == []
     assert cases[0].steps[0].data_fields == {}
+
+
+def test_resolve_database_step(database_demo_project):
+    from rodski_agent.narrator.case_resolver import CaseResolver
+
+    _, case_file = database_demo_project
+    resolver = CaseResolver(str(case_file))
+    cases = resolver.resolve()
+
+    step = cases[0].steps[0]
+    assert step.display_data == "Q001"
+    assert step.db_info["model_type"] == "database"
+    assert step.db_info["query_name"] == "QueryByOrderNo"
+    assert step.db_info["sql_template"] == "SELECT order_no, status FROM orders WHERE order_no = :order_no"
+    assert step.db_info["resolved_sql"] == "SELECT order_no, status FROM orders WHERE order_no = 'ORD001'"
+    assert step.db_info["verify"]["table_name"] == "QuerySQL_verify"
+    assert step.db_info["verify"]["fields"]["status"] == "PAID"
