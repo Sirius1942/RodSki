@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<globalvalue>
+  <group name="PerceptionConfig">
+    <!-- Backend 选择：local（rodski-perception via ollama）-->
+    <var name="perception_backend" value="local"/>
+
+    <!-- LocalBackend 配置 -->
+    <var name="perception_model" value="qwen3-vl:2b"/>
+    <var name="ollama_host" value="http://localhost:11434"/>
+
+    <!-- 评测/调试用：是否保存推理过程的标注图 -->
+    <var name="perception_save_annotated" value="false"/>
+  </group>
+
+  <group name="TestEnv">
+    <var name="test_app_url" value="http://localhost:8000"/>
+  </group>
+</globalvalue>

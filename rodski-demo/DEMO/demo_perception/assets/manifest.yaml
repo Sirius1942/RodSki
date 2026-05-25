@@ -1,0 +1,29 @@
+# vision_image 参考图采集 manifest
+# 坐标基于原图（3840×1800 Retina）像素
+# 用 crop_templates.py batch 命令生成
+
+source_images:
+  login: _sources/login_screen.png      # 登录页（含 RodSki 测试平台标题 + admin 已填的用户名 + 登录按钮）
+  after: _sources/after_login.png       # 登录后 Dashboard（右上角有 admin 用户标识）
+
+crops:
+  - name: username_input
+    source: login
+    # 包含 "admin" 文字的输入框
+    bbox: [1580, 780, 2260, 880]
+
+  - name: password_input
+    source: login
+    # 包含 "•••••" 的密码输入框
+    bbox: [1580, 900, 2260, 1000]
+
+  - name: login_btn
+    source: login
+    # 紫色 "登录" 按钮
+    bbox: [1580, 1060, 2260, 1160]
+
+  - name: welcome_msg
+    source: after
+    # 右上角 admin 用户标识（登录成功后才出现，作为登录状态视觉锚点）
+    # 注：避开右侧红色"退出"按钮
+    bbox: [3040, 30, 3170, 90]

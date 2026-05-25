@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  v7.1.0 perception 冒烟计划
+  计划 ID 必须与文件名 stem 一致：perception_smoke
+-->
+<plan id="perception_smoke" title="Perception 纯vision 冒烟计划">
+  <description>
+    验证 rodski + rodski-perception (LocalBackend, ollama, Qwen3-VL 2B)
+    端到端纯 vision 定位能力。
+  </description>
+  <cases>
+    <ref file="tc_vision_only.xml" id="TC001"/>
+    <ref file="tc_vision_only.xml" id="TC002"/>
+    <ref file="tc_vision_only.xml" id="TC003"/>
+  </cases>
+</plan>
