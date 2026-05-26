@@ -15,6 +15,13 @@ dependencies = [
     "requests>=2.28",
 ]
 
+[project.optional-dependencies]
+# v7.1.0 perception 插件（LocalPerceptionBackend，基于本地 ollama + Qwen3-VL）。
+# 通过 entry_points group "rodski.perception_backends" 自动注册；rodski
+# 核心 import 时不会触发该包加载。未来扩展：
+#   perception-remote = ["rodski-omni-client>=0.1.0"]
+perception = ["rodski-perception>=0.2.0"]
+
 [project.scripts]
 rodski = "rodski.rodski_cli:main"
 

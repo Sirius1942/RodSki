@@ -168,28 +168,53 @@ RodSki 支持 12 种定位器类型，分为传统定位器和视觉定位器两
 
 | 类型 | 格式 | 说明 | 示例 |
 |------|------|------|------|
-| `vision` | 语义描述 | 通过 OmniParser + LLM 语义匹配定位（移动端优先 Accessibility Tree） | `<location type="vision">登录按钮</location>` |
-| `ocr` | 文字识别 | 通过 OCR 识别文字定位 | `<location type="ocr">登录</location>` |
-| `vision_bbox` | 坐标定位 | 直接使用坐标 `x1,y1,x2,y2` | `<location type="vision_bbox">100,200,150,250</location>` |
+| `vision` | 语义描述 | 通过 rodski-perception 插件调用 VLM（默认 Qwen3-VL via ollama）语义匹配定位；移动端优先 Accessibility Tree 文本匹配 | `<location type="vision">登录按钮</location>` |
+| `vision_image` | 参考图路径 | **rodski 核心** OpenCV 模板匹配（多尺度），离线、毫秒级、像素精确 | `<location type="vision_image">../assets/login_btn.png</location>` |
+| `ocr` | 文字识别 | 通过本地 OCR 引擎（PaddleOCR/EasyOCR）识别文字定位 | `<location type="ocr">登录</location>` |
+| `vision_bbox` | 坐标定位 | 直接使用坐标 `x1,y1,x2,y2`，零依赖 | `<location type="vision_bbox">100,200,150,250</location>` |
 
 **视觉定位器说明**：
 
-- **`vision` 语义定位器**：
+- **`vision` 语义定位器（v7.1.0 重构）**：
   - 值为语义描述文本（如"登录按钮"、"搜索输入框"）
-  - 通过 OmniParser 解析页面元素 + LLM 语义匹配定位
-  - 移动端优先通过 Accessibility Tree 文本匹配（快速路径），失败后降级到 OmniParser
-  - 适用于：动态 ID/class 的元素、无明显属性的元素、跨语言测试
+  - 通过 rodski-perception 插件（LocalBackend / RemoteBackend）调用 VLM 定位
+  - 移动端优先通过 Accessibility Tree 文本匹配（快速路径），失败后降级到 VLM
+  - **需要安装 perception 插件**：`pip install rodski[perception]` + 本地 ollama
+  - 适用于：动态 ID/class 的元素、无明显属性的元素、跨语言测试、缺少参考图
+
+- **`vision_image` 图片模板匹配定位器（v7.1.0 新增）**：
+  - 值为参考图路径（相对 model.xml 目录或绝对路径，支持 `${var}` 变量）
+  - 通过 OpenCV `matchTemplate` + 多尺度匹配 (TM_CCOEFF_NORMED)
+  - **rodski 核心实现**，仅依赖 opencv-python，不需要 perception 插件
+  - 默认相似度阈值 0.85，匹配延迟 < 50ms（1920×1080）
+  - 适用于：UI 稳定、有参考截图、需要极速且像素级精度
+  - 副产物：每次成功匹配产生（截图, element_type, bbox）三元组，可作为后续训练自有 YOLO 的标注数据来源
 
 - **`ocr` 文字定位器**：
   - 值为要识别的文字内容
-  - 通过 OmniParser OCR 能力识别文字位置
+  - 通过本地 OCR 引擎识别文字位置（rodski 核心，不需要 perception 插件）
   - 适用于：按钮文字、标签、链接文字
 
 - **`vision_bbox` 坐标定位器**：
   - 值为坐标 `x1,y1,x2,y2`（逗号分隔）
-  - 无需 AI 调用，性能最高
+  - 无任何 AI 调用，性能最高
   - Web 用页面像素坐标，Desktop 用屏幕绝对坐标
-  - 适用于：坐标固定的元素
+  - 适用于：坐标固定的元素、调试兜底
+
+**视觉定位器与 rodski-perception 插件的关系**：
+
+```
+┌─────────────┬─────────────────────────┬───────────────────┐
+│ 定位器       │ 实现位置                │ 需要 perception ? │
+├─────────────┼─────────────────────────┼───────────────────┤
+│ vision      │ rodski-perception 插件   │ ✅ 是              │
+│ vision_image│ rodski 核心 (OpenCV)    │ ❌ 否              │
+│ ocr         │ rodski 核心 (PaddleOCR) │ ❌ 否              │
+│ vision_bbox │ rodski 核心 (坐标解析)  │ ❌ 否              │
+└─────────────┴─────────────────────────┴───────────────────┘
+```
+
+**正交原则**：rodski 核心不依赖 perception 插件。未安装 perception 时，`vision_image` / `ocr` / `vision_bbox` 仍可正常使用；仅 `vision` 在执行时报 `PerceptionUnavailableError`。
 
 ### 2.5.3 定位器格式约束
 
@@ -217,14 +242,15 @@ RodSki 支持 12 种定位器类型，分为传统定位器和视觉定位器两
 
 ### 2.5.4 多定位器格式
 
-每个元素可定义多个定位器，失败时自动切换：
+每个元素可定义多个定位器。根据 `priority` 是否声明，**触发两种不同语义**：
+
+#### 模式一：顺序回退（priority 各不相同，v6.x 已有）
 
 ```xml
-<element name="loginBtn" type="web">
-    <type>button</type>
-    <location type="id" priority="1">loginBtn</location>
-    <location type="xpath" priority="2">//button[@class='login']</location>
-    <location type="ocr" priority="3">登录</location>
+<element name="loginBtn" type="button">
+    <location type="vision_image" priority="1">../assets/login_btn.png</location>
+    <location type="ocr"          priority="2">登录</location>
+    <location type="vision"       priority="3">登录按钮</location>
 </element>
 ```
 
@@ -233,34 +259,190 @@ RodSki 支持 12 种定位器类型，分为传统定位器和视觉定位器两
 2. 当前定位器定位失败时，自动切换到下一个
 3. 所有定位器都失败时，抛出 `ElementNotFoundError`
 
-**使用场景**：
-- 传统定位器作为首选，视觉定位作为兜底
-- 动态页面优先使用视觉定位
-- 提高测试用例的健壮性
+**使用场景**：稳定主路径 + 柔性兜底。
+
+#### 模式二：融合裁决（无 priority 或同 priority，v7.1.0 新增）
+
+```xml
+<element name="loginBtn" type="button">
+    <location type="vision_image">../assets/login_btn.png</location>
+    <location type="ocr">登录</location>
+    <location type="vision">登录按钮</location>
+</element>
+```
+
+**裁决规则**：
+1. 所有定位器**并行**执行，各自得到 bbox + confidence
+2. 计算两两 bbox 的 IoU，**IoU > 0.5 的归为一组（共识）**
+3. 每组得分 = `Σ (confidence_i × weight[type_i])`
+   - 默认权重：`vision_image`: 1.0，`ocr`: 0.8，`vision`: 0.6
+   - element 的 `type` 属性（button/input/text/...）作为先验透传给 backend，与之一致的命中 +0.2 加成
+4. 返回最高分聚类的中心点 + 综合 `confidence`
+5. 所有定位器都失败 → `ElementNotFoundError`
+
+**置信度判定**：
+- 3 个定位器达成共识 → 高置信度（≥ 0.85）
+- 2 个定位器共识 → 中置信度，记录偏离项供调优
+- 0 个共识 → 取最高分单项，warning 日志
+
+**使用场景**：UI 稳定性未知、需要更高定位精度、自动产出高质量标注数据用于未来训练 YOLO 等小模型。
+
+**判定方法（解析层）**：
+- 所有 `<location>` 都有显式 `priority` 且各不相同 → 模式一
+- 全部缺省 `priority` 或全部相同 → 模式二
+- 部分有部分无 → 校验失败（XSD），不允许混用
 
 ### 2.5.5 示例对比
 
-同一个登录按钮的三种定位方式：
+同一个登录按钮的四种定位方式：
 
 ```xml
-<!-- 方式1: 图片匹配 - 使用按钮截图 -->
-<element name="loginBtn" type="web">
-    <type>button</type>
-    <location type="vision">img/login_btn.png</location>
+<!-- 方式1: vision_image 图片模板匹配（v7.1.0 新增，rodski 核心，离线、极速） -->
+<element name="loginBtn" type="button">
+    <location type="vision_image">../assets/login_btn.png</location>
 </element>
 
-<!-- 方式2: OCR文字识别 - 识别"登录"二字 -->
-<element name="loginBtn" type="web">
-    <type>button</type>
+<!-- 方式2: vision 语义定位（需要 rodski-perception 插件 + ollama VLM） -->
+<element name="loginBtn" type="button">
+    <location type="vision">登录按钮</location>
+</element>
+
+<!-- 方式3: OCR 文字识别 - 识别"登录"二字 -->
+<element name="loginBtn" type="button">
     <location type="ocr">登录</location>
 </element>
 
-<!-- 方式3: 坐标定位 - Agent探索后生成 -->
-<element name="loginBtn" type="web">
-    <type>button</type>
+<!-- 方式4: 融合裁决（v7.1.0 新增）- 三种定位器并行，共识裁决 -->
+<element name="loginBtn" type="button">
+    <location type="vision_image">../assets/login_btn.png</location>
+    <location type="ocr">登录</location>
+    <location type="vision">登录按钮</location>
+</element>
+
+<!-- 方式5: 坐标定位 - 固定位置兜底 -->
+<element name="loginBtn" type="button">
     <location type="vision_bbox">100,200,150,250</location>
 </element>
 ```
+
+---
+
+## 2.6 Perception 插件机制（v7.1.0）
+
+### 2.6.1 设计原则
+
+**正交插件，rodski 核心不依赖**：
+
+- rodski 核心**不依赖**任何 perception 实现。未安装任何 backend 时，rodski 其他能力（DB、Web、Mobile、Desktop、vision_image、ocr、vision_bbox）**全部正常**；仅 `<location type="vision">` 在执行时报 `PerceptionUnavailableError`。
+- 未来新增 backend（如远程 omni、第三方 backend）**不需要修改 rodski 源码**——通过 Python `entry_points` 注册即可被发现。
+- 接口契约稳定后，rodski 和 rodski-perception 可独立迭代版本。
+
+### 2.6.2 抽象接口（rodski/vision/perception_interface.py）
+
+```python
+@dataclass
+class PerceptionResult:
+    bbox: tuple[int, int, int, int]   # 千分比 [0, 1000]
+    coordinates: tuple[int, int]       # 像素坐标（中心点）
+    target_description: str
+    confidence: float | None = None
+    consensus_count: int = 0           # 融合裁决中达成共识的 hint 数
+    latency_ms: int = 0
+
+class PerceptionBackend(ABC):
+    name: str = "abstract"
+    capabilities: set[str] = set()     # {"locate", "locate_many", "locate_fused"}
+
+    @abstractmethod
+    def is_available(self) -> bool: ...
+
+    @abstractmethod
+    def locate(self, image_path, description) -> PerceptionResult | None: ...
+
+    def locate_many(self, image_path, descriptions) -> list[...]:
+        """默认实现为多次 locate；backend 可重载为单次推理。"""
+
+    def locate_fused(self, image_path, hints, element_type=None) -> PerceptionResult | None:
+        """融合裁决：hints = [{'type': 'ocr'|'vision_image'|'vision', 'value': '...'}, ...]"""
+```
+
+### 2.6.3 插件发现（entry_points）
+
+backend 项目通过 `pyproject.toml` 注册：
+
+```toml
+# rodski-perception/pyproject.toml
+[project.entry-points."rodski.perception_backends"]
+local = "rodski_perception.backend:LocalPerceptionBackend"
+
+# 未来 - rodski-omni-client
+[project.entry-points."rodski.perception_backends"]
+remote = "rodski_omni_client.backend:RemotePerceptionBackend"
+```
+
+rodski 运行时通过 `importlib.metadata.entry_points(group="rodski.perception_backends")` 自动发现。
+
+### 2.6.4 backend 选择策略
+
+```
+优先级：globalvalue.xml 显式指定 > local（自动发现） > remote（自动发现） > 报错
+```
+
+配置项（globalvalue.xml）：
+
+```xml
+<global>
+    <var name="perception_backend"   value="local"/>          <!-- local | remote -->
+    <var name="perception_model"     value="qwen3-vl:2b"/>    <!-- local 用 -->
+    <var name="ollama_host"          value="http://localhost:11434"/>
+    <var name="perception_server"    value="http://omni.example.com"/>  <!-- remote 用 -->
+</global>
+```
+
+环境变量覆盖：`RODSKI_PERCEPTION_BACKEND`、`RODSKI_PERCEPTION_MODEL`、`OLLAMA_HOST`、`RODSKI_PERCEPTION_SERVER`
+
+### 2.6.5 内置 backend
+
+| backend | 来源项目 | 实现 | 状态 |
+|---------|---------|------|------|
+| `local` | rodski-perception | 本地 ollama + Qwen3-VL（默认 2B） | v7.1.0 交付 |
+| `remote` | rodski-omni-client（独立项目） | HTTP 调用 omni 服务端 | v7.1.0 仅契约，实现后置 |
+
+### 2.6.6 安装方式
+
+```bash
+# 仅核心（vision_image / ocr / vision_bbox 可用，vision 不可用）
+pip install rodski
+
+# 核心 + 本地 perception
+pip install rodski[perception]
+brew install ollama && brew services start ollama
+ollama pull qwen3-vl:2b
+
+# 核心 + 远程 perception（未来）
+pip install rodski[perception-remote]
+# 配置 perception_server 地址
+```
+
+### 2.6.7 与定位器的对应关系
+
+| 定位器 | 是否走 backend | 走哪个接口 |
+|--------|---------------|-----------|
+| `vision_bbox` | ❌ 不走 | 直接解析坐标 |
+| `vision_image` | ❌ 不走 | rodski 核心 ImageTemplateMatcher (OpenCV) |
+| `ocr` | ❌ 不走 | rodski 核心 OCRLocator |
+| `vision` (单 location) | ✅ 走 | `backend.locate()` |
+| 多 location 顺序回退 (有 priority) | 各自走自己的路径 | 仅 vision 那一项走 backend |
+| 多 location 融合裁决 (无 priority) | ✅ 走 | `backend.locate_fused(hints)` |
+
+### 2.6.8 错误处理约束
+
+- 未安装 backend + 用 `vision` → `PerceptionUnavailableError`（含安装指引），**不允许**抛 `ImportError` 栈
+- 已安装 backend + ollama 不可达 → `OllamaUnreachableError`（含启动指引），CLI 退出码 3
+- 融合裁决所有 hints 都失败 → 返回 `None`，由 driver 抛 `ElementNotFoundError`
+- `vision_image` 参考图不存在 → 明确文件路径错误，**不允许**抛 OpenCV 底层栈
+
+详细设计见 `.pb/specs/v7.1.0-perception-design.md`。
 
 ---
 

@@ -1,11 +1,13 @@
-"""视觉定位集成测试 - 端到端流程验证
+"""视觉定位集成测试 - 端到端流程验证 (v7.1.0 重构后)
 
-不依赖 pytest，使用 RodSki 自有测试框架
-所有外部调用（OmniParser/LLM/pyautogui）均 mock
+不依赖 pytest 的固有断言，使用 RodSki 自有测试框架。
+所有外部调用（PerceptionBackend / pyautogui）均 mock。
+
+v7.1.0 起：OmniClient 已删除，``vision`` 走 PerceptionRegistry +
+backend；本集成测试通过 Registry.register 注入 stub backend 验证链路。
 """
 import sys
 import os
-import tempfile
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 
@@ -14,32 +16,66 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from vision.locator import VisionLocator
 from vision.cache import VisionCache
+from vision.perception_interface import (
+    PerceptionBackend,
+    PerceptionResult,
+    PerceptionUnavailableError,
+)
+from vision.registry import PerceptionRegistry
+
+
+class _IntegrationStubBackend(PerceptionBackend):
+    name = "local"
+    capabilities = {"locate"}
+
+    def __init__(self, **kwargs):
+        pass
+
+    def is_available(self):
+        return True
+
+    def locate(self, image_path, description, element_type=None):
+        return PerceptionResult(
+            bbox=(500, 600, 700, 800),
+            coordinates=(600, 700),
+            target_description=description,
+            confidence=0.9,
+        )
 
 
 class TestVisionLocatorIntegration:
-    """端到端：vision:描述 → OmniParser → LLM → 匹配 → 坐标"""
+    """端到端：vision:描述 → PerceptionRegistry → backend → 坐标"""
 
-    def test_vision_locator_full_flow(self):
-        """完整流程：语义定位 via locate_legacy"""
-        with patch('vision.omni_client.requests.post') as mock_post, \
-             patch('vision.locator.VisionLocator._locate_by_vision') as mock_vision:
-
-            # Mock _locate_by_vision 直接返回 bbox（跳过 OmniParser + LLM 内部逻辑）
-            mock_vision.return_value = (500, 600, 700, 800)
-
+    def test_vision_locator_with_stub_backend(self, tmp_path):
+        """注入 stub backend → vision 定位返回 backend 给出的坐标。"""
+        PerceptionRegistry.reset()
+        PerceptionRegistry.register("local", _IntegrationStubBackend)
+        try:
+            png = tmp_path / "s.png"
+            png.write_bytes(b"\x89PNG" + b"\x00" * 10)
             locator = VisionLocator()
-            cx, cy = locator.locate_legacy('vision:登录按钮', driver=Mock())
+            bbox = locator.locate("vision", "登录按钮", str(png))
+            assert bbox == (500, 600, 700, 800)
+        finally:
+            PerceptionRegistry.reset()
 
-            assert isinstance(cx, (int, float))
-            assert isinstance(cy, (int, float))
-            assert mock_vision.called
+    def test_vision_no_backend_raises(self, tmp_path):
+        """无任何 backend → PerceptionUnavailableError，含安装指引。"""
+        PerceptionRegistry.reset()
+        png = tmp_path / "s.png"
+        png.write_bytes(b"\x89PNG" + b"\x00" * 10)
+        locator = VisionLocator()
+        try:
+            locator.locate("vision", "登录按钮", str(png))
+            assert False, "expected PerceptionUnavailableError"
+        except PerceptionUnavailableError as exc:
+            assert "pip install rodski[perception]" in str(exc)
 
 
 class TestVisionBboxIntegration:
-    """vision_bbox 坐标计算（无需 mock）"""
+    """vision_bbox 坐标计算（无需任何 backend）"""
 
     def test_bbox_to_coords(self):
-        """bbox 字符串 → 中心坐标（通过 locate_legacy）"""
         locator = VisionLocator()
         cx, cy = locator.locate_legacy('vision_bbox:100,200,150,250')
         assert cx == 125
@@ -50,16 +86,9 @@ class TestCacheIntegration:
     """缓存生效验证"""
 
     def test_cache_reduces_calls(self):
-        """同路径第二次调用不触发 OmniParser"""
         cache = VisionCache(ttl=60)
-
-        # 使用 bytes 作为缓存 key（避免依赖文件系统）
         screenshot_bytes = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01'
-
-        # 第一次：设置缓存
         cache.set(screenshot_bytes, {"elements": [{'bbox': [0.1, 0.2, 0.3, 0.4]}]})
-
-        # 第二次：命中缓存
         result = cache.get(screenshot_bytes)
         assert result is not None
         assert 'elements' in result
@@ -70,8 +99,6 @@ class TestDesktopDriverIntegration:
     """桌面驱动集成"""
 
     def test_desktop_driver_launch(self):
-        """launch + 验证 subprocess 调用"""
-        # Mock pyautogui 在 sys.modules 中，避免 _require_pyautogui 的真实 import
         mock_pyautogui = MagicMock()
         mock_pyautogui.FAILSAFE = True
         mock_pyautogui.PAUSE = 0.05

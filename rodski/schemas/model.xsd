@@ -135,6 +135,7 @@
       <xs:enumeration value="vision"/>
       <xs:enumeration value="ocr"/>
       <xs:enumeration value="vision_bbox"/>
+      <xs:enumeration value="vision_image"/>
     </xs:restriction>
   </xs:simpleType>
 

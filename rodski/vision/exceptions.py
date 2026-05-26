@@ -74,10 +74,17 @@ class ElementNotFoundError(VisionError):
 
 
 class OmniParserError(VisionError):
-    """OmniParser 服务调用异常
+    """OmniParser / 外部视觉服务调用异常（v7.1.0 起标记为遗留）
+
+    .. deprecated:: v7.1.0
+        OmniClient 已从 rodski 核心移除，由 ``PerceptionBackend`` 抽象 +
+        外部 backend 插件（如 ``rodski-perception``）取代。本异常类仍保留
+        给向后兼容用户代码使用；新代码应抛 :py:class:`~rodski.vision.\
+perception_interface.PerceptionUnavailableError` 或 backend 自身定义
+        的异常。
 
     建议：
-    1. 检查 OmniParser 服务是否正常运行
+    1. 检查外部视觉服务是否正常运行
     2. 确认服务 URL 和端口配置正确
     3. 查看服务端日志排查具体错误
     """

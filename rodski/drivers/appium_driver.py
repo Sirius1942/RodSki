@@ -67,20 +67,30 @@ class AppiumDriver(BaseDriver):
             return None
 
     def _locate_with_vision(self, locator_type: str, locator_value: str) -> Optional[Tuple[int, int, int, int]]:
-        """视觉定位：优先 Accessibility Tree 匹配，降级到 OmniParser"""
+        """视觉定位：优先 Accessibility Tree 匹配，降级到 PerceptionBackend / OCR / bbox。
+
+        v7.1.0 起：``vision`` 通过 ``PerceptionRegistry`` 取 backend；
+        backend 不可用时抛 ``PerceptionUnavailableError``（含安装指引），
+        不再被 except 吞掉。
+        """
         import tempfile, os
-        # 先尝试 Accessibility Tree 文本匹配（快速路径）
-        tree_bbox = self._locate_by_accessibility_tree(locator_value)
-        if tree_bbox:
-            return tree_bbox
-        # 降级到 OmniParser 视觉模式
+        # 先尝试 Accessibility Tree 文本匹配（快速路径，仅对自然语言描述类有意义）
+        if locator_type.lower() == "vision":
+            tree_bbox = self._locate_by_accessibility_tree(locator_value)
+            if tree_bbox:
+                return tree_bbox
+        # 降级到截图 + VisionLocator（vision 经 PerceptionBackend；ocr / vision_bbox 走内置实现）
         from rodski.vision.locator import VisionLocator
+        from rodski.vision.perception_interface import PerceptionUnavailableError
         tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
         tmp.close()
         try:
             self.driver.save_screenshot(tmp.name)
             locator = VisionLocator(getattr(self, '_cfg', None))
             return locator.locate(locator_type.lower(), locator_value, tmp.name)
+        except PerceptionUnavailableError:
+            # 明确的 perception 不可用错误必须向上传播，让用例失败信息清晰
+            raise
         except Exception as e:
             logger.warning(f"视觉定位失败: {locator_type}={locator_value}, error={e}")
             return None

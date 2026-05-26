@@ -462,23 +462,16 @@ class KeywordEngine:
         self,
         element_info: Dict[str, Any]
     ) -> Optional[Tuple[int, int, int, int]]:
-        """尝试多个定位器，按 priority 依次尝试
+        """尝试多个定位器，按 priority 依次尝试或融合裁决
 
         Args:
             element_info: 元素信息，包含 locations 列表
-                {
-                    'type': 主定位器类型,
-                    'value': 主定位器值,
-                    'locations': [
-                        {'type': 'id', 'value': 'username', 'priority': 1},
-                        {'type': 'ocr', 'value': '用户名', 'priority': 2}
-                    ]
-                }
 
         Returns:
             边界框坐标 (x1, y1, x2, y2)，所有定位器都失败返回 None
         """
         locations = element_info.get("locations", [])
+        locator_mode = element_info.get("locator_mode", "sequential")
 
         if not locations:
             # 兼容旧格式：使用主定位器
@@ -487,7 +480,11 @@ class KeywordEngine:
             if loc_type and loc_value:
                 locations = [{"type": loc_type, "value": loc_value, "priority": 1}]
 
-        # 按 priority 排序
+        # 融合裁决模式：多 hint 并行，由 perception backend 共识裁决
+        if locator_mode == "fused" and len(locations) > 1:
+            return self._try_fused_locators(locations, element_info)
+
+        # 顺序回退模式（v6 行为）
         sorted_locations = sorted(locations, key=lambda x: x.get("priority", 1))
 
         for loc in sorted_locations:
@@ -495,7 +492,17 @@ class KeywordEngine:
             locator_value = loc["value"]
 
             try:
-                bbox = self.driver.locate_element(locator_type, locator_value)
+                if locator_type == "vision_image":
+                    # vision_image 由 rodski 核心实现（OpenCV 模板匹配），
+                    # 不经过 driver.locate_element（driver 不知道如何识别图片）。
+                    bbox = self._locate_by_vision_image(locator_value)
+                elif locator_type == "vision":
+                    # vision (VLM 语义定位) 通过 PerceptionRegistry 取 backend
+                    # 路由（v7.1.0）。backend 不可用时抛 PerceptionUnavailableError，
+                    # 用例需要看到清晰的安装指引而不是模糊的"元素未找到"。
+                    bbox = self._locate_by_perception(locator_value, loc)
+                else:
+                    bbox = self.driver.locate_element(locator_type, locator_value)
                 if bbox:
                     logger.info(f"定位成功: {locator_type}={locator_value}")
                     return bbox
@@ -503,11 +510,273 @@ class KeywordEngine:
                 # 驱动不支持该定位器类型，跳过
                 logger.debug(f"驱动不支持定位器类型: {locator_type}")
                 continue
+            except FileNotFoundError as e:
+                # vision_image 参考图不存在：明确报错而非静默跳过
+                logger.error(f"定位器 {locator_type}={locator_value} 文件错误: {e}")
+                raise
             except Exception as e:
+                # PerceptionUnavailableError 必须向上传播，否则用例只能看到
+                # 一句模糊的"元素定位失败"，违反 v7.1.0 错误处理契约
+                try:
+                    from ..vision.perception_interface import (
+                        PerceptionUnavailableError,
+                    )
+                except ImportError:
+                    from vision.perception_interface import (  # type: ignore
+                        PerceptionUnavailableError,
+                    )
+                if isinstance(e, PerceptionUnavailableError):
+                    raise
                 logger.warning(f"定位器 {locator_type}={locator_value} 失败: {e}")
                 continue
 
         return None
+
+    def _try_fused_locators(
+        self,
+        locations: List[Dict[str, Any]],
+        element_info: Dict[str, Any],
+    ) -> Optional[Tuple[int, int, int, int]]:
+        """融合裁决模式：调用 perception backend.locate_fused。"""
+        try:
+            from ..vision.perception_interface import (
+                LocatorHint,
+                PerceptionUnavailableError,
+            )
+            from ..vision.registry import PerceptionRegistry
+        except ImportError:
+            from vision.perception_interface import (  # type: ignore
+                LocatorHint,
+                PerceptionUnavailableError,
+            )
+            from vision.registry import PerceptionRegistry  # type: ignore
+
+        registry = PerceptionRegistry()
+        backend = registry.get_backend()
+        if backend is None or not backend.is_available():
+            raise PerceptionUnavailableError()
+
+        # 截图
+        screenshot_path = self.driver.take_screenshot()
+        element_type = element_info.get("element_type", None)
+
+        # 构建 hints（解析参考图路径）
+        hints = []
+        for loc in locations:
+            loc_type = loc["type"]
+            loc_value = loc["value"]
+            # vision_image 需要解析为绝对路径
+            if loc_type == "vision_image":
+                try:
+                    from ..vision.image_matcher import resolve_template_path
+                except ImportError:
+                    from vision.image_matcher import resolve_template_path  # type: ignore
+                model_dir = None
+                if self.model_parser is not None:
+                    xml_path = getattr(self.model_parser, "xml_path", None)
+                    if xml_path is not None:
+                        model_dir = str(Path(xml_path).parent)
+                loc_value = str(resolve_template_path(
+                    loc_value, model_dir=model_dir, global_vars=self._global_vars
+                ))
+            hints.append(LocatorHint(type=loc_type, value=loc_value))
+
+        logger.info("融合裁决: hints=%s element_type=%s", [(h.type, h.value) for h in hints], element_type)
+        result = backend.locate_fused(screenshot_path, hints, element_type=element_type)
+        if result is None:
+            logger.warning("融合裁决: 所有 hints 均失败")
+            return None
+
+        logger.info(
+            "融合裁决成功: confidence=%.2f consensus=%d bbox=%s",
+            result.confidence, result.consensus_count, result.bbox,
+        )
+        # DPR 校正
+        return self._scale_bbox_to_viewport(result.bbox, screenshot_path)
+
+    def _locate_by_vision_image(
+        self,
+        template_value: str,
+    ) -> Optional[Tuple[int, int, int, int]]:
+        """vision_image 定位：截图 + OpenCV 模板匹配。
+
+        实现细节：
+            1. 通过 ``model_parser.xml_path`` 推导参考图相对路径基目录
+            2. 通过 ``self._global_vars`` 替换 ``${var}`` 引用
+            3. 调用 driver.take_screenshot() 取当前屏幕
+            4. ImageTemplateMatcher.locate 返回 bbox（截图像素坐标）
+            5. 若驱动是 web 且 screenshot 分辨率 > viewport（Retina DPR>1），
+               将 bbox 缩放回 viewport 逻辑像素，使后续 click/type_text 可直接用
+
+        FileNotFoundError 会向上传播，由调用方判定是否致命。
+        """
+        try:
+            from ..vision.image_matcher import (
+                ImageTemplateMatcher,
+                resolve_template_path,
+            )
+        except ImportError:
+            from vision.image_matcher import (
+                ImageTemplateMatcher,
+                resolve_template_path,
+            )
+
+        # 1. 解析参考图绝对路径
+        model_dir: Optional[str] = None
+        if self.model_parser is not None:
+            try:
+                xml_path = getattr(self.model_parser, "xml_path", None)
+                if xml_path is not None:
+                    model_dir = str(Path(xml_path).parent)
+            except Exception:
+                model_dir = None
+
+        template_path = resolve_template_path(
+            template_value,
+            model_dir=model_dir,
+            global_vars=self._global_vars,
+        )
+
+        # 2. 截图
+        screenshot_path = self.driver.take_screenshot()
+
+        # 3. 模板匹配
+        matcher = ImageTemplateMatcher()
+        t0 = time.time()
+        bbox = matcher.locate(screenshot_path, template_path)
+        elapsed_ms = int((time.time() - t0) * 1000)
+        logger.info(
+            "vision_image 定位 template=%s screenshot=%s bbox=%s latency=%dms",
+            template_path, screenshot_path, bbox, elapsed_ms,
+        )
+        if bbox is None:
+            return None
+
+        # 4. 截图像素 → viewport 逻辑像素（DPR 校正）
+        # Playwright 在 Retina/headed 模式下截图分辨率 = viewport × devicePixelRatio。
+        # click()/type_text() 接收 viewport 逻辑坐标，因此 bbox 需要按比例缩放。
+        scaled = self._scale_bbox_to_viewport(bbox, screenshot_path)
+        return scaled
+
+    def _locate_by_perception(
+        self,
+        description: str,
+        loc: Dict[str, Any],
+    ) -> Optional[Tuple[int, int, int, int]]:
+        """vision (VLM 语义定位) 通过 PerceptionRegistry 取 backend 路由。
+
+        - 截图来自 ``self.driver.take_screenshot()``
+        - 通过 ``PerceptionRegistry.get_backend(config)`` 取 backend；
+          backend 不可用时抛 :class:`PerceptionUnavailableError`（含
+          ``pip install rodski[perception]`` 与 ``ollama pull`` 指引）
+        - backend 找不到目标返回 None；上层会尝试下一个 location 或最终
+          报"未找到元素"
+
+        本方法**不吞** ``PerceptionUnavailableError``——遵循 v7.1.0 §2.6.8
+        错误处理契约。
+        """
+        try:
+            from ..vision.perception_interface import (
+                PerceptionUnavailableError,
+            )
+            from ..vision.registry import PerceptionRegistry
+        except ImportError:  # 兼容直接以 rodski/ 为 sys.path 的运行模式
+            from vision.perception_interface import (  # type: ignore
+                PerceptionUnavailableError,
+            )
+            from vision.registry import PerceptionRegistry  # type: ignore
+
+        # 1. 组装 backend 配置：global_vars 中可携带 perception_backend /
+        #    perception_model / ollama_host 等键
+        cfg: Dict[str, Any] = {}
+        if self._global_vars:
+            for key in (
+                "perception_backend", "perception_model",
+                "ollama_host", "perception_server",
+            ):
+                if key in self._global_vars:
+                    cfg[key] = self._global_vars[key]
+
+        # 2. 取 backend（PerceptionUnavailableError 会自然抛出）
+        backend = PerceptionRegistry.get_backend(cfg)
+
+        # 3. 截图
+        screenshot_path = self.driver.take_screenshot()
+
+        # 4. 调 backend
+        element_type = loc.get("element_type") or loc.get("type_hint")
+        try:
+            result = backend.locate(
+                screenshot_path, description, element_type=element_type,
+            )
+        except TypeError:
+            # 旧版 backend 可能没有 element_type 参数
+            result = backend.locate(screenshot_path, description)
+
+        if result is None:
+            logger.debug(
+                "perception backend %r 未定位到 %r",
+                getattr(backend, "name", "?"), description,
+            )
+            return None
+
+        bbox = tuple(result.bbox)  # type: ignore[assignment]
+        # 同 vision_image：DPR 校正使 click/type_text 直接可用
+        return self._scale_bbox_to_viewport(bbox, screenshot_path)
+
+    def _scale_bbox_to_viewport(
+        self,
+        bbox: Tuple[int, int, int, int],
+        screenshot_path: str,
+    ) -> Tuple[int, int, int, int]:
+        """将截图像素坐标 bbox 转换为 viewport 逻辑像素。
+
+        非 web 驱动或无法获取 viewport 时原样返回。
+        """
+        try:
+            page = getattr(self.driver, "page", None)
+            if page is None:
+                return bbox
+            # 优先 viewport_size；headed `no_viewport=True` 时 viewport_size 为 None，
+            # 回退到 window.innerWidth/innerHeight 拿到逻辑像素尺寸。
+            vw = vh = None
+            vp = None
+            try:
+                vp = page.viewport_size
+            except Exception:
+                vp = None
+            if vp and vp.get("width") and vp.get("height"):
+                vw, vh = vp["width"], vp["height"]
+            else:
+                try:
+                    vw = int(page.evaluate("window.innerWidth"))
+                    vh = int(page.evaluate("window.innerHeight"))
+                except Exception:
+                    return bbox
+            if not vw or not vh:
+                return bbox
+            from PIL import Image
+            with Image.open(screenshot_path) as img:
+                sw, sh = img.size
+            if sw == vw and sh == vh:
+                return bbox
+            sx = vw / float(sw)
+            sy = vh / float(sh)
+            x1, y1, x2, y2 = bbox
+            scaled = (
+                int(round(x1 * sx)),
+                int(round(y1 * sy)),
+                int(round(x2 * sx)),
+                int(round(y2 * sy)),
+            )
+            logger.debug(
+                "DPR 校正 bbox screenshot=%dx%d viewport=%dx%d %s -> %s",
+                sw, sh, vw, vh, bbox, scaled,
+            )
+            return scaled
+        except Exception as exc:
+            logger.debug("DPR 校正失败（沿用原 bbox）: %s", exc)
+            return bbox
 
     def _is_vision_locator(self, locator_type: str) -> bool:
         """判断是否是视觉定位器类型"""
@@ -866,10 +1135,55 @@ class KeywordEngine:
             locations = element_info.get('locations', [])
             if not locations:
                 locations = [{"type": element_info['locator_type'], "value": element_info['locator_value'], "priority": 1}]
-            sorted_locations = sorted(locations, key=lambda x: x.get("priority", 1))
+
+            locator_mode = element_info.get('locator_mode', 'sequential')
 
             op_done = False
             last_error = None
+
+            # 融合裁决模式：通过 _try_fused_locators 获取 bbox，然后执行动作
+            if locator_mode == "fused" and len(locations) > 1:
+                bbox = self._try_fused_locators(locations, element_info)
+                if bbox:
+                    x1, y1, x2, y2 = bbox
+                    cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+                    v_lower = value.strip().lower()
+                    if v_lower in {"click", "double_click", "right_click", "hover"}:
+                        logger.debug(f"{element_name}: {v_lower} @({cx},{cy}) via fused")
+                        if v_lower == "click":
+                            target_driver.click(cx, cy)
+                        elif v_lower == "double_click":
+                            target_driver.double_click(cx, cy)
+                        elif v_lower == "right_click":
+                            target_driver.right_click(cx, cy)
+                        elif v_lower == "hover":
+                            target_driver.hover(cx, cy)
+                        operations.append((v_lower, element_name, True))
+                    else:
+                        input_value = value
+                        display_value = value
+                        if input_value.endswith('.Password'):
+                            input_value = input_value[:-9]
+                            display_value = '***'
+                        logger.debug(f"{element_name}: fused @({cx},{cy}) <- '{display_value}'")
+                        target_driver.click(cx, cy)
+                        page = getattr(target_driver, "page", None)
+                        if page is not None:
+                            try:
+                                import sys as _sys
+                                select_combo = "Meta+A" if _sys.platform == "darwin" else "Control+A"
+                                page.keyboard.press(select_combo)
+                                page.keyboard.press("Delete")
+                            except Exception as _exc:
+                                logger.debug(f"fused 清空已有内容失败（忽略）: {_exc}")
+                        target_driver.type_text(cx, cy, input_value)
+                        operations.append(('type', element_name, True))
+                    op_done = True
+                if op_done:
+                    continue
+                # fused failed, fall through to raise error below
+
+            sorted_locations = sorted(locations, key=lambda x: x.get("priority", 1))
 
             for loc in sorted_locations:
                 locator_type = loc["type"]
@@ -877,6 +1191,115 @@ class KeywordEngine:
                 locator = f"{locator_type}={locator_value}"
 
                 try:
+                    # ── vision (VLM 语义定位) 也走坐标路径 ──
+                    # 与 vision_image 一样，命中后通过 coord-based 驱动 API
+                    # 完成动作。未装 backend → PerceptionUnavailableError 直接抛出。
+                    if locator_type == "vision":
+                        bbox = self._locate_by_perception(locator_value, loc)
+                        if not bbox:
+                            logger.debug(f"  ↳ 定位器 {locator} 未命中，尝试下一个...")
+                            continue
+                        x1, y1, x2, y2 = bbox
+                        cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+                        v_lower = value.strip().lower()
+                        if v_lower in {"click", "double_click", "right_click", "hover"}:
+                            logger.debug(f"{element_name}: {v_lower} @({cx},{cy}) via vision")
+                            if v_lower == "click":
+                                target_driver.click(cx, cy)
+                            elif v_lower == "double_click":
+                                target_driver.double_click(cx, cy)
+                            elif v_lower == "right_click":
+                                target_driver.right_click(cx, cy)
+                            elif v_lower == "hover":
+                                target_driver.hover(cx, cy)
+                            operations.append((v_lower, element_name, True))
+                            op_done = True
+                            logger.debug(f"  ↳ 定位器 {locator} 成功 (priority={loc.get('priority',1)})")
+                            break
+                        else:
+                            input_value = value
+                            display_value = value
+                            if input_value.endswith('.Password'):
+                                input_value = input_value[:-9]
+                                display_value = '***'
+                            logger.debug(f"{element_name}: vision @({cx},{cy}) <- '{display_value}'")
+                            target_driver.click(cx, cy)
+                            page = getattr(target_driver, "page", None)
+                            if page is not None:
+                                try:
+                                    import sys as _sys
+                                    select_combo = "Meta+A" if _sys.platform == "darwin" else "Control+A"
+                                    page.keyboard.press(select_combo)
+                                    page.keyboard.press("Delete")
+                                except Exception as _exc:
+                                    logger.debug(f"vision 清空已有内容失败（忽略）: {_exc}")
+                            target_driver.type_text(cx, cy, input_value)
+                            operations.append(('type', element_name, True))
+                            op_done = True
+                            logger.debug(f"  ↳ 定位器 {locator} 成功 (priority={loc.get('priority',1)})")
+                            break
+
+                    # ── vision_image (以及未来的视觉定位器) 走坐标路径 ──
+                    # vision_image 由 ImageTemplateMatcher 处理，不能用 CSS 选择器路径。
+                    # 命中后通过 coord-based 驱动 API (click/type_text) 完成动作。
+                    if locator_type == "vision_image":
+                        try:
+                            bbox = self._locate_by_vision_image(locator_value)
+                        except FileNotFoundError as ferr:
+                            # 参考图文件缺失：致命，向上抛
+                            raise DriverError(
+                                f"vision_image 参考图文件不存在: {locator_value}",
+                                locator=locator,
+                                cause=ferr,
+                            )
+                        if not bbox:
+                            logger.debug(f"  ↳ 定位器 {locator} 未命中模板，尝试下一个...")
+                            continue
+                        x1, y1, x2, y2 = bbox
+                        cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+                        v_lower = value.strip().lower()
+                        if v_lower in {"click", "double_click", "right_click", "hover"}:
+                            display = v_lower
+                            logger.debug(f"{element_name}: {v_lower} @({cx},{cy}) via vision_image")
+                            if v_lower == "click":
+                                target_driver.click(cx, cy)
+                            elif v_lower == "double_click":
+                                target_driver.double_click(cx, cy)
+                            elif v_lower == "right_click":
+                                target_driver.right_click(cx, cy)
+                            elif v_lower == "hover":
+                                target_driver.hover(cx, cy)
+                            operations.append((v_lower, element_name, True))
+                            op_done = True
+                            logger.debug(f"  ↳ 定位器 {locator} 成功 (priority={loc.get('priority',1)})")
+                            break
+                        else:
+                            # 文本输入：先点击聚焦 → 全选清空 → 输入新文本
+                            display_value = value
+                            input_value = value
+                            if input_value.endswith('.Password'):
+                                input_value = input_value[:-9]
+                                display_value = '***'
+                            logger.debug(f"{element_name}: vision_image @({cx},{cy}) <- '{display_value}'")
+                            # 1) 点击聚焦
+                            target_driver.click(cx, cy)
+                            # 2) 全选 + 删除（兼容 Mac/Windows/Linux）
+                            page = getattr(target_driver, "page", None)
+                            if page is not None:
+                                try:
+                                    import sys as _sys
+                                    select_combo = "Meta+A" if _sys.platform == "darwin" else "Control+A"
+                                    page.keyboard.press(select_combo)
+                                    page.keyboard.press("Delete")
+                                except Exception as _exc:
+                                    logger.debug(f"vision_image 清空已有内容失败（忽略）: {_exc}")
+                            # 3) 输入新文本
+                            target_driver.type_text(cx, cy, input_value)
+                            operations.append(('type', element_name, True))
+                            op_done = True
+                            logger.debug(f"  ↳ 定位器 {locator} 成功 (priority={loc.get('priority',1)})")
+                            break
+
                     action_result = self._execute_element_action(value, locator, element_name, driver=target_driver)
                     if action_result is not None:
                         if action_result[2]:  # 操作成功
@@ -903,6 +1326,17 @@ class KeywordEngine:
                     else:
                         logger.debug(f"  ↳ 定位器 {locator} 失败，尝试下一个...")
                 except Exception as e:
+                    # PerceptionUnavailableError 必须向上传播（v7.1.0 §2.6.8 契约）
+                    try:
+                        from ..vision.perception_interface import (
+                            PerceptionUnavailableError,
+                        )
+                    except ImportError:
+                        from vision.perception_interface import (  # type: ignore
+                            PerceptionUnavailableError,
+                        )
+                    if isinstance(e, PerceptionUnavailableError):
+                        raise
                     last_error = e
                     logger.debug(f"  ↳ 定位器 {locator} 异常: {e}，尝试下一个...")
                     continue
@@ -1595,11 +2029,50 @@ class KeywordEngine:
             locator = f"{locator_type}={locator_value}"
 
             if model_type == MODEL_TYPE_UI:
-                if driver_type in ("android", "ios"):
+                if locator_type == "vision_image":
+                    # vision_image verify 语义：模板存在性断言
+                    # 找到模板 → 视为"actual 与 expected 一致"（presence check）
+                    # 找不到 → actual 设为明确标识，触发不匹配
+                    try:
+                        bbox = self._locate_by_vision_image(locator_value)
+                    except FileNotFoundError as ferr:
+                        raise AssertionFailedError(
+                            message=f"vision_image 参考图文件不存在: {locator_value}",
+                            details={'element': element_name, 'cause': str(ferr)},
+                        )
+                    if bbox is not None:
+                        actual_str = expected  # presence check passed
+                        logger.debug(
+                            f"{element_name}: vision_image 命中 bbox={bbox} → 视为符合期望 '{expected}'"
+                        )
+                    else:
+                        actual_str = "<vision_image_not_found>"
+                        logger.debug(
+                            f"{element_name}: vision_image 未命中 (template={locator_value})"
+                        )
+                elif locator_type == "vision":
+                    # vision verify 语义：VLM 语义存在性断言（同 vision_image）
+                    # PerceptionUnavailableError 直接向上抛，给用户清晰指引
+                    bbox = self._locate_by_perception(
+                        locator_value,
+                        {"type": locator_type, "value": locator_value},
+                    )
+                    if bbox is not None:
+                        actual_str = expected
+                        logger.debug(
+                            f"{element_name}: vision 命中 bbox={bbox} → 视为符合期望 '{expected}'"
+                        )
+                    else:
+                        actual_str = "<vision_not_found>"
+                        logger.debug(
+                            f"{element_name}: vision 未命中 (desc={locator_value})"
+                        )
+                elif driver_type in ("android", "ios"):
                     # 移动端：通过 locator 直接读取元素文本
                     actual = target_driver.get_element_text_by_locator(
                         locator_type, locator_value
                     )
+                    actual_str = str(actual) if actual is not None else ""
                 elif hasattr(target_driver, 'get_text_locator'):
                     if locator_type == 'id':
                         actual = target_driver.get_text_locator(f"#{locator_value}")
@@ -1607,9 +2080,10 @@ class KeywordEngine:
                         actual = target_driver.get_text_locator(locator_value)
                     else:
                         actual = target_driver.get_text_locator(locator)
+                    actual_str = str(actual) if actual is not None else ""
                 else:
                     actual = target_driver.get_text(locator)
-                actual_str = str(actual) if actual is not None else ""
+                    actual_str = str(actual) if actual is not None else ""
             else:
                 last_return = self.get_return(-1)
                 if isinstance(last_return, dict):

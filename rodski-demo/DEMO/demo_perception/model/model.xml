@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  v7.1.0 perception 验收 - 模型定义
+  本文件只允许使用以下三种 vision 定位器（无传统定位器）：
+    - vision        语义描述（VLM）
+    - vision_image  参考图（OpenCV 模板匹配）
+    - vision_bbox   固定坐标（兜底/调试）
+-->
+<models>
+
+  <!-- === 纯 vision (VLM) 语义定位 === -->
+
+  <!-- 单目标 -->
+  <model name="PerceptionLogin" type="ui" servicename="">
+    <element name="username" type="input">
+      <location type="vision">用户名输入框</location>
+    </element>
+    <element name="password" type="input">
+      <location type="vision">密码输入框</location>
+    </element>
+    <element name="loginBtn" type="button">
+      <location type="vision">登录按钮</location>
+    </element>
+    <element name="welcomeMsg" type="text">
+      <location type="vision">登录后欢迎信息</location>
+    </element>
+  </model>
+
+  <!-- 批量定位（locate_many 一次推理拿多个 bbox） -->
+  <model name="PerceptionForm" type="ui" servicename="">
+    <element name="usernameField" type="input">
+      <location type="vision">用户名输入框</location>
+    </element>
+    <element name="roleSelect" type="select">
+      <location type="vision">角色下拉选择框</location>
+    </element>
+    <element name="submitBtn" type="button">
+      <location type="vision">提交按钮</location>
+    </element>
+    <element name="formResult" type="text">
+      <location type="vision">表单提交结果文本</location>
+    </element>
+  </model>
+
+  <!-- === 纯 vision_image (模板匹配) 离线定位 === -->
+
+  <model name="TemplateLogin" type="ui" servicename="">
+    <element name="username" type="input">
+      <!-- 参考图路径相对 model.xml 目录解析 -->
+      <location type="vision_image">../assets/username_input.png</location>
+    </element>
+    <element name="password" type="input">
+      <location type="vision_image">../assets/password_input.png</location>
+    </element>
+    <element name="loginBtn" type="button">
+      <location type="vision_image">../assets/login_btn.png</location>
+    </element>
+    <element name="welcomeMsg" type="text">
+      <location type="vision_image">../assets/welcome_msg.png</location>
+    </element>
+  </model>
+
+  <!-- === 混合优先级：vision_image 主，vision 兜底 === -->
+
+  <model name="HybridLogin" type="ui" servicename="">
+    <element name="username" type="input">
+      <location type="vision_image" priority="1">../assets/username_input.png</location>
+      <location type="vision" priority="2">用户名输入框</location>
+    </element>
+    <element name="password" type="input">
+      <location type="vision_image" priority="1">../assets/password_input.png</location>
+      <location type="vision" priority="2">密码输入框</location>
+    </element>
+    <element name="loginBtn" type="button">
+      <location type="vision_image" priority="1">../assets/login_btn.png</location>
+      <location type="vision" priority="2">登录按钮</location>
+    </element>
+    <element name="welcomeMsg" type="text">
+      <location type="vision">登录后欢迎信息</location>
+    </element>
+  </model>
+
+  <!-- === 融合裁决：3 种定位器并行，由 rodski-perception 共识裁决 === -->
+
+  <!--
+    每个 element 同时声明 vision_image / ocr / vision，全部不带 priority。
+    框架识别为"融合裁决模式"，调用 backend.locate_fused()。
+    element 的 type 属性会作为先验传递给 perception，用于 prompt 增强和
+    候选区域过滤。
+  -->
+  <model name="FusionLogin" type="ui" servicename="">
+    <element name="username" type="input">
+      <location type="vision_image">../assets/username_input.png</location>
+      <location type="ocr">用户名</location>
+      <location type="vision">用户名输入框</location>
+    </element>
+    <element name="password" type="input">
+      <location type="vision_image">../assets/password_input.png</location>
+      <location type="ocr">密码</location>
+      <location type="vision">密码输入框</location>
+    </element>
+    <element name="loginBtn" type="button">
+      <location type="vision_image">../assets/login_btn.png</location>
+      <location type="ocr">登录</location>
+      <location type="vision">登录按钮</location>
+    </element>
+    <element name="welcomeMsg" type="text">
+      <!-- 欢迎信息无参考图（动态文本），只用 ocr + vision 融合 -->
+      <location type="ocr">欢迎</location>
+      <location type="vision">登录后欢迎信息</location>
+    </element>
+  </model>
+
+  <!-- === 错误处理：参考图不存在（TC008 用） === -->
+
+  <model name="MissingTemplate" type="ui" servicename="">
+    <element name="username" type="input">
+      <location type="vision_image">../assets/__not_exist__.png</location>
+    </element>
+  </model>
+
+</models>

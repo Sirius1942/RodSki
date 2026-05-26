@@ -1,0 +1,79 @@
+[build-system]
+requires = ["hatchling>=1.18"]
+build-backend = "hatchling.build"
+
+[project]
+name = "rodski-perception"
+version = "0.2.0"
+description = "GUI 元素感知 — rodski v7.1.0 的 perception backend（本地 ollama + VLM）"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "RodSki Team" },
+]
+keywords = ["rodski", "perception", "vision", "ollama", "vlm", "ui-testing"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Testing",
+]
+
+# 运行期依赖：仅 requests + Pillow（坐标转换需要读图片尺寸）
+# 注意：不依赖 rodski 主包，避免循环依赖；backend.py 在 import 时按需导入
+dependencies = [
+    "requests>=2.28",
+    "Pillow>=9.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0",
+    "pytest-mock>=3.10",
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-mock>=3.10",
+    "ruff>=0.1",
+]
+
+[project.scripts]
+rodski-perception = "rodski_perception.cli:main"
+
+# entry_points — rodski 通过 importlib.metadata 发现 local backend
+# rodski 核心代码不需要修改即可使用 LocalPerceptionBackend
+[project.entry-points."rodski.perception_backends"]
+local = "rodski_perception.backend:LocalPerceptionBackend"
+
+[project.urls]
+Homepage = "https://github.com/rodski/rodski"
+Documentation = "https://github.com/rodski/rodski/blob/main/rodski-perception/README.md"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/rodski_perception"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/rodski_perception",
+    "README.md",
+    "pyproject.toml",
+    "tests",
+]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+markers = [
+    "requires_ollama: integration tests that need a running ollama server",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

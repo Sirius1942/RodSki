@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  v7.1.0 perception 验收用例
+  覆盖两种 vision 定位语义：
+    - vision        VLM 语义定位（rodski-perception + ollama + Qwen3-VL）
+    - vision_image  图片模板匹配（rodski 核心 + OpenCV，离线、毫秒级）
+  前置：
+    1. brew install ollama && brew services start ollama
+    2. ollama pull qwen3-vl:2b
+    3. pip install rodski[perception]
+-->
+<cases step_wait="500">
+
+  <!-- TC001: 纯 vision (VLM) 单目标定位 - Web 登录流程 -->
+  <case execute="是" id="TC001" title="vision-VLM-单目标-Web登录" component_type="界面">
+    <pre_process>
+      <test_step action="navigate" model="" data="http://localhost:8000"/>
+      <test_step action="wait" model="" data="1500"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="PerceptionLogin" data="L001"/>
+      <test_step action="wait" model="" data="800"/>
+      <test_step action="verify" model="PerceptionLogin" data="V001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+
+  <!-- TC002: 纯 vision (VLM) 多目标批量定位 - 表单填写 -->
+  <case execute="是" id="TC002" title="vision-VLM-批量定位-表单填写" component_type="界面">
+    <pre_process>
+      <test_step action="navigate" model="" data="http://localhost:8000"/>
+      <test_step action="wait" model="" data="1500"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="PerceptionForm" data="F001"/>
+      <test_step action="wait" model="" data="500"/>
+      <test_step action="verify" model="PerceptionForm" data="V001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+
+  <!-- TC003: vision_image (模板匹配) 单目标定位 - 离线快速定位 -->
+  <case execute="是" id="TC003" title="vision_image-模板匹配-离线登录" component_type="界面">
+    <pre_process>
+      <test_step action="navigate" model="" data="http://localhost:8000"/>
+      <test_step action="wait" model="" data="1500"/>
+    </pre_process>
+    <test_case>
+      <!-- 全部使用 vision_image 定位（OpenCV 模板匹配，不调 ollama） -->
+      <test_step action="type" model="TemplateLogin" data="L001"/>
+      <test_step action="wait" model="" data="800"/>
+      <test_step action="verify" model="TemplateLogin" data="V001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+
+  <!-- TC004: 混合优先级 - vision_image 优先，vision (VLM) 兜底 -->
+  <case execute="是" id="TC004" title="混合优先级-vision_image优先VLM兜底" component_type="界面">
+    <pre_process>
+      <test_step action="navigate" model="" data="http://localhost:8000"/>
+      <test_step action="wait" model="" data="1500"/>
+    </pre_process>
+    <test_case>
+      <!--
+        HybridLogin 中 username 同时声明：
+          priority=1: vision_image  (assets/username_input.png)
+          priority=2: vision        ("用户名输入框")
+        正常情况下应命中 priority=1，VLM 不被调用。
+      -->
+      <test_step action="type" model="HybridLogin" data="L001"/>
+      <test_step action="wait" model="" data="800"/>
+      <test_step action="verify" model="HybridLogin" data="V001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+
+  <!-- TC005: vision CLI 子进程链路 - 离线截图 -->
+  <case execute="是" id="TC005" title="vision-CLI子进程-离线截图" component_type="界面" tags="offline">
+    <pre_process>
+      <test_step action="set" model="" data="screenshot_path=./fixtures/login_screenshot.png"/>
+    </pre_process>
+    <test_case>
+      <test_step action="run" model="" data="R001"/>
+      <test_step action="assert" model="" data="A001"/>
+    </test_case>
+    <post_process>
+    </post_process>
+  </case>
+
+  <!-- TC006: 融合裁决 - OCR+vision_image+VLM 同时启用，perception 返回最优坐标 -->
+  <case execute="是" id="TC006" title="融合裁决-OCR+vision_image+VLM同时启用" component_type="界面">
+    <pre_process>
+      <test_step action="navigate" model="" data="http://localhost:8000"/>
+      <test_step action="wait" model="" data="1500"/>
+    </pre_process>
+    <test_case>
+      <!--
+        FusionLogin 模型每个 element 同时声明 vision_image / ocr / vision，
+        全部不带 priority → 框架走 locate_fused，由 perception 融合裁决。
+        预期：返回的 PerceptionResult.confidence ≥ 0.85（共识度高）
+        element.type 属性（input/button/text）作为先验送给 perception
+      -->
+      <test_step action="type" model="FusionLogin" data="L001"/>
+      <test_step action="wait" model="" data="800"/>
+      <test_step action="verify" model="FusionLogin" data="V001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+
+  <!-- TC007: 错误处理 - ollama 不可达，vision 定位报明确错误，但 vision_image 仍可用 -->
+  <case execute="否" id="TC007" title="ollama不可达-vision失败但vision_image可用" component_type="界面" tags="negative">
+    <pre_process>
+      <test_step action="set" model="" data="ollama_host=http://localhost:19999"/>
+      <test_step action="navigate" model="" data="http://localhost:8000"/>
+    </pre_process>
+    <test_case>
+      <!-- 这条预期失败，错误信息应含 OllamaUnreachableError -->
+      <test_step action="type" model="PerceptionLogin" data="L001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+
+  <!-- TC008: vision_image 参考图不存在 - 应明确报错 -->
+  <case execute="否" id="TC008" title="vision_image-参考图不存在错误处理" component_type="界面" tags="negative">
+    <pre_process>
+      <test_step action="navigate" model="" data="http://localhost:8000"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="MissingTemplate" data="L001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+
+</cases>
