@@ -74,7 +74,7 @@ except ImportError:  # pragma: no cover - rodski 未安装的单包场景
             return None
 
 
-from .agent import DEFAULT_MODEL, LocateResult, VLMAgent
+from .agent import DEFAULT_MODEL, FusedLocateResult, LocateResult, VLMAgent
 from .errors import OllamaUnreachableError
 from .ollama_client import DEFAULT_OLLAMA_HOST, OllamaClient
 
@@ -92,7 +92,7 @@ class LocalPerceptionBackend(PerceptionBackend):  # type: ignore[misc, valid-typ
     """
 
     name: str = "local"
-    capabilities = {"locate", "locate_many", "parse"}
+    capabilities = {"locate", "locate_many", "locate_fused", "parse"}
 
     def __init__(
         self,
@@ -193,6 +193,33 @@ class LocalPerceptionBackend(PerceptionBackend):  # type: ignore[misc, valid-typ
             _to_perception_result(r) if r is not None else None
             for r in results
         ]
+
+    def locate_fused(
+        self,
+        image_path: str,
+        hints,
+        element_type=None,
+    ):
+        """融合裁决 — 委托 VLMAgent.locate_fused。"""
+        agent = self._get_agent()
+        # Convert LocatorHint objects to dicts
+        hint_dicts = [{"type": h.type, "value": h.value} for h in hints]
+        result = agent.locate_fused(
+            hints=hint_dicts,
+            image=image_path,
+            element_type=element_type,
+        )
+        if result is None:
+            return None
+        return PerceptionResult(
+            bbox=result.bbox,
+            coordinates=result.coordinates,
+            target_description=str([h.value for h in hints]),
+            confidence=result.confidence,
+            consensus_count=result.consensus_count,
+            latency_ms=result.latency_ms,
+            hint_results=result.hint_results,
+        )
 
     # ------------------------------------------------------------------
     # 内部

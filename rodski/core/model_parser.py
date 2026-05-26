@@ -162,18 +162,44 @@ class ModelParser:
         location_nodes = elem_node.findall('location')
         if location_nodes:
             locations = []
+            has_explicit_priority = []
             for loc in location_nodes:
                 loc_type = loc.get('type', 'id')
                 loc_value = (loc.text or '').strip()
-                loc_priority = int(loc.get('priority', '1'))
+                loc_priority_attr = loc.get('priority')
+                loc_priority = int(loc_priority_attr) if loc_priority_attr is not None else 1
+                has_explicit_priority.append(loc_priority_attr is not None)
                 if loc_type in VALID_LOCATOR_TYPES and loc_value:
                     locations.append({
                         'type': loc_type,
                         'value': loc_value,
                         'priority': loc_priority,
+                        '_has_priority': loc_priority_attr is not None,
                     })
 
             locations.sort(key=lambda x: x['priority'])
+
+            # Determine locator mode for multi-location elements
+            locator_mode = "sequential"  # default (v6 behavior)
+            if len(locations) > 1:
+                all_have = all(l['_has_priority'] for l in locations)
+                none_have = all(not l['_has_priority'] for l in locations)
+                if none_have:
+                    locator_mode = "fused"
+                elif all_have:
+                    priorities = [l['priority'] for l in locations]
+                    if len(set(priorities)) == 1:
+                        locator_mode = "fused"
+                    else:
+                        locator_mode = "sequential"
+                else:
+                    raise ModelParseError(
+                        f"元素 '{element_name}' 的 <location> 节点 priority 属性混用"
+                        f"（部分有 priority，部分无）。"
+                        f"请统一：全部指定不同 priority（顺序回退）或全部不指定（融合裁决）",
+                        model_file=str(self.xml_path),
+                    )
+
             if locations:
                 primary = locations[0]
                 model_type = declared_model_type or self._infer_model_type(legacy_driver_type, primary['type'])
@@ -186,6 +212,7 @@ class ModelParser:
                     'element_type': child_type or self._infer_element_type(raw_type, primary['type'], model_type),
                     'interfacename': elem_node.get('interfacename', ''),
                     'locations': locations,
+                    'locator_mode': locator_mode,
                 }
 
         return None

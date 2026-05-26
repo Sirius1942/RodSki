@@ -231,6 +231,152 @@ class VLMAgent:
             return self._locate_many_fallback(prompts, image_path, element_type)
 
     # ------------------------------------------------------------------
+    # locate_fused
+    # ------------------------------------------------------------------
+
+    def locate_fused(
+        self,
+        hints: List[dict],
+        image: Union[str, Path],
+        element_type: Optional[str] = None,
+    ) -> Optional["FusedLocateResult"]:
+        """融合裁决：并行执行多种 hints，IoU 聚类后加权评分。
+
+        Parameters
+        ----------
+        hints:
+            每个 hint 是 {"type": "vision"|"vision_image"|"ocr", "value": "..."}
+        image:
+            截图路径。
+        element_type:
+            控件类型先验。
+
+        Returns
+        -------
+        FusedLocateResult 或 None（全部 hints 失败时）。
+        """
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        from .fusion import HintResult, fuse
+
+        image_path = Path(image)
+        if not image_path.exists():
+            raise FileNotFoundError(f"image not found: {image_path}")
+
+        image_size = read_image_size(image_path)
+        t0 = time.perf_counter()
+
+        # 并行执行各 hint
+        hint_results: List[HintResult] = []
+
+        def _run_hint(hint: dict) -> Optional[HintResult]:
+            h_type = hint["type"]
+            h_value = hint["value"]
+            try:
+                if h_type == "vision":
+                    r = self.locate(h_value, image_path, element_type=element_type)
+                    if r is None:
+                        return None
+                    return HintResult(
+                        hint_type="vision",
+                        bbox=r.bbox,
+                        confidence=r.confidence or 0.78,
+                        label=r.label,
+                        latency_ms=r.latency_ms,
+                    )
+                elif h_type == "vision_image":
+                    return self._run_vision_image_hint(h_value, image_path, image_size)
+                elif h_type == "ocr":
+                    # OCR hint: use VLM to locate text element
+                    ocr_prompt = f"包含文字\"{h_value}\"的元素"
+                    r = self.locate(ocr_prompt, image_path, element_type=element_type)
+                    if r is None:
+                        return None
+                    return HintResult(
+                        hint_type="ocr",
+                        bbox=r.bbox,
+                        confidence=r.confidence or 0.82,
+                        label=r.label,
+                        latency_ms=r.latency_ms,
+                    )
+            except Exception as exc:
+                logger.warning("hint %s=%s failed: %s", h_type, h_value, exc)
+                return None
+            return None
+
+        with ThreadPoolExecutor(max_workers=len(hints)) as pool:
+            futures = {pool.submit(_run_hint, h): h for h in hints}
+            for fut in as_completed(futures):
+                r = fut.result()
+                if r is not None:
+                    hint_results.append(r)
+
+        total_latency = int((time.perf_counter() - t0) * 1000)
+
+        if not hint_results:
+            return None
+
+        # bbox 从千分比转像素后再融合
+        pixel_results: List[HintResult] = []
+        for hr in hint_results:
+            px_bbox = bbox_to_pixels(hr.bbox, image_size)
+            pixel_results.append(HintResult(
+                hint_type=hr.hint_type,
+                bbox=px_bbox,
+                confidence=hr.confidence,
+                label=hr.label,
+                latency_ms=hr.latency_ms,
+            ))
+
+        result = fuse(pixel_results, weights=self._weights, element_type=element_type)
+        if result is None:
+            return None
+
+        return FusedLocateResult(
+            bbox=result.bbox,
+            coordinates=result.coordinates,
+            confidence=result.confidence,
+            consensus_count=result.consensus_count,
+            hint_results=result.hint_results,
+            latency_ms=total_latency,
+        )
+
+    def _run_vision_image_hint(
+        self,
+        template_value: str,
+        image_path: Path,
+        image_size: Tuple[int, int],
+    ) -> Optional["HintResult"]:
+        """执行 vision_image hint（OpenCV 模板匹配）。"""
+        from .fusion import HintResult
+        try:
+            from rodski.vision.image_matcher import ImageTemplateMatcher  # type: ignore[import-not-found]
+        except ImportError:
+            logger.debug("rodski.vision.image_matcher not available, skip vision_image hint")
+            return None
+
+        t0 = time.perf_counter()
+        matcher = ImageTemplateMatcher()
+        bbox = matcher.locate(str(image_path), template_value)
+        latency = int((time.perf_counter() - t0) * 1000)
+        if bbox is None:
+            return None
+        # image_matcher returns pixel bbox; convert to permille for consistency
+        w, h = image_size
+        pm_bbox = (
+            int(bbox[0] * 1000 / w),
+            int(bbox[1] * 1000 / h),
+            int(bbox[2] * 1000 / w),
+            int(bbox[3] * 1000 / h),
+        )
+        return HintResult(
+            hint_type="vision_image",
+            bbox=pm_bbox,
+            confidence=0.92,  # template match is high confidence
+            label="",
+            latency_ms=latency,
+        )
+
+    # ------------------------------------------------------------------
     # 内部
     # ------------------------------------------------------------------
 
@@ -374,8 +520,20 @@ def _tokenize(text: str) -> set:
     return {t for t in tokens if len(t) >= 2}
 
 
+@dataclass
+class FusedLocateResult:
+    """locate_fused 的返回结果。"""
+    bbox: Tuple[int, int, int, int]
+    coordinates: Tuple[int, int]
+    confidence: float
+    consensus_count: int
+    hint_results: dict
+    latency_ms: int = 0
+
+
 __all__ = [
     "VLMAgent",
     "LocateResult",
+    "FusedLocateResult",
     "DEFAULT_MODEL",
 ]

@@ -462,23 +462,16 @@ class KeywordEngine:
         self,
         element_info: Dict[str, Any]
     ) -> Optional[Tuple[int, int, int, int]]:
-        """尝试多个定位器，按 priority 依次尝试
+        """尝试多个定位器，按 priority 依次尝试或融合裁决
 
         Args:
             element_info: 元素信息，包含 locations 列表
-                {
-                    'type': 主定位器类型,
-                    'value': 主定位器值,
-                    'locations': [
-                        {'type': 'id', 'value': 'username', 'priority': 1},
-                        {'type': 'ocr', 'value': '用户名', 'priority': 2}
-                    ]
-                }
 
         Returns:
             边界框坐标 (x1, y1, x2, y2)，所有定位器都失败返回 None
         """
         locations = element_info.get("locations", [])
+        locator_mode = element_info.get("locator_mode", "sequential")
 
         if not locations:
             # 兼容旧格式：使用主定位器
@@ -487,7 +480,11 @@ class KeywordEngine:
             if loc_type and loc_value:
                 locations = [{"type": loc_type, "value": loc_value, "priority": 1}]
 
-        # 按 priority 排序
+        # 融合裁决模式：多 hint 并行，由 perception backend 共识裁决
+        if locator_mode == "fused" and len(locations) > 1:
+            return self._try_fused_locators(locations, element_info)
+
+        # 顺序回退模式（v6 行为）
         sorted_locations = sorted(locations, key=lambda x: x.get("priority", 1))
 
         for loc in sorted_locations:
@@ -534,6 +531,68 @@ class KeywordEngine:
                 continue
 
         return None
+
+    def _try_fused_locators(
+        self,
+        locations: List[Dict[str, Any]],
+        element_info: Dict[str, Any],
+    ) -> Optional[Tuple[int, int, int, int]]:
+        """融合裁决模式：调用 perception backend.locate_fused。"""
+        try:
+            from ..vision.perception_interface import (
+                LocatorHint,
+                PerceptionUnavailableError,
+            )
+            from ..vision.registry import PerceptionRegistry
+        except ImportError:
+            from vision.perception_interface import (  # type: ignore
+                LocatorHint,
+                PerceptionUnavailableError,
+            )
+            from vision.registry import PerceptionRegistry  # type: ignore
+
+        registry = PerceptionRegistry()
+        backend = registry.get_backend()
+        if backend is None or not backend.is_available():
+            raise PerceptionUnavailableError()
+
+        # 截图
+        screenshot_path = self.driver.take_screenshot()
+        element_type = element_info.get("element_type", None)
+
+        # 构建 hints（解析参考图路径）
+        hints = []
+        for loc in locations:
+            loc_type = loc["type"]
+            loc_value = loc["value"]
+            # vision_image 需要解析为绝对路径
+            if loc_type == "vision_image":
+                try:
+                    from ..vision.image_matcher import resolve_template_path
+                except ImportError:
+                    from vision.image_matcher import resolve_template_path  # type: ignore
+                model_dir = None
+                if self.model_parser is not None:
+                    xml_path = getattr(self.model_parser, "xml_path", None)
+                    if xml_path is not None:
+                        model_dir = str(Path(xml_path).parent)
+                loc_value = str(resolve_template_path(
+                    loc_value, model_dir=model_dir, global_vars=self._global_vars
+                ))
+            hints.append(LocatorHint(type=loc_type, value=loc_value))
+
+        logger.info("融合裁决: hints=%s element_type=%s", [(h.type, h.value) for h in hints], element_type)
+        result = backend.locate_fused(screenshot_path, hints, element_type=element_type)
+        if result is None:
+            logger.warning("融合裁决: 所有 hints 均失败")
+            return None
+
+        logger.info(
+            "融合裁决成功: confidence=%.2f consensus=%d bbox=%s",
+            result.confidence, result.consensus_count, result.bbox,
+        )
+        # DPR 校正
+        return self._scale_bbox_to_viewport(result.bbox, screenshot_path)
 
     def _locate_by_vision_image(
         self,
@@ -1076,10 +1135,55 @@ class KeywordEngine:
             locations = element_info.get('locations', [])
             if not locations:
                 locations = [{"type": element_info['locator_type'], "value": element_info['locator_value'], "priority": 1}]
-            sorted_locations = sorted(locations, key=lambda x: x.get("priority", 1))
+
+            locator_mode = element_info.get('locator_mode', 'sequential')
 
             op_done = False
             last_error = None
+
+            # 融合裁决模式：通过 _try_fused_locators 获取 bbox，然后执行动作
+            if locator_mode == "fused" and len(locations) > 1:
+                bbox = self._try_fused_locators(locations, element_info)
+                if bbox:
+                    x1, y1, x2, y2 = bbox
+                    cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+                    v_lower = value.strip().lower()
+                    if v_lower in {"click", "double_click", "right_click", "hover"}:
+                        logger.debug(f"{element_name}: {v_lower} @({cx},{cy}) via fused")
+                        if v_lower == "click":
+                            target_driver.click(cx, cy)
+                        elif v_lower == "double_click":
+                            target_driver.double_click(cx, cy)
+                        elif v_lower == "right_click":
+                            target_driver.right_click(cx, cy)
+                        elif v_lower == "hover":
+                            target_driver.hover(cx, cy)
+                        operations.append((v_lower, element_name, True))
+                    else:
+                        input_value = value
+                        display_value = value
+                        if input_value.endswith('.Password'):
+                            input_value = input_value[:-9]
+                            display_value = '***'
+                        logger.debug(f"{element_name}: fused @({cx},{cy}) <- '{display_value}'")
+                        target_driver.click(cx, cy)
+                        page = getattr(target_driver, "page", None)
+                        if page is not None:
+                            try:
+                                import sys as _sys
+                                select_combo = "Meta+A" if _sys.platform == "darwin" else "Control+A"
+                                page.keyboard.press(select_combo)
+                                page.keyboard.press("Delete")
+                            except Exception as _exc:
+                                logger.debug(f"fused 清空已有内容失败（忽略）: {_exc}")
+                        target_driver.type_text(cx, cy, input_value)
+                        operations.append(('type', element_name, True))
+                    op_done = True
+                if op_done:
+                    continue
+                # fused failed, fall through to raise error below
+
+            sorted_locations = sorted(locations, key=lambda x: x.get("priority", 1))
 
             for loc in sorted_locations:
                 locator_type = loc["type"]

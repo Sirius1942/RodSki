@@ -172,14 +172,34 @@ def _build_parser() -> argparse.ArgumentParser:
     models_p.add_argument("--output", choices=("json", "text"), default="text")
     models_p.set_defaults(_handler=_cmd_models)
 
+    # --- locate-fused -------------------------------------------------
+    fused_p = sub.add_parser(
+        "locate-fused",
+        help="融合裁决定位（多 hint 并行 + IoU 聚类）",
+    )
+    fused_p.add_argument("--image", required=True, help="截图路径")
+    fused_p.add_argument(
+        "--hint",
+        action="append",
+        default=[],
+        help="格式 type:value，如 --hint \"vision:登录按钮\" --hint \"ocr:登录\"",
+    )
+    fused_p.add_argument("--element-type", default=None)
+    fused_p.add_argument("--model", default=DEFAULT_MODEL)
+    fused_p.add_argument("--ollama-host", default=DEFAULT_OLLAMA_HOST)
+    fused_p.add_argument("--output", choices=("json", "text"), default="json")
+    fused_p.set_defaults(_handler=_cmd_locate_fused)
+
     # --- eval (占位) --------------------------------------------------
     eval_p = sub.add_parser(
         "eval",
-        help="评测子命令（54d 实现，目前为占位）",
+        help="评测子命令 — 跑数据集输出 accuracy/latency 报告",
     )
-    eval_p.add_argument("--dataset", help="评测数据集目录")
-    eval_p.add_argument("--output", help="报告输出路径")
-    eval_p.set_defaults(_handler=_cmd_eval_stub)
+    eval_p.add_argument("--dataset", required=True, help="评测数据集目录（含 manifest.yaml）")
+    eval_p.add_argument("--output", help="报告输出路径（JSON）", default=None)
+    eval_p.add_argument("--model", default=DEFAULT_MODEL)
+    eval_p.add_argument("--ollama-host", default=DEFAULT_OLLAMA_HOST)
+    eval_p.set_defaults(_handler=_cmd_eval)
 
     return p
 
@@ -434,16 +454,114 @@ def _cmd_models(args) -> int:
 
 
 # ---------------------------------------------------------------------------
+# locate-fused
+# ---------------------------------------------------------------------------
+
+
+def _cmd_locate_fused(args) -> int:
+    if not args.hint:
+        print("error: at least one --hint required", file=sys.stderr)
+        return EXIT_ARG_ERROR
+
+    image_path = Path(args.image)
+    if not image_path.exists():
+        print(f"error: image not found: {image_path}", file=sys.stderr)
+        return EXIT_ARG_ERROR
+
+    # Parse hints: "type:value"
+    hints = []
+    for h in args.hint:
+        if ":" not in h:
+            print(f"error: invalid hint format (expected type:value): {h}", file=sys.stderr)
+            return EXIT_ARG_ERROR
+        h_type, h_value = h.split(":", 1)
+        hints.append({"type": h_type.strip(), "value": h_value.strip()})
+
+    from .agent import VLMAgent
+
+    try:
+        agent = VLMAgent(model=args.model, ollama_host=args.ollama_host)
+        result = agent.locate_fused(
+            hints=hints,
+            image=image_path,
+            element_type=args.element_type,
+        )
+    except OllamaUnreachableError as exc:
+        print(f"error: ollama unreachable: {exc}", file=sys.stderr)
+        return EXIT_OLLAMA_UNREACHABLE
+    except ModelNotFoundError as exc:
+        print(f"error: model not found: {exc}", file=sys.stderr)
+        return EXIT_MODEL_NOT_FOUND
+    except FileNotFoundError as exc:
+        print(f"error: file not found: {exc}", file=sys.stderr)
+        return EXIT_ARG_ERROR
+
+    if result is None:
+        data = {"bbox": None, "coordinates": None, "confidence": 0, "consensus_count": 0, "hint_results": {}}
+        if args.output == "json":
+            print(json.dumps(data, ensure_ascii=False))
+        else:
+            print("[NOT FOUND] all hints failed")
+        return EXIT_OK
+
+    data = {
+        "bbox": list(result.bbox),
+        "coordinates": list(result.coordinates),
+        "confidence": result.confidence,
+        "consensus_count": result.consensus_count,
+        "hint_results": result.hint_results,
+        "total_latency_ms": result.latency_ms,
+    }
+    if args.output == "json":
+        print(json.dumps(data, ensure_ascii=False))
+    else:
+        print(
+            f"[OK] confidence={result.confidence:.2f}"
+            f"  consensus={result.consensus_count}"
+            f"  bbox={result.bbox}"
+            f"  center={result.coordinates}"
+            f"  latency={result.latency_ms}ms"
+        )
+    return EXIT_OK
+
+
+# ---------------------------------------------------------------------------
 # eval (54d 实现)
 # ---------------------------------------------------------------------------
 
 
-def _cmd_eval_stub(args) -> int:
-    print(
-        "rodski-perception eval: not implemented yet (planned in iteration-54d)",
-        file=sys.stderr,
-    )
-    return EXIT_ARG_ERROR
+def _cmd_eval(args) -> int:
+    dataset_path = Path(args.dataset)
+    if not dataset_path.exists():
+        print(f"error: dataset not found: {dataset_path}", file=sys.stderr)
+        return EXIT_ARG_ERROR
+
+    from .eval.runner import run_eval
+
+    try:
+        report = run_eval(
+            dataset_dir=dataset_path,
+            model=args.model,
+            ollama_host=args.ollama_host,
+        )
+    except Exception as exc:
+        print(f"error: eval failed: {exc}", file=sys.stderr)
+        return EXIT_INFERENCE_FAILED
+
+    report_json = json.dumps(report, ensure_ascii=False, indent=2)
+    if args.output:
+        Path(args.output).write_text(report_json, encoding="utf-8")
+        print(f"report written to {args.output}", file=sys.stderr)
+    else:
+        print(report_json)
+
+    # Terminal summary
+    print(f"\n--- Eval Summary ---", file=sys.stderr)
+    print(f"  accuracy: {report.get('accuracy', 0):.2%}", file=sys.stderr)
+    print(f"  latency_p50: {report.get('latency_p50_ms', 0)}ms", file=sys.stderr)
+    print(f"  latency_p95: {report.get('latency_p95_ms', 0)}ms", file=sys.stderr)
+    print(f"  total_tasks: {report.get('total_tasks', 0)}", file=sys.stderr)
+    return EXIT_OK
 
 
 if __name__ == "__main__":

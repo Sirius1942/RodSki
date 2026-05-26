@@ -215,9 +215,9 @@ class TestModels:
 class TestEvalStub:
     def test_returns_arg_error(self, capsys):
         rc = main(["eval", "--dataset", "/tmp/x"])
-        # 占位实现，返回 EXIT_ARG_ERROR
+        # dataset not found → EXIT_ARG_ERROR
         assert rc == EXIT_ARG_ERROR
-        assert "not implemented" in capsys.readouterr().err
+        assert "not found" in capsys.readouterr().err
 
 
 # ----------------------------------------------------------------------
