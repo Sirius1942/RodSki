@@ -314,11 +314,17 @@ class TestVisionLocatorLazyInit:
         assert loc._cache is sentinel
 
     def test_image_matcher_lazy_load(self):
-        """ImageMatcher 延迟加载 — 模块尚未实现时抛出 ModuleNotFoundError。"""
+        """ImageMatcher 延迟加载 — 旧符号 ImageMatcher 已不存在 (v7.1.0 后).
+
+        ``rodski/vision/image_matcher.py`` 现在导出 ``ImageTemplateMatcher``
+        （vision_image 定位器的实现），不再提供旧名 ``ImageMatcher``，因此
+        VisionLocator 的遗留 ``image_matcher`` 属性会抛 ImportError。该属性
+        将在 iteration-54b 随 OmniClient 一并清理。
+        """
         loc = VisionLocator()
         assert loc._image_matcher is None
-        # image_matcher 模块不存在，访问属性时应抛出 ModuleNotFoundError
-        with pytest.raises(ModuleNotFoundError):
+        # image_matcher 旧符号已不存在，访问属性应抛出 ImportError
+        with pytest.raises(ImportError):
             _ = loc.image_matcher
 
     def test_bbox_locator_lazy_load(self):
