@@ -1,14 +1,26 @@
-"""VisionLocator — 视觉定位器统一入口。
+"""VisionLocator — 视觉定位器统一入口（v7.1.0 重构）。
 
 通过 ``locate(locator_type, locator_value, screenshot)`` API 返回屏幕坐标边界框。
 
 支持的定位器类型（通过 model.xml ``<location type="...">`` 定义）：
 
-* ``vision``      — 截图 → OmniParser → LLM 语义分析 → 匹配 → 边界框
-* ``ocr``         — OCR 文字识别定位 → 边界框
-* ``vision_bbox`` — 直接解析坐标字符串
+* ``vision``       — 截图 → PerceptionBackend.locate → 像素坐标边界框
+                     （需要安装 rodski[perception] 或其他 backend，否则
+                     抛 :py:class:`PerceptionUnavailableError`）
+* ``vision_image`` — OpenCV 模板匹配（rodski 核心实现，无外部依赖）
+                     在本类中以便利方法形式暴露；执行链路通常由
+                     keyword_engine 直接调用 ``ImageTemplateMatcher``
+* ``ocr``          — OCR 文字定位（需要 ``OCRLocator`` 注入 provider）
+* ``vision_bbox``  — 直接解析坐标字符串（无依赖）
 
-依赖 vision_config.yaml（位于 rodski/config/），缺失时使用内置默认值。
+v7.1.0 变化
+-----------
+- 删除内置 OmniClient 依赖，``_locate_by_semantic`` 改走
+  ``PerceptionRegistry.get_backend()``
+- 删除已不存在的 ``ImageMatcher`` 符号引用；新代码请直接使用
+  ``rodski.vision.image_matcher.ImageTemplateMatcher``
+- ``ocr_locator`` 属性不再自动创建 OmniParser 客户端；未注入 provider 时
+  调用会抛清晰错误
 """
 
 from __future__ import annotations
@@ -18,9 +30,16 @@ import os
 import pathlib
 import tempfile
 import time
+import warnings
 from typing import Any, Optional, Tuple
 
 from PIL import Image
+
+from .perception_interface import (
+    PerceptionResult,
+    PerceptionUnavailableError,
+)
+from .registry import PerceptionRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -35,12 +54,6 @@ _CONFIG_PATH = (
 )
 
 _DEFAULT_CONFIG: dict[str, Any] = {
-    "omniparser": {
-        "url": "http://14.103.175.167:7862/parse/",
-        "box_threshold": 0.18,
-        "iou_threshold": 0.7,
-        "timeout": 5,
-    },
     "screenshot": {
         "tmp_dir": "",   # 空字符串 → 使用系统临时目录
         "cleanup_max": 20,
@@ -48,13 +61,20 @@ _DEFAULT_CONFIG: dict[str, Any] = {
     "locator": {
         "min_confidence": 0.6,
         "images_dir": "images",
-        "match_threshold": 0.8,
+        "match_threshold": 0.85,
     },
     "cache": {
         "enabled": False,
         "ttl": 300,
     },
+    "perception": {
+        # PerceptionRegistry.get_backend() 透传的 kwargs。常用键：
+        #   perception_backend: 显式 backend 名（"local" / "remote"）
+        #   perception_model:   local backend 用的模型名
+        #   ollama_host:        local backend 的 ollama 地址
+    },
 }
+
 
 def _load_config(extra: dict | None = None) -> dict[str, Any]:
     """合并配置：外部传入 > vision_config.yaml > 内置默认值。"""
@@ -65,6 +85,8 @@ def _load_config(extra: dict | None = None) -> dict[str, Any]:
             import yaml  # optional dependency
             with _CONFIG_PATH.open(encoding="utf-8") as fh:
                 raw = yaml.safe_load(fh) or {}
+            # v7.1.0 起 omniparser 段位被丢弃（OmniClient 已删除）
+            raw.pop("omniparser", None)
             for section, values in raw.items():
                 if isinstance(values, dict):
                     cfg.setdefault(section, {}).update(values)
@@ -84,47 +106,71 @@ def _load_config(extra: dict | None = None) -> dict[str, Any]:
 class VisionLocator:
     """视觉定位器统一入口，整合多种定位策略。
 
-    支持三种定位器类型：
-        - vision: 图片模板匹配或语义匹配
-        - ocr: OCR 文字定位
-        - vision_bbox: 坐标定位
+    支持四种定位器类型：
+        - vision: 自然语言描述 → PerceptionBackend.locate
+        - vision_image: 参考图 → ImageTemplateMatcher（OpenCV）
+        - ocr: 文字 → OCRLocator
+        - vision_bbox: 字符串坐标 → BBoxLocator
+
+    v7.1.0 起：``vision`` 走 ``PerceptionRegistry``；OmniClient 已删除。
 
     Args:
-        config: 配置字典，支持以下键：
-            - images_dir: 模板图片目录
-            - match_threshold: 图片匹配阈值
-            - omni_url: OmniParser 服务地址
-            - cache_ttl: 缓存 TTL
-            - cache_enabled: 是否启用缓存
-        omni_client: OmniClient 实例；为 None 时按配置自动创建。
-        llm_analyzer: LLMAnalyzer 实例；为 None 时按配置自动创建。
-        matcher: VisionMatcher 实例；为 None 时自动创建。
+        config: 配置字典，可包含：
+            - locator.match_threshold / images_dir
+            - perception.perception_backend / perception_model / ollama_host
+            - cache.enabled / ttl
+        ocr_provider: 可选的 OCR provider（duck typed，需实现 ``parse``）。
+        llm_analyzer: 仅 legacy 路径使用；新代码不再依赖 LLMAnalyzer。
+        matcher: 仅 legacy 路径使用。
         cache: 预留缓存参数（当前不实现，保留接口）。
-        global_vars: 全局变量
+        global_vars: 全局变量字典（用于 ${var} 替换 / 配置注入）。
+        omni_client: **已废弃**。v7.1.0 起 rodski 核心不再持有 OmniClient；
+            若传入会被忽略并发 DeprecationWarning。
     """
 
     def __init__(
         self,
         config: dict | None = None,
-        omni_client=None,
+        ocr_provider=None,
         llm_analyzer=None,
         matcher=None,
         cache=None,
         global_vars: dict | None = None,
+        *,
+        omni_client=None,
     ) -> None:
         self._cfg = _load_config(config)
         self._cache = cache  # reserved
         self._global_vars = global_vars
 
         # 延迟初始化：外部注入优先，否则按需创建
-        self._omni_client = omni_client
         self._llm_analyzer = llm_analyzer
         self._matcher = matcher
+        self._ocr_provider = ocr_provider
 
-        # 延迟加载的定位器（新 API）
+        # v7.1.0 起 OmniClient 已删除
+        if omni_client is not None:
+            warnings.warn(
+                "VisionLocator(omni_client=...) 已废弃（v7.1.0）。"
+                "vision 定位现由 PerceptionBackend 提供，OmniClient 已删除。"
+                "若需 OCR 能力，请改用 ocr_provider= 参数。",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            # 既有调用方传 MagicMock 等鸭子类型时仍可作为 OCR provider
+            if self._ocr_provider is None:
+                self._ocr_provider = omni_client
+        # 兼容旧属性名
+        self._omni_client = self._ocr_provider
+
+        # 延迟加载的定位器
         self._image_matcher = None
         self._ocr_locator = None
         self._bbox_locator = None
+
+        # 缓存的 perception backend（None = 尚未尝试获取；
+        # PerceptionUnavailableError 实例 = 上次尝试失败）
+        self._perception_backend = None
 
     # ------------------------------------------------------------------
     # 延迟加载属性
@@ -132,27 +178,24 @@ class VisionLocator:
 
     @property
     def image_matcher(self):
-        """延迟加载 ImageMatcher（图片模板匹配）。"""
+        """延迟加载 ImageTemplateMatcher（vision_image 定位器实现）。"""
         if self._image_matcher is None:
-            from .image_matcher import ImageMatcher
-            self._image_matcher = ImageMatcher(
-                images_dir=self._cfg.get("locator", {}).get("images_dir", "images"),
-                threshold=self._cfg.get("locator", {}).get("match_threshold", 0.8)
+            from .image_matcher import ImageTemplateMatcher
+            self._image_matcher = ImageTemplateMatcher(
+                threshold=self._cfg.get("locator", {}).get("match_threshold", 0.85),
             )
         return self._image_matcher
 
     @property
     def ocr_locator(self):
-        """延迟加载 OCRLocator（文字定位）。"""
+        """延迟加载 OCRLocator（文字定位）。
+
+        v7.1.0 起：构造时传入注入的 ``ocr_provider``。未注入 provider
+        的实例在调用 ``locate_text`` 时会抛 ``RuntimeError`` 指引升级。
+        """
         if self._ocr_locator is None:
             from .ocr_locator import OCRLocator
-            omni_client = self._get_omni_client()
-            omni_cfg = self._cfg.get("omniparser", {})
-            self._ocr_locator = OCRLocator(
-                omni_client=omni_client,
-                box_threshold=omni_cfg.get("box_threshold", 0.18),
-                iou_threshold=omni_cfg.get("iou_threshold", 0.7),
-            )
+            self._ocr_locator = OCRLocator(provider=self._ocr_provider)
         return self._ocr_locator
 
     @property
@@ -176,24 +219,16 @@ class VisionLocator:
         """统一定位入口，返回边界框坐标。
 
         Args:
-            locator_type: 定位器类型
-                - vision: 图片匹配或语义匹配
-                - ocr: 文字定位
-                - vision_bbox: 坐标定位
-            locator_value: 定位器值
-                - vision: 模板图片路径或语义描述
-                - ocr: 待定位的文字内容
-                - vision_bbox: "x1,y1,x2,y2" 格式坐标字符串
-            screenshot: 截图，可以是：
-                - str/Path: 截图文件路径
-                - PIL.Image.Image: PIL 图像对象
-                - bytes: 图像字节数据
+            locator_type: 定位器类型（vision / vision_image / ocr / vision_bbox）。
+            locator_value: 定位器值。
+            screenshot: 截图文件路径 / PIL Image / bytes。
 
         Returns:
-            (x1, y1, x2, y2) 边界框坐标，未找到返回 None。
+            (x1, y1, x2, y2) 边界框，未找到返回 None。
 
         Raises:
             ValueError: 不支持的定位器类型。
+            PerceptionUnavailableError: vision 定位但 backend 不可用。
         """
         if not locator_type or not locator_value:
             raise ValueError("locator_type and locator_value must not be empty")
@@ -203,6 +238,8 @@ class VisionLocator:
 
         if locator_type == "vision":
             return self._locate_by_vision(locator_value, screenshot)
+        elif locator_type == "vision_image":
+            return self._locate_by_vision_image(locator_value, screenshot)
         elif locator_type == "ocr":
             return self._locate_by_ocr(locator_value, screenshot)
         elif locator_type == "vision_bbox":
@@ -210,113 +247,99 @@ class VisionLocator:
         else:
             raise ValueError(
                 f"Unsupported locator type: {locator_type!r}. "
-                f"Expected 'vision', 'ocr', or 'vision_bbox'."
+                f"Expected 'vision', 'vision_image', 'ocr', or 'vision_bbox'."
             )
+
+    # ------------------------------------------------------------------
+    # 分发实现
+    # ------------------------------------------------------------------
 
     def _locate_by_vision(
         self,
-        locator_value: str,
-        screenshot
-    ) -> Optional[Tuple[int, int, int, int]]:
-        """图片匹配定位。
-
-        优先尝试模板图片匹配，若失败则尝试语义匹配（OmniParser + LLM）。
-
-        Args:
-            locator_value: 模板图片路径或语义描述
-            screenshot: 截图
-
-        Returns:
-            (x1, y1, x2, y2) 边界框坐标，未找到返回 None。
-        """
-        # 判断是否为图片路径（存在文件或以路径特征开头）
-        is_image_path = self._is_image_path(locator_value)
-
-        if is_image_path:
-            # 模板图片匹配
-            try:
-                return self.image_matcher.match(locator_value, screenshot)
-            except Exception as exc:  # noqa: BLE001
-                logger.debug("Template matching failed: %s, falling back to semantic", exc)
-
-        # 语义匹配（OmniParser + LLM）
-        return self._locate_by_semantic(locator_value, screenshot)
-
-    def _is_image_path(self, value: str) -> bool:
-        """判断值是否为图片路径。"""
-        # 检查是否为绝对路径或相对路径
-        if os.path.isabs(value) or value.startswith(("./", "../")):
-            return True
-        # 检查是否为图片文件名（带扩展名）
-        image_extensions = {".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp"}
-        ext = os.path.splitext(value)[1].lower()
-        if ext in image_extensions:
-            return True
-        # 检查文件是否存在
-        if os.path.exists(value):
-            return True
-        return False
-
-    def _locate_by_semantic(
-        self,
         description: str,
-        screenshot
+        screenshot,
     ) -> Optional[Tuple[int, int, int, int]]:
-        """语义匹配定位（OmniParser + LLM）。
+        """走 PerceptionBackend 的 VLM 语义定位。
 
-        Args:
-            description: 语义描述
-            screenshot: 截图
-
-        Returns:
-            (x1, y1, x2, y2) 边界框坐标，未找到返回 None。
+        v7.1.0 起：完全通过 ``PerceptionRegistry`` 取 backend。未发现可用
+        backend 时抛 :py:class:`PerceptionUnavailableError`（包含安装指引）。
         """
         if not description.strip():
             return None
 
-        # 获取截图路径
         screenshot_path = self._get_screenshot_path(screenshot)
+        backend = self._get_perception_backend()
 
-        try:
-            # 调用 OmniParser 解析
-            elements = self._parse_screenshot(screenshot_path)
-            # 调用 LLM 增强语义标签
-            elements = self._analyze(screenshot_path, elements)
-            # 匹配并返回坐标
-            return self._match_and_resolve_bbox(description, elements, screenshot_path)
-        finally:
-            # 清理临时文件（仅当 screenshot 是我们创建的临时文件时）
-            pass
+        result = backend.locate(screenshot_path, description)
+        if result is None:
+            logger.debug(
+                "perception backend %r 未定位到目标 %r",
+                getattr(backend, "name", "?"), description,
+            )
+            return None
+        return result.bbox
+
+    def _locate_by_vision_image(
+        self,
+        template_value: str,
+        screenshot,
+    ) -> Optional[Tuple[int, int, int, int]]:
+        """图片模板匹配（OpenCV）。"""
+        from .image_matcher import resolve_template_path
+        screenshot_path = self._get_screenshot_path(screenshot)
+        template_path = resolve_template_path(
+            template_value,
+            model_dir=None,  # VisionLocator 不感知 model 目录；调用方应传绝对路径或在
+                            # global_vars 中提供基目录
+            global_vars=self._global_vars,
+        )
+        return self.image_matcher.locate(screenshot_path, template_path)
 
     def _locate_by_ocr(
         self,
         text: str,
         screenshot
     ) -> Optional[Tuple[int, int, int, int]]:
-        """OCR 文字定位。
-
-        Args:
-            text: 待定位的文字内容
-            screenshot: 截图
-
-        Returns:
-            (x1, y1, x2, y2) 边界框坐标，未找到返回 None。
-        """
+        """OCR 文字定位（需要 ocr_provider 已注入）。"""
         return self.ocr_locator.locate_text(text, screenshot)
 
     def _locate_by_bbox(self, bbox_str: str) -> Tuple[int, int, int, int]:
-        """坐标定位。
-
-        Args:
-            bbox_str: "x1,y1,x2,y2" 格式的坐标字符串
-
-        Returns:
-            (x1, y1, x2, y2) 边界框坐标
-
-        Raises:
-            InvalidBBoxError: 坐标格式无效。
-        """
+        """坐标定位。"""
         return self.bbox_locator.locate(bbox_str)
+
+    # ------------------------------------------------------------------
+    # PerceptionBackend 访问
+    # ------------------------------------------------------------------
+
+    def _get_perception_backend(self):
+        """获取 perception backend 实例（带缓存）。
+
+        多次调用复用同一实例；上次失败的情况下每次都重新尝试 discover
+        （生产场景里第一次失败后通常不会奇迹般恢复，但测试可通过
+        ``PerceptionRegistry.reset()`` 让状态变化生效）。
+        """
+        if isinstance(self._perception_backend, PerceptionUnavailableError):
+            raise self._perception_backend
+        if self._perception_backend is not None:
+            return self._perception_backend
+
+        # 组装 backend 构造参数：merge perception section + global_vars 中的
+        # 相关键 + 环境变量（后者由 Registry 处理）
+        perception_cfg = dict(self._cfg.get("perception", {}) or {})
+        for key in (
+            "perception_backend", "perception_model",
+            "ollama_host", "perception_server",
+        ):
+            if self._global_vars and key in self._global_vars and key not in perception_cfg:
+                perception_cfg[key] = self._global_vars[key]
+
+        try:
+            backend = PerceptionRegistry.get_backend(perception_cfg)
+        except PerceptionUnavailableError as exc:
+            self._perception_backend = exc
+            raise
+        self._perception_backend = backend
+        return backend
 
     # ------------------------------------------------------------------
     # Legacy API - 已废弃，请使用 locate(type, value, screenshot)
@@ -328,7 +351,6 @@ class VisionLocator:
         .. deprecated:: v5.4.0
             请使用 ``ModelParser.is_vision_locator(type_str)`` 替代。
         """
-        import warnings
         warnings.warn(
             "VisionLocator.is_vision_locator() 已废弃，请使用 ModelParser.is_vision_locator(type_str)",
             DeprecationWarning,
@@ -348,21 +370,7 @@ class VisionLocator:
 
         .. deprecated:: v5.4.0
             请使用 ``locate(locator_type, locator_value, screenshot)`` 替代。
-
-        Args:
-            locator_str: 形如 ``"vision:登录按钮"`` 或
-                ``"vision_bbox:100,200,150,250"`` 的定位字符串。
-            driver: Selenium WebDriver 实例（web 截图时使用）；
-                为 None 时使用桌面截图。
-
-        Returns:
-            ``(cx, cy)`` 像素坐标元组。
-
-        Raises:
-            ValueError: locator_str 格式不合法或无法解析。
-            RuntimeError: OmniParser / LLM 调用失败，或未找到匹配元素。
         """
-        import warnings
         warnings.warn(
             "locate_legacy() 已废弃，请使用 locate(locator_type, locator_value, screenshot)",
             DeprecationWarning,
@@ -372,7 +380,6 @@ class VisionLocator:
         if not s:
             raise ValueError("locator_str must not be empty")
 
-        # 解析前缀和值
         if s.startswith(_PREFIX_BBOX):
             bbox_str = s[len(_PREFIX_BBOX):]
             bbox = self._locate_by_bbox(bbox_str)
@@ -412,11 +419,7 @@ class VisionLocator:
         )
 
     def locate_with_driver(self, locator_str: str, driver=None) -> Tuple[int, int]:
-        """解析 locator 字符串，返回 (cx, cy) 中心坐标。
-
-        .. deprecated:: v5.4.0
-            请使用 ``locate(locator_type, locator_value, screenshot)`` 替代。
-        """
+        """已废弃别名，等价于 ``locate_legacy``。"""
         return self.locate_legacy(locator_str, driver)
 
     # ------------------------------------------------------------------
@@ -428,14 +431,12 @@ class VisionLocator:
         if isinstance(screenshot, (str, pathlib.Path)):
             return str(screenshot)
         elif isinstance(screenshot, Image.Image):
-            # 保存到临时文件
             tmp_dir = self._cfg["screenshot"].get("tmp_dir") or tempfile.gettempdir()
             filename = f"rodski_vision_{int(time.time() * 1000)}.png"
             output_path = str(pathlib.Path(tmp_dir) / filename)
             screenshot.save(output_path, format="PNG")
             return output_path
         elif isinstance(screenshot, bytes):
-            # 保存到临时文件
             tmp_dir = self._cfg["screenshot"].get("tmp_dir") or tempfile.gettempdir()
             filename = f"rodski_vision_{int(time.time() * 1000)}.png"
             output_path = str(pathlib.Path(tmp_dir) / filename)
@@ -464,74 +465,19 @@ class VisionLocator:
         logger.debug("Screenshot saved: %s", output_path)
         return output_path
 
-    def _parse_screenshot(self, screenshot_path: str) -> list[dict]:
-        """调用 OmniParser 解析截图，返回元素列表。"""
-        client = self._get_omni_client()
-        omni_cfg = self._cfg.get("omniparser", {})
-        elements = client.parse(
-            screenshot_path,
-            box_threshold=omni_cfg.get("box_threshold", 0.18),
-            iou_threshold=omni_cfg.get("iou_threshold", 0.7),
-        )
-        logger.debug("OmniParser returned %d element(s)", len(elements))
-        return elements
-
-    def _analyze(self, screenshot_path: str, elements: list[dict]) -> list[dict]:
-        """调用 LLMAnalyzer 增强语义标签。"""
-        analyzer = self._get_llm_analyzer()
-        return analyzer.analyze(screenshot_path, elements)
-
-    def _match_and_resolve_bbox(
-        self,
-        description: str,
-        elements: list[dict],
-        screenshot_path: str,
-    ) -> Optional[Tuple[int, int, int, int]]:
-        """语义匹配并将归一化 bbox 转换为像素坐标。"""
-        matcher = self._get_matcher()
-        min_conf = self._cfg.get("locator", {}).get("min_confidence", 0.6)
-
-        candidates = matcher.match_all(description, elements)
-        candidates = [c for c in candidates if c.get("confidence", 0) >= min_conf]
-        if not candidates:
-            logger.debug(
-                "No element matched description %r (min_confidence=%s)",
-                description, min_conf
-            )
-            return None
-
-        best = candidates[0]
-        bbox = best.get("bbox")
-        if not bbox or len(bbox) != 4:
-            logger.warning("Matched element has invalid bbox: %r", bbox)
-            return None
-
-        # bbox 可能是归一化值（0-1）或绝对像素值
-        # OmniParser 返回归一化值
-        from .coordinate_utils import normalized_to_pixel
-        img_w, img_h = self._get_image_size(screenshot_path)
-        cx, cy, x1, y1, x2, y2 = normalized_to_pixel(bbox, img_w, img_h)
-        logger.debug(
-            "Matched '%s' (conf=%.2f) -> bbox=%s -> (%d, %d, %d, %d)",
-            description, best.get("confidence", 0), bbox, x1, y1, x2, y2,
-        )
-        return (x1, y1, x2, y2)
-
     @staticmethod
     def _get_image_size(image_path: str) -> Tuple[int, int]:
-        """返回图像的 (width, height)，用于归一化坐标转换。"""
+        """返回图像的 (width, height)。"""
         try:
             with Image.open(image_path) as img:
                 return img.size  # (width, height)
         except Exception:  # noqa: BLE001
             pass
-        # Pillow 不可用时回退到 pyautogui 屏幕尺寸
         try:
             from .coordinate_utils import get_screen_size
             return get_screen_size()
         except Exception:  # noqa: BLE001
             pass
-        # 最终兜底：返回 1920x1080
         logger.warning("Cannot determine image size; defaulting to 1920x1080")
         return 1920, 1080
 
@@ -543,33 +489,3 @@ class VisionLocator:
                 p.unlink()
         except OSError as exc:
             logger.debug("Could not delete tmp screenshot %s: %s", screenshot_path, exc)
-
-    # ------------------------------------------------------------------
-    # Lazy component getters（旧 API 兼容）
-    # ------------------------------------------------------------------
-
-    def _get_omni_client(self):
-        if self._omni_client is None:
-            from .omni_client import OmniClient
-            omni_cfg = self._cfg.get("omniparser", {})
-            self._omni_client = OmniClient(
-                url=omni_cfg.get("url", "http://14.103.175.167:7862/parse/"),
-                timeout=omni_cfg.get("timeout", 5),
-            )
-        return self._omni_client
-
-    def _get_llm_analyzer(self):
-        if self._llm_analyzer is None:
-            from .llm_analyzer import LLMAnalyzer
-            self._llm_analyzer = LLMAnalyzer(
-                config=self._cfg.get("llm"),
-                global_vars=self._global_vars
-            )
-        return self._llm_analyzer
-
-    def _get_matcher(self):
-        if self._matcher is None:
-            from .matcher import VisionMatcher
-            self._matcher = VisionMatcher()
-        return self._matcher
-

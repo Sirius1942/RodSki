@@ -1,10 +1,16 @@
-"""OCRLocator 单元测试
+"""OCRLocator 单元测试 (v7.1.0 重构后)
 
 测试 vision/ocr_locator.py 中的 OCR 文字定位器。
-覆盖：locate_text（精确/模糊匹配、未找到）、locate_all_text（多匹配/空结果）、
-      get_all_text_elements、_prepare_screenshot（路径/bytes/无效类型）、
-      _text_matches 静态方法。
-对应核心设计约束 §2.5.2 视觉定位器中的 ocr 类型。
+
+v7.1.0 起 OCRLocator 不再依赖 OmniClient，改为接受任意实现
+``parse(screenshot, box_threshold, iou_threshold)`` 的 provider；
+未注入 provider 时调用 ``locate_text`` 会抛清晰的 ``RuntimeError``。
+
+覆盖：
+  - 注入 mock provider 后的 locate_text / locate_all_text / get_all_text_elements
+  - _prepare_screenshot 各种输入
+  - _text_matches 静态方法
+  - 未注入 provider 时调用应抛 RuntimeError 指引升级
 """
 import pytest
 from pathlib import Path
@@ -13,22 +19,22 @@ from vision.ocr_locator import OCRLocator
 
 
 @pytest.fixture
-def mock_omni_client():
-    """创建 mock OmniClient，返回预设的文字元素列表"""
-    client = MagicMock()
-    client.parse.return_value = [
+def mock_ocr_provider():
+    """创建 mock OCR provider，返回预设的文字元素列表"""
+    provider = MagicMock()
+    provider.parse.return_value = [
         {"type": "text", "content": "用户名", "bbox": [0.1, 0.2, 0.3, 0.25], "confidence": 0.95},
         {"type": "text", "content": "密码", "bbox": [0.1, 0.3, 0.3, 0.35], "confidence": 0.92},
         {"type": "text", "content": "登录按钮", "bbox": [0.4, 0.5, 0.6, 0.55], "confidence": 0.98},
         {"type": "icon", "content": "logo", "bbox": [0.0, 0.0, 0.1, 0.1]},  # 非 text 类型
     ]
-    return client
+    return provider
 
 
 @pytest.fixture
-def locator(mock_omni_client):
-    """创建 OCRLocator 实例"""
-    return OCRLocator(mock_omni_client)
+def locator(mock_ocr_provider):
+    """创建 OCRLocator 实例（注入 mock provider）"""
+    return OCRLocator(provider=mock_ocr_provider)
 
 
 @pytest.fixture
@@ -111,15 +117,15 @@ class TestLocateAllText:
     """locate_all_text —— 定位所有匹配文字"""
 
     @patch.object(OCRLocator, '_get_image_size', return_value=(1920, 1080))
-    def test_locate_all_multiple_matches(self, mock_size, mock_omni_client, screenshot_file):
+    def test_locate_all_multiple_matches(self, mock_size, mock_ocr_provider, screenshot_file):
         """多个元素匹配时返回所有 bbox"""
         # 设置两个包含 "名" 的元素
-        mock_omni_client.parse.return_value = [
+        mock_ocr_provider.parse.return_value = [
             {"type": "text", "content": "用户名", "bbox": [0.1, 0.2, 0.3, 0.25]},
             {"type": "text", "content": "文件名", "bbox": [0.5, 0.6, 0.7, 0.65]},
             {"type": "text", "content": "密码", "bbox": [0.1, 0.3, 0.3, 0.35]},
         ]
-        locator = OCRLocator(mock_omni_client)
+        locator = OCRLocator(provider=mock_ocr_provider)
         bboxes = locator.locate_all_text("名", screenshot_file)
         # "用户名" 和 "文件名" 都包含 "名"
         assert len(bboxes) == 2
@@ -212,14 +218,28 @@ class TestOCRLocatorInit:
 
     def test_default_thresholds(self):
         """默认阈值应为 box=0.18, iou=0.7"""
-        client = MagicMock()
-        locator = OCRLocator(client)
+        provider = MagicMock()
+        locator = OCRLocator(provider=provider)
         assert locator._box_threshold == 0.18
         assert locator._iou_threshold == 0.7
 
     def test_custom_thresholds(self):
         """自定义阈值"""
-        client = MagicMock()
-        locator = OCRLocator(client, box_threshold=0.3, iou_threshold=0.5)
+        provider = MagicMock()
+        locator = OCRLocator(provider=provider, box_threshold=0.3, iou_threshold=0.5)
         assert locator._box_threshold == 0.3
         assert locator._iou_threshold == 0.5
+
+    def test_omni_client_kwarg_back_compat(self):
+        """旧的 ``omni_client=`` 形参向后兼容（v7.1.0 起 deprecated）。"""
+        provider = MagicMock()
+        locator = OCRLocator(omni_client=provider)
+        assert locator._provider is provider
+
+    def test_missing_provider_raises_on_call(self, tmp_path):
+        """未注入 provider → 调用 locate_text 报清晰 RuntimeError。"""
+        png = tmp_path / "s.png"
+        png.write_bytes(b"\x89PNG" + b"\x00" * 10)
+        locator = OCRLocator()  # 完全无 provider
+        with pytest.raises(RuntimeError, match="OCR provider 未配置"):
+            locator.locate_text("x", str(png))

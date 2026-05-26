@@ -499,6 +499,11 @@ class KeywordEngine:
                     # vision_image 由 rodski 核心实现（OpenCV 模板匹配），
                     # 不经过 driver.locate_element（driver 不知道如何识别图片）。
                     bbox = self._locate_by_vision_image(locator_value)
+                elif locator_type == "vision":
+                    # vision (VLM 语义定位) 通过 PerceptionRegistry 取 backend
+                    # 路由（v7.1.0）。backend 不可用时抛 PerceptionUnavailableError，
+                    # 用例需要看到清晰的安装指引而不是模糊的"元素未找到"。
+                    bbox = self._locate_by_perception(locator_value, loc)
                 else:
                     bbox = self.driver.locate_element(locator_type, locator_value)
                 if bbox:
@@ -513,6 +518,18 @@ class KeywordEngine:
                 logger.error(f"定位器 {locator_type}={locator_value} 文件错误: {e}")
                 raise
             except Exception as e:
+                # PerceptionUnavailableError 必须向上传播，否则用例只能看到
+                # 一句模糊的"元素定位失败"，违反 v7.1.0 错误处理契约
+                try:
+                    from ..vision.perception_interface import (
+                        PerceptionUnavailableError,
+                    )
+                except ImportError:
+                    from vision.perception_interface import (  # type: ignore
+                        PerceptionUnavailableError,
+                    )
+                if isinstance(e, PerceptionUnavailableError):
+                    raise
                 logger.warning(f"定位器 {locator_type}={locator_value} 失败: {e}")
                 continue
 
@@ -581,6 +598,72 @@ class KeywordEngine:
         # click()/type_text() 接收 viewport 逻辑坐标，因此 bbox 需要按比例缩放。
         scaled = self._scale_bbox_to_viewport(bbox, screenshot_path)
         return scaled
+
+    def _locate_by_perception(
+        self,
+        description: str,
+        loc: Dict[str, Any],
+    ) -> Optional[Tuple[int, int, int, int]]:
+        """vision (VLM 语义定位) 通过 PerceptionRegistry 取 backend 路由。
+
+        - 截图来自 ``self.driver.take_screenshot()``
+        - 通过 ``PerceptionRegistry.get_backend(config)`` 取 backend；
+          backend 不可用时抛 :class:`PerceptionUnavailableError`（含
+          ``pip install rodski[perception]`` 与 ``ollama pull`` 指引）
+        - backend 找不到目标返回 None；上层会尝试下一个 location 或最终
+          报"未找到元素"
+
+        本方法**不吞** ``PerceptionUnavailableError``——遵循 v7.1.0 §2.6.8
+        错误处理契约。
+        """
+        try:
+            from ..vision.perception_interface import (
+                PerceptionUnavailableError,
+            )
+            from ..vision.registry import PerceptionRegistry
+        except ImportError:  # 兼容直接以 rodski/ 为 sys.path 的运行模式
+            from vision.perception_interface import (  # type: ignore
+                PerceptionUnavailableError,
+            )
+            from vision.registry import PerceptionRegistry  # type: ignore
+
+        # 1. 组装 backend 配置：global_vars 中可携带 perception_backend /
+        #    perception_model / ollama_host 等键
+        cfg: Dict[str, Any] = {}
+        if self._global_vars:
+            for key in (
+                "perception_backend", "perception_model",
+                "ollama_host", "perception_server",
+            ):
+                if key in self._global_vars:
+                    cfg[key] = self._global_vars[key]
+
+        # 2. 取 backend（PerceptionUnavailableError 会自然抛出）
+        backend = PerceptionRegistry.get_backend(cfg)
+
+        # 3. 截图
+        screenshot_path = self.driver.take_screenshot()
+
+        # 4. 调 backend
+        element_type = loc.get("element_type") or loc.get("type_hint")
+        try:
+            result = backend.locate(
+                screenshot_path, description, element_type=element_type,
+            )
+        except TypeError:
+            # 旧版 backend 可能没有 element_type 参数
+            result = backend.locate(screenshot_path, description)
+
+        if result is None:
+            logger.debug(
+                "perception backend %r 未定位到 %r",
+                getattr(backend, "name", "?"), description,
+            )
+            return None
+
+        bbox = tuple(result.bbox)  # type: ignore[assignment]
+        # 同 vision_image：DPR 校正使 click/type_text 直接可用
+        return self._scale_bbox_to_viewport(bbox, screenshot_path)
 
     def _scale_bbox_to_viewport(
         self,
@@ -1004,6 +1087,54 @@ class KeywordEngine:
                 locator = f"{locator_type}={locator_value}"
 
                 try:
+                    # ── vision (VLM 语义定位) 也走坐标路径 ──
+                    # 与 vision_image 一样，命中后通过 coord-based 驱动 API
+                    # 完成动作。未装 backend → PerceptionUnavailableError 直接抛出。
+                    if locator_type == "vision":
+                        bbox = self._locate_by_perception(locator_value, loc)
+                        if not bbox:
+                            logger.debug(f"  ↳ 定位器 {locator} 未命中，尝试下一个...")
+                            continue
+                        x1, y1, x2, y2 = bbox
+                        cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+                        v_lower = value.strip().lower()
+                        if v_lower in {"click", "double_click", "right_click", "hover"}:
+                            logger.debug(f"{element_name}: {v_lower} @({cx},{cy}) via vision")
+                            if v_lower == "click":
+                                target_driver.click(cx, cy)
+                            elif v_lower == "double_click":
+                                target_driver.double_click(cx, cy)
+                            elif v_lower == "right_click":
+                                target_driver.right_click(cx, cy)
+                            elif v_lower == "hover":
+                                target_driver.hover(cx, cy)
+                            operations.append((v_lower, element_name, True))
+                            op_done = True
+                            logger.debug(f"  ↳ 定位器 {locator} 成功 (priority={loc.get('priority',1)})")
+                            break
+                        else:
+                            input_value = value
+                            display_value = value
+                            if input_value.endswith('.Password'):
+                                input_value = input_value[:-9]
+                                display_value = '***'
+                            logger.debug(f"{element_name}: vision @({cx},{cy}) <- '{display_value}'")
+                            target_driver.click(cx, cy)
+                            page = getattr(target_driver, "page", None)
+                            if page is not None:
+                                try:
+                                    import sys as _sys
+                                    select_combo = "Meta+A" if _sys.platform == "darwin" else "Control+A"
+                                    page.keyboard.press(select_combo)
+                                    page.keyboard.press("Delete")
+                                except Exception as _exc:
+                                    logger.debug(f"vision 清空已有内容失败（忽略）: {_exc}")
+                            target_driver.type_text(cx, cy, input_value)
+                            operations.append(('type', element_name, True))
+                            op_done = True
+                            logger.debug(f"  ↳ 定位器 {locator} 成功 (priority={loc.get('priority',1)})")
+                            break
+
                     # ── vision_image (以及未来的视觉定位器) 走坐标路径 ──
                     # vision_image 由 ImageTemplateMatcher 处理，不能用 CSS 选择器路径。
                     # 命中后通过 coord-based 驱动 API (click/type_text) 完成动作。
@@ -1091,6 +1222,17 @@ class KeywordEngine:
                     else:
                         logger.debug(f"  ↳ 定位器 {locator} 失败，尝试下一个...")
                 except Exception as e:
+                    # PerceptionUnavailableError 必须向上传播（v7.1.0 §2.6.8 契约）
+                    try:
+                        from ..vision.perception_interface import (
+                            PerceptionUnavailableError,
+                        )
+                    except ImportError:
+                        from vision.perception_interface import (  # type: ignore
+                            PerceptionUnavailableError,
+                        )
+                    if isinstance(e, PerceptionUnavailableError):
+                        raise
                     last_error = e
                     logger.debug(f"  ↳ 定位器 {locator} 异常: {e}，尝试下一个...")
                     continue
@@ -1803,6 +1945,23 @@ class KeywordEngine:
                         actual_str = "<vision_image_not_found>"
                         logger.debug(
                             f"{element_name}: vision_image 未命中 (template={locator_value})"
+                        )
+                elif locator_type == "vision":
+                    # vision verify 语义：VLM 语义存在性断言（同 vision_image）
+                    # PerceptionUnavailableError 直接向上抛，给用户清晰指引
+                    bbox = self._locate_by_perception(
+                        locator_value,
+                        {"type": locator_type, "value": locator_value},
+                    )
+                    if bbox is not None:
+                        actual_str = expected
+                        logger.debug(
+                            f"{element_name}: vision 命中 bbox={bbox} → 视为符合期望 '{expected}'"
+                        )
+                    else:
+                        actual_str = "<vision_not_found>"
+                        logger.debug(
+                            f"{element_name}: vision 未命中 (desc={locator_value})"
                         )
                 elif driver_type in ("android", "ios"):
                     # 移动端：通过 locator 直接读取元素文本

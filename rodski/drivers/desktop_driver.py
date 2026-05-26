@@ -280,6 +280,16 @@ class DesktopDriver(BaseDriver):
             )
             return bbox
         except Exception as e:
+            # PerceptionUnavailableError 必须向上传播，否则用例只能看到
+            # 一句模糊的"元素定位失败"。这是 v7.1.0 错误处理契约。
+            try:
+                from rodski.vision.perception_interface import (
+                    PerceptionUnavailableError,
+                )
+                if isinstance(e, PerceptionUnavailableError):
+                    raise
+            except ImportError:
+                pass
             logger.warning(f"元素定位失败: {locator_type}={locator_value}, 错误: {e}")
             return None
 
