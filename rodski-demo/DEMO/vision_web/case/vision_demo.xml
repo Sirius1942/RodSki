@@ -1,6 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  DEPRECATED (v7.1.0)：本用例依赖远程 OmniParser 服务（OmniClient），
+  rodski 核心已于 v7.1.0 删除该客户端。perception 能力改由
+  rodski-perception 插件提供（基于本地 ollama + Qwen3-VL）。
+  保留此文件作历史参考；不再在版本验收中执行。
+
+  迁移建议：参考 rodski-demo/DEMO/demo_perception/（v7.1.0 验收用例）
+-->
 <cases>
-  <case execute="是" id="web_001" title="Web视觉定位演示" description="演示 vision 定位器在 Web 平台的使用">
+  <case execute="否" id="web_001" title="Web视觉定位演示 [DEPRECATED: 依赖 OmniParser 服务]" description="演示 vision 定位器在 Web 平台的使用">
     <pre_process>
       <test_step action="navigate" model="" data="https://www.baidu.com"/>
       <test_step action="wait" model="" data="2"/>

@@ -29,6 +29,13 @@ from .perception_interface import (
 
 logger = logging.getLogger(__name__)
 
+# entry_points 在模块导入时绑定为模块级名字，方便测试以
+# ``patch("rodski.vision.registry.entry_points", ...)`` 注入仿真数据。
+try:
+    from importlib.metadata import entry_points  # noqa: F401
+except ImportError:  # pragma: no cover - python < 3.8
+    entry_points = None  # type: ignore[assignment]
+
 #: entry_points group 名称。第三方 backend 项目必须使用此 group。
 ENTRY_POINT_GROUP: str = "rodski.perception_backends"
 
@@ -71,9 +78,7 @@ class PerceptionRegistry:
 
         backends: Dict[str, Type[PerceptionBackend]] = {}
 
-        try:
-            from importlib.metadata import entry_points
-        except ImportError:  # pragma: no cover - python < 3.8
+        if entry_points is None:  # pragma: no cover - python < 3.8
             logger.warning(
                 "importlib.metadata.entry_points 不可用 (Python < 3.8)，"
                 "无法发现 perception backend"
