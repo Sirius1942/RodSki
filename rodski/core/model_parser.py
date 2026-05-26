@@ -31,11 +31,11 @@ VALID_LOCATOR_TYPES = [
     # 传统定位器
     "id", "class", "css", "xpath", "text", "tag", "name", "static", "field",
     # 视觉定位器
-    "vision", "ocr", "vision_bbox",
+    "vision", "ocr", "vision_bbox", "vision_image",
 ]
 
 # 视觉定位器类型集合
-VISION_LOCATOR_TYPES = {"vision", "ocr", "vision_bbox"}
+VISION_LOCATOR_TYPES = {"vision", "ocr", "vision_bbox", "vision_image"}
 
 
 class ModelParser:
