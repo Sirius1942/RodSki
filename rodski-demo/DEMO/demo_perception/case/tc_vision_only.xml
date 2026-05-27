@@ -15,11 +15,11 @@
   <case execute="是" id="TC001" title="vision-VLM-单目标-Web登录" component_type="界面">
     <pre_process>
       <test_step action="navigate" model="" data="http://localhost:8000"/>
-      <test_step action="wait" model="" data="1500"/>
+      <test_step action="wait" model="" data="2"/>
     </pre_process>
     <test_case>
       <test_step action="type" model="PerceptionLogin" data="L001"/>
-      <test_step action="wait" model="" data="800"/>
+      <test_step action="wait" model="" data="1"/>
       <test_step action="verify" model="PerceptionLogin" data="V001"/>
     </test_case>
     <post_process>
@@ -31,11 +31,11 @@
   <case execute="是" id="TC002" title="vision-VLM-批量定位-表单填写" component_type="界面">
     <pre_process>
       <test_step action="navigate" model="" data="http://localhost:8000"/>
-      <test_step action="wait" model="" data="1500"/>
+      <test_step action="wait" model="" data="2"/>
     </pre_process>
     <test_case>
       <test_step action="type" model="PerceptionForm" data="F001"/>
-      <test_step action="wait" model="" data="500"/>
+      <test_step action="wait" model="" data="1"/>
       <test_step action="verify" model="PerceptionForm" data="V001"/>
     </test_case>
     <post_process>
@@ -47,12 +47,12 @@
   <case execute="是" id="TC003" title="vision_image-模板匹配-离线登录" component_type="界面">
     <pre_process>
       <test_step action="navigate" model="" data="http://localhost:8000"/>
-      <test_step action="wait" model="" data="1500"/>
+      <test_step action="wait" model="" data="2"/>
     </pre_process>
     <test_case>
       <!-- 全部使用 vision_image 定位（OpenCV 模板匹配，不调 ollama） -->
       <test_step action="type" model="TemplateLogin" data="L001"/>
-      <test_step action="wait" model="" data="800"/>
+      <test_step action="wait" model="" data="1"/>
       <test_step action="verify" model="TemplateLogin" data="V001"/>
     </test_case>
     <post_process>
@@ -64,7 +64,7 @@
   <case execute="是" id="TC004" title="混合优先级-vision_image优先VLM兜底" component_type="界面">
     <pre_process>
       <test_step action="navigate" model="" data="http://localhost:8000"/>
-      <test_step action="wait" model="" data="1500"/>
+      <test_step action="wait" model="" data="2"/>
     </pre_process>
     <test_case>
       <!--
@@ -74,7 +74,7 @@
         正常情况下应命中 priority=1，VLM 不被调用。
       -->
       <test_step action="type" model="HybridLogin" data="L001"/>
-      <test_step action="wait" model="" data="800"/>
+      <test_step action="wait" model="" data="1"/>
       <test_step action="verify" model="HybridLogin" data="V001"/>
     </test_case>
     <post_process>
@@ -99,7 +99,7 @@
   <case execute="是" id="TC006" title="融合裁决-OCR+vision_image+VLM同时启用" component_type="界面">
     <pre_process>
       <test_step action="navigate" model="" data="http://localhost:8000"/>
-      <test_step action="wait" model="" data="1500"/>
+      <test_step action="wait" model="" data="2"/>
     </pre_process>
     <test_case>
       <!--
@@ -109,7 +109,7 @@
         element.type 属性（input/button/text）作为先验送给 perception
       -->
       <test_step action="type" model="FusionLogin" data="L001"/>
-      <test_step action="wait" model="" data="800"/>
+      <test_step action="wait" model="" data="1"/>
       <test_step action="verify" model="FusionLogin" data="V001"/>
     </test_case>
     <post_process>

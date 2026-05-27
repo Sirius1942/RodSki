@@ -39,6 +39,23 @@ except ImportError:  # pragma: no cover - python < 3.8
 #: entry_points group 名称。第三方 backend 项目必须使用此 group。
 ENTRY_POINT_GROUP: str = "rodski.perception_backends"
 
+
+def _is_perception_backend(cls: type) -> bool:
+    """鸭子类型检查：是否满足 PerceptionBackend 契约。
+
+    用名称 + 必要方法检查代替 issubclass，避免 editable install 下
+    同一文件被不同 sys.path 路径加载两次导致类身份不同的问题。
+    """
+    # 优先用 issubclass（正常情况）
+    try:
+        if issubclass(cls, PerceptionBackend):
+            return True
+    except TypeError:
+        pass
+    # 降级：检查类名和必要方法
+    required = ("is_available", "locate")
+    return all(callable(getattr(cls, m, None)) for m in required)
+
 #: 当用户未指定 backend 时的自动 fallback 顺序。
 DEFAULT_FALLBACK_ORDER: tuple = ("local", "remote")
 
@@ -112,8 +129,8 @@ class PerceptionRegistry:
                 )
                 continue
 
-            if not isinstance(backend_cls, type) or not issubclass(
-                backend_cls, PerceptionBackend
+            if not isinstance(backend_cls, type) or not _is_perception_backend(
+                backend_cls
             ):
                 logger.warning(
                     "entry_point %r 指向的对象 %r 不是 PerceptionBackend "
