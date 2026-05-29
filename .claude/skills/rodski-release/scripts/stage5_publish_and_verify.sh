@@ -54,19 +54,29 @@ while true; do
     ELAPSED=$((ELAPSED + INTERVAL))
 done
 
-info "[3/5] push main + tag 到 origin (GitHub)..."
-git push origin main --tags \
-    || fail "push origin 失败。PyPI 已上传成功，请手动 push: git push origin main --tags"
-ok "  origin push 完成"
-
-info "[4/5] push main + tag 到 gitlab（如果 remote 存在）..."
-if git remote | grep -q "^gitlab$"; then
-    git push gitlab main --tags \
-        || warn "  push gitlab 失败，请手动 push: git push gitlab main --tags"
-    ok "  gitlab push 完成"
-else
-    info "  无 gitlab remote，跳过"
+info "[3/5] push main + tag 到所有 git remote..."
+# 遍历所有 remote 全部推，避免 origin/github/gitlab 命名混乱导致漏推
+PUSH_FAILED=()
+PUSH_OK=()
+for remote in $(git remote); do
+    info "  → push $remote ..."
+    if git push "$remote" main --tags 2>&1 | tail -3; then
+        ok "  ✓ $remote push 完成"
+        PUSH_OK+=("$remote")
+    else
+        warn "  ✗ $remote push 失败"
+        PUSH_FAILED+=("$remote")
+    fi
+done
+if [[ ${#PUSH_OK[@]} -eq 0 ]]; then
+    fail "所有 remote push 均失败。PyPI 已上传成功，请手动 push。"
 fi
+if [[ ${#PUSH_FAILED[@]} -gt 0 ]]; then
+    warn "  以下 remote 推送失败，需要手动处理: ${PUSH_FAILED[*]}"
+    warn "  常见原因: GitHub token 失效 (gh auth login)、GitLab SSH key 过期"
+fi
+
+info "[4/5] 跳过（合并入 3/5）"
 
 info "[5/5] 最终核验..."
 ERRORS=0
@@ -79,14 +89,16 @@ else
     ERRORS=$((ERRORS + 1))
 fi
 
-# 核验 GitHub tag
-REMOTE_TAG=$(git ls-remote --tags origin "refs/tags/v${VERSION}" 2>/dev/null | head -1)
-if [[ -n "$REMOTE_TAG" ]]; then
-    ok "  ✓ GitHub tag v${VERSION} 已存在"
-else
-    warn "  ✗ GitHub tag v${VERSION} 未找到"
-    ERRORS=$((ERRORS + 1))
-fi
+# 核验所有 remote 上的 tag
+for remote in $(git remote); do
+    REMOTE_TAG=$(git ls-remote --tags "$remote" "refs/tags/v${VERSION}" 2>/dev/null | head -1)
+    if [[ -n "$REMOTE_TAG" ]]; then
+        ok "  ✓ $remote 上 tag v${VERSION} 已存在"
+    else
+        warn "  ✗ $remote 上未找到 tag v${VERSION}"
+        ERRORS=$((ERRORS + 1))
+    fi
+done
 
 # 清理状态文件（发布完成）
 rm -f "$STATE_FILE"
