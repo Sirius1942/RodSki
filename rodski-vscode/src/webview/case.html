@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-{{nonce}}'; style-src 'unsafe-inline';">
+<script nonce="{{nonce}}">window.__CASE_DATA__ = {{CASE_DATA_JSON}};</script>
+<style>
+  body { font-family: var(--vscode-font-family); font-size: 13px; color: var(--vscode-foreground); background: var(--vscode-editor-background); padding: 8px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--vscode-panel-border); color: var(--vscode-descriptionForeground); font-weight: normal; }
+  td { padding: 4px 8px; border-bottom: 1px solid var(--vscode-panel-border); vertical-align: top; }
+  tr.case-row:hover { background: var(--vscode-list-hoverBackground); cursor: pointer; }
+  tr.steps-row td { padding: 0 8px 4px 32px; }
+  .steps-table { width: 100%; border-collapse: collapse; margin-top: 2px; }
+  .steps-table td { padding: 2px 6px; font-size: 12px; color: var(--vscode-descriptionForeground); border: none; }
+  .toggle { cursor: pointer; user-select: none; font-size: 15px; }
+  .toggle.on { color: var(--vscode-terminal-ansiGreen); }
+  .toggle.off { color: var(--vscode-disabledForeground); }
+  button { background: var(--vscode-button-background); color: var(--vscode-button-foreground); border: none; padding: 2px 10px; cursor: pointer; border-radius: 2px; font-size: 12px; }
+  button:hover { background: var(--vscode-button-hoverBackground); }
+  .toolbar { margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .filepath { color: var(--vscode-descriptionForeground); font-size: 12px; flex: 1; }
+  .arrow { display: inline-block; width: 12px; }
+  #log-panel { margin-top: 12px; border-top: 1px solid var(--vscode-panel-border); }
+  .log-header { padding: 6px 8px; font-size: 12px; color: var(--vscode-descriptionForeground); display: flex; align-items: center; gap: 8px; }
+  .log-header span { flex: 1; }
+  #log-content { margin: 0; padding: 4px 8px; font-size: 11px; font-family: var(--vscode-editor-font-family); max-height: 300px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; color: var(--vscode-terminal-foreground); background: var(--vscode-terminal-background); }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <span class="filepath" id="filepath"></span>
+  <button onclick="runAll()">▶ Run Selected</button>
+</div>
+<table>
+  <thead><tr><th style="width:32px">执行</th><th>ID / Title</th><th style="width:60px">Priority</th><th style="width:80px"></th></tr></thead>
+  <tbody id="tbody"></tbody>
+</table>
+<div id="log-panel">
+  <div class="log-header"><span>执行日志</span><button onclick="clearLog()">Clear</button></div>
+  <pre id="log-content"></pre>
+</div>
+<script nonce="{{nonce}}" src="{{caseJsUri}}"></script>
+</body>
+</html>

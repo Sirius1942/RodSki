@@ -10,7 +10,7 @@ export function setExtensionPath(p: string) { _extensionPath = p; }
 
 async function getSql() {
   if (!SQL) {
-    const wasmPath = path.join(_extensionPath, 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm');
+    const wasmPath = path.join(_extensionPath, 'dist', 'sql-wasm.wasm');
     SQL = await initSqlJs({ locateFile: () => wasmPath });
   }
   return SQL;

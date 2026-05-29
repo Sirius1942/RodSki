@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+    <case execute="是" id="TC_PLUGIN_001" title="验证插件已安装" component_type="接口">
+        <test_case>
+            <test_step action="run" model="" data="check_installed.py"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC_PLUGIN_002" title="新窗口打开Demo目录" component_type="接口">
+        <test_case>
+            <test_step action="run" model="" data="open_new_window.py"/>
+            <test_step action="wait" model="" data="3"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC_PLUGIN_003" title="验证Case XML结构合法" component_type="接口">
+        <test_case>
+            <test_step action="run" model="" data="verify_case_xml.py"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC_PLUGIN_004" title="验证Execute开关写回XML" component_type="接口">
+        <test_case>
+            <test_step action="run" model="" data="test_execute_toggle.py"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC_PLUGIN_005" title="验证插件文件完整性(CSP占位符)" component_type="接口">
+        <test_case>
+            <test_step action="run" model="" data="verify_plugin_files.py"/>
+        </test_case>
+    </case>
+</cases>

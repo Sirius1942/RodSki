@@ -1,14 +1,15 @@
 {
   "name": "rodski-vscode",
   "displayName": "RodSki Data Editor",
-  "version": "0.1.1",
+  "version": "0.3.1",
   "engines": {
     "vscode": "^1.85.0"
   },
   "activationEvents": [
+    "onView:rodskiTables",
     "workspaceContains:**/data.sqlite"
   ],
-  "main": "./out/extension.js",
+  "main": "./dist/extension.js",
   "contributes": {
     "views": {
       "explorer": [
@@ -38,6 +39,10 @@
       {
         "command": "rodski.refresh",
         "title": "RodSki: Refresh"
+      },
+      {
+        "command": "rodski.openCase",
+        "title": "Open with RodSki"
       }
     ],
     "menus": {
@@ -45,6 +50,11 @@
         {
           "command": "rodski.openDb",
           "when": "resourceFilename == data.sqlite",
+          "group": "navigation"
+        },
+        {
+          "command": "rodski.openCase",
+          "when": "resourceExtname == .xml && resourcePath =~ /\\/case\\//",
           "group": "navigation"
         }
       ],
@@ -65,6 +75,11 @@
     "@types/node": "^20.0.0",
     "@types/sql.js": "^1.4.11",
     "@types/vscode": "^1.85.0",
+    "esbuild": "^0.24.2",
+    "eslint": "^8.57.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "jsdom": "^29.1.1",
     "typescript": "^5.3.0"
   },
   "repository": {
@@ -72,7 +87,13 @@
     "url": "https://github.com/local/rodski-vscode"
   },
   "scripts": {
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./"
+    "vscode:prepublish": "node esbuild.mjs --minify",
+    "compile": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "lint": "eslint src --ext .ts",
+    "test:unit": "node --test test/unit/*.test.js",
+    "test:webview": "node --test test/webview/*.test.js",
+    "test": "npm run test:unit && npm run test:webview",
+    "typecheck": "tsc --noEmit"
   }
 }

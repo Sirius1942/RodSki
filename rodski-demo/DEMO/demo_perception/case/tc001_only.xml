@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases step_wait="500">
+  <case execute="是" id="TC001" title="vision-VLM-单目标-Web登录" component_type="界面">
+    <pre_process>
+      <test_step action="navigate" model="" data="http://localhost:8000"/>
+      <test_step action="wait" model="" data="2"/>
+    </pre_process>
+    <test_case>
+      <!-- 纯 vision VLM 定位：填写用户名、密码、点击登录 -->
+      <test_step action="type" model="PerceptionLogin" data="L001"/>
+      <test_step action="wait" model="" data="2"/>
+      <!-- 验证：截图确认已跳转到 Dashboard（不依赖特定文字） -->
+      <test_step action="screenshot" model="" data=""/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+</cases>

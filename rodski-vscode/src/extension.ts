@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
 import { RodSkiTreeProvider, TableItem } from './treeProvider';
 import { openDb, openTable } from './gridPanel';
-import { closeAll, addTable, deleteTable, listTables, setExtensionPath } from './dbManager';
+import { closeAll, addTable, deleteTable, setExtensionPath } from './dbManager';
+import { openCase } from './casePanel';
 
 export function activate(context: vscode.ExtensionContext) {
   setExtensionPath(context.extensionPath);
@@ -12,7 +13,7 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('rodski.openTable', (dbPath: string, tableName: string) => {
       openTable(context, dbPath, tableName);
     }),
-    vscode.commands.registerCommand('rodski.openDb', async (uri: vscode.Uri) => {
+    vscode.commands.registerCommand('rodski.openDb', (uri: vscode.Uri) => {
       openDb(context, uri.fsPath);
     }),
     vscode.commands.registerCommand('rodski.addTable', async (item?: any) => {
@@ -29,6 +30,9 @@ export function activate(context: vscode.ExtensionContext) {
       if (!item) { return; }
       const ok = await vscode.window.showWarningMessage(`Delete table "${item.tableName}"?`, { modal: true }, 'Delete');
       if (ok === 'Delete') { await deleteTable(item.dbPath, item.tableName); tree.refresh(); }
+    }),
+    vscode.commands.registerCommand('rodski.openCase', (uri: vscode.Uri) => {
+      openCase(context, uri.fsPath);
     }),
     tree
   );

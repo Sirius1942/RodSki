@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-grid123'; style-src 'unsafe-inline';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-{{nonce}}'; style-src 'unsafe-inline';">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: var(--vscode-font-family); font-size: 13px; color: var(--vscode-foreground); background: var(--vscode-editor-background); display: flex; height: 100vh; overflow: hidden; }
@@ -49,6 +49,6 @@
   </div>
   <div id="grid-wrap"><div id="empty">Select a table from the left panel.</div></div>
 </div>
-<script nonce="grid123" src="{{gridJsUri}}"></script>
+<script nonce="{{nonce}}" src="{{gridJsUri}}"></script>
 </body>
 </html>

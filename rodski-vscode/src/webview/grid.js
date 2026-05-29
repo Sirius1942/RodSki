@@ -2,6 +2,8 @@ const vscode = acquireVsCodeApi();
 let allTables = [];
 let current = { tableName: '', columns: [], rows: [] };
 
+vscode.postMessage({ command: 'ready' });
+
 window.addEventListener('message', e => {
   const { command, payload } = e.data;
   if (command === 'setTables') { allTables = payload.tables; renderSidebar(); }

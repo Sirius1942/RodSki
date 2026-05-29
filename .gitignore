@@ -1,3 +1,7 @@
+# Node / npm
+.npm-cache/
+node_modules/
+
 # Python
 __pycache__/
 *.py[cod]

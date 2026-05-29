@@ -159,9 +159,14 @@ class PlaywrightDriver(BaseDriver):
         from playwright.sync_api import sync_playwright
         self._pw = sync_playwright().start()
         browser_type = getattr(self._pw, self.browser_name, self._pw.chromium)
-        launch_kw: dict = {"headless": self.headless}
+        _args = [
+            "--disable-background-timer-throttling",
+            "--disable-renderer-backgrounding",
+            "--disable-backgrounding-occluded-windows",
+        ]
         if not self.headless:
-            launch_kw["args"] = ["--start-maximized"]
+            _args.append("--start-maximized")
+        launch_kw: dict = {"headless": self.headless, "args": _args}
         ch = _launch_channel_chromium(self.headless, self.browser_name)
         if ch:
             launch_kw["channel"] = ch

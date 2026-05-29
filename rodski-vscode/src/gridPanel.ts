@@ -1,10 +1,13 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as crypto from 'crypto';
 import * as XLSX from 'xlsx';
 import * as db from './dbManager';
 
 const panels = new Map<string, vscode.WebviewPanel>();
+const readyResolvers = new Map<string, () => void>();
+const readyPromises = new Map<string, Promise<void>>();
 
 export function openDb(context: vscode.ExtensionContext, dbPath: string): void {
   if (panels.has(dbPath)) { panels.get(dbPath)!.reveal(); return; }
@@ -15,34 +18,46 @@ export function openDb(context: vscode.ExtensionContext, dbPath: string): void {
     vscode.ViewColumn.One,
     {
       enableScripts: true,
-      localResourceRoots: [vscode.Uri.file(path.join(context.extensionPath, 'src', 'webview'))]
+      localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview')]
     }
   );
   panels.set(dbPath, panel);
-  panel.onDidDispose(() => panels.delete(dbPath));
+  panel.onDidDispose(() => {
+    panels.delete(dbPath);
+    readyResolvers.delete(dbPath);
+    readyPromises.delete(dbPath);
+  });
 
+  const ready = new Promise<void>(resolve => { readyResolvers.set(dbPath, resolve); });
+  readyPromises.set(dbPath, ready);
+
+  const nonce = crypto.randomBytes(16).toString('base64');
   const jsUri = panel.webview.asWebviewUri(
-    vscode.Uri.file(path.join(context.extensionPath, 'src', 'webview', 'grid.js'))
+    vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview', 'grid.js')
   );
-  const html = fs.readFileSync(path.join(context.extensionPath, 'src', 'webview', 'grid.html'), 'utf8');
-  panel.webview.html = html.replace('{{gridJsUri}}', jsUri.toString());
+  const htmlPath = path.join(context.extensionPath, 'dist', 'webview', 'grid.html');
+  const html = fs.readFileSync(htmlPath, 'utf8');
+  panel.webview.html = html
+    .replaceAll('{{nonce}}', nonce)
+    .replace('{{gridJsUri}}', jsUri.toString());
 
-  // Send all tables on open
-  sendAllTables(panel, dbPath);
-
-  panel.webview.onDidReceiveMessage(msg => handleMessage(panel, dbPath, msg));
+  panel.webview.onDidReceiveMessage(msg => {
+    if (msg.command === 'ready') {
+      readyResolvers.get(dbPath)?.();
+      sendAllTables(panel, dbPath);
+    } else {
+      handleMessage(panel, dbPath, msg);
+    }
+  });
 }
 
-// Keep openTable for tree view clicks
-export function openTable(context: vscode.ExtensionContext, dbPath: string, tableName: string): void {
+export async function openTable(context: vscode.ExtensionContext, dbPath: string, tableName: string): Promise<void> {
   openDb(context, dbPath);
-  // After panel opens, select the table
-  setTimeout(() => {
-    const panel = panels.get(dbPath);
-    if (panel) {
-      panel.webview.postMessage({ command: 'selectTable', payload: { tableName } });
-    }
-  }, 500);
+  await readyPromises.get(dbPath);
+  const panel = panels.get(dbPath);
+  if (panel) {
+    panel.webview.postMessage({ command: 'selectTable', payload: { tableName } });
+  }
 }
 
 async function sendAllTables(panel: vscode.WebviewPanel, dbPath: string): Promise<void> {
@@ -75,8 +90,7 @@ async function handleMessage(panel: vscode.WebviewPanel, dbPath: string, msg: an
         const m = row[0].match(new RegExp(`^${prefix}(\\d+)$`));
         if (m) { maxNum = Math.max(maxNum, parseInt(m[1])); }
       }
-      const nextNum = Math.min(maxNum + 1, 5000);
-      const dataId = `${prefix}${String(nextNum).padStart(3, '0')}`;
+      const dataId = `${prefix}${String(maxNum + 1).padStart(3, '0')}`;
       await db.addRow(dbPath, msg.tableName, dataId);
       await sendTableData(panel, dbPath, msg.tableName);
       break;
@@ -100,8 +114,7 @@ async function handleMessage(panel: vscode.WebviewPanel, dbPath: string, msg: an
         filters: { 'Excel/CSV': ['xlsx', 'xls', 'csv'] }, canSelectMany: false
       });
       if (!uris?.length) { break; }
-      const filePath = uris[0].fsPath;
-      const wb = XLSX.readFile(filePath);
+      const wb = XLSX.readFile(uris[0].fsPath);
       const ws = wb.Sheets[wb.SheetNames[0]];
       const records = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { defval: '' });
       await db.importRows(dbPath, msg.tableName, records);

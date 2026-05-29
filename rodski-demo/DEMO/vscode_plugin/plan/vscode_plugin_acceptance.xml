@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<test_plan id="vscode_plugin_acceptance" kind="suite" default_execute="否" title="VSCode插件验收计划">
+  <case id="TC_PLUGIN_001" execute="是" />
+  <case id="TC_PLUGIN_002" execute="是" />
+  <case id="TC_PLUGIN_003" execute="是" />
+  <case id="TC_PLUGIN_004" execute="是" />
+  <case id="TC_PLUGIN_005" execute="是" />
+</test_plan>
+
