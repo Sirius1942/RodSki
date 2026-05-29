@@ -167,8 +167,14 @@ class TestLocateBbox:
 class TestVisionViaBackend:
     """``locate('vision', ...)`` 通过 PerceptionRegistry 取 backend。"""
 
-    def test_vision_no_backend_raises_unavailable(self, tmp_path):
+    def test_vision_no_backend_raises_unavailable(self, tmp_path, monkeypatch):
         """未注册任何 backend → PerceptionUnavailableError，含安装指引。"""
+        def _no_backend(cls, config=None):
+            raise PerceptionUnavailableError()
+
+        monkeypatch.setattr(
+            PerceptionRegistry, "get_backend", classmethod(_no_backend)
+        )
         png = _make_tmp_png(tmp_path)
         loc = VisionLocator()
         with pytest.raises(PerceptionUnavailableError) as exc_info:

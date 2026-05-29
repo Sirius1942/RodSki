@@ -17,26 +17,29 @@ class TestAndroidDriver:
         driver = AndroidDriver()
 
         call_args = mock_remote.call_args
-        caps = call_args[0][1]
+        options = call_args.kwargs.get('options')
+        caps = options.to_capabilities() if options else call_args[0][1]
         assert caps['platformName'] == 'Android'
-        assert caps['deviceName'] == 'Android'
-        assert caps['automationName'] == 'UiAutomator2'
+        assert caps['appium:deviceName'] == 'Android' or caps.get('deviceName') == 'Android'
+        assert caps['appium:automationName'] == 'UiAutomator2' or caps.get('automationName') == 'UiAutomator2'
 
     @patch('drivers.appium_driver.webdriver.Remote')
     def test_init_with_package(self, mock_remote):
         driver = AndroidDriver(app_package="com.example.app")
 
         call_args = mock_remote.call_args
-        caps = call_args[0][1]
-        assert caps['appPackage'] == 'com.example.app'
+        options = call_args.kwargs.get('options')
+        caps = options.to_capabilities() if options else call_args[0][1]
+        assert caps.get('appium:appPackage') == 'com.example.app' or caps.get('appPackage') == 'com.example.app'
 
     @patch('drivers.appium_driver.webdriver.Remote')
     def test_init_with_activity(self, mock_remote):
         driver = AndroidDriver(app_activity=".MainActivity")
 
         call_args = mock_remote.call_args
-        caps = call_args[0][1]
-        assert caps['appActivity'] == '.MainActivity'
+        options = call_args.kwargs.get('options')
+        caps = options.to_capabilities() if options else call_args[0][1]
+        assert caps.get('appium:appActivity') == '.MainActivity' or caps.get('appActivity') == '.MainActivity'
 
     @patch('drivers.appium_driver.webdriver.Remote')
     def test_init_full(self, mock_remote):
@@ -48,10 +51,11 @@ class TestAndroidDriver:
         )
 
         call_args = mock_remote.call_args
-        caps = call_args[0][1]
-        assert caps['deviceName'] == 'Pixel'
-        assert caps['appPackage'] == 'com.test'
-        assert caps['appActivity'] == '.Main'
+        options = call_args.kwargs.get('options')
+        caps = options.to_capabilities() if options else call_args[0][1]
+        assert caps.get('appium:deviceName') == 'Pixel' or caps.get('deviceName') == 'Pixel'
+        assert caps.get('appium:appPackage') == 'com.test' or caps.get('appPackage') == 'com.test'
+        assert caps.get('appium:appActivity') == '.Main' or caps.get('appActivity') == '.Main'
 
     @patch('drivers.appium_driver.webdriver.Remote')
     def test_start_activity_success(self, mock_remote):

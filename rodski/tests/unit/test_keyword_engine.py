@@ -9,7 +9,7 @@
 对应核心设计约束 §5（SUPPORTED 关键字列表 16 个）。
 """
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from core.keyword_engine import KeywordEngine
 from core.exceptions import (
     UnknownKeywordError,
@@ -84,9 +84,10 @@ class TestKeywordEngine:
         mock_data_manager.get_data.assert_called_once_with("Page_verify", "E001")
 
     def test_wait(self, engine, mock_driver):
-        result = engine.execute("wait", {"seconds": 2})
+        with patch('core.keyword_engine.time.sleep') as mock_sleep:
+            result = engine.execute("wait", {"seconds": 2})
         assert result is True
-        mock_driver.wait.assert_called_once_with(2.0)
+        mock_sleep.assert_called_once_with(2.0)
 
     def test_navigate(self, engine, mock_driver):
         result = engine.execute("navigate", {"url": "https://example.com"})
@@ -107,8 +108,9 @@ class TestKeywordEngine:
             engine.execute("unknown", {})
 
     def test_case_insensitive(self, engine, mock_driver):
-        engine.execute("WAIT", {"seconds": "2"})
-        mock_driver.wait.assert_called_once_with(2.0)
+        with patch('core.keyword_engine.time.sleep') as mock_sleep:
+            engine.execute("WAIT", {"seconds": "2"})
+        mock_sleep.assert_called_once_with(2.0)
 
     def test_get_keywords(self, engine):
         keywords = engine.get_keywords()
@@ -136,8 +138,9 @@ class TestKeywordEngine:
         assert "assert_status" not in keywords
 
     def test_wait_default_seconds(self, engine, mock_driver):
-        engine.execute("wait", {})
-        mock_driver.wait.assert_called_once_with(1.0)
+        with patch('core.keyword_engine.time.sleep') as mock_sleep:
+            engine.execute("wait", {})
+        mock_sleep.assert_called_once_with(1.0)
 
     def test_screenshot_default_path(self, engine, mock_driver):
         engine.execute("screenshot", {})

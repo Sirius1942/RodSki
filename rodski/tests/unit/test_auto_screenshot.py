@@ -3,7 +3,7 @@
 使用 RodSki 自有测试执行器，不依赖 pytest。
 """
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from core.ski_executor import SKIExecutor
 from core.config_manager import ConfigManager
@@ -99,7 +99,6 @@ class TestSKIExecutorScreenshot:
         module_dir = _build_module(tmp_path)
         case_path = str(module_dir / "case" / "test.xml")
         mock_driver = _make_mock_driver()
-        mock_driver.wait.side_effect = RuntimeError("Element not found")
         config = _make_config(tmp_path, True)
         executor = SKIExecutor(case_path, mock_driver, config)
         executor.result_writer._init_run_dir()
@@ -112,7 +111,8 @@ class TestSKIExecutorScreenshot:
             'post_process': [],
         }
 
-        result = executor.execute_case(case)
+        with patch('core.keyword_engine.time.sleep', side_effect=RuntimeError("Element not found")):
+            result = executor.execute_case(case)
         assert result['status'] == 'FAIL'
         mock_driver.screenshot.assert_called_once()
         assert result['screenshot_path'] is not None
@@ -139,7 +139,6 @@ class TestSKIExecutorScreenshot:
         module_dir = _build_module(tmp_path)
         case_path = str(module_dir / "case" / "test.xml")
         mock_driver = _make_mock_driver()
-        mock_driver.wait.side_effect = RuntimeError("Element not found")
         config = _make_config(tmp_path, False)
         executor = SKIExecutor(case_path, mock_driver, config)
 
@@ -151,7 +150,8 @@ class TestSKIExecutorScreenshot:
             'post_process': [],
         }
 
-        result = executor.execute_case(case)
+        with patch('core.keyword_engine.time.sleep', side_effect=RuntimeError("Element not found")):
+            result = executor.execute_case(case)
         assert result['status'] == 'FAIL'
         mock_driver.screenshot.assert_not_called()
 
@@ -161,7 +161,6 @@ class TestAutoScreenshotIntegration:
         module_dir = _build_module(tmp_path)
         case_path = str(module_dir / "case" / "test.xml")
         mock_driver = _make_mock_driver()
-        mock_driver.wait.side_effect = RuntimeError("Timeout waiting for element")
         config = _make_config(tmp_path, True)
         executor = SKIExecutor(case_path, mock_driver, config)
         # ensure run dir is initialized so screenshots can be saved
@@ -175,7 +174,8 @@ class TestAutoScreenshotIntegration:
             'post_process': [],
         }
 
-        result = executor.execute_case(case)
+        with patch('core.keyword_engine.time.sleep', side_effect=RuntimeError("Timeout waiting for element")):
+            result = executor.execute_case(case)
         assert result['case_id'] == 'TC_INTEGRATION'
         assert result['status'] == 'FAIL'
         assert 'Timeout' in result['error']
@@ -186,7 +186,6 @@ class TestAutoScreenshotIntegration:
         case_path = str(module_dir / "case" / "test.xml")
         mock_driver = _make_mock_driver()
         mock_driver.screenshot.side_effect = Exception("Screenshot failed")
-        mock_driver.wait.side_effect = RuntimeError("Test error")
         config = _make_config(tmp_path, True)
         executor = SKIExecutor(case_path, mock_driver, config)
 
@@ -198,7 +197,8 @@ class TestAutoScreenshotIntegration:
             'post_process': [],
         }
 
-        result = executor.execute_case(case)
+        with patch('core.keyword_engine.time.sleep', side_effect=RuntimeError("Test error")):
+            result = executor.execute_case(case)
         assert result['status'] == 'FAIL'
         assert result['screenshot_path'] == ''
 
@@ -210,7 +210,6 @@ class TestPostProcessAlwaysRuns:
         module_dir = _build_module(tmp_path)
         case_path = str(module_dir / "case" / "test.xml")
         mock_driver = _make_mock_driver()
-        mock_driver.wait.side_effect = RuntimeError("用例阶段失败")
         config = _make_config(tmp_path, True)
         executor = SKIExecutor(case_path, mock_driver, config)
 
@@ -222,7 +221,8 @@ class TestPostProcessAlwaysRuns:
             'post_process': [{'action': 'close', 'model': '', 'data': ''}],
         }
 
-        result = executor.execute_case(case)
+        with patch('core.keyword_engine.time.sleep', side_effect=RuntimeError("用例阶段失败")):
+            result = executor.execute_case(case)
         assert result['status'] == 'FAIL'
         assert result['screenshot_path'] != ''
         mock_driver.screenshot.assert_called_once()

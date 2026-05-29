@@ -31,7 +31,14 @@ class TestPlaywrightDriver:
 
         # 首次调用 _ensure_browser 才启动
         driver._ensure_browser()
-        mock_playwright.chromium.launch.assert_called_once_with(headless=True)
+        mock_playwright.chromium.launch.assert_called_once_with(
+            headless=True,
+            args=[
+                "--disable-background-timer-throttling",
+                "--disable-renderer-backgrounding",
+                "--disable-backgrounding-occluded-windows",
+            ],
+        )
         mock_browser.new_page.assert_called_once()
         assert driver.page == mock_page
 
