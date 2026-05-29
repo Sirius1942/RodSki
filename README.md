@@ -62,22 +62,22 @@ pip install -e "rodski-agent/[mcp]"
 如果无法直接访问 PyPI，可以从仓库中的 release 包目录安装：
 
 ```bash
-# v6.7.1 离线 wheel 包
-pip install releases/rodski/v6.7.1/rodski-6.7.1-py3-none-any.whl
+# v7.1.1 离线 wheel 包
+pip install releases/rodski/v7.1.1/rodski-7.1.1-py3-none-any.whl
 
 # 校验包完整性
-cd releases/rodski/v6.7.1
+cd releases/rodski/v7.1.1
 shasum -a 256 -c SHA256SUMS
 ```
 
 发布包目录结构：
 
 ```text
-releases/rodski/v6.7.1/
+releases/rodski/v7.1.1/
 ├── README.md
 ├── SHA256SUMS
-├── rodski-6.7.1-py3-none-any.whl
-└── rodski-6.7.1.tar.gz
+├── rodski-7.1.1-py3-none-any.whl
+└── rodski-7.1.1.tar.gz
 ```
 
 ### rodski 执行引擎

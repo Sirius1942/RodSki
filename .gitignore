@@ -56,7 +56,10 @@ CassMall_examples/
 CassMall_examples.zip
 
 # AI/IDE 工具配置（不纳入版本控制）
-.claude/
+.claude/settings.json
+.claude/settings.local.json
+.claude/commands/
+.claude/worktrees/
 .cursor/
 .pb/
 
