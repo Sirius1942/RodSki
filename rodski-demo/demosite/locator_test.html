@@ -109,48 +109,38 @@
         <div class="section">
             <h3>1. ID 定位</h3>
             <p>通过 id 属性定位元素</p>
-            <input id="locatorId" placeholder="ID定位" />
+            <input id="input_by_id" placeholder="ID定位" />
+            <button id="btn_by_id" onclick="document.getElementById('result').textContent='测试结果: ID 定位器测试成功！'">提交</button>
         </div>
 
         <div class="section">
-            <h3>2. Class 定位</h3>
-            <p>通过 class 属性定位元素</p>
-            <input class="locator-class-input" placeholder="Class定位" />
+            <h3>2. Name 定位</h3>
+            <p>通过 name 属性定位元素</p>
+            <input name="input_by_name" placeholder="Name定位" />
+            <button name="btn_by_name" onclick="document.getElementById('result').textContent='测试结果: Name 定位器测试成功！'">提交</button>
         </div>
 
         <div class="section">
-            <h3>3. CSS 定位 (data 属性)</h3>
-            <p>通过 data-testid 属性定位元素</p>
-            <input data-testid="locator-css" placeholder="CSS定位" />
+            <h3>3. CSS 定位</h3>
+            <p>通过 CSS class 定位元素</p>
+            <input class="input-css-test" placeholder="CSS定位" />
+            <button class="btn-css-test" onclick="document.getElementById('result').textContent='测试结果: CSS 定位器测试成功！'">提交</button>
         </div>
 
         <div class="section">
             <h3>4. XPath 定位</h3>
-            <p>通过 XPath 层级结构定位元素</p>
-            <div class="xpath-test">
-                <div class="xpath-inner">
-                    <input placeholder="XPath定位" />
-                </div>
-            </div>
+            <p>通过 XPath 定位元素</p>
+            <input data-testid="input-xpath" placeholder="XPath定位" />
+            <button data-testid="btn-xpath" onclick="document.getElementById('result').textContent='测试结果: XPath 定位器测试成功！'">提交</button>
         </div>
 
-        <div class="section">
-            <h3>5. Name 定位</h3>
-            <p>通过 name 属性定位元素</p>
-            <input name="locatorName" placeholder="Name定位" />
+        <div class="section" style="margin-top: 800px;">
+            <h3>5. 滚动点击</h3>
+            <p>需要滚动才能看到的按钮</p>
+            <button id="btn_below_fold" onclick="document.getElementById('result').textContent='测试结果: ScrollClick 定位器测试成功！'">滚动点击</button>
         </div>
 
-        <div class="section">
-            <h3>6. Tag 定位</h3>
-            <p>通过标签类型定位元素</p>
-            <textarea id="locatorTextarea" placeholder="Tag定位" rows="3"></textarea>
-        </div>
-
-        <div class="section">
-            <h3>7. 文本定位</h3>
-            <p>通过文本内容定位元素</p>
-            <a id="textLink" href="javascript:void(0)">点击链接</a>
-        </div>
+        <div id="result" class="result"></div>
 
         <button id="locatorSubmitBtn" onclick="collectValues()">提交全部</button>
         <div id="locatorResult" class="result"></div>
@@ -160,30 +150,18 @@
 
     <script>
         function collectValues() {
-            const idVal = document.getElementById('locatorId').value;
-            const classVal = document.querySelector('.locator-class-input').value;
-            const cssVal = document.querySelector('[data-testid="locator-css"]').value;
-            const xpathVal = document.querySelector('.xpath-test .xpath-inner input').value;
-            const nameVal = document.querySelector('[name="locatorName"]').value;
-            const tagVal = document.getElementById('locatorTextarea').value;
-            const textVal = document.getElementById('textLink').textContent;
+            const idVal = document.getElementById('input_by_id').value;
+            const nameVal = document.querySelector('[name="input_by_name"]').value;
+            const cssVal = document.querySelector('.input-css-test').value;
+            const xpathVal = document.querySelector('[data-testid="input-xpath"]').value;
 
-            const result = [
+            document.getElementById('locatorResult').textContent = [
                 `ID定位: ${idVal}`,
-                `Class定位: ${classVal}`,
+                `Name定位: ${nameVal}`,
                 `CSS定位: ${cssVal}`,
                 `XPath定位: ${xpathVal}`,
-                `Name定位: ${nameVal}`,
-                `Tag定位: ${tagVal}`,
-                `文本定位: ${textVal}`
             ].join('\n');
-
-            document.getElementById('locatorResult').textContent = result;
         }
-
-        document.getElementById('textLink').addEventListener('click', function() {
-            this.textContent = '链接已点击';
-        });
     </script>
 </body>
 </html>

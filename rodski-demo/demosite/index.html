@@ -365,12 +365,11 @@
     /* ═══════ FORM ═══════ */
     function submitForm() {
         const username = document.getElementById('username').value;
-        const password = document.getElementById('password').value;
         const role = document.getElementById('role').value;
-        const rid = 'RID-' + Math.floor(Math.random() * 9000 + 1000);
+        const rid = 'RID-' + username + '-' + (role || 'none');
 
-        document.getElementById('formResult').innerHTML =
-            `提交成功！<br>用户名: ${username}<br>密码: ${'*'.repeat(password.length)}<br>角色: ${role}`;
+        document.getElementById('formResult').textContent =
+            `提交成功！用户名: ${username}角色: ${role}`;
         document.getElementById('resultId').textContent = rid;
     }
 
@@ -414,7 +413,7 @@
         menu.style.display = 'block';
         menu.style.left = e.pageX + 'px';
         menu.style.top = e.pageY + 'px';
-        document.getElementById('actionResult').textContent = '右键点击成功';
+        document.getElementById('actionResult').textContent = '✓ 右键点击成功';
     });
 
     function contextAction(action) {
