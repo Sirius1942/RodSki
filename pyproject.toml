@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rodski"
-version = "7.1.5"
+version = "7.1.6"
 description = "RodSki - AI Agent 跨平台确定性测试执行引擎"
 requires-python = ">=3.8"
 dependencies = [
@@ -13,6 +13,7 @@ dependencies = [
     "tqdm>=4.60",
     "psutil>=5.9",
     "requests>=2.28",
+    "jsonschema>=4.0",
 ]
 
 [project.optional-dependencies]
@@ -27,8 +28,8 @@ rodski = "rodski.rodski_cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["rodski*"]
-exclude = ["rodski/tests*", "rodski/docs*", "rodski/examples*", "rodski/scripts*"]
+include = ["rodski", "rodski.*"]
+exclude = ["rodski.tests*", "rodski.docs*", "rodski.examples*", "rodski.scripts*"]
 
 [tool.setuptools.package-data]
 "rodski.schemas" = ["*.xsd"]
