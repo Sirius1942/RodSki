@@ -298,9 +298,10 @@ class TestPlaywrightDriver:
         mock_browser.new_context.assert_called_once()
         call_kwargs = mock_browser.new_context.call_args[1]
         assert call_kwargs["record_video_dir"] == str(tmp_path)
-        assert "no_viewport" not in call_kwargs
+        # headed 模式：no_viewport=True 保留原生窗口，避免 Chromium 设备模拟导致闪屏
+        assert call_kwargs.get("no_viewport") is True
+        assert "viewport" not in call_kwargs
         assert "record_video_size" in call_kwargs
-        assert call_kwargs["viewport"] == call_kwargs["record_video_size"]
         mock_context.new_page.assert_called_once()
         initial_page.close.assert_called_once()
         assert driver.page == recording_page

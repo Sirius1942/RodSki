@@ -65,11 +65,13 @@ class TestVisionLocatorIntegration:
         png = tmp_path / "s.png"
         png.write_bytes(b"\x89PNG" + b"\x00" * 10)
         locator = VisionLocator()
-        try:
-            locator.locate("vision", "登录按钮", str(png))
-            assert False, "expected PerceptionUnavailableError"
-        except PerceptionUnavailableError as exc:
-            assert "pip install rodski[perception]" in str(exc)
+        # mock discover 返回空，模拟未安装任何 perception backend 的环境
+        with patch.object(PerceptionRegistry, "discover", return_value={}):
+            try:
+                locator.locate("vision", "登录按钮", str(png))
+                assert False, "expected PerceptionUnavailableError"
+            except PerceptionUnavailableError as exc:
+                assert "pip install rodski[perception]" in str(exc)
 
 
 class TestVisionBboxIntegration:
