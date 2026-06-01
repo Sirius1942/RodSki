@@ -22,7 +22,7 @@ info "════════════════════════�
 info " Stage 3: 打包 + 打 tag (v${VERSION})"
 info "═══════════════════════════════════════════════════════════"
 
-require_stage stage2 "$VERSION"
+require_stage stage2_5 "$VERSION"
 require_on_main
 
 # 防止重复打 tag

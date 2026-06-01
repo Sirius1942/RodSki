@@ -35,6 +35,8 @@ Stage 1  合并功能分支到 main
    ↓
 Stage 2  主干验收测试（unit tests + demo_full UI 用例）
    ↓
+Stage 2.5  Skills 同步与打包（diff 测试指南 → 切片 → dist/rodski-skills-vX.Y.Z.zip）
+   ↓
 Stage 3  同步版本号 + 打包 + 打 tag（tag 暂不 push）
    ↓
 Stage 4  干净 venv 验收 wheel（模拟用户安装体验）
@@ -61,6 +63,9 @@ VERSION=7.2.0
 
 # Stage 2: 主干验收
 .claude/skills/rodski-release/scripts/stage2_acceptance.sh $VERSION
+
+# Stage 2.5: Skills 同步与打包
+.claude/skills/rodski-release/scripts/stage2_5_sync_skills.sh $VERSION
 
 # Stage 3: 打包 + 打 tag
 .claude/skills/rodski-release/scripts/stage3_build_and_tag.sh $VERSION
@@ -114,6 +119,22 @@ VERSION=7.2.0
 
 失败处理：
 - 修复代码后重跑 stage2（不需要重跑 stage1）
+
+---
+
+### Stage 2.5 — Skills 同步与打包
+
+**脚本**: `stage2_5_sync_skills.sh <VERSION>`
+
+执行内容：
+1. 计算 `rodski/docs/TEST_CASE_WRITING_GUIDE.md` 的 sha256，与 `rodski-skills/rodski-test-guide/source.sha256` 对比
+2. 有变更 → 重新切片生成 `rodski-skills/rodski-test-guide/reference/*.md`，git commit
+3. 无变更 → 跳过 commit
+4. 打 `dist/rodski-skills-v<VERSION>.zip`（无论是否变更都打，确保版本对齐）
+
+失败处理：
+- sync 脚本异常 → 检查 `rodski-skills/scripts/sync_test_guide.sh` 是否存在且可执行
+- zip 失败 → 检查 `dist/` 目录权限
 
 ---
 

@@ -78,6 +78,17 @@ bump_all_versions() {
         sed -i '' "s/版本.*v[0-9.]\+/版本: v${v}/" "$doc"
         ok "  $(basename "$doc") → $v"
     done
+
+    # 6. rodski-skills/ 版本号（与发布版本对齐）
+    if [[ -f "$PROJECT_ROOT/rodski-skills/VERSION" ]]; then
+        echo "$v" > "$PROJECT_ROOT/rodski-skills/VERSION"
+        ok "  rodski-skills/VERSION → $v"
+    fi
+    if [[ -f "$PROJECT_ROOT/rodski-skills/rodski-test-guide/SKILL.md" ]]; then
+        sed -i '' "s/^version: [0-9][0-9.]*$/version: ${v}/" \
+            "$PROJECT_ROOT/rodski-skills/rodski-test-guide/SKILL.md"
+        ok "  rodski-skills/rodski-test-guide/SKILL.md → $v"
+    fi
 }
 
 # ── PyPI 检查 ─────────────────────────────────────────────────────────────────
