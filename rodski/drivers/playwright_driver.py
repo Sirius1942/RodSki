@@ -771,7 +771,16 @@ class PlaywrightDriver(BaseDriver):
                 if resolved_size is None:
                     resolved_size = _resolve_video_size("screen")
             context_options["record_video_size"] = resolved_size
-            context_options["viewport"] = resolved_size
+            if self.headless:
+                # 无头模式没有真实窗口，固定 viewport 即录制分辨率，不会闪屏
+                context_options["viewport"] = resolved_size
+            else:
+                # 有界面模式：给录制上下文设置固定 viewport 会让 Chromium 进入设备模拟
+                # (Emulation.setDeviceMetricsOverride，dpr 被强制为 1)，把模拟画面持续
+                # 缩放适配真实的最大化窗口，叠加每步自动截图后产生肉眼可见的闪屏/抖动。
+                # 改用 no_viewport 保留原生窗口（dpr/尺寸与系统一致），录制分辨率仍由
+                # record_video_size 独立控制，视频尺寸不变。
+                context_options["no_viewport"] = True
             self.context = self.browser.new_context(**context_options)
             self._recording_context = self.context
             self.page = self.context.new_page()
