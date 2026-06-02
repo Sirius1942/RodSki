@@ -146,6 +146,11 @@ class KeywordEngine:
         self._retry_config = {**self.DEFAULT_RETRY_CONFIG, **(retry_config or {})}
         self._retry_stats: Dict[str, List[int]] = {}
 
+        # Observability（可选）：由 SKIExecutor 在 enable_trace 时注入。
+        # 默认 None，关键字执行不产生任何 trace/metrics 开销。
+        self._metrics = None
+        self._tracer = None
+
     def set_current_recording_path(self, path: Optional[str]) -> None:
         self._current_recording_path = path
 
@@ -277,84 +282,106 @@ class KeywordEngine:
         
         last_error = None
         attempts = 0
-        
-        while attempts <= max_retries:
-            attempts += 1
-            try:
-                result = method(resolved_params)
-                
-                # 成功日志
-                self._log_keyword_success(keyword, attempts, result)
-                self._log_step_summary(keyword, resolved_params, result)
 
-                if attempts > 1:
-                    self._record_retry(keyword, attempts - 1)
-                return result
-                
-            except DriverStoppedError:
-                # 严重错误：驱动已停止
-                logger.critical(f"❌ 驱动已停止，无法继续执行关键字 '{keyword}'")
-                raise
-                
-            except (InvalidParameterError, UnknownKeywordError) as e:
-                # 参数错误和未知关键字不重试
-                logger.error(f"❌ 参数错误: {e}")
-                raise
+        # Observability：关键字级 span + 耗时/重试指标（仅 enable_trace 时生效）
+        _kw_lower = keyword.lower()
+        _span_open = False
+        if self._tracer is not None:
+            self._tracer.start_span(f"keyword.{_kw_lower}", keyword=keyword)
+            _span_open = True
+        _kw_start = time.time()
+        _span_status = "error"
 
-            except AssertionFailedError as e:
-                # 断言失败不重试，直接向上抛出
-                logger.error(f"❌ 断言失败: {e}")
-                raise
+        try:
+            while attempts <= max_retries:
+                attempts += 1
+                try:
+                    result = method(resolved_params)
 
-            except DriverError as e:
-                # 驱动错误
-                last_error = e
-                logger.error(f"❌ 驱动操作失败: {e}")
-                if attempts <= max_retries:
-                    logger.warning(f"   等待 {retry_delay}s 后重试 ({attempts}/{max_retries})...")
-                    time.sleep(retry_delay)
-                    continue
-                break
-                
-            except RuntimeError as e:
-                last_error = e
-                # 检查是否为严重错误
-                if is_critical_error(e):
-                    logger.critical(f"❌ 严重错误: {e}")
-                    raise DriverStoppedError(str(e))
-                    
-                # 检查是否应该重试
-                should_retry = self._should_retry(str(e), retry_on_errors)
-                can_retry = attempts <= max_retries
-                
-                if should_retry and can_retry:
-                    logger.warning(f"   等待 {retry_delay}s 后重试 ({attempts}/{max_retries})...")
-                    time.sleep(retry_delay)
-                    continue
-                elif not should_retry:
+                    # 成功日志
+                    self._log_keyword_success(keyword, attempts, result)
+                    self._log_step_summary(keyword, resolved_params, result)
+
+                    if attempts > 1:
+                        self._record_retry(keyword, attempts - 1)
+                    _span_status = "ok"
+                    return result
+
+                except DriverStoppedError:
+                    # 严重错误：驱动已停止
+                    logger.critical(f"❌ 驱动已停止，无法继续执行关键字 '{keyword}'")
                     raise
-                else:
+
+                except (InvalidParameterError, UnknownKeywordError) as e:
+                    # 参数错误和未知关键字不重试
+                    logger.error(f"❌ 参数错误: {e}")
+                    raise
+
+                except AssertionFailedError as e:
+                    # 断言失败不重试，直接向上抛出
+                    logger.error(f"❌ 断言失败: {e}")
+                    raise
+
+                except DriverError as e:
+                    # 驱动错误
+                    last_error = e
+                    logger.error(f"❌ 驱动操作失败: {e}")
+                    if attempts <= max_retries:
+                        logger.warning(f"   等待 {retry_delay}s 后重试 ({attempts}/{max_retries})...")
+                        time.sleep(retry_delay)
+                        continue
                     break
-                    
-            except Exception as e:
-                last_error = e
-                # 检查是否为严重错误
-                if is_critical_error(e):
-                    logger.critical(f"❌ 严重错误: {e}")
-                    raise DriverStoppedError(str(e))
-                    
-                logger.error(f"❌ 执行异常: {type(e).__name__}: {e}")
-                if attempts <= max_retries:
-                    logger.warning(f"   等待 {retry_delay}s 后重试 ({attempts}/{max_retries})...")
-                    time.sleep(retry_delay)
-                    continue
-                break
-        
-        # 重试耗尽
-        self._record_retry(keyword, max_retries)
-        logger.error(f"❌ 重试 {attempts} 次后仍失败: {last_error}")
-        raise RetryExhaustedError(keyword, attempts, last_error)
-    
+
+                except RuntimeError as e:
+                    last_error = e
+                    # 检查是否为严重错误
+                    if is_critical_error(e):
+                        logger.critical(f"❌ 严重错误: {e}")
+                        raise DriverStoppedError(str(e))
+
+                    # 检查是否应该重试
+                    should_retry = self._should_retry(str(e), retry_on_errors)
+                    can_retry = attempts <= max_retries
+
+                    if should_retry and can_retry:
+                        logger.warning(f"   等待 {retry_delay}s 后重试 ({attempts}/{max_retries})...")
+                        time.sleep(retry_delay)
+                        continue
+                    elif not should_retry:
+                        raise
+                    else:
+                        break
+
+                except Exception as e:
+                    last_error = e
+                    # 检查是否为严重错误
+                    if is_critical_error(e):
+                        logger.critical(f"❌ 严重错误: {e}")
+                        raise DriverStoppedError(str(e))
+
+                    logger.error(f"❌ 执行异常: {type(e).__name__}: {e}")
+                    if attempts <= max_retries:
+                        logger.warning(f"   等待 {retry_delay}s 后重试 ({attempts}/{max_retries})...")
+                        time.sleep(retry_delay)
+                        continue
+                    break
+
+            # 重试耗尽
+            self._record_retry(keyword, max_retries)
+            logger.error(f"❌ 重试 {attempts} 次后仍失败: {last_error}")
+            raise RetryExhaustedError(keyword, attempts, last_error)
+        finally:
+            if self._metrics is not None:
+                _labels = {"keyword": _kw_lower}
+                self._metrics.increment("keyword.total", labels=_labels)
+                self._metrics.record("keyword.duration", time.time() - _kw_start, labels=_labels)
+                if attempts > 1:
+                    self._metrics.increment("keyword.retry", value=attempts - 1, labels=_labels)
+                if _span_status != "ok":
+                    self._metrics.increment("keyword.error", labels=_labels)
+            if _span_open:
+                self._tracer.end_span(_span_status)
+
     def _log_keyword_start(self, keyword: str, params: Dict) -> None:
         param_str = ", ".join(f"{k}={v}" for k, v in params.items() if v)
         logger.info(f"执行关键字: {keyword}({param_str})" if param_str else f"执行关键字: {keyword}()")

@@ -85,6 +85,7 @@ class SKIExecutor:
         module_dir: Optional[str] = None,
         runtime_control: Optional[BaseRuntimeControl] = None,
         report_collector=None,
+        enable_trace: bool = False,
     ):
         """初始化 SKI 执行器
 
@@ -187,6 +188,24 @@ class SKIExecutor:
         # 报告收集器（可选）：不影响现有逻辑
         self.report_collector = report_collector
 
+        # Observability（可选）：启用后在用例/步骤边界生成 trace span，
+        # 并在关键字引擎层记录耗时/重试指标。默认关闭，不影响现有逻辑。
+        self.enable_trace = enable_trace
+        self._tracer = None
+        self._metrics = None
+        if enable_trace:
+            try:
+                from observability import get_tracer, MetricsCollector
+            except ImportError:
+                from rodski.observability import get_tracer, MetricsCollector
+            self._tracer = get_tracer()
+            self._metrics = MetricsCollector.get_instance()
+            self._tracer.reset()
+            self._metrics.reset()
+            # 关键字引擎共享同一 tracer / metrics 收集器
+            self.keyword_engine._metrics = self._metrics
+            self.keyword_engine._tracer = self._tracer
+
     def _ensure_driver_alive(self) -> None:
         """确保驱动可用，如果驱动已关闭则重新创建"""
         if self._driver_closed:
@@ -249,6 +268,10 @@ class SKIExecutor:
         if getattr(self, 'report_collector', None):
             self.report_collector.start_run()
 
+        # Observability：开启 run 级根 span
+        if self._tracer is not None:
+            self._tracer.start_span("run", total_cases=total_cases)
+
         for case in cases:
             case_count += 1
             case_skip = plan_case_skips.get(case.get('case_id', ''))
@@ -274,6 +297,12 @@ class SKIExecutor:
                     continue
 
             logger.info(f"执行用例 {case_count}/{total_cases}: {case['case_id']} - {case['title']}")
+            if self._tracer is not None:
+                self._tracer.start_span(
+                    "case",
+                    case_id=case.get('case_id', ''),
+                    title=case.get('title', ''),
+                )
             try:
                 result = self.execute_case(case)
                 results.append(result)
@@ -287,9 +316,13 @@ class SKIExecutor:
                     logger.info(f"  FAIL ({result['execution_time']}s)")
                 if result.get('error'):
                     logger.error(f"  错误: {result['error']}")
+                if self._tracer is not None:
+                    self._tracer.end_span("ok" if st == 'PASS' else "error")
 
             except DriverStoppedError as e:
                 logger.critical(f"驱动已停止: {e}")
+                if self._tracer is not None:
+                    self._tracer.end_span("error")
                 results.append({
                     'case_id': case['case_id'],
                     'title': case.get('title', ''),
@@ -300,6 +333,10 @@ class SKIExecutor:
                 })
 
         self.result_writer.write_results(results)
+
+        # Observability：结束 run 级根 span
+        if self._tracer is not None:
+            self._tracer.end_span("ok")
 
         # 报告收集器：结束执行
         if getattr(self, 'report_collector', None):

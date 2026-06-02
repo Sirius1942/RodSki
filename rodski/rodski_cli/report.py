@@ -278,8 +278,14 @@ def generate_html_from_run_results(
     passed: int,
     failed: int,
     duration: float,
+    metrics: Optional[dict] = None,
 ) -> str:
-    """供 run.py 的 --report html 调用，返回生成的报告路径"""
+    """供 run.py 的 --report html 调用，返回生成的报告路径
+
+    Args:
+        metrics: 可选的 observability 指标摘要（MetricsCollector.get_summary()），
+                 存在时报告会附加一个"性能概览"区块。
+    """
     pass_rate = (passed / total * 100) if total > 0 else 0
 
     report_data = {
@@ -291,6 +297,7 @@ def generate_html_from_run_results(
             "duration": round(duration, 2),
         },
         "results": _normalize_run_results(results),
+        "metrics": metrics or {},
         "timestamp": datetime.now().isoformat(),
     }
 
@@ -327,6 +334,59 @@ def _normalize_run_results(results: list) -> list:
 # HTML 生成
 # ---------------------------------------------------------------------------
 
+def _build_perf_section(metrics: dict) -> str:
+    """根据 observability metrics 摘要构建"性能概览"HTML 区块。
+
+    无指标数据时返回空串（报告不显示该区块）。
+    """
+    if not metrics:
+        return ""
+    histograms = metrics.get("histograms", {})
+    kw_dur = histograms.get("keyword.duration", {})
+    counters = metrics.get("counters", {})
+    kw_total = counters.get("keyword.total", {})
+    kw_error = counters.get("keyword.error", {})
+    if not kw_dur:
+        return ""
+
+    # 按关键字聚合：耗时 p50/p90/max + 调用次数 + 错误次数
+    perf_rows = ""
+    for label_key in sorted(kw_dur.keys()):
+        stats = kw_dur[label_key]
+        kw_name = label_key.split("=", 1)[1] if "=" in label_key else label_key
+        calls = kw_total.get(label_key, stats.get("count", 0))
+        errors = kw_error.get(label_key, 0)
+        perf_rows += f'''<tr>
+            <td><code>{_html_escape(str(kw_name))}</code></td>
+            <td>{int(calls)}</td>
+            <td>{int(errors)}</td>
+            <td>{stats.get("p50", 0):.3f}s</td>
+            <td>{stats.get("p90", 0):.3f}s</td>
+            <td>{stats.get("max", 0):.3f}s</td>
+        </tr>\n'''
+
+    return f'''
+        <div class="chart-container">
+            <h3 class="chart-title">性能概览 (Observability)</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Keyword</th>
+                        <th>Calls</th>
+                        <th>Errors</th>
+                        <th>p50</th>
+                        <th>p90</th>
+                        <th>Max</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {perf_rows}
+                </tbody>
+            </table>
+        </div>
+'''
+
+
 def _generate_html(
     results: dict,
     include_trend: bool = False,
@@ -337,6 +397,7 @@ def _generate_html(
     summary = results.get("summary", {})
     steps = results.get("results", [])
     timestamp = results.get("timestamp", datetime.now().isoformat())
+    perf_section = _build_perf_section(results.get("metrics", {}))
 
     total = summary.get("total", 0)
     passed = summary.get("passed", 0)
@@ -601,6 +662,7 @@ def _generate_html(
             <div class="progress-label">Pass Rate: {pass_rate:.1f}%</div>
         </div>
         {trend_section}
+        {perf_section}
         <div class="timeline-container">
             <h3 class="timeline-title">Execution Timeline</h3>
             <div class="timeline-bar">
