@@ -138,3 +138,21 @@ def test_json_export_to_file(wait_module, tmp_path):
     span_names = {s["name"] for s in spans}
     assert "run" in span_names
     assert "keyword.wait" in span_names
+
+
+def test_tracer_reinjected_after_driver_recreation(wait_module):
+    """回归：用例间驱动重建后，tracer/metrics 必须重新注入。
+
+    否则第 2+ 个用例的 keyword span / 指标会丢失（_ensure_driver_alive
+    重建 KeywordEngine 时未继承 observability 注入的历史 bug）。
+    """
+    executor = _build_executor(wait_module, enable_trace=True)
+    # 模拟驱动已关闭 → 触发 _ensure_driver_alive 重建 KeywordEngine
+    executor.driver_factory = lambda: __import__("unittest.mock", fromlist=["MagicMock"]).MagicMock()
+    executor._driver_closed = True
+    executor._ensure_driver_alive()
+
+    # 重建后的关键字引擎仍持有同一 tracer / metrics
+    assert executor.keyword_engine._tracer is executor._tracer
+    assert executor.keyword_engine._metrics is executor._metrics
+

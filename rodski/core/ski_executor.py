@@ -228,6 +228,12 @@ class SKIExecutor:
                 self.keyword_engine.data_resolver = self.data_resolver
                 self._set_keyword_recording_path(getattr(self, "_current_recording_path", None))
 
+                # observability：重建的关键字引擎需重新注入 tracer / metrics，
+                # 否则后续用例的 keyword span / 指标会丢失
+                if getattr(self, "_tracer", None) is not None:
+                    self.keyword_engine._tracer = self._tracer
+                    self.keyword_engine._metrics = self._metrics
+
                 logger.info("驱动重新创建成功")
             else:
                 raise DriverStoppedError(
