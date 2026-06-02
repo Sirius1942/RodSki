@@ -266,6 +266,29 @@ class TestKeywordEngineBuiltinIntegration:
         result = engine._try_builtin_call("script.py")
         assert result is None
 
+    def test_kw_run_empty_model_dispatches_builtin(self):
+        """回归：run 内置函数必须 model 为空才走 builtin 分发。
+
+        守护 demo 曾用 model="network_ops" 导致内置函数永不被调用、
+        反而去找 fun/network_ops/ 外部脚本的 bug。
+        """
+        engine = self._make_engine()
+        with patch.object(engine, "_try_builtin_call", return_value=True) as mock_try:
+            result = engine._kw_run({"model": "", "data": "clear_routes()"})
+        assert result is True
+        mock_try.assert_called_once_with("clear_routes()")
+
+    def test_kw_run_nonempty_model_skips_builtin(self):
+        """回归：model 非空时不进 builtin 分发（被当作 fun/ 工程名）。"""
+        engine = self._make_engine()
+        engine._module_dir = None
+        engine._case_file = None
+        with patch.object(engine, "_try_builtin_call") as mock_try:
+            # model 非空 → 跳过 builtin → 因缺少 module_dir 抛 InvalidParameterError
+            with pytest.raises(InvalidParameterError):
+                engine._kw_run({"model": "network_ops", "data": "clear_routes()"})
+        mock_try.assert_not_called()
+
     def test_builtin_context_injection(self):
         """测试内置函数调用时注入运行时上下文"""
         mock_driver = MagicMock()

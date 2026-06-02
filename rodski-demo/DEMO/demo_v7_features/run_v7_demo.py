@@ -289,19 +289,19 @@ def demo_4_network_ops():
   {BOLD}1. mock_route(url_pattern, status, body, content_type){RESET}
      拦截匹配 URL 的请求，返回自定义响应
      用例 XML 示例:
-       <test_step action="run" model="network_ops"
+       <test_step action="run" model=""
                   data="mock_route(**/api/orders, status=200, body={{}})"/>
 
   {BOLD}2. wait_for_response(url_pattern, timeout){RESET}
      等待特定网络请求完成，返回响应内容
      用例 XML 示例:
-       <test_step action="run" model="network_ops"
+       <test_step action="run" model=""
                   data="wait_for_response(/api/login, timeout=10)"/>
 
   {BOLD}3. clear_routes(){RESET}
      清除所有 mock route
      用例 XML 示例:
-       <test_step action="run" model="network_ops"
+       <test_step action="run" model=""
                   data="clear_routes()"/>
 
   支持 glob 和正则两种匹配模式:
