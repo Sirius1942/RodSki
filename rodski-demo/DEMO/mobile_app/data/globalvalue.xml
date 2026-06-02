@@ -9,10 +9,10 @@
     <var name="Platform" value="android"/>
     <var name="AutomationBackend" value="appium"/>
     <var name="AppiumServer" value="http://127.0.0.1:4723"/>
-    <var name="DeviceName" value="Android Emulator"/>
-    <var name="AppPackage" value="com.rodski.demoapp"/>
-    <var name="AppActivity" value=".MainActivity"/>
-    <var name="AppTarget" value="app://android/com.rodski.demoapp/.MainActivity"/>
+    <var name="DeviceName" value="AKRSUT1618000209"/>
+    <var name="AppPackage" value="com.rodski.demo"/>
+    <var name="AppActivity" value=".LoginActivity"/>
+    <var name="AppTarget" value="app://android/com.rodski.demo/.LoginActivity"/>
     <var name="NoReset" value="true"/>
     <var name="NewCommandTimeout" value="120"/>
   </group>

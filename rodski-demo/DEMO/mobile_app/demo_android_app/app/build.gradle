@@ -12,8 +12,8 @@ android {
         targetSdk 34
         versionCode 1
         versionName "1.0"
-        // API 地址在 iteration-49 时替换为真实 Mac IP
-        buildConfigField "String", "API_BASE_URL", '"http://10.118.34.160:8000"'
+        // adb reverse tcp:8000 tcp:8000 后，真机 127.0.0.1:8000 → 本机 mock_server.py
+        buildConfigField "String", "API_BASE_URL", '"http://127.0.0.1:8000"'
     }
     buildTypes {
         release {

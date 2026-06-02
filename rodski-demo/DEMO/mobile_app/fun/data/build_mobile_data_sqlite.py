@@ -107,43 +107,99 @@ def main() -> None:
     with sqlite3.connect(DB_PATH) as conn:
         conn.executescript(SCHEMA)
 
+        # 登录输入数据：成功账号 demo/demo123（对齐 mock_server）
         add_table(
             conn,
             table_name="LoginScreen",
             model_name="LoginScreen",
             table_kind="data",
-            fields=["phone", "password", "loginBtn"],
+            fields=["username", "password", "loginBtn"],
             rows=[
                 (
                     "L001",
                     "正常登录",
-                    {
-                        "phone": "13800000000",
-                        "password": "demo123.Password",
-                        "loginBtn": "click",
-                    },
-                )
+                    {"username": "demo", "password": "demo123", "loginBtn": "click"},
+                ),
+                (
+                    "L002",
+                    "错误密码",
+                    {"username": "demo", "password": "wrong_pwd", "loginBtn": "click"},
+                ),
             ],
-            remark="Mobile demo login input data",
+            remark="Mobile demo 登录输入数据",
         )
 
+        # 登录失败验证：errorMsg 文案
+        add_table(
+            conn,
+            table_name="LoginScreen_verify",
+            model_name="LoginScreen",
+            table_kind="verify",
+            fields=["errorMsg"],
+            rows=[
+                ("V002", "登录失败验证", {"errorMsg": "用户名或密码错误"}),
+            ],
+            remark="Mobile demo 登录失败验证数据",
+        )
+
+        # 主页验证：欢迎文案（欢迎，demo）
         add_table(
             conn,
             table_name="HomeScreen_verify",
             model_name="HomeScreen",
             table_kind="verify",
-            fields=["welcomeText", "signedInPhone"],
+            fields=["welcomeText"],
+            rows=[
+                ("VH001", "登录成功验证", {"welcomeText": "欢迎，demo"}),
+            ],
+            remark="Mobile demo 主页验证数据",
+        )
+
+        # 主页操作：点击"查看订单"
+        add_table(
+            conn,
+            table_name="HomeScreen",
+            model_name="HomeScreen",
+            table_kind="data",
+            fields=["orderListBtn"],
+            rows=[
+                ("H001", "进入订单列表", {"orderListBtn": "click"}),
+            ],
+            remark="Mobile demo 主页操作数据",
+        )
+
+        # 订单列表操作：点击第一条订单
+        add_table(
+            conn,
+            table_name="OrderListScreen",
+            model_name="OrderListScreen",
+            table_kind="data",
+            fields=["firstOrderItem"],
+            rows=[
+                ("O001", "打开第一条订单", {"firstOrderItem": "click"}),
+            ],
+            remark="Mobile demo 订单列表操作数据",
+        )
+
+        # 订单详情验证：第一条订单字段（对齐 mock_server ORDERS[0]）
+        add_table(
+            conn,
+            table_name="OrderDetailScreen_verify",
+            model_name="OrderDetailScreen",
+            table_kind="verify",
+            fields=["orderNo", "customerName", "status"],
             rows=[
                 (
-                    "V001",
-                    "登录成功验证",
+                    "VD001",
+                    "订单详情验证",
                     {
-                        "welcomeText": "欢迎使用 RodSki Mobile Demo",
-                        "signedInPhone": "13800000000",
+                        "orderNo": "SO-20260601-001",
+                        "customerName": "张三",
+                        "status": "已发货",
                     },
-                )
+                ),
             ],
-            remark="Mobile demo home screen verification data",
+            remark="Mobile demo 订单详情验证数据",
         )
 
         conn.commit()

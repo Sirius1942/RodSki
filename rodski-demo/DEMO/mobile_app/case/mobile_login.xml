@@ -18,7 +18,7 @@
         <test_step action="type" model="LoginScreen" data="L001"/>
       </scenario>
       <scenario id="S002" title="验证登录结果" group="mobile" tag="login,verify" depends="S001">
-        <test_step action="verify" model="HomeScreen" data="V001"/>
+        <test_step action="verify" model="HomeScreen" data="VH001"/>
       </scenario>
     </test_case>
     <post_process>

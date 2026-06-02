@@ -1,30 +1,35 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<cases tags="mobile,android,smoke">
+<!--
+  RodSki Android 真机验收用例（com.rodski.demo / 多页面订单流程）。
+  前置：mock_server.py 运行 + adb reverse tcp:8000 + Appium server + 真机已装 APK。
+  详见同目录 README.md "真机验收" 一节。
+-->
+<cases step_wait="800" tags="mobile,android,smoke">
   <case execute="是" id="APP001" title="Android App 登录成功"
         component_type="界面" priority="P0">
     <pre_process>
-      <test_step action="navigate" model=""
-                 data="GlobalValue.Mobile.AppTarget"/>
+      <test_step action="navigate" model="" data="GlobalValue.Mobile.AppTarget"/>
       <test_step action="wait" model="" data="2"/>
     </pre_process>
     <test_case>
       <test_step action="type" model="LoginScreen" data="L001"/>
-      <test_step action="verify" model="LoginScreen" data="V001"/>
+      <test_step action="wait" model="" data="2"/>
+      <test_step action="verify" model="HomeScreen" data="VH001"/>
     </test_case>
     <post_process>
       <test_step action="close" model="" data=""/>
     </post_process>
   </case>
 
-  <case execute="是" id="APP002" title="Android App 登录失败"
+  <case execute="是" id="APP002" title="Android App 登录失败提示"
         component_type="界面" priority="P1">
     <pre_process>
-      <test_step action="navigate" model=""
-                 data="GlobalValue.Mobile.AppTarget"/>
+      <test_step action="navigate" model="" data="GlobalValue.Mobile.AppTarget"/>
       <test_step action="wait" model="" data="2"/>
     </pre_process>
     <test_case>
       <test_step action="type" model="LoginScreen" data="L002"/>
+      <test_step action="wait" model="" data="2"/>
       <test_step action="verify" model="LoginScreen" data="V002"/>
     </test_case>
     <post_process>
@@ -32,11 +37,10 @@
     </post_process>
   </case>
 
-  <case execute="是" id="APP003" title="Android App 主页导航到订单列表"
-        component_type="界面" priority="P1">
+  <case execute="是" id="APP003" title="Android App 登录到订单详情全链路"
+        component_type="界面" priority="P0">
     <pre_process>
-      <test_step action="navigate" model=""
-                 data="GlobalValue.Mobile.AppTarget"/>
+      <test_step action="navigate" model="" data="GlobalValue.Mobile.AppTarget"/>
       <test_step action="wait" model="" data="2"/>
     </pre_process>
     <test_case>
@@ -44,6 +48,10 @@
       <test_step action="wait" model="" data="2"/>
       <test_step action="verify" model="HomeScreen" data="VH001"/>
       <test_step action="type" model="HomeScreen" data="H001"/>
+      <test_step action="wait" model="" data="2"/>
+      <test_step action="type" model="OrderListScreen" data="O001"/>
+      <test_step action="wait" model="" data="2"/>
+      <test_step action="verify" model="OrderDetailScreen" data="VD001"/>
     </test_case>
     <post_process>
       <test_step action="close" model="" data=""/>
