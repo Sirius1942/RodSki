@@ -1,6 +1,6 @@
 # RodSki 项目 - Claude 协作指南
 
-> RodSki 是面向 AI Agent 的跨平台确定性测试执行引擎。当前版本：v7.1.1
+> RodSki 是面向 AI Agent 的跨平台确定性测试执行引擎。当前版本：v7.2.0
 
 ## 核心文档（每次开发前必读）
 
@@ -159,6 +159,15 @@ python3 rodski/selftest.py
 
 # 运行 Demo 验收
 rodski run rodski-demo/DEMO/demo_full/case/
+
+# 可观测性：导出 trace.json（run/case/keyword 三层 span + 耗时/重试指标）
+rodski run <case/> --trace
+# --report html 也会顺带采集指标，报告含"性能概览"区块
+
+# run 调内置函数（如网络拦截 mock_route/wait_for_response/clear_routes）
+# 注意：内置函数 model 必须为空，否则被当作 fun/ 外部脚本工程名
+#   正确: <test_step action="run" model="" data="mock_route(...)"/>
+#   内置函数实现在 rodski/builtin_ops/（非 builtins/）
 
 # 数据迁移
 rodski data import <module>
