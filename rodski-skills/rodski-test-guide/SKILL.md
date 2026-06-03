@@ -9,7 +9,7 @@ description: >
   vision/ocr/vision_bbox、桌面端 / 移动端自动化时触发。完整内容按章节拆分在 reference/*.md，
   Agent 命中后按需 Read 对应章节。
 type: reference
-version: 7.1.6
+version: 7.2.0
 source: rodski/docs/TEST_CASE_WRITING_GUIDE.md
 ---
 
