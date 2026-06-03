@@ -206,3 +206,37 @@ class TestRecordingIntegration:
         assert len(recording_elems) == 1
         assert recording_elems[0].get("path") == result_elem.get("recording_path")
         assert recording_elems[0].get("backend") == "playwright"
+
+    def test_appium_backend_routes_and_labels(self, tmp_path):
+        """移动端：driver.recording_backend='appium' → 走 appium 标识，
+        复用同一套用例级录像分段机器（不再误落到 screen/mss 录桌面）。"""
+        module_dir = _build_module(tmp_path)
+        driver = _make_driver()
+        # 关键：模拟 AppiumDriver 自报录像后端为 appium，产物 mp4
+        driver.recording_backend = "appium"
+        driver.start_case_recording = Mock(
+            side_effect=lambda output_dir, case_id, target_path, video_size=None:
+                str(Path(target_path).with_suffix(".mp4"))
+        )
+        driver.stop_case_recording = Mock(side_effect=lambda case_id, target_path: target_path)
+        config = _make_config(tmp_path, True)
+        executor = SKIExecutor(str(module_dir / "case" / "test.xml"), driver, config, module_dir=str(module_dir))
+        executor.result_writer._init_run_dir()
+
+        result = executor.execute_case({
+            "case_id": "APP_REC",
+            "title": "移动端录制",
+            "pre_process": [],
+            "test_case": [{"action": "wait", "model": "", "data": "0"}],
+            "post_process": [],
+        })
+
+        assert result["status"] == "PASS"
+        assert result["recording_path"].endswith(".mp4")
+        assert result["recordings"] == [{
+            "index": 1,
+            "path": result["recording_path"],
+            "backend": "appium",
+        }]
+        driver.start_case_recording.assert_called_once()
+        driver.stop_case_recording.assert_called_once()

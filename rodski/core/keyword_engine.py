@@ -146,6 +146,15 @@ class KeywordEngine:
         self._retry_config = {**self.DEFAULT_RETRY_CONFIG, **(retry_config or {})}
         self._retry_stats: Dict[str, List[int]] = {}
 
+        # Observability（可选）：由 SKIExecutor 在 enable_trace 时注入。
+        # 默认 None，关键字执行不产生任何 trace/metrics 开销。
+        self._metrics = None
+        self._tracer = None
+
+        # 移动端/桌面端 driver 懒加载创建后的回调（由 SKIExecutor 注入）。
+        # 用于在真实 driver 就绪后再启动用例录像（移动端 driver 是懒加载的）。
+        self.on_mobile_driver_created = None
+
     def set_current_recording_path(self, path: Optional[str]) -> None:
         self._current_recording_path = path
 
@@ -187,6 +196,7 @@ class KeywordEngine:
                     mobile_driver = self._driver_factory(driver_type=driver_type, **mobile_caps)
                     self._desktop_drivers[driver_type] = mobile_driver
                     logger.info(f"自动创建移动端驱动: {driver_type}")
+                    self._notify_mobile_driver_created(driver_type, mobile_driver)
                     return mobile_driver
                 except Exception as e:
                     logger.warning(f"通过 driver_factory 创建移动端驱动失败: {e}")
@@ -198,6 +208,7 @@ class KeywordEngine:
             mobile_driver = DriverFactory.get_driver(driver_type, **mobile_caps)
             self._desktop_drivers[driver_type] = mobile_driver
             logger.info(f"直接创建移动端驱动: {driver_type}")
+            self._notify_mobile_driver_created(driver_type, mobile_driver)
             return mobile_driver
 
         # 尝试通过 driver_factory 创建桌面驱动
@@ -206,6 +217,7 @@ class KeywordEngine:
                 desktop_driver = self._driver_factory(driver_type=driver_type)
                 self._desktop_drivers[driver_type] = desktop_driver
                 logger.info(f"自动创建桌面驱动: {driver_type}")
+                self._notify_mobile_driver_created(driver_type, desktop_driver)
                 return desktop_driver
             except Exception as e:
                 logger.warning(f"通过 driver_factory 创建桌面驱动失败: {e}")
@@ -219,11 +231,21 @@ class KeywordEngine:
             desktop_driver = DesktopDriver(target_platform=driver_type if driver_type != "other" else None)
             self._desktop_drivers[driver_type] = desktop_driver
             logger.info(f"直接创建桌面驱动: {driver_type}")
+            self._notify_mobile_driver_created(driver_type, desktop_driver)
             return desktop_driver
         except ImportError:
             raise DriverError(
                 "DesktopDriver 不可用，请确认 pyautogui 已安装: pip install pyautogui"
             )
+
+    def _notify_mobile_driver_created(self, driver_type: str, driver) -> None:
+        """移动端/桌面端 driver 懒加载创建后通知回调（供录像懒启动）。"""
+        cb = getattr(self, "on_mobile_driver_created", None)
+        if cb is not None:
+            try:
+                cb(driver_type, driver)
+            except Exception as e:
+                logger.warning(f"on_mobile_driver_created 回调异常: {e}")
 
     def _get_mobile_driver(self, platform: str = None) -> BaseDriver:
         """获取移动端驱动（navigate App URI 专用）
@@ -277,84 +299,106 @@ class KeywordEngine:
         
         last_error = None
         attempts = 0
-        
-        while attempts <= max_retries:
-            attempts += 1
-            try:
-                result = method(resolved_params)
-                
-                # 成功日志
-                self._log_keyword_success(keyword, attempts, result)
-                self._log_step_summary(keyword, resolved_params, result)
 
-                if attempts > 1:
-                    self._record_retry(keyword, attempts - 1)
-                return result
-                
-            except DriverStoppedError:
-                # 严重错误：驱动已停止
-                logger.critical(f"❌ 驱动已停止，无法继续执行关键字 '{keyword}'")
-                raise
-                
-            except (InvalidParameterError, UnknownKeywordError) as e:
-                # 参数错误和未知关键字不重试
-                logger.error(f"❌ 参数错误: {e}")
-                raise
+        # Observability：关键字级 span + 耗时/重试指标（仅 enable_trace 时生效）
+        _kw_lower = keyword.lower()
+        _span_open = False
+        if self._tracer is not None:
+            self._tracer.start_span(f"keyword.{_kw_lower}", keyword=keyword)
+            _span_open = True
+        _kw_start = time.time()
+        _span_status = "error"
 
-            except AssertionFailedError as e:
-                # 断言失败不重试，直接向上抛出
-                logger.error(f"❌ 断言失败: {e}")
-                raise
+        try:
+            while attempts <= max_retries:
+                attempts += 1
+                try:
+                    result = method(resolved_params)
 
-            except DriverError as e:
-                # 驱动错误
-                last_error = e
-                logger.error(f"❌ 驱动操作失败: {e}")
-                if attempts <= max_retries:
-                    logger.warning(f"   等待 {retry_delay}s 后重试 ({attempts}/{max_retries})...")
-                    time.sleep(retry_delay)
-                    continue
-                break
-                
-            except RuntimeError as e:
-                last_error = e
-                # 检查是否为严重错误
-                if is_critical_error(e):
-                    logger.critical(f"❌ 严重错误: {e}")
-                    raise DriverStoppedError(str(e))
-                    
-                # 检查是否应该重试
-                should_retry = self._should_retry(str(e), retry_on_errors)
-                can_retry = attempts <= max_retries
-                
-                if should_retry and can_retry:
-                    logger.warning(f"   等待 {retry_delay}s 后重试 ({attempts}/{max_retries})...")
-                    time.sleep(retry_delay)
-                    continue
-                elif not should_retry:
+                    # 成功日志
+                    self._log_keyword_success(keyword, attempts, result)
+                    self._log_step_summary(keyword, resolved_params, result)
+
+                    if attempts > 1:
+                        self._record_retry(keyword, attempts - 1)
+                    _span_status = "ok"
+                    return result
+
+                except DriverStoppedError:
+                    # 严重错误：驱动已停止
+                    logger.critical(f"❌ 驱动已停止，无法继续执行关键字 '{keyword}'")
                     raise
-                else:
+
+                except (InvalidParameterError, UnknownKeywordError) as e:
+                    # 参数错误和未知关键字不重试
+                    logger.error(f"❌ 参数错误: {e}")
+                    raise
+
+                except AssertionFailedError as e:
+                    # 断言失败不重试，直接向上抛出
+                    logger.error(f"❌ 断言失败: {e}")
+                    raise
+
+                except DriverError as e:
+                    # 驱动错误
+                    last_error = e
+                    logger.error(f"❌ 驱动操作失败: {e}")
+                    if attempts <= max_retries:
+                        logger.warning(f"   等待 {retry_delay}s 后重试 ({attempts}/{max_retries})...")
+                        time.sleep(retry_delay)
+                        continue
                     break
-                    
-            except Exception as e:
-                last_error = e
-                # 检查是否为严重错误
-                if is_critical_error(e):
-                    logger.critical(f"❌ 严重错误: {e}")
-                    raise DriverStoppedError(str(e))
-                    
-                logger.error(f"❌ 执行异常: {type(e).__name__}: {e}")
-                if attempts <= max_retries:
-                    logger.warning(f"   等待 {retry_delay}s 后重试 ({attempts}/{max_retries})...")
-                    time.sleep(retry_delay)
-                    continue
-                break
-        
-        # 重试耗尽
-        self._record_retry(keyword, max_retries)
-        logger.error(f"❌ 重试 {attempts} 次后仍失败: {last_error}")
-        raise RetryExhaustedError(keyword, attempts, last_error)
-    
+
+                except RuntimeError as e:
+                    last_error = e
+                    # 检查是否为严重错误
+                    if is_critical_error(e):
+                        logger.critical(f"❌ 严重错误: {e}")
+                        raise DriverStoppedError(str(e))
+
+                    # 检查是否应该重试
+                    should_retry = self._should_retry(str(e), retry_on_errors)
+                    can_retry = attempts <= max_retries
+
+                    if should_retry and can_retry:
+                        logger.warning(f"   等待 {retry_delay}s 后重试 ({attempts}/{max_retries})...")
+                        time.sleep(retry_delay)
+                        continue
+                    elif not should_retry:
+                        raise
+                    else:
+                        break
+
+                except Exception as e:
+                    last_error = e
+                    # 检查是否为严重错误
+                    if is_critical_error(e):
+                        logger.critical(f"❌ 严重错误: {e}")
+                        raise DriverStoppedError(str(e))
+
+                    logger.error(f"❌ 执行异常: {type(e).__name__}: {e}")
+                    if attempts <= max_retries:
+                        logger.warning(f"   等待 {retry_delay}s 后重试 ({attempts}/{max_retries})...")
+                        time.sleep(retry_delay)
+                        continue
+                    break
+
+            # 重试耗尽
+            self._record_retry(keyword, max_retries)
+            logger.error(f"❌ 重试 {attempts} 次后仍失败: {last_error}")
+            raise RetryExhaustedError(keyword, attempts, last_error)
+        finally:
+            if self._metrics is not None:
+                _labels = {"keyword": _kw_lower}
+                self._metrics.increment("keyword.total", labels=_labels)
+                self._metrics.record("keyword.duration", time.time() - _kw_start, labels=_labels)
+                if attempts > 1:
+                    self._metrics.increment("keyword.retry", value=attempts - 1, labels=_labels)
+                if _span_status != "ok":
+                    self._metrics.increment("keyword.error", labels=_labels)
+            if _span_open:
+                self._tracer.end_span(_span_status)
+
     def _log_keyword_start(self, keyword: str, params: Dict) -> None:
         param_str = ", ".join(f"{k}={v}" for k, v in params.items() if v)
         logger.info(f"执行关键字: {keyword}({param_str})" if param_str else f"执行关键字: {keyword}()")

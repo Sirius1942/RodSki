@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <item name="phoneInput" type="id" />
-    <item name="passwordInput" type="id" />
-    <item name="loginButton" type="id" />
-    <item name="welcomeText" type="id" />
-    <item name="signedInPhone" type="id" />
-    <item name="errorText" type="id" />
-</resources>

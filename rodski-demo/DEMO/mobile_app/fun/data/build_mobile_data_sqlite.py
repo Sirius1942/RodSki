@@ -107,43 +107,108 @@ def main() -> None:
     with sqlite3.connect(DB_PATH) as conn:
         conn.executescript(SCHEMA)
 
+        # 登录输入数据：成功账号 demo/demo123（对齐 mock_server）
+        # 注：LoginScreen 模型含 errorMsg 元素（验证用），type 批量会遍历所有模型元素，
+        # 故输入行需显式给 errorMsg=BLANK 让 type 跳过它。
         add_table(
             conn,
             table_name="LoginScreen",
             model_name="LoginScreen",
             table_kind="data",
-            fields=["phone", "password", "loginBtn"],
+            fields=["username", "password", "loginBtn", "errorMsg"],
             rows=[
                 (
                     "L001",
                     "正常登录",
-                    {
-                        "phone": "13800000000",
-                        "password": "demo123.Password",
-                        "loginBtn": "click",
-                    },
-                )
+                    {"username": "demo", "password": "demo123", "loginBtn": "click", "errorMsg": "BLANK"},
+                ),
+                (
+                    "L002",
+                    "错误密码",
+                    {"username": "demo", "password": "wrong_pwd", "loginBtn": "click", "errorMsg": "BLANK"},
+                ),
             ],
-            remark="Mobile demo login input data",
+            remark="Mobile demo 登录输入数据",
         )
 
+        # 登录失败验证：errorMsg 文案（其余模型元素 BLANK 跳过验证）
+        add_table(
+            conn,
+            table_name="LoginScreen_verify",
+            model_name="LoginScreen",
+            table_kind="verify",
+            fields=["username", "password", "loginBtn", "errorMsg"],
+            rows=[
+                (
+                    "V002",
+                    "登录失败验证",
+                    {"username": "BLANK", "password": "BLANK", "loginBtn": "BLANK",
+                     "errorMsg": "用户名或密码错误"},
+                ),
+            ],
+            remark="Mobile demo 登录失败验证数据",
+        )
+
+        # 主页验证：欢迎文案（orderListBtn BLANK 跳过验证）
         add_table(
             conn,
             table_name="HomeScreen_verify",
             model_name="HomeScreen",
             table_kind="verify",
-            fields=["welcomeText", "signedInPhone"],
+            fields=["welcomeText", "orderListBtn"],
+            rows=[
+                ("VH001", "登录成功验证", {"welcomeText": "欢迎，demo", "orderListBtn": "BLANK"}),
+            ],
+            remark="Mobile demo 主页验证数据",
+        )
+
+        # 主页操作：点击"查看订单"（HomeScreen 模型含 welcomeText，type 需给它 BLANK）
+        add_table(
+            conn,
+            table_name="HomeScreen",
+            model_name="HomeScreen",
+            table_kind="data",
+            fields=["welcomeText", "orderListBtn"],
+            rows=[
+                ("H001", "进入订单列表", {"welcomeText": "BLANK", "orderListBtn": "click"}),
+            ],
+            remark="Mobile demo 主页操作数据",
+        )
+
+        # 订单列表操作：点击第一条订单（OrderListScreen 模型含 orderList，type 需给它 BLANK）
+        add_table(
+            conn,
+            table_name="OrderListScreen",
+            model_name="OrderListScreen",
+            table_kind="data",
+            fields=["orderList", "firstOrderItem"],
+            rows=[
+                ("O001", "打开第一条订单", {"orderList": "BLANK", "firstOrderItem": "click"}),
+            ],
+            remark="Mobile demo 订单列表操作数据",
+        )
+
+        # 订单详情验证：第一条订单字段（对齐 mock_server ORDERS[0]）
+        # amount 在 App 端可能带格式化，BLANK 跳过避免脆弱断言
+        add_table(
+            conn,
+            table_name="OrderDetailScreen_verify",
+            model_name="OrderDetailScreen",
+            table_kind="verify",
+            fields=["orderNo", "customerName", "amount", "status"],
             rows=[
                 (
-                    "V001",
-                    "登录成功验证",
+                    "VD001",
+                    "订单详情验证",
                     {
-                        "welcomeText": "欢迎使用 RodSki Mobile Demo",
-                        "signedInPhone": "13800000000",
+                        "orderNo": "SO-20260601-001",
+                        "customerName": "张三",
+                        "amount": "BLANK",
+                        "status": "已发货",
                     },
-                )
+                ),
             ],
-            remark="Mobile demo home screen verification data",
+            remark="Mobile demo 订单详情验证数据",
         )
 
         conn.commit()

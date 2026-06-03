@@ -151,6 +151,8 @@ class PlaywrightDriver(BaseDriver):
         self._recording_video = None
         self._recording_target_path: Optional[Path] = None
         self._recording_saved_path: Optional[str] = None
+        # 录像后端标识：供 SKIExecutor._select_recording_backend 区分驱动类型
+        self.recording_backend = "playwright"
 
     def _ensure_browser(self):
         """懒加载：首次需要浏览器时才启动 Playwright 和浏览器实例"""

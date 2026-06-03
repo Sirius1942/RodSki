@@ -78,6 +78,7 @@
     <xs:attribute name="status" type="StatusType" use="required"/>
     <xs:attribute name="execution_time" type="xs:string" use="optional"/>
     <xs:attribute name="error_message" type="xs:string" use="optional"/>
+    <xs:attribute name="screenshot" type="xs:string" use="optional"/>
   </xs:complexType>
 
   <!-- 变量集合类型 -->

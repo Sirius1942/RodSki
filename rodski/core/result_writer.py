@@ -199,6 +199,8 @@ class ResultWriter:
             # 添加步骤详情
             steps_data = result.get("steps", [])
             if steps_data:
+                # 步骤日志状态用 ok/fail，结果 schema 用 PASS/FAIL/SKIP/ERROR，做映射
+                _step_status_map = {"OK": "PASS", "FAIL": "FAIL", "SKIP": "SKIP", "ERROR": "ERROR"}
                 steps_elem = ET.SubElement(result_elem, "steps")
                 for step in steps_data:
                     step_elem = ET.SubElement(steps_elem, "step")
@@ -207,9 +209,13 @@ class ResultWriter:
                     step_elem.set("action", str(step.get("action", "")))
                     step_elem.set("model", str(step.get("model", "")))
                     step_elem.set("data", str(step.get("data", "")))
-                    step_elem.set("status", str(step.get("status", "FAIL")).upper())
+                    raw_status = str(step.get("status", "FAIL")).upper()
+                    step_elem.set("status", _step_status_map.get(raw_status, "PASS"))
                     step_elem.set("execution_time", str(step.get("execution_time", "")))
-                    step_elem.set("error_message", str(step.get("error_message", "")))
+                    step_elem.set("error_message", str(step.get("error", step.get("error_message", "")) or ""))
+                    screenshot = step.get("screenshot", "")
+                    if screenshot:
+                        step_elem.set("screenshot", str(screenshot))
 
             # 添加变量信息
             variables = result.get("variables", {})

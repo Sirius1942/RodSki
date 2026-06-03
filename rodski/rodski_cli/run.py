@@ -117,6 +117,8 @@ def setup_parser(subparsers):
                         default="text", help="输出格式 (默认: text)")
     parser.add_argument("--report", choices=["html"], default=None,
                         help="执行完毕后自动生成报告 (可选值: html)")
+    parser.add_argument("--trace", action="store_true",
+                        help="启用 observability，导出 trace.json（执行 trace 树 + 耗时/重试指标）")
     parser.add_argument("--insert-step", action="append", dest="insert_steps",
                         help="插入动态步骤 (格式: action,model,data)")
     parser.add_argument("--tag", "--tags", type=str, default=None, action="append", dest="tags",
@@ -572,6 +574,9 @@ def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional
     start_time = time.time()
     runtime_control = RuntimeCommandQueue() if insert_steps else None
 
+    # observability：--trace 显式开启，--report html 也顺带采集性能数据
+    enable_trace = bool(getattr(args, "trace", False)) or getattr(args, "report", None) == "html"
+
     try:
         executor = SKIExecutor(
             str(case_path),
@@ -580,6 +585,7 @@ def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional
             driver_factory=create_driver,
             module_dir=str(module_dir),
             runtime_control=runtime_control,
+            enable_trace=enable_trace,
         )
         executor.selector_filters = {
             "filter_tags": filter_tags,
@@ -617,6 +623,10 @@ def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional
         )
         duration = time.time() - start_time
 
+        # observability：导出 trace.json 到本次 run 结果目录
+        if enable_trace:
+            _export_trace(executor, output_format)
+
         if output_format == "json":
             output = JSONFormatter.format_success(results, duration)
             print(JSONFormatter.to_json(output, pretty=True))
@@ -650,7 +660,13 @@ def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional
         # --report html: 执行完毕后自动生成 HTML 报告
         report_format = getattr(args, "report", None)
         if report_format == "html":
-            _generate_post_run_report(results, total, passed, failed, duration)
+            perf_metrics = None
+            if enable_trace and getattr(executor, "_metrics", None) is not None:
+                perf_metrics = executor._metrics.get_summary()
+            # 报告写入本次 run 结果目录，使 screenshots/ recordings/ 相对路径可解析
+            run_dir = getattr(getattr(executor, "result_writer", None), "current_run_dir", None)
+            _generate_post_run_report(results, total, passed, failed, duration, perf_metrics,
+                                      output_dir=str(run_dir) if run_dir else None)
 
         return 0 if failed == 0 else 1
 
@@ -675,7 +691,32 @@ def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional
                 pass
 
 
-def _generate_post_run_report(results, total, passed, failed, duration):
+def _export_trace(executor, output_format="text"):
+    """导出 observability trace + metrics 到本次 run 结果目录的 trace.json。
+
+    导出失败不影响 run 主流程退出码。
+    """
+    try:
+        try:
+            from observability import JsonExporter
+        except ImportError:
+            from rodski.observability import JsonExporter
+        tracer = getattr(executor, "_tracer", None)
+        metrics = getattr(executor, "_metrics", None)
+        if tracer is None:
+            return
+        run_dir = getattr(getattr(executor, "result_writer", None), "current_run_dir", None)
+        if not run_dir:
+            return
+        out_path = str(Path(run_dir) / "trace.json")
+        JsonExporter.export_to_file(out_path, tracer=tracer, collector=metrics)
+        if output_format == "text":
+            print(f"trace 已导出: {out_path}")
+    except Exception as e:
+        print(f"警告: trace 导出失败: {e}", file=sys.stderr)
+
+
+def _generate_post_run_report(results, total, passed, failed, duration, metrics=None, output_dir=None):
     """执行后自动生成 HTML 报告（--report html 触发）
 
     报告生成失败不影响 run 主流程的退出码。
@@ -691,6 +732,8 @@ def _generate_post_run_report(results, total, passed, failed, duration):
             passed=passed,
             failed=failed,
             duration=duration,
+            metrics=metrics,
+            output_dir=output_dir,
         )
         print(f"HTML 报告已生成: {report_path}")
     except Exception as e:

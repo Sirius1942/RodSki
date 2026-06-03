@@ -1,114 +1,111 @@
-# RodSki v7 Mobile App Demo
+# RodSki Android 真机 App Demo
 
-本模块是 v7 移动端 App 模式的准备性 demo，放在 `rodski-demo/DEMO/mobile_app/`，用于沉淀标准 RodSki 模块结构、Android demo app 源码、`model.xml`、`case`、`plan`、`globalvalue.xml` 和唯一测试数据文件 `data/data.sqlite`。
+本模块是 RodSki 移动端（Android）自动化测试的官方示例与验收载体，演示
+**登录 → 主页 → 订单列表 → 订单详情** 多页面流程，全程使用 RodSki 标准关键字
+（`navigate` / `type` / `verify` / `wait` / `close`），不新增任何非法 action。
 
-## 当前状态
+## 被测应用
 
-- v7.0.0 已开始接入 `driver_type="android"` / `driver_type="ios"` 协议，`model/model.xml` 使用 `driver_type="android"`。
-- 本模块的 case 默认 `execute="否"`，plan 也默认 `execute="否"`，因为真实执行仍依赖本机 Android SDK、Appium server、已安装 demo APK 和可见真机/模拟器。
-- 在未完成真实设备执行前，本模块只能作为准备性 demo，不能作为移动端验收已通过的证据。
-- 本模块不新增任何非法 `action`。移动端点击、按键、滚动等行为仍通过 `type` 数据字段值或 `run` 脚本表达。
+`demo_android_app/`（包名 `com.rodski.demo`）是一个最小 Kotlin Android 应用：
+
+| Activity | 控件 resource-id | 说明 |
+|----------|-----------------|------|
+| `.LoginActivity` | `username` / `password` / `loginBtn` / `errorMsg` | 登录页（调 `/api/login`） |
+| `.HomeActivity` | `welcomeText` / `orderListBtn` | 主页（欢迎，{username}） |
+| `.OrderListActivity` | `orderList` / `orderItem` | 订单列表（调 `/api/orders`） |
+| `.OrderDetailActivity` | `orderNo` / `customerName` / `amount` / `status` | 订单详情 |
+
+控件 id 与 `model/model.xml` 一一对齐（4 个 model：`LoginScreen` / `HomeScreen` /
+`OrderListScreen` / `OrderDetailScreen`）。
+
+**有效测试账号：`demo` / `demo123`**
+
+> 说明：登录与订单数据来自后端 API（`BuildConfig.API_BASE_URL`），因此真机验收
+> 需要一个可达的后端。本模块自带 `scripts/mock_server.py` 作为 mock 后端，
+> 无需依赖真实业务服务。
 
 ## 目录结构
 
 ```text
 mobile_app/
-├── apps/
-│   └── android-demo-app/          # 轻量 Android demo app 源码
+├── demo_android_app/          # 被测 Android 应用源码（com.rodski.demo）
 ├── case/
-│   └── mobile_login.xml           # 默认跳过的移动端示例 case
+│   ├── login.xml              # 真机验收用例（execute="是"，APP001/002/003）
+│   └── mobile_login.xml       # 准备性 scenario 示例（execute="否"）
 ├── data/
-│   ├── data.sqlite                # 唯一测试数据文件
-│   └── globalvalue.xml            # 移动端全局配置
+│   ├── data.sqlite            # 唯一测试数据文件
+│   └── globalvalue.xml        # 移动端全局配置（包名/Activity/Appium）
 ├── fun/
-│   ├── data/
-│   │   └── build_mobile_data_sqlite.py
-│   └── mobile/
-│       └── android_keycode.py     # run 扩展示例
+│   ├── data/build_mobile_data_sqlite.py   # 重建 data.sqlite
+│   └── mobile/android_keycode.py          # run 扩展示例
 ├── model/
-│   └── model.xml
+│   └── model.xml              # 4 个页面模型
 ├── plan/
 │   └── mobile_app_smoke.xml
-└── result/
-    └── README.md
+├── scripts/
+│   ├── mock_server.py         # mock 后端（/api/login + /api/orders）
+│   ├── check_device.py
+│   └── init_data.py
+└── result/                    # 框架自动生成
 ```
 
-## Android Demo App
+## 真机验收（端到端）
 
-`apps/android-demo-app` 是一个最小 Android 项目源码，包名为 `com.rodski.demoapp`。主界面包含手机号、密码、登录按钮，登录成功后展示欢迎信息和登录手机号。
+### 前置条件
 
-控件 ID 与 `model/model.xml` 对齐：
+- Android 真机通过 USB 连接，`adb devices` 可见
+- 真机已安装 `com.rodski.demo`（见下方"构建并安装 APK"）
+- Appium server 可访问（`http://127.0.0.1:4723`）
+- Python 已装 Flask（RodSki 依赖已含）
 
-| 模型字段 | Android resource-id |
-|----------|---------------------|
-| `phone` | `com.rodski.demoapp:id/phoneInput` |
-| `password` | `com.rodski.demoapp:id/passwordInput` |
-| `loginBtn` | `com.rodski.demoapp:id/loginButton` |
-| `welcomeText` | `com.rodski.demoapp:id/welcomeText` |
-| `signedInPhone` | `com.rodski.demoapp:id/signedInPhone` |
-
-可用测试账号：
-
-| 字段 | 值 |
-|------|----|
-| 手机号 | `13800000000` |
-| 密码 | `demo123.Password` |
-
-App 内会接受去掉脱敏后缀的真实密码 `demo123`。RodSki 数据中保留 `.Password` 后缀，用于遵守日志脱敏约定。
-
-## 手工构建和安装
-
-本次未构建 APK。具备 Android SDK、JDK 和 Gradle/Android Studio 环境后，可手工执行：
+### 步骤
 
 ```bash
-cd rodski-demo/DEMO/mobile_app/apps/android-demo-app
-gradle assembleDebug
+# 1. 启动 mock 后端（默认 0.0.0.0:8000）
+python3 rodski-demo/DEMO/mobile_app/scripts/mock_server.py &
+
+# 2. USB 端口转发：让真机的 127.0.0.1:8000 指向本机 mock 后端
+#    （免去局域网 IP 漂移问题；APK 的 API_BASE_URL 应指向 http://127.0.0.1:8000）
+adb reverse tcp:8000 tcp:8000
+
+# 3. 启动 Appium server
+appium &
+
+# 4. 执行 RodSki 真机验收用例
+rodski run rodski-demo/DEMO/mobile_app/case/login.xml
+
+# （可选）带 trace/报告
+rodski run rodski-demo/DEMO/mobile_app/case/login.xml --report html --trace
+```
+
+预期：APP001 / APP002 / APP003 三个用例全部通过。
+
+### 构建并安装 APK
+
+需要 JDK 17+ 与 Android SDK（`ANDROID_HOME` 指向 commandline-tools）：
+
+```bash
+cd rodski-demo/DEMO/mobile_app/demo_android_app
+# API_BASE_URL 默认 http://10.x.x.x:8000，配合 adb reverse 建议改为 127.0.0.1:8000
+./gradlew assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-如果本地为该项目生成了 Gradle wrapper，也可以使用 `./gradlew assembleDebug`。没有命令行 Gradle 时，可用 Android Studio 打开 `apps/android-demo-app`，同步后执行 `Run` 或 `Build > Build Bundle(s) / APK(s) > Build APK(s)`。
+> `app/build.gradle` 的 `API_BASE_URL` 决定 APK 访问的后端地址。使用
+> `adb reverse` 方案时设为 `http://127.0.0.1:8000`；直连局域网时设为本机 IP。
 
-## 设备前置条件
-
-真实执行移动端 RodSki case 前至少需要：
-
-- Android 模拟器或 USB 真机，且 `adb devices` 可见。
-- 已安装 `com.rodski.demoapp` demo app。
-- Appium server 可访问，例如 `http://127.0.0.1:4723`。
-- RodSki v7 核心已支持 `driver_type="android"`、移动端 `navigate` App URI、移动端 `type` / `verify` 路由。
-- 如使用视觉兜底定位，需要截图和 OCR/视觉后端可用。
-
-## RodSki 数据和用例
-
-重新生成唯一数据文件：
+## RodSki 数据与校验
 
 ```bash
+# 重建唯一数据文件
 python3 rodski-demo/DEMO/mobile_app/fun/data/build_mobile_data_sqlite.py
-```
 
-查看数据文件：
-
-```bash
+# 查看数据
 sqlite3 rodski-demo/DEMO/mobile_app/data/data.sqlite \
   "select table_name, model_name, table_kind from rs_datatable order by table_name;"
-```
 
-XML 校验：
-
-```bash
-xmllint --noout --schema rodski/schemas/case.xsd rodski-demo/DEMO/mobile_app/case/mobile_login.xml
+# XML 校验
+xmllint --noout --schema rodski/schemas/case.xsd  rodski-demo/DEMO/mobile_app/case/login.xml
 xmllint --noout --schema rodski/schemas/model.xsd rodski-demo/DEMO/mobile_app/model/model.xml
 xmllint --noout --schema rodski/schemas/globalvalue.xsd rodski-demo/DEMO/mobile_app/data/globalvalue.xml
-xmllint --noout --schema rodski/schemas/plan.xsd rodski-demo/DEMO/mobile_app/plan/mobile_app_smoke.xml
 ```
-
-## 后续启用步骤
-
-具备本地设备和 Appium 环境后，启用本 demo 需要做以下变更：
-
-1. 确认 `adb devices` 能看到 Android 真机或模拟器。
-2. 构建并安装 `apps/android-demo-app`。
-3. 启动 Appium server，并确认 `data/globalvalue.xml` 中的 `Mobile.AppiumServer` 与本机一致。
-4. 确认 `navigate` 可解析 `GlobalValue.Mobile.AppTarget` 中的 `app://android/com.rodski.demoapp/.MainActivity`。
-5. 确认移动端 `verify` 能读取控件文本。
-6. 将 `case/mobile_login.xml` 和 `plan/mobile_app_smoke.xml` 的 `execute` 从 `否` 改为 `是`，并在真实设备上执行。

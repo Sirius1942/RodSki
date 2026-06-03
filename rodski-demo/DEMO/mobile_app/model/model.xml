@@ -1,46 +1,94 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <models>
+  <!-- 登录页 com.rodski.demo/.LoginActivity -->
   <model name="LoginScreen" type="ui" driver_type="android" servicename="">
-    <element name="phone" type="mobile">
+    <element name="username" type="mobile">
       <type>input</type>
-      <location type="id" priority="1">com.rodski.demoapp:id/phoneInput</location>
-      <location type="name" priority="2">phoneInput</location>
-      <location type="ocr" priority="3">手机号</location>
-      <desc>手机号输入框</desc>
+      <location type="id" priority="1">com.rodski.demo:id/username</location>
+      <location type="ocr" priority="2">用户名</location>
+      <desc>用户名输入框</desc>
     </element>
 
     <element name="password" type="mobile">
       <type>input</type>
-      <location type="id" priority="1">com.rodski.demoapp:id/passwordInput</location>
-      <location type="name" priority="2">passwordInput</location>
-      <location type="ocr" priority="3">密码</location>
+      <location type="id" priority="1">com.rodski.demo:id/password</location>
+      <location type="ocr" priority="2">密码</location>
       <desc>密码输入框</desc>
     </element>
 
     <element name="loginBtn" type="mobile">
       <type>button</type>
-      <location type="id" priority="1">com.rodski.demoapp:id/loginButton</location>
+      <location type="id" priority="1">com.rodski.demo:id/loginBtn</location>
       <location type="text" priority="2">登录</location>
       <location type="ocr" priority="3">登录</location>
-      <location type="vision_bbox" priority="4">80,420,640,500</location>
       <desc>登录按钮</desc>
+    </element>
+
+    <element name="errorMsg" type="mobile">
+      <type>text</type>
+      <location type="id" priority="1">com.rodski.demo:id/errorMsg</location>
+      <desc>登录错误提示</desc>
     </element>
   </model>
 
+  <!-- 主页 com.rodski.demo/.HomeActivity -->
   <model name="HomeScreen" type="ui" driver_type="android" servicename="">
     <element name="welcomeText" type="mobile">
       <type>text</type>
-      <location type="id" priority="1">com.rodski.demoapp:id/welcomeText</location>
-      <location type="text" priority="2">欢迎使用 RodSki Mobile Demo</location>
-      <location type="ocr" priority="3">欢迎使用 RodSki Mobile Demo</location>
-      <desc>登录成功欢迎文案</desc>
+      <location type="id" priority="1">com.rodski.demo:id/welcomeText</location>
+      <location type="ocr" priority="2">欢迎</location>
+      <desc>登录成功欢迎文案（欢迎，{username}）</desc>
     </element>
 
-    <element name="signedInPhone" type="mobile">
+    <element name="orderListBtn" type="mobile">
+      <type>button</type>
+      <location type="id" priority="1">com.rodski.demo:id/orderListBtn</location>
+      <location type="text" priority="2">查看订单</location>
+      <location type="ocr" priority="3">查看订单</location>
+      <desc>进入订单列表按钮</desc>
+    </element>
+  </model>
+
+  <!-- 订单列表 com.rodski.demo/.OrderListActivity -->
+  <model name="OrderListScreen" type="ui" driver_type="android" servicename="">
+    <element name="orderList" type="mobile">
+      <type>list</type>
+      <location type="id" priority="1">com.rodski.demo:id/orderList</location>
+      <desc>订单列表 RecyclerView</desc>
+    </element>
+
+    <element name="firstOrderItem" type="mobile">
       <type>text</type>
-      <location type="id" priority="1">com.rodski.demoapp:id/signedInPhone</location>
-      <location type="ocr" priority="2">13800000000</location>
-      <desc>登录后的手机号展示</desc>
+      <location type="id" priority="1">com.rodski.demo:id/orderItem</location>
+      <location type="ocr" priority="2">SO-20260601-001</location>
+      <desc>第一条订单条目（含订单号/金额/状态）</desc>
+    </element>
+  </model>
+
+  <!-- 订单详情 com.rodski.demo/.OrderDetailActivity -->
+  <model name="OrderDetailScreen" type="ui" driver_type="android" servicename="">
+    <element name="orderNo" type="mobile">
+      <type>text</type>
+      <location type="id" priority="1">com.rodski.demo:id/orderNo</location>
+      <desc>订单号</desc>
+    </element>
+
+    <element name="customerName" type="mobile">
+      <type>text</type>
+      <location type="id" priority="1">com.rodski.demo:id/customerName</location>
+      <desc>客户名</desc>
+    </element>
+
+    <element name="amount" type="mobile">
+      <type>text</type>
+      <location type="id" priority="1">com.rodski.demo:id/amount</location>
+      <desc>金额</desc>
+    </element>
+
+    <element name="status" type="mobile">
+      <type>text</type>
+      <location type="id" priority="1">com.rodski.demo:id/status</location>
+      <desc>订单状态</desc>
     </element>
   </model>
 </models>
