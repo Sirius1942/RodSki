@@ -989,6 +989,9 @@ class SKIExecutor:
             def _finish(result: Dict[str, Any]) -> Dict[str, Any]:
                 if getattr(self, '_current_case_scenario_statuses', None):
                     result['scenario_statuses'] = list(self._current_case_scenario_statuses)
+                # 附带每步执行明细（含每步截图相对路径），供报告每步内联展示
+                if getattr(self, '_current_case_steps_log', None):
+                    result['steps'] = list(self._current_case_steps_log)
                 final_recording_path = self._stop_case_recording(case['case_id'], recording_path)
                 return self._attach_recording_path(result, final_recording_path)
 
@@ -1577,8 +1580,15 @@ class SKIExecutor:
                 filename = f"{case_id}_{self._step_index:02d}_{safe_phase}_{timestamp}.png"
 
             path = screenshot_dir / filename
-            self.driver.screenshot(str(path))
+            # 移动端 self.driver 可能是 web 占位，优先用录像/关键字引擎的活跃 driver
+            shot_driver = getattr(self, "_recording_driver", None) or self.driver
+            if not hasattr(shot_driver, "screenshot"):
+                shot_driver = getattr(self.keyword_engine, "driver", self.driver)
+            ok = shot_driver.screenshot(str(path))
             logger.debug(f"步骤截图: {path}")
+            # 记录相对路径到最近一条 step log，供报告每步内联展示
+            if ok and getattr(self, "_current_case_steps_log", None):
+                self._current_case_steps_log[-1]["screenshot"] = self._relative_run_path(str(path))
         except Exception as e:
             logger.debug(f"自动截图失败: {e}")
 

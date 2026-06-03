@@ -279,12 +279,16 @@ def generate_html_from_run_results(
     failed: int,
     duration: float,
     metrics: Optional[dict] = None,
+    output_dir: Optional[str] = None,
 ) -> str:
     """供 run.py 的 --report html 调用，返回生成的报告路径
 
     Args:
         metrics: 可选的 observability 指标摘要（MetricsCollector.get_summary()），
                  存在时报告会附加一个"性能概览"区块。
+        output_dir: 报告输出目录。指定时报告写入该目录（通常是本次 run 结果目录），
+                 使报告中 screenshots/ recordings/ 相对路径可正确解析；
+                 未指定则写入当前工作目录（向后兼容）。
     """
     pass_rate = (passed / total * 100) if total > 0 else 0
 
@@ -302,7 +306,13 @@ def generate_html_from_run_results(
     }
 
     html = _generate_html(report_data, single_file=True)
-    output_path = Path(f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html")
+    filename = f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
+    if output_dir:
+        out_dir = Path(output_dir)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        output_path = out_dir / filename
+    else:
+        output_path = Path(filename)
     output_path.write_text(html, encoding="utf-8")
 
     # 同时保存历史记录
@@ -326,6 +336,7 @@ def _normalize_run_results(results: list) -> list:
             "duration": r.get("execution_time", 0) or 0,
             "recording_path": recording_path or (recordings[0]["path"] if recordings else ""),
             "recordings": recordings,
+            "steps": r.get("steps") or [],
         })
     return normalized
 
@@ -333,6 +344,40 @@ def _normalize_run_results(results: list) -> list:
 # ---------------------------------------------------------------------------
 # HTML 生成
 # ---------------------------------------------------------------------------
+
+def _build_step_detail_row(case_index: int, steps: list) -> str:
+    """构建某用例的每步明细展开行（含每步截图内联，相对路径引用）。"""
+    items = ""
+    for s in steps:
+        idx = s.get("index", "")
+        action = _html_escape(str(s.get("action", "")))
+        model = _html_escape(str(s.get("model", "") or ""))
+        phase = _html_escape(str(s.get("phase", "") or ""))
+        st = str(s.get("status", "ok")).lower()
+        st_cls = "pass" if st == "ok" else "fail"
+        shot = s.get("screenshot") or ""
+        err = _html_escape(str(s.get("error", "") or ""))
+        img_html = ""
+        if shot:
+            safe_shot = _html_escape(str(shot))
+            img_html = (
+                f'<a href="{safe_shot}" target="_blank">'
+                f'<img class="step-shot" src="{safe_shot}" loading="lazy" alt="step {idx}"></a>'
+            )
+        err_html = f'<div class="step-err">{err}</div>' if err else ""
+        items += f'''<div class="step-item">
+            <div class="step-head">
+                <span class="status-badge {st_cls}">{idx}</span>
+                <code>{action}</code> {model}
+                <span class="step-phase">{phase}</span>
+            </div>
+            {img_html}
+            {err_html}
+        </div>\n'''
+    return f'''<tr class="step-detail" id="steps-{case_index}" style="display:none;">
+        <td colspan="6"><div class="step-grid">{items}</div></td>
+    </tr>\n'''
+
 
 def _build_perf_section(metrics: dict) -> str:
     """根据 observability metrics 摘要构建"性能概览"HTML 区块。
@@ -424,14 +469,20 @@ def _generate_html(
         ) or "-"
 
         msg_display = (message[:50] + "...") if len(message) > 50 else message
+        case_steps = r.get("steps") or []
+        toggle = ""
+        if case_steps:
+            toggle = f'<span class="step-toggle" onclick="toggleSteps(\'steps-{i}\')">▶ {len(case_steps)} 步</span>'
         rows += f'''<tr class="{status_class}">
             <td>{i}</td>
-            <td>{step_name}</td>
+            <td>{step_name} {toggle}</td>
             <td><code>{keyword}</code></td>
             <td><span class="status-badge {status_class}">{status}</span></td>
             <td>{recording_links}</td>
             <td class="message">{msg_display}</td>
         </tr>\n'''
+        if case_steps:
+            rows += _build_step_detail_row(i, case_steps)
 
         width_pct = (step_duration / total_step_duration) * 100 if total_step_duration else (100 / len(steps) if steps else 0)
         timeline_segments += f'<div class="timeline-seg {status_class}" style="width: {width_pct:.2f}%" title="{step_name}: {step_duration:.2f}s"></div>\n'
@@ -622,6 +673,15 @@ def _generate_html(
             font-family: 'Monaco', 'Consolas', monospace; font-size: 0.875rem; color: var(--primary);
         }}
         .message {{ color: var(--text-muted); font-size: 0.875rem; max-width: 300px; overflow: hidden; text-overflow: ellipsis; }}
+        .step-toggle {{ cursor: pointer; color: var(--primary); font-size: 0.8rem; margin-left: 8px; user-select: none; }}
+        .step-toggle:hover {{ text-decoration: underline; }}
+        .step-grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; padding: 12px; }}
+        .step-item {{ border: 1px solid var(--border); border-radius: 8px; padding: 8px; background: var(--bg); }}
+        .step-head {{ display: flex; align-items: center; gap: 6px; font-size: 0.8rem; margin-bottom: 6px; flex-wrap: wrap; }}
+        .step-phase {{ color: var(--text-muted); font-size: 0.7rem; }}
+        .step-shot {{ width: 100%; border-radius: 6px; border: 1px solid var(--border); display: block; }}
+        .step-err {{ color: var(--error); font-size: 0.75rem; margin-top: 6px; word-break: break-all; }}
+        tr.step-detail td {{ background: var(--bg); padding: 0; }}
         footer {{ text-align: center; margin-top: 30px; padding: 20px; color: var(--text-muted); font-size: 0.875rem; }}
         @media (max-width: 768px) {{
             .summary-cards {{ grid-template-columns: repeat(2, 1fr); }}
@@ -692,6 +752,13 @@ def _generate_html(
             <p>RodSki Framework</p>
         </footer>
     </div>
+    <script>
+        function toggleSteps(id) {{
+            var row = document.getElementById(id);
+            if (!row) return;
+            row.style.display = (row.style.display === 'none' || !row.style.display) ? 'table-row' : 'none';
+        }}
+    </script>
 </body>
 </html>'''
 

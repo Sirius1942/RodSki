@@ -663,7 +663,10 @@ def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional
             perf_metrics = None
             if enable_trace and getattr(executor, "_metrics", None) is not None:
                 perf_metrics = executor._metrics.get_summary()
-            _generate_post_run_report(results, total, passed, failed, duration, perf_metrics)
+            # 报告写入本次 run 结果目录，使 screenshots/ recordings/ 相对路径可解析
+            run_dir = getattr(getattr(executor, "result_writer", None), "current_run_dir", None)
+            _generate_post_run_report(results, total, passed, failed, duration, perf_metrics,
+                                      output_dir=str(run_dir) if run_dir else None)
 
         return 0 if failed == 0 else 1
 
@@ -713,7 +716,7 @@ def _export_trace(executor, output_format="text"):
         print(f"警告: trace 导出失败: {e}", file=sys.stderr)
 
 
-def _generate_post_run_report(results, total, passed, failed, duration, metrics=None):
+def _generate_post_run_report(results, total, passed, failed, duration, metrics=None, output_dir=None):
     """执行后自动生成 HTML 报告（--report html 触发）
 
     报告生成失败不影响 run 主流程的退出码。
@@ -730,6 +733,7 @@ def _generate_post_run_report(results, total, passed, failed, duration, metrics=
             failed=failed,
             duration=duration,
             metrics=metrics,
+            output_dir=output_dir,
         )
         print(f"HTML 报告已生成: {report_path}")
     except Exception as e:

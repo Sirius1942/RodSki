@@ -202,6 +202,47 @@ class TestRunReportIntegration:
         )
         assert Path(report_path).exists()
 
+    def test_per_step_screenshots_inlined(self, tmp_path, monkeypatch):
+        """带 steps 的用例：报告内联每步截图（相对路径）+ 可展开。"""
+        monkeypatch.chdir(tmp_path)
+        from rodski_cli.report import generate_html_from_run_results
+
+        results = [{
+            "case_id": "APP001", "title": "登录", "status": "PASS", "execution_time": 5.0,
+            "recording_path": "recordings/APP001_01.mp4",
+            "steps": [
+                {"index": 1, "action": "navigate", "model": "", "phase": "预处理",
+                 "status": "ok", "screenshot": "screenshots/APP001_01.png"},
+                {"index": 2, "action": "verify", "model": "HomeScreen", "phase": "用例",
+                 "status": "fail", "screenshot": "screenshots/APP001_02.png", "error": "断言失败"},
+            ],
+        }]
+        report_path = generate_html_from_run_results(
+            results=results, total=1, passed=1, failed=0, duration=5.0,
+        )
+        content = Path(report_path).read_text(encoding="utf-8")
+        # 每步截图相对路径内联（<img src=...>）
+        assert 'src="screenshots/APP001_01.png"' in content
+        assert 'src="screenshots/APP001_02.png"' in content
+        # 可展开按钮 + 明细行
+        assert "onclick=\"toggleSteps('steps-1')\"" in content
+        assert 'id="steps-1"' in content
+        # 失败步骤错误展示
+        assert "断言失败" in content
+
+    def test_no_steps_no_toggle(self, tmp_path, monkeypatch):
+        """无 steps 的用例：不渲染展开按钮和明细行。"""
+        monkeypatch.chdir(tmp_path)
+        from rodski_cli.report import generate_html_from_run_results
+
+        results = [{"case_id": "TC1", "title": "x", "status": "PASS", "execution_time": 1.0}]
+        report_path = generate_html_from_run_results(
+            results=results, total=1, passed=1, failed=0, duration=1.0,
+        )
+        content = Path(report_path).read_text(encoding="utf-8")
+        assert "onclick=\"toggleSteps" not in content
+        assert 'id="steps-' not in content
+
 
 # ---------------------------------------------------------------------------
 # handle 分发测试
