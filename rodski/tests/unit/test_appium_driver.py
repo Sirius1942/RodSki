@@ -333,3 +333,68 @@ class TestAppiumDriver:
         caps = {"platformName": "iOS"}
         driver = AppiumDriver(caps, server_url="http://192.168.1.100:4723")
         mock_remote.assert_called_once_with("http://192.168.1.100:4723", caps)
+
+
+class TestAppiumDriverRecording:
+    """AppiumDriver 用例级原生录屏（与 PlaywrightDriver 同契约）"""
+
+    @patch('drivers.appium_driver.webdriver.Remote')
+    def test_recording_backend_attr(self, mock_remote):
+        driver = AppiumDriver({"platformName": "Android"})
+        assert driver.recording_backend == "appium"
+
+    @patch('drivers.appium_driver.webdriver.Remote')
+    def test_start_case_recording(self, mock_remote, tmp_path):
+        driver = AppiumDriver({"platformName": "Android"})
+        driver.driver = Mock()
+        target = str(tmp_path / "rec" / "APP001_01.mp4")
+        result = driver.start_case_recording(str(tmp_path / "rec"), "APP001", target)
+        assert result == target
+        assert driver._recording_active is True
+        driver.driver.start_recording_screen.assert_called_once()
+
+    @patch('drivers.appium_driver.webdriver.Remote')
+    def test_start_case_recording_normalizes_suffix(self, mock_remote, tmp_path):
+        driver = AppiumDriver({"platformName": "Android"})
+        driver.driver = Mock()
+        # 传入 .webm，应被规范成 .mp4
+        result = driver.start_case_recording(str(tmp_path), "APP001", str(tmp_path / "x.webm"))
+        assert result.endswith(".mp4")
+
+    @patch('drivers.appium_driver.webdriver.Remote')
+    def test_start_passes_video_size(self, mock_remote, tmp_path):
+        driver = AppiumDriver({"platformName": "Android"})
+        driver.driver = Mock()
+        driver.start_case_recording(str(tmp_path), "C1", str(tmp_path / "v.mp4"), video_size="1280x720")
+        _, kwargs = driver.driver.start_recording_screen.call_args
+        assert kwargs.get("videoSize") == "1280x720"
+
+    @patch('drivers.appium_driver.webdriver.Remote')
+    def test_stop_case_recording_decodes_base64(self, mock_remote, tmp_path):
+        import base64
+        driver = AppiumDriver({"platformName": "Android"})
+        driver.driver = Mock()
+        payload = b"fake-mp4-bytes"
+        driver.driver.stop_recording_screen.return_value = base64.b64encode(payload).decode()
+        target = str(tmp_path / "out.mp4")
+        driver.start_case_recording(str(tmp_path), "C1", target)
+        saved = driver.stop_case_recording("C1", target)
+        assert saved == target
+        with open(saved, "rb") as f:
+            assert f.read() == payload
+        assert driver._recording_active is False
+
+    @patch('drivers.appium_driver.webdriver.Remote')
+    def test_start_failure_returns_none(self, mock_remote, tmp_path):
+        driver = AppiumDriver({"platformName": "Android"})
+        driver.driver = Mock()
+        driver.driver.start_recording_screen.side_effect = Exception("not supported")
+        result = driver.start_case_recording(str(tmp_path), "C1", str(tmp_path / "v.mp4"))
+        assert result is None
+        assert driver._recording_active is False
+
+    @patch('drivers.appium_driver.webdriver.Remote')
+    def test_stop_without_active_returns_target(self, mock_remote):
+        driver = AppiumDriver({"platformName": "Android"})
+        # 未启动录像时 stop 不应抛错
+        assert driver.stop_case_recording("C1") is None

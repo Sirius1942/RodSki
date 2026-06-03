@@ -76,6 +76,9 @@ class SKIExecutor:
       2. 共享模式: 用例没有 close，后续用例复用同一个浏览器 session
     """
 
+    # 驱动级用例录像后端（共用同一套分段机器，区别仅在标识与产物格式）
+    _DRIVER_RECORDING_BACKENDS = ("playwright", "appium")
+
     def __init__(
         self,
         case_path: str,
@@ -128,6 +131,7 @@ class SKIExecutor:
         self._screen_recorder = None
         self._active_recording_backend: Optional[str] = None
         self._current_recording_path: Optional[str] = None
+        self._recording_driver = None
         self._recording_segments: List[Dict[str, Any]] = []
         self._recording_segment_index = 0
         self._case_recording_active = False
@@ -206,6 +210,34 @@ class SKIExecutor:
             self.keyword_engine._metrics = self._metrics
             self.keyword_engine._tracer = self._tracer
 
+        # 录像懒启动：移动端/桌面端 driver 是懒加载的（首个相关关键字才创建），
+        # 注册回调，待真实 driver 就绪后再启动用例录像。
+        self.keyword_engine.on_mobile_driver_created = self._on_mobile_driver_created
+
+    def _on_mobile_driver_created(self, driver_type: str, driver) -> None:
+        """移动端/桌面端 driver 就绪回调：补启动用例录像。
+
+        移动端 self.driver 初始为 None（web 占位未创建），driver 在首个
+        navigate/type 时才由 KeywordEngine 懒加载。此处把执行器的 driver 指向
+        真实 driver，并在录像已启用但尚未开始时补启动当前用例的录像分段。
+        """
+        # 让录像层（基于 self.driver）能看到真实的活跃 driver
+        if self.driver is None or getattr(self.driver, "recording_backend", None) is None:
+            self.driver = driver
+        if not getattr(self, "recording_enabled", False):
+            return
+        # 已在录像中（分段进行中）则无需重复启动
+        if getattr(self, "_active_recording_backend", None):
+            return
+        case_id = getattr(self, "_current_case_id", None)
+        if not case_id:
+            return
+        try:
+            started = self._start_case_recording(case_id)
+            if started:
+                logger.info(f"录像已懒启动（driver={driver_type}）: {started}")
+        except Exception as e:
+            logger.warning(f"录像懒启动失败: {e}")
     def _ensure_driver_alive(self) -> None:
         """确保驱动可用，如果驱动已关闭则重新创建"""
         if self._driver_closed:
@@ -233,6 +265,9 @@ class SKIExecutor:
                 if getattr(self, "_tracer", None) is not None:
                     self.keyword_engine._tracer = self._tracer
                     self.keyword_engine._metrics = self._metrics
+
+                # 录像懒启动回调同样需要重新注入，否则后续用例的移动端录像不启动
+                self.keyword_engine.on_mobile_driver_created = self._on_mobile_driver_created
 
                 logger.info("驱动重新创建成功")
             else:
@@ -711,9 +746,23 @@ class SKIExecutor:
         mode = self._recording_option("mode", "auto")
         if mode == "off":
             return None
-        if mode in ("screen", "playwright"):
+        # 驱动尚未就绪（移动端/桌面端懒加载，self.driver 为 None）：
+        # 推迟到 driver 创建回调里再启动录像，避免误起 screen 录桌面。
+        if self.driver is None and getattr(self, "driver_factory", None):
+            return None
+        if mode == "screen":
             return mode
+        if mode in ("playwright", "appium"):
+            # 显式指定驱动级后端，但 driver 还没就绪 → 推迟
+            if not hasattr(self.driver, "start_case_recording"):
+                return None
+            return mode
+        # auto：优先用驱动自报的 recording_backend（playwright / appium），
+        # 二者共用同一套用例级录像分段机器，仅 backend 标识不同。
         if hasattr(self.driver, "start_case_recording"):
+            declared = getattr(self.driver, "recording_backend", None)
+            if declared in self._DRIVER_RECORDING_BACKENDS:
+                return declared
             return "playwright"
         return "screen"
 
@@ -759,13 +808,16 @@ class SKIExecutor:
         return relative_path
 
     def _start_playwright_recording_segment(self, case_id: str) -> str:
-        if not self._case_recording_active or self._active_recording_backend != "playwright":
+        if not self._case_recording_active or self._active_recording_backend not in self._DRIVER_RECORDING_BACKENDS:
             return ""
         if self._current_recording_path:
             return self._relative_run_path(self._current_recording_path)
         if self._recording_output_dir is None or not hasattr(self.driver, "start_case_recording"):
             return ""
 
+        # 锁定录像驱动引用：移动端 self.driver 会随每步在 web 占位/真实 driver 间切换，
+        # 录像的 start/stop 必须用同一个真实 driver，否则 stop 时引用已丢。
+        self._recording_driver = self.driver
         target_path = self._next_recording_segment_path(case_id)
         started = self.driver.start_case_recording(
             str(self._recording_output_dir),
@@ -781,16 +833,19 @@ class SKIExecutor:
         return self._relative_run_path(self._current_recording_path)
 
     def _finalize_current_playwright_segment(self, case_id: str) -> str:
-        if self._active_recording_backend != "playwright" or not self._current_recording_path:
+        if self._active_recording_backend not in self._DRIVER_RECORDING_BACKENDS or not self._current_recording_path:
             self._set_keyword_recording_path(None)
             return ""
 
         path = None
-        if hasattr(self.driver, "stop_case_recording"):
-            path = self.driver.stop_case_recording(case_id, self._current_recording_path)
+        # 优先用锁定的录像驱动（移动端 self.driver 可能已被切回 web 占位）
+        rec_driver = getattr(self, "_recording_driver", None) or self.driver
+        if hasattr(rec_driver, "stop_case_recording"):
+            path = rec_driver.stop_case_recording(case_id, self._current_recording_path)
         final_path = str(path or self._current_recording_path)
-        relative_path = self._append_recording_segment(final_path, "playwright")
+        relative_path = self._append_recording_segment(final_path, self._active_recording_backend)
         self._current_recording_path = None
+        self._recording_driver = None
         self._set_keyword_recording_path(None)
         return relative_path
 
@@ -815,11 +870,11 @@ class SKIExecutor:
             safe_case_id = self._safe_recording_id(case_id)
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-            if backend == "playwright":
+            if backend in self._DRIVER_RECORDING_BACKENDS:
                 if not hasattr(self.driver, "start_case_recording"):
-                    logger.warning("当前驱动不支持 Playwright 原生录制")
+                    logger.warning(f"当前驱动不支持原生录制（backend={backend}）")
                     return ""
-                self._active_recording_backend = "playwright"
+                self._active_recording_backend = backend
                 self._case_recording_active = True
                 self._recording_case_id = case_id
                 self._recording_output_dir = output_dir
@@ -870,7 +925,7 @@ class SKIExecutor:
             self._set_keyword_recording_path(None)
             return started_path or ""
         try:
-            if self._active_recording_backend == "playwright":
+            if self._active_recording_backend in self._DRIVER_RECORDING_BACKENDS:
                 self._finalize_current_playwright_segment(case_id)
                 return self._recording_segments[0]["path"] if self._recording_segments else (started_path or "")
 
@@ -1361,7 +1416,7 @@ class SKIExecutor:
         action_key = action.lower()
         if self._driver_closed and action_key not in ('close', 'wait', 'set', 'send', 'db', 'run'):
             self._ensure_driver_alive()
-            if self._active_recording_backend == "playwright" and self._case_recording_active:
+            if self._active_recording_backend in self._DRIVER_RECORDING_BACKENDS and self._case_recording_active:
                 self._start_playwright_recording_segment(getattr(self, '_current_case_id', 'unknown'))
 
         # 更新录像步骤文字叠加
@@ -1376,6 +1431,12 @@ class SKIExecutor:
 
         history_before = len(self.keyword_engine._context.history)
         named_before = dict(self.keyword_engine._context.named)
+
+        # appium 录像必须在 close 关键字 quit 掉 Appium session 之前停止并落盘，
+        # 否则 stop_recording_screen 会因 session 已断而失败。Playwright 不受此限
+        # （其录像上下文由 stop_case_recording 内部管理），仍按 close 后处理。
+        if action_key == 'close' and self._active_recording_backend == "appium":
+            self._finalize_current_playwright_segment(getattr(self, '_current_case_id', 'unknown'))
 
         # 特殊处理 set 动作：将变量同步到动态执行器
         if action_key == 'set':
@@ -1456,7 +1517,7 @@ class SKIExecutor:
             })
 
         if action_key == 'close':
-            if self._active_recording_backend == "playwright":
+            if self._active_recording_backend in self._DRIVER_RECORDING_BACKENDS:
                 self._finalize_current_playwright_segment(getattr(self, '_current_case_id', 'unknown'))
             self._driver_closed = True
             logger.info("浏览器已关闭")

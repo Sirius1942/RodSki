@@ -151,6 +151,10 @@ class KeywordEngine:
         self._metrics = None
         self._tracer = None
 
+        # 移动端/桌面端 driver 懒加载创建后的回调（由 SKIExecutor 注入）。
+        # 用于在真实 driver 就绪后再启动用例录像（移动端 driver 是懒加载的）。
+        self.on_mobile_driver_created = None
+
     def set_current_recording_path(self, path: Optional[str]) -> None:
         self._current_recording_path = path
 
@@ -192,6 +196,7 @@ class KeywordEngine:
                     mobile_driver = self._driver_factory(driver_type=driver_type, **mobile_caps)
                     self._desktop_drivers[driver_type] = mobile_driver
                     logger.info(f"自动创建移动端驱动: {driver_type}")
+                    self._notify_mobile_driver_created(driver_type, mobile_driver)
                     return mobile_driver
                 except Exception as e:
                     logger.warning(f"通过 driver_factory 创建移动端驱动失败: {e}")
@@ -203,6 +208,7 @@ class KeywordEngine:
             mobile_driver = DriverFactory.get_driver(driver_type, **mobile_caps)
             self._desktop_drivers[driver_type] = mobile_driver
             logger.info(f"直接创建移动端驱动: {driver_type}")
+            self._notify_mobile_driver_created(driver_type, mobile_driver)
             return mobile_driver
 
         # 尝试通过 driver_factory 创建桌面驱动
@@ -211,6 +217,7 @@ class KeywordEngine:
                 desktop_driver = self._driver_factory(driver_type=driver_type)
                 self._desktop_drivers[driver_type] = desktop_driver
                 logger.info(f"自动创建桌面驱动: {driver_type}")
+                self._notify_mobile_driver_created(driver_type, desktop_driver)
                 return desktop_driver
             except Exception as e:
                 logger.warning(f"通过 driver_factory 创建桌面驱动失败: {e}")
@@ -224,11 +231,21 @@ class KeywordEngine:
             desktop_driver = DesktopDriver(target_platform=driver_type if driver_type != "other" else None)
             self._desktop_drivers[driver_type] = desktop_driver
             logger.info(f"直接创建桌面驱动: {driver_type}")
+            self._notify_mobile_driver_created(driver_type, desktop_driver)
             return desktop_driver
         except ImportError:
             raise DriverError(
                 "DesktopDriver 不可用，请确认 pyautogui 已安装: pip install pyautogui"
             )
+
+    def _notify_mobile_driver_created(self, driver_type: str, driver) -> None:
+        """移动端/桌面端 driver 懒加载创建后通知回调（供录像懒启动）。"""
+        cb = getattr(self, "on_mobile_driver_created", None)
+        if cb is not None:
+            try:
+                cb(driver_type, driver)
+            except Exception as e:
+                logger.warning(f"on_mobile_driver_created 回调异常: {e}")
 
     def _get_mobile_driver(self, platform: str = None) -> BaseDriver:
         """获取移动端驱动（navigate App URI 专用）

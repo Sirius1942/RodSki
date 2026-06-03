@@ -155,4 +155,6 @@ def test_tracer_reinjected_after_driver_recreation(wait_module):
     # 重建后的关键字引擎仍持有同一 tracer / metrics
     assert executor.keyword_engine._tracer is executor._tracer
     assert executor.keyword_engine._metrics is executor._metrics
+    # 录像懒启动回调也必须重新注入（否则后续用例移动端录像不启动）
+    assert executor.keyword_engine.on_mobile_driver_created == executor._on_mobile_driver_created
 

@@ -40,6 +40,11 @@ class AppiumDriver(BaseDriver):
         else:
             self.driver = webdriver.Remote(server_url, capabilities)
         self.wait = WebDriverWait(self.driver, 10)
+        # 录像后端标识：供 SKIExecutor._select_recording_backend 区分驱动类型
+        self.recording_backend = "appium"
+        # 录像状态
+        self._recording_active = False
+        self._recording_target_path: Optional[str] = None
         logger.info("Appium 驱动初始化成功")
 
     def launch(self, **kwargs) -> None:
@@ -533,3 +538,75 @@ class AppiumDriver(BaseDriver):
         return ["click", "type", "check", "swipe", "tap", "screenshot",
                 "navigate", "select", "long_press", "hide_keyboard",
                 "launch", "close", "locate_element"]
+
+    # ── 用例级录屏（Appium 原生 screenrecord）─────────────────────
+    # 与 PlaywrightDriver.start_case_recording / stop_case_recording 同契约，
+    # SKIExecutor 的录像分段机器对二者通用（仅 recording_backend 标识不同）。
+
+    def start_case_recording(self, output_dir: str, case_id: str,
+                             target_path: str, video_size: str = None) -> Optional[str]:
+        """开始用例录屏，调用 Appium 原生 start_recording_screen。
+
+        Args:
+            output_dir: 录像输出目录
+            case_id: 用例 ID（仅日志）
+            target_path: 目标文件路径（建议 .mp4）
+            video_size: 分辨率（如 "1280x720"），None 用设备默认
+
+        Returns:
+            目标文件路径；启动失败返回 None
+        """
+        try:
+            from pathlib import Path as _Path
+            _Path(output_dir).mkdir(parents=True, exist_ok=True)
+            target = target_path
+            # Appium Android 原生录屏产物为 mp4，统一后缀
+            if target and not str(target).lower().endswith(".mp4"):
+                target = str(_Path(target).with_suffix(".mp4"))
+            self._recording_target_path = target
+
+            options: Dict[str, Any] = {}
+            if video_size and str(video_size).lower() not in ("screen", ""):
+                options["videoSize"] = str(video_size)
+            self.driver.start_recording_screen(**options)
+            self._recording_active = True
+            logger.info(f"Appium 原生录屏已启动: {target}")
+            return target
+        except Exception as e:
+            logger.warning(f"Appium 录屏启动失败: {e}")
+            self._recording_active = False
+            self._recording_target_path = None
+            return None
+
+    def stop_case_recording(self, case_id: str = "",
+                            target_path: Optional[str] = None) -> Optional[str]:
+        """停止用例录屏，base64 解码落盘为 mp4。
+
+        Returns:
+            实际保存的文件路径；失败返回 None
+        """
+        if not self._recording_active:
+            return self._recording_target_path
+        try:
+            import base64
+            from pathlib import Path as _Path
+            b64 = self.driver.stop_recording_screen()
+            self._recording_active = False
+            target = target_path or self._recording_target_path
+            if not target:
+                logger.warning("Appium 录屏停止：无目标路径")
+                return None
+            target = str(target)
+            if not target.lower().endswith(".mp4"):
+                target = str(_Path(target).with_suffix(".mp4"))
+            _Path(target).parent.mkdir(parents=True, exist_ok=True)
+            with open(target, "wb") as f:
+                f.write(base64.b64decode(b64))
+            logger.info(f"Appium 录屏已保存: {target}")
+            self._recording_target_path = None
+            return target
+        except Exception as e:
+            logger.warning(f"Appium 录屏停止失败: {e}")
+            self._recording_active = False
+            return self._recording_target_path
+
