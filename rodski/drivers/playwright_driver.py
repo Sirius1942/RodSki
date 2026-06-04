@@ -748,6 +748,37 @@ class PlaywrightDriver(BaseDriver):
         self._recording_saved_path = None
 
         try:
+            # 在关闭旧 page 之前，先测量浏览器真实内容区尺寸（CSS 像素）。
+            # 有界面模式下 page 以 no_viewport 创建，viewport_size 恒为 None；
+            # 若据此回退到屏幕尺寸，录制画布会比浏览器内容区高出标签栏/地址栏的高度，
+            # 导致录像底部出现一条灰带。window.innerWidth/innerHeight 才是与录制内容
+            # 逐像素一致的尺寸。self.page 可能为 None（多用例之间 page 会被释放），
+            # 此时临时开一个 no_viewport 页面仅用于测量，测完即关。
+            content_size = None
+            if not self.headless and self.browser is not None:
+                measure_page = self.page
+                temp_page = None
+                try:
+                    if measure_page is None:
+                        temp_page = self.browser.new_page(no_viewport=True)
+                        measure_page = temp_page
+                    if measure_page is not None:
+                        inner = measure_page.evaluate(
+                            "()=>({width:Math.round(window.innerWidth),"
+                            "height:Math.round(window.innerHeight)})"
+                        )
+                        if inner and inner.get("width") and inner.get("height"):
+                            content_size = {"width": int(inner["width"]),
+                                            "height": int(inner["height"])}
+                except Exception:
+                    content_size = None
+                finally:
+                    if temp_page is not None:
+                        try:
+                            temp_page.close()
+                        except Exception:
+                            pass
+
             if self.page is not None:
                 try:
                     self.page.close()
@@ -760,15 +791,15 @@ class PlaywrightDriver(BaseDriver):
                     pass
 
             context_options = {"record_video_dir": str(record_dir)}
-            # 动态读取当前 page 的实际 viewport 尺寸作为录制分辨率
-            # 这样无论 headless/headed、任何屏幕，录像始终与页面内容完全匹配
+            # 动态确定录制分辨率，使录像与页面内容完全匹配
             if video_size and video_size.lower() != "screen":
                 # 用户显式指定了分辨率（hd/2k/WxH），尊重用户设置
                 resolved_size = _resolve_video_size(video_size)
             else:
-                # 默认：从当前 page viewport 动态获取
-                resolved_size = None
-                if self.page is not None:
+                # 默认：优先用上面测得的真实内容区尺寸；
+                # 测量失败再回退到 viewport_size，最后回退到屏幕尺寸。
+                resolved_size = content_size
+                if resolved_size is None and self.page is not None:
                     try:
                         vp = self.page.viewport_size
                         if vp and vp.get("width") and vp.get("height"):
