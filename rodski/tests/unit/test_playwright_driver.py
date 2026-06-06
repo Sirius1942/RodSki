@@ -283,6 +283,7 @@ class TestPlaywrightDriver:
         mock_browser = Mock()
         mock_playwright.chromium.launch.return_value = mock_browser
         initial_page = Mock()
+        initial_page.evaluate.return_value = {"width": 1512, "height": 846}
         mock_browser.new_page.return_value = initial_page
         mock_context = Mock()
         mock_browser.new_context.return_value = mock_context
@@ -301,10 +302,143 @@ class TestPlaywrightDriver:
         # headed 模式：no_viewport=True 保留原生窗口，避免 Chromium 设备模拟导致闪屏
         assert call_kwargs.get("no_viewport") is True
         assert "viewport" not in call_kwargs
-        assert "record_video_size" in call_kwargs
+        assert call_kwargs["record_video_size"] == {"width": 1512, "height": 846}
         mock_context.new_page.assert_called_once()
         initial_page.close.assert_called_once()
         assert driver.page == recording_page
+
+    @patch('playwright.sync_api.sync_playwright')
+    def test_start_case_recording_headed_screen_uses_content_size(self, mock_pw, tmp_path):
+        mock_playwright = MagicMock()
+        mock_pw.return_value.start.return_value = mock_playwright
+        mock_browser = Mock()
+        mock_playwright.chromium.launch.return_value = mock_browser
+        initial_page = Mock()
+        initial_page.evaluate.return_value = {"width": 1470, "height": 754}
+        mock_browser.new_page.return_value = initial_page
+        mock_context = Mock()
+        mock_browser.new_context.return_value = mock_context
+        recording_page = Mock()
+        recording_page.video = Mock()
+        mock_context.new_page.return_value = recording_page
+
+        driver = PlaywrightDriver(headless=False)
+        target = tmp_path / "TC001.webm"
+        path = driver.start_case_recording(str(tmp_path), "TC001", str(target), video_size="screen")
+
+        assert path == str(target)
+        call_kwargs = mock_browser.new_context.call_args[1]
+        assert call_kwargs["record_video_size"] == {"width": 1470, "height": 754}
+        assert call_kwargs.get("no_viewport") is True
+        assert "viewport" not in call_kwargs
+        initial_page.evaluate.assert_called_once()
+        initial_page.close.assert_called_once()
+
+    @patch('playwright.sync_api.sync_playwright')
+    def test_start_case_recording_headed_explicit_size_is_preserved(self, mock_pw, tmp_path):
+        mock_playwright = MagicMock()
+        mock_pw.return_value.start.return_value = mock_playwright
+        mock_browser = Mock()
+        mock_playwright.chromium.launch.return_value = mock_browser
+        initial_page = Mock()
+        mock_browser.new_page.return_value = initial_page
+        mock_context = Mock()
+        mock_browser.new_context.return_value = mock_context
+        recording_page = Mock()
+        recording_page.video = Mock()
+        mock_context.new_page.return_value = recording_page
+
+        driver = PlaywrightDriver(headless=False)
+        target = tmp_path / "TC001.webm"
+        path = driver.start_case_recording(str(tmp_path), "TC001", str(target), video_size="hd")
+
+        assert path == str(target)
+        call_kwargs = mock_browser.new_context.call_args[1]
+        assert call_kwargs["record_video_size"] == {"width": 1920, "height": 1080}
+        assert call_kwargs.get("no_viewport") is True
+        assert "viewport" not in call_kwargs
+        initial_page.evaluate.assert_not_called()
+
+    @patch('playwright.sync_api.sync_playwright')
+    def test_start_case_recording_headless_sets_viewport(self, mock_pw, tmp_path):
+        mock_playwright = MagicMock()
+        mock_pw.return_value.start.return_value = mock_playwright
+        mock_browser = Mock()
+        mock_playwright.chromium.launch.return_value = mock_browser
+        initial_page = Mock()
+        mock_browser.new_page.return_value = initial_page
+        mock_context = Mock()
+        mock_browser.new_context.return_value = mock_context
+        recording_page = Mock()
+        recording_page.video = Mock()
+        mock_context.new_page.return_value = recording_page
+
+        driver = PlaywrightDriver(headless=True)
+        target = tmp_path / "TC001.webm"
+        path = driver.start_case_recording(str(tmp_path), "TC001", str(target), video_size="1280x720")
+
+        assert path == str(target)
+        call_kwargs = mock_browser.new_context.call_args[1]
+        assert call_kwargs["record_video_size"] == {"width": 1280, "height": 720}
+        assert call_kwargs["viewport"] == {"width": 1280, "height": 720}
+        assert "no_viewport" not in call_kwargs
+        initial_page.evaluate.assert_not_called()
+
+    @patch('playwright.sync_api.sync_playwright')
+    @patch('drivers.playwright_driver._resolve_video_size')
+    def test_start_case_recording_headed_measure_failure_falls_back(self, mock_resolve, mock_pw, tmp_path):
+        mock_resolve.return_value = {"width": 1366, "height": 768}
+        mock_playwright = MagicMock()
+        mock_pw.return_value.start.return_value = mock_playwright
+        mock_browser = Mock()
+        mock_playwright.chromium.launch.return_value = mock_browser
+        initial_page = Mock()
+        initial_page.evaluate.side_effect = Exception("evaluate failed")
+        initial_page.viewport_size = None
+        mock_browser.new_page.return_value = initial_page
+        mock_context = Mock()
+        mock_browser.new_context.return_value = mock_context
+        recording_page = Mock()
+        recording_page.video = Mock()
+        mock_context.new_page.return_value = recording_page
+
+        driver = PlaywrightDriver(headless=False)
+        target = tmp_path / "TC001.webm"
+        path = driver.start_case_recording(str(tmp_path), "TC001", str(target))
+
+        assert path == str(target)
+        call_kwargs = mock_browser.new_context.call_args[1]
+        assert call_kwargs["record_video_size"] == {"width": 1366, "height": 768}
+        assert call_kwargs.get("no_viewport") is True
+        mock_resolve.assert_called_once_with("screen")
+
+    @patch('playwright.sync_api.sync_playwright')
+    def test_start_case_recording_headed_measures_temp_page_when_page_missing(self, mock_pw, tmp_path):
+        mock_playwright = MagicMock()
+        mock_pw.return_value.start.return_value = mock_playwright
+        mock_browser = Mock()
+        mock_playwright.chromium.launch.return_value = mock_browser
+        initial_page = Mock()
+        temp_page = Mock()
+        temp_page.evaluate.return_value = {"width": 1500, "height": 760}
+        mock_browser.new_page.side_effect = [initial_page, temp_page]
+        mock_context = Mock()
+        mock_browser.new_context.return_value = mock_context
+        recording_page = Mock()
+        recording_page.video = Mock()
+        mock_context.new_page.return_value = recording_page
+
+        driver = PlaywrightDriver(headless=False)
+        driver._ensure_browser()
+        driver.page = None
+        target = tmp_path / "TC001.webm"
+        path = driver.start_case_recording(str(tmp_path), "TC001", str(target))
+
+        assert path == str(target)
+        call_kwargs = mock_browser.new_context.call_args[1]
+        assert call_kwargs["record_video_size"] == {"width": 1500, "height": 760}
+        mock_browser.new_page.assert_any_call(no_viewport=True)
+        temp_page.close.assert_called_once()
 
     @patch('playwright.sync_api.sync_playwright')
     def test_stop_case_recording_saves_video(self, mock_pw, tmp_path):
