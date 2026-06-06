@@ -1,0 +1,4 @@
+interface:
+  display_name: "提交 RodSki 用例到 GitLab"
+  short_description: "筛选并提交 00 Pass 用例目录到 GitLab"
+  default_prompt: "Use $submit-testcases-gitlab to 把测试用例提交到gitlab。"

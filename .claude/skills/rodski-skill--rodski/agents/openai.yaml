@@ -1,0 +1,4 @@
+interface:
+  display_name: "RodSki"
+  short_description: "维护 RodSki 框架、协议、schema 与 CLI 契约。"
+  default_prompt: "Use $rodski to handle RodSki framework, protocol, schema, keyword, or CLI work while checking the current local CLI version first."

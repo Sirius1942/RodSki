@@ -3,7 +3,7 @@
 #
 # 用法: package_release.sh <VERSION>
 #
-# 产物只包含对外发行内容：rodski-test-guide/, README.md, VERSION
+# 产物只包含对外发行内容：rodski-skills/ 下的 skill 目录、README.md、VERSION
 # 不包含 scripts/、.* 隐藏文件
 
 set -euo pipefail

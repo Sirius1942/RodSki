@@ -1,0 +1,4 @@
+interface:
+  display_name: "RodSki 用例编写器"
+  short_description: "用定向诊断编写和调试 RodSki 用例"
+  default_prompt: "使用 $rodski-case-writer 创建、审查或调试 RodSki 测试用例。加载相关 guide 切片，盘点大型模块；当存在结果目录时诊断失败或慢步骤；对长流程在有用时生成窄范围 debug plan；最后运行 guard 和 dry-run 检查。"

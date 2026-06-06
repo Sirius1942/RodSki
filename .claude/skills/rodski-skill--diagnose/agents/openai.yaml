@@ -1,0 +1,4 @@
+interface:
+  display_name: "Diagnose"
+  short_description: "硬 bug 与性能回归的纪律化诊断循环"
+  default_prompt: "Use $diagnose to reproduce, isolate, and fix this bug with a fast deterministic feedback loop before hypothesising."

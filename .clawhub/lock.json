@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "skills": {
+    "rodski-test-guide": {
+      "version": "7.1.3",
+      "installedAt": 1780631505077
+    },
+    "rodski-skill--rodski": {
+      "version": "20260605.034754",
+      "installedAt": 1780642387013
+    },
+    "rodski-skill--rodski-case-writer": {
+      "version": "20260605.034337",
+      "installedAt": 1780642388624
+    },
+    "rodski-skill--switch-rodski-env": {
+      "version": "20260605.035123",
+      "installedAt": 1780642390095
+    },
+    "rodski-skill--submit-testcases-gitlab": {
+      "version": "20260605.035047",
+      "installedAt": 1780642391970
+    },
+    "rodski-skill--diagnose": {
+      "version": "20260605.034904",
+      "installedAt": 1780642393055
+    }
+  }
+}

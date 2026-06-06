@@ -1,0 +1,4 @@
+interface:
+  display_name: "RodSki 换环境"
+  short_description: "补齐缺失用例资产，转换环境 URL/DB 地址，并清理临时报告。"
+  default_prompt: "把这套 RodSki 用例从旧环境转换到目标环境，先补齐新环境缺少的 case/data/model/fun，再只切换 URL 和数据库地址；先 dry-run 输出差异，最终确认无误后清理本次生成的中间报告。"
