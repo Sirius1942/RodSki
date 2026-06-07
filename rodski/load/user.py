@@ -81,6 +81,10 @@ class RodskiLoadUser:
         if not action:
             return None
 
+        # 压测模式下跳过验证步骤（verify/assert/check/get）
+        if action.lower() in ("verify", "assert", "check", "get"):
+            return None
+
         if action.lower() == "set":
             params = {"var_name": model, "value": data}
         else:
