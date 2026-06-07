@@ -1,13 +1,17 @@
 """LocustLoadEngine — 接口压测执行引擎（api 模式）。
 使用 Locust LocalRunner 编排 VU，驱动 RodskiLoadUser 并发执行。
+支持 --load-ui 参数在压测期间开启 Locust Web 监控界面（默认 http://localhost:8089）。
 """
 from __future__ import annotations
+import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from .context import SharedLoadContext
     from .stats import LoadStats
+
+logger = logging.getLogger("rodski")
 
 
 def _require_locust():
@@ -25,9 +29,20 @@ def _require_locust():
 class LocustLoadEngine:
     """接口压测引擎（api 模式，Locust 后端）。"""
 
-    def __init__(self, plan: dict, shared_ctx: "SharedLoadContext"):
+    def __init__(
+        self,
+        plan: dict,
+        shared_ctx: "SharedLoadContext",
+        *,
+        enable_web_ui: bool = False,
+        web_ui_host: str = "127.0.0.1",
+        web_ui_port: int = 8089,
+    ):
         self.plan = plan
         self.shared_ctx = shared_ctx
+        self.enable_web_ui = enable_web_ui
+        self.web_ui_host = web_ui_host
+        self.web_ui_port = web_ui_port
 
     def run(self) -> "LoadStats":
         """执行压测，返回 LoadStats。"""
@@ -37,6 +52,7 @@ class LocustLoadEngine:
         import gevent.monkey
         gevent.monkey.patch_all()
 
+        import sys
         import gevent
         from locust.env import Environment
         from locust import FastHttpUser, task, between, constant
@@ -66,19 +82,56 @@ class LocustLoadEngine:
             host, think_min_ms, think_max_ms, plan_cases
         )
 
-        # 初始化 Locust 环境
-        env = Environment(user_classes=[user_class])
-        env.create_local_runner()
+        # Locust 内部会扫描 sys.argv，RodSki 自己的参数（如 --load-ui）会导致
+        # "unrecognized arguments" 警告并干扰 Web UI 绑定端口。
+        # 在创建 Environment 前临时清空 sys.argv，用完后恢复。
+        _saved_argv = sys.argv[:]
+        sys.argv = sys.argv[:1]  # 只保留程序名
+        try:
+            # 初始化 Locust 环境
+            env = Environment(user_classes=[user_class])
+            env.create_local_runner()
 
-        # 爬坡策略
-        spawn_rate = max(1, concurrency // max(ramp_up, 1)) if ramp_up > 0 else concurrency
+            # ── Web UI（--load-ui）────────────────────────────────────────────────
+            web_ui = None
+            if self.enable_web_ui:
+                try:
+                    web_ui = env.create_web_ui(
+                        host=self.web_ui_host,
+                        port=self.web_ui_port,
+                    )
+                    gevent.sleep(0.3)  # 等待端口绑定
+                    ui_url = f"http://{self.web_ui_host}:{self.web_ui_port}"
+                    print(f"\n  🖥  Locust 监控界面已启动: {ui_url}")
+                    print(f"      可用端点:")
+                    print(f"        {ui_url}/           实时监控仪表盘")
+                    print(f"        {ui_url}/stats/requests  指标 JSON")
+                    print(f"        {ui_url}/stats/report    实时 HTML 报告")
+                    print(f"        {ui_url}/stats/requests/csv  CSV 导出")
+                    print(f"      压测结束后 Web UI 将自动关闭。\n")
+                except Exception as e:
+                    logger.warning(f"[LoadEngine] Web UI 启动失败: {e}，继续 headless 模式")
+                    web_ui = None
+            # ─────────────────────────────────────────────────────────────────────
 
-        # 启动 VU
-        env.runner.start(user_count=concurrency, spawn_rate=spawn_rate)
+            # 爬坡策略
+            spawn_rate = max(1, concurrency // max(ramp_up, 1)) if ramp_up > 0 else concurrency
 
-        # 持续运行 duration 秒后停止
-        gevent.spawn_later(duration, lambda: env.runner.quit())
-        env.runner.greenlet.join()
+            # 启动 VU
+            env.runner.start(user_count=concurrency, spawn_rate=spawn_rate)
+
+            # 持续运行 duration 秒后停止
+            gevent.spawn_later(duration, lambda: env.runner.quit())
+            env.runner.greenlet.join()
+        finally:
+            sys.argv = _saved_argv  # 恢复 sys.argv
+
+        # 关闭 Web UI
+        if web_ui is not None:
+            try:
+                web_ui.stop()
+            except Exception:
+                pass
 
         # 采集指标
         return self._collect_stats(env)

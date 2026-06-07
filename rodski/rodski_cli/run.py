@@ -821,11 +821,27 @@ def _handle_load_run(plan_path: Path, module_dir: Path, args) -> int:
             print(f"警告: 预编译失败，继续执行: {e}", file=sys.stderr)
 
     # 5. 执行压测
-    print(f"压测计划: {plan_path}")
-    print(f"启动压测引擎...")
+    enable_web_ui = getattr(args, "load_ui", False)
+    web_ui_port   = getattr(args, "load_ui_port", 8089)
+
+    profile = plan.get("load_profile", {})
+    concurrency = profile.get("concurrency", "?")
+    duration    = profile.get("duration_seconds", "?")
+    mode_str    = "预编译" if not no_compile else "解释"
+    print(f"\n压测计划: {plan.get('id')} | {concurrency} VU × {duration}s | 模式: {mode_str}")
+    if enable_web_ui:
+        print(f"监控界面: http://127.0.0.1:{web_ui_port}  (启动中...)")
+    print("启动压测引擎...")
+
     start_time = time.time()
     try:
-        engine = LocustLoadEngine(plan, shared_ctx)
+        engine = LocustLoadEngine(
+            plan,
+            shared_ctx,
+            enable_web_ui=enable_web_ui,
+            web_ui_host="127.0.0.1",
+            web_ui_port=web_ui_port,
+        )
         stats = engine.run()
     except Exception as e:
         print(f"错误: 压测执行失败: {e}", file=sys.stderr)
