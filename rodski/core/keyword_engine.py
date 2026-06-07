@@ -1579,6 +1579,30 @@ class KeywordEngine:
             if browser_cookies:
                 logger.debug(f"携带 {len(browser_cookies)} 个浏览器 cookies")
 
+        # 压测模式：通过 LoadDriver.http_request() 让 Locust 统计请求
+        # 用 _is_load_driver is True 严格匹配，避免 MagicMock 误触发（MagicMock 的属性是 truthy 对象而非 True）
+        if getattr(self.driver, '_is_load_driver', None) is True:
+            try:
+                result_data = self.driver.http_request(
+                    method=method,
+                    url=url,
+                    headers=headers or None,
+                    json=body if body else None,
+                    name=f"{method} {url}",
+                )
+                self.store_return(result_data)
+                # Auto Capture
+                if self.model_parser and model_name:
+                    ac_fields = self.model_parser.get_auto_capture(model_name, 'send')
+                    if ac_fields:
+                        capture = self._run_auto_capture_send(result_data, ac_fields)
+                        result_data['_capture'] = capture
+                        self._context.history[-1] = result_data
+                logger.info(f"HTTP {method} {url} → {result_data.get('status')}")
+                return True
+            except Exception as e:
+                raise DriverError(f"HTTP {method} 请求失败（load 模式）: {url} - {e}")
+
         try:
             if method in ('POST', 'PUT', 'PATCH'):
                 response = RestHelper.send_request(

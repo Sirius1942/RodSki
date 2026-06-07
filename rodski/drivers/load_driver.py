@@ -14,6 +14,8 @@ except ImportError:
 
 
 class LoadDriver(BaseDriver):
+    # 专属标记：keyword_engine 用此区分压测驱动，避免 hasattr('http_request') 误判 MagicMock
+    _is_load_driver: bool = True
 
     def __init__(self, locust_client: Any, host: str = ""):
         self._client = locust_client
