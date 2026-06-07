@@ -1888,6 +1888,30 @@ test:
 
 *文档版本: v7.0.2 | 最后更新: 2026-05-21*
 
+## 21. 性能压测模式约束（v8.0）
+
+### 21.1 独立执行模式
+kind=load 与 kind=suite 是完全独立的执行路径：
+- 功能测试 -> SKIExecutor；性能压测 -> LocustLoadEngine
+- 切换依据：plan.xml 的 kind 属性
+
+### 21.2 压测 plan.xml 必须存在
+- 禁止无 plan 的临时压测（不支持 rodski run --load --concurrency N）
+- 所有负载参数只在 plan/<plan_id>.xml 的 load_profile 中声明
+
+### 21.3 预编译产物持久化（perf/）
+- 产物存放在 perf/{plan_id}.py，可纳入版本管理
+- perf/{plan_id}.py.meta 记录 hash，source=manual 时跳过自动覆盖
+- 产物是标准 Locust locustfile.py，可脱离 RodSki 独立运行
+
+### 21.4 api 模式约束
+- mode=api 计划只能引用 component_type=接口 的 case（违规 -> SKI602）
+- 不引入新关键字（send/verify 语义不变）
+- 压测时不截图，不执行 post_process 阶段
+
+### 21.5 目录结构新增 perf/
+各测试模块固定目录：case/ model/ data/ plan/ fun/ result/ perf/（v8.0 新增）
+
 ## 统一运行时上下文约束（§10）
 
 - 每个 case 独立一个 `RuntimeContext`，不跨 case 共享

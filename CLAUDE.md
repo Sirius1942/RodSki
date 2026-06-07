@@ -178,4 +178,8 @@ xmllint --noout --schema rodski/schemas/case.xsd <case.xml>
 # 查看数据
 rodski data list <module>
 rodski data show <module> <table> <data_id>
+
+# 性能压测（v8.0，需要 pip install rodski[load]）
+rodski run @api_load_basic           # 执行 kind=load 压测计划
+rodski run @api_load_basic --no-compile  # 跳过预编译（调试用）
 ```
