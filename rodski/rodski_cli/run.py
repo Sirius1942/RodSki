@@ -141,6 +141,20 @@ def setup_parser(subparsers):
                         help="录制分辨率 (screen/2k/hd/WxH，如 1920x1080)")
     parser.add_argument("--debug", action="store_true",
                         help="启用调试执行模式（仅对 scenario_debug/step_debug 类型的 plan 生效）")
+    parser.add_argument("--no-compile", action="store_true", dest="no_compile",
+                        help="压测模式：跳过预编译，直接使用已有 perf/*.py")
+    parser.add_argument("--load-ui", action="store_true", dest="load_ui",
+                        help="压测模式：启动 Locust Web UI")
+    parser.add_argument("--load-ui-port", type=int, default=8089, dest="load_ui_port",
+                        help="压测 Web UI 端口 (默认: 8089)")
+
+
+def _get_plan_kind(plan_path) -> str:
+    """从 plan XML 读取 kind 属性（不做完整解析），失败时返回 'suite'。"""
+    try:
+        return ET.parse(plan_path).getroot().get("kind") or "suite"
+    except Exception:
+        return "suite"
 
 
 def _split_csv_values(raw_values):
@@ -311,6 +325,11 @@ def handle(args):
 
     if dry_run:
         return _handle_dry_run(case_path, model_path, verbose, plan_path=plan_path, selector_filters=selector_filters)
+
+    if plan_path is not None:
+        _plan_kind = _get_plan_kind(plan_path)
+        if _plan_kind == "load":
+            return _handle_load_run(plan_path, module_dir, args)
 
     return _handle_execute(case_path, module_dir, args, plan_path=plan_path, selector_filters=selector_filters, needs_browser=needs_browser)
 
@@ -714,6 +733,135 @@ def _export_trace(executor, output_format="text"):
             print(f"trace 已导出: {out_path}")
     except Exception as e:
         print(f"警告: trace 导出失败: {e}", file=sys.stderr)
+
+
+def _print_load_summary(stats, elapsed: float = 0) -> None:
+    """将压测摘要指标打印到终端。"""
+    data = stats.summary()
+    total_req   = data.get("total_requests", 0)
+    error_rate  = data.get("error_rate_pct", 0.0)
+    rps_avg     = data.get("rps_avg", 0.0)
+    p50         = data.get("p50_ms", 0)
+    p95         = data.get("p95_ms", 0)
+    p99         = data.get("p99_ms", 0)
+    print("\n" + "=" * 60)
+    print("压测结果摘要")
+    print("=" * 60)
+    print(f"  总请求数   : {total_req}")
+    print(f"  错误率     : {error_rate:.2f}%")
+    print(f"  平均 RPS   : {rps_avg:.2f}")
+    print(f"  P50 延迟   : {p50} ms")
+    print(f"  P95 延迟   : {p95} ms")
+    print(f"  P99 延迟   : {p99} ms")
+    if elapsed:
+        print(f"  总耗时     : {elapsed:.1f}s")
+    print("=" * 60)
+
+
+def _handle_load_run(plan_path: Path, module_dir: Path, args) -> int:
+    """执行压测计划（plan kind=load）。"""
+    # 1. 检查 locust 是否安装
+    try:
+        import locust  # noqa: F401
+    except ImportError:
+        print("错误: 压测模式需要 locust，请先安装：", file=sys.stderr)
+        print("  pip install locust", file=sys.stderr)
+        return 1
+
+    import time
+
+    try:
+        from ..core.plan_parser import PlanParser
+        from ..load.context import SharedLoadContext
+        from ..load.compiler import LoadCompiler
+        from ..load.locust_engine import LocustLoadEngine
+        from ..load.result_writer import LoadResultWriter
+    except ImportError:
+        try:
+            from rodski.core.plan_parser import PlanParser  # type: ignore[no-redef]
+            from rodski.load.context import SharedLoadContext  # type: ignore[no-redef]
+            from rodski.load.compiler import LoadCompiler  # type: ignore[no-redef]
+            from rodski.load.locust_engine import LocustLoadEngine  # type: ignore[no-redef]
+            from rodski.load.result_writer import LoadResultWriter  # type: ignore[no-redef]
+        except ImportError:
+            from core.plan_parser import PlanParser  # type: ignore[no-redef]
+            from load.context import SharedLoadContext  # type: ignore[no-redef]
+            from load.compiler import LoadCompiler  # type: ignore[no-redef]
+            from load.locust_engine import LocustLoadEngine  # type: ignore[no-redef]
+            from load.result_writer import LoadResultWriter  # type: ignore[no-redef]
+
+    # 2. 解析 plan
+    try:
+        parser = PlanParser(str(plan_path))
+        plan = parser.parse_plan()
+    except Exception as e:
+        print(f"错误: 压测计划解析失败: {e}", file=sys.stderr)
+        return 1
+
+    # 3. 构建共享上下文
+    try:
+        shared_ctx = SharedLoadContext.build(module_dir)
+    except Exception as e:
+        print(f"错误: 上下文构建失败: {e}", file=sys.stderr)
+        return 1
+
+    # 4. 预编译（可跳过）
+    no_compile = getattr(args, "no_compile", False)
+    if not no_compile:
+        try:
+            perf_dir = module_dir / "perf"
+            compiler = LoadCompiler(shared_ctx, plan, perf_dir)
+            compiler.compile_if_needed(
+                plan_path=plan_path,
+                case_paths=list((module_dir / "case").glob("*.xml")) if (module_dir / "case").is_dir() else [],
+                model_path=module_dir / "model" / "model.xml",
+                data_path=module_dir / "data" / "data.sqlite",
+            )
+        except Exception as e:
+            print(f"警告: 预编译失败，继续执行: {e}", file=sys.stderr)
+
+    # 5. 执行压测
+    enable_web_ui = getattr(args, "load_ui", False)
+    web_ui_port   = getattr(args, "load_ui_port", 8089)
+
+    profile = plan.get("load_profile", {})
+    concurrency = profile.get("concurrency", "?")
+    duration    = profile.get("duration_seconds", "?")
+    mode_str    = "预编译" if not no_compile else "解释"
+    print(f"\n压测计划: {plan.get('id')} | {concurrency} VU × {duration}s | 模式: {mode_str}")
+    if enable_web_ui:
+        print(f"监控界面: http://127.0.0.1:{web_ui_port}  (启动中...)")
+    print("启动压测引擎...")
+
+    start_time = time.time()
+    try:
+        engine = LocustLoadEngine(
+            plan,
+            shared_ctx,
+            enable_web_ui=enable_web_ui,
+            web_ui_host="127.0.0.1",
+            web_ui_port=web_ui_port,
+        )
+        stats = engine.run()
+    except Exception as e:
+        print(f"错误: 压测执行失败: {e}", file=sys.stderr)
+        return 1
+    elapsed = time.time() - start_time
+
+    # 6. 写结果
+    try:
+        writer = LoadResultWriter()
+        result_path = writer.write(stats, plan, module_dir)
+        print(f"压测结果已保存: {result_path}")
+    except Exception as e:
+        print(f"警告: 结果写入失败: {e}", file=sys.stderr)
+
+    # 7. 打印摘要
+    _print_load_summary(stats, elapsed=elapsed)
+
+    # 8. 错误率 > 5% 返回 1
+    error_rate = stats.summary().get("error_rate_pct", 0.0)
+    return 1 if error_rate > 5.0 else 0
 
 
 def _generate_post_run_report(results, total, passed, failed, duration, metrics=None, output_dir=None):

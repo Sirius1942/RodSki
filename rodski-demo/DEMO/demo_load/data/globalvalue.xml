@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<globalvalue>
+    <group name="DefaultValue">
+        <var name="URL" value="http://localhost:8000"/>
+        <var name="WaitTime" value="1"/>
+    </group>
+</globalvalue>

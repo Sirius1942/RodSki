@@ -38,7 +38,35 @@ class PlanParser:
                 "cleanup": (debug_node.get("cleanup") or "否").strip(),
             }
 
-        return {
+        load_profile: Dict[str, Any] = {}
+        load_profile_node = root.find("load_profile")
+        if load_profile_node is not None:
+            mode = (load_profile_node.get("mode") or "api").strip()
+            load_profile = {"mode": mode}
+
+            def _int_text(tag: str, default: int = 0) -> int:
+                node = load_profile_node.find(tag)
+                try:
+                    return int((node.text or "").strip()) if node is not None else default
+                except (ValueError, TypeError):
+                    return default
+
+            load_profile["concurrency"] = _int_text("concurrency", 1)
+            load_profile["duration_seconds"] = _int_text("duration_seconds", 30)
+            load_profile["ramp_up_seconds"] = _int_text("ramp_up_seconds", 0)
+
+            host_node = load_profile_node.find("host")
+            if host_node is not None:
+                load_profile["host"] = (host_node.text or "").strip()
+
+            think_node = load_profile_node.find("think_time_ms")
+            if think_node is not None:
+                load_profile["think_time_ms"] = {
+                    "min": int(think_node.get("min") or 0),
+                    "max": int(think_node.get("max") or 0),
+                }
+
+        result: Dict[str, Any] = {
             "id": plan_id,
             "title": (root.get("title") or "").strip(),
             "kind": (root.get("kind") or "").strip(),
@@ -47,10 +75,14 @@ class PlanParser:
             "debug": debug,
             "cases": [self._parse_case(case_node) for case_node in root.findall("case")],
         }
+        # load_profile 只在非空时加入，避免影响 kind=suite 的测试期望
+        if load_profile:
+            result["load_profile"] = load_profile
+        return result
 
     @staticmethod
     def _parse_case(case_node: ET.Element) -> Dict[str, Any]:
-        return {
+        result: Dict[str, Any] = {
             "id": (case_node.get("id") or "").strip(),
             "execute": (case_node.get("execute") or "是").strip(),
             "scenarios": [
@@ -58,6 +90,10 @@ class PlanParser:
                 for scenario_node in case_node.findall("scenario")
             ],
         }
+        # weight 只在 load 计划中使用，仅当 XML 中显式声明时才加入，避免影响 suite 测试期望
+        if case_node.get("weight") is not None:
+            result["weight"] = int(case_node.get("weight") or 1)
+        return result
 
     @staticmethod
     def _parse_scenario(scenario_node: ET.Element) -> Dict[str, Any]:

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rodski"
-version = "7.2.1"
+version = "8.0.0"
 description = "RodSki - AI Agent 跨平台确定性测试执行引擎"
 requires-python = ">=3.8"
 dependencies = [
@@ -22,6 +22,8 @@ dependencies = [
 # 核心 import 时不会触发该包加载。未来扩展：
 #   perception-remote = ["rodski-omni-client>=0.1.0"]
 perception = ["rodski-perception>=0.2.0"]
+# v8.0 性能压测引擎（Locust）
+load = ["locust>=2.28.0,<3.0"]
 
 [project.scripts]
 rodski = "rodski.rodski_cli:main"

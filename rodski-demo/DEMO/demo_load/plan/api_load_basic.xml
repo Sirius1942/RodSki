@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<test_plan id="api_load_basic" title="API 基础压测计划" kind="load">
+    <load_profile mode="api">
+        <concurrency>5</concurrency>
+        <duration_seconds>30</duration_seconds>
+        <ramp_up_seconds>5</ramp_up_seconds>
+        <think_time_ms min="100" max="500"/>
+    </load_profile>
+    <case id="TC-LOAD-001" weight="2"/>
+    <case id="TC-LOAD-002" weight="1"/>
+</test_plan>

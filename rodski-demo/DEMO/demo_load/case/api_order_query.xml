@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+    <!-- TC-LOAD-002: 查询订单接口压测 -->
+    <case execute="是" id="TC-LOAD-002" title="查询订单接口压测" component_type="接口">
+        <test_case>
+            <test_step action="send" model="OrderAPI" data="D001"/>
+            <test_step action="verify" model="OrderAPI" data="V001"/>
+        </test_case>
+    </case>
+</cases>
