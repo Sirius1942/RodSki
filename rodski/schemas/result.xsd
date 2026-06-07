@@ -15,6 +15,7 @@
       <xs:sequence>
         <xs:element name="summary" type="SummaryType" minOccurs="1" maxOccurs="1"/>
         <xs:element name="results" type="ResultsType" minOccurs="1" maxOccurs="1"/>
+        <xs:element name="load_summary" type="LoadSummaryType" minOccurs="0" maxOccurs="1"/>
       </xs:sequence>
     </xs:complexType>
   </xs:element>
@@ -59,6 +60,9 @@
     <xs:attribute name="screenshot_path" type="xs:string" use="optional"/>
     <xs:attribute name="recording_path" type="xs:string" use="optional"/>
     <xs:attribute name="updated_at" type="xs:string" use="optional"/>
+    <xs:attribute name="load_requests" type="xs:nonNegativeInteger" use="optional"/>
+    <xs:attribute name="load_failures" type="xs:nonNegativeInteger" use="optional"/>
+    <xs:attribute name="load_p95_ms"   type="xs:nonNegativeInteger" use="optional"/>
   </xs:complexType>
 
   <!-- 步骤集合类型 -->
@@ -106,6 +110,44 @@
     <xs:attribute name="index" type="xs:nonNegativeInteger" use="required"/>
     <xs:attribute name="path" type="xs:string" use="required"/>
     <xs:attribute name="backend" type="xs:string" use="optional"/>
+  </xs:complexType>
+
+  <!-- 压测汇总类型 -->
+  <xs:complexType name="LoadSummaryType">
+    <xs:sequence>
+      <xs:element name="latency"   type="LatencyType"    minOccurs="0" maxOccurs="1"/>
+      <xs:element name="endpoints" type="EndpointsType"  minOccurs="0" maxOccurs="1"/>
+    </xs:sequence>
+    <xs:attribute name="total_requests"   type="xs:nonNegativeInteger"/>
+    <xs:attribute name="total_failures"   type="xs:nonNegativeInteger"/>
+    <xs:attribute name="error_rate_pct"   type="xs:decimal"/>
+    <xs:attribute name="rps_avg"          type="xs:decimal"/>
+    <xs:attribute name="rps_peak"         type="xs:decimal"/>
+    <xs:attribute name="duration_seconds" type="xs:positiveInteger"/>
+    <xs:attribute name="concurrency"      type="xs:positiveInteger"/>
+  </xs:complexType>
+
+  <xs:complexType name="LatencyType">
+    <xs:attribute name="p50_ms"  type="xs:nonNegativeInteger"/>
+    <xs:attribute name="p75_ms"  type="xs:nonNegativeInteger"/>
+    <xs:attribute name="p95_ms"  type="xs:nonNegativeInteger"/>
+    <xs:attribute name="p99_ms"  type="xs:nonNegativeInteger"/>
+    <xs:attribute name="avg_ms"  type="xs:decimal"/>
+    <xs:attribute name="max_ms"  type="xs:nonNegativeInteger"/>
+  </xs:complexType>
+
+  <xs:complexType name="EndpointsType">
+    <xs:sequence>
+      <xs:element name="endpoint" type="EndpointType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="EndpointType">
+    <xs:attribute name="name"      type="xs:string"/>
+    <xs:attribute name="requests"  type="xs:nonNegativeInteger"/>
+    <xs:attribute name="failures"  type="xs:nonNegativeInteger"/>
+    <xs:attribute name="rps_avg"   type="xs:decimal"/>
+    <xs:attribute name="p95_ms"    type="xs:nonNegativeInteger"/>
   </xs:complexType>
 
   <!-- 状态枚举 -->

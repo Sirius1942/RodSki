@@ -5,6 +5,7 @@
     <xs:complexType>
       <xs:sequence>
         <xs:element name="debug" type="DebugType" minOccurs="0" maxOccurs="1"/>
+        <xs:element name="load_profile" type="LoadProfileType" minOccurs="0" maxOccurs="1"/>
         <xs:element name="case" type="PlanCaseType" minOccurs="0" maxOccurs="unbounded"/>
       </xs:sequence>
       <xs:attribute name="id" type="xs:string" use="required"/>
@@ -27,6 +28,7 @@
     </xs:sequence>
     <xs:attribute name="id" type="xs:string" use="required"/>
     <xs:attribute name="execute" type="ExecuteType" use="optional" default="是"/>
+    <xs:attribute name="weight" type="xs:positiveInteger" use="optional" default="1"/>
   </xs:complexType>
 
   <xs:complexType name="PlanScenarioType">
@@ -49,11 +51,36 @@
     </xs:restriction>
   </xs:simpleType>
 
+  <xs:complexType name="LoadProfileType">
+    <xs:sequence>
+      <xs:element name="concurrency"      type="xs:positiveInteger"/>
+      <xs:element name="duration_seconds" type="xs:positiveInteger"/>
+      <xs:element name="ramp_up_seconds"  type="xs:nonNegativeInteger" minOccurs="0" default="0"/>
+      <xs:element name="think_time_ms"    minOccurs="0">
+        <xs:complexType>
+          <xs:attribute name="min" type="xs:nonNegativeInteger" default="0"/>
+          <xs:attribute name="max" type="xs:nonNegativeInteger" default="0"/>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="max_rps"          type="xs:nonNegativeInteger" minOccurs="0" default="0"/>
+      <xs:element name="host"             type="xs:anyURI"             minOccurs="0"/>
+    </xs:sequence>
+    <xs:attribute name="mode" default="api">
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:enumeration value="api"/>
+          <xs:enumeration value="browser"/>
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:attribute>
+  </xs:complexType>
+
   <xs:simpleType name="PlanKindType">
     <xs:restriction base="xs:string">
       <xs:enumeration value="suite"/>
       <xs:enumeration value="scenario_debug"/>
       <xs:enumeration value="step_debug"/>
+      <xs:enumeration value="load"/>
     </xs:restriction>
   </xs:simpleType>
 

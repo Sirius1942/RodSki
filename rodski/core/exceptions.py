@@ -378,6 +378,34 @@ ERROR_CODE_MAP = {
 }
 
 
+class LoadModeUnsupportedError(SKIError):
+    """在压测模式下调用了 UI 操作。"""
+    error_code = "SKI601"
+
+    def __init__(self, method_name: str = ""):
+        msg = f"LoadDriver 不支持 UI 操作 '{method_name}'。压测计划只能包含 component_type='接口' 的 case。" if method_name else "LoadDriver 不支持 UI 操作。"
+        super().__init__(msg)
+        self.method_name = method_name
+
+
+class LoadModeUnsupportedCaseError(SKIError):
+    """压测计划（api 模式）引用了非接口类型的 case。"""
+    error_code = "SKI602"
+
+
+class LoadDependencyMissingError(SKIError):
+    """压测依赖（locust）未安装。"""
+    error_code = "SKI603"
+
+    def __init__(self):
+        super().__init__("压测功能需要安装 locust：\n  pip install rodski[load]")
+
+
+class LoadBrowserModeUnsupportedCaseError(SKIError):
+    """压测计划（browser 模式）引用了非界面类型的 case。"""
+    error_code = "SKI604"
+
+
 def get_error_by_code(code: str) -> Optional[type]:
     """根据错误码获取异常类型"""
     return ERROR_CODE_MAP.get(code)
