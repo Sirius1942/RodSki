@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>RodSki v8.0 — 性能压测验收报告</title>
+<style>
+  :root {
+    --green:  #16a34a; --green-bg:  #dcfce7; --green-border: #86efac;
+    --blue:   #2563eb; --blue-bg:   #dbeafe; --blue-border:  #93c5fd;
+    --gray:   #374151; --gray-light:#f9fafb; --gray-border:  #e5e7eb;
+    --yellow: #d97706; --yellow-bg: #fef3c7;
+    --red:    #dc2626; --red-bg:    #fee2e2;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font); color: var(--gray); background: #f1f5f9; }
+
+  /* ── header ── */
+  .header {
+    background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
+    color: white; padding: 32px 40px 28px;
+  }
+  .header h1 { font-size: 22px; font-weight: 700; letter-spacing: -.3px; }
+  .header .sub { font-size: 13px; opacity: .75; margin-top: 6px; }
+  .header .badges { margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.25);
+    border-radius: 20px; padding: 3px 12px; font-size: 12px;
+  }
+  .badge.pass { background: rgba(22,163,74,.3); border-color: rgba(22,163,74,.5); }
+
+  /* ── main layout ── */
+  .main { max-width: 1080px; margin: 32px auto; padding: 0 24px; }
+
+  /* ── section card ── */
+  .card {
+    background: white; border-radius: 10px;
+    border: 1px solid var(--gray-border);
+    box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    margin-bottom: 24px; overflow: hidden;
+  }
+  .card-header {
+    padding: 16px 24px; border-bottom: 1px solid var(--gray-border);
+    display: flex; align-items: center; gap: 10px;
+    background: var(--gray-light);
+  }
+  .card-header h2 { font-size: 14px; font-weight: 600; }
+  .card-header .icon { font-size: 17px; }
+  .card-body { padding: 20px 24px; }
+
+  /* ── KPI grid ── */
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  @media(max-width: 700px){ .kpi-grid { grid-template-columns: repeat(2,1fr); } }
+  .kpi {
+    border-radius: 8px; padding: 16px 18px;
+    border: 1px solid var(--gray-border);
+  }
+  .kpi.green { background: var(--green-bg); border-color: var(--green-border); }
+  .kpi.blue  { background: var(--blue-bg);  border-color: var(--blue-border); }
+  .kpi.yellow{ background: var(--yellow-bg);}
+  .kpi-label { font-size: 11px; font-weight: 600; text-transform: uppercase;
+               letter-spacing: .5px; color: #6b7280; margin-bottom: 8px; }
+  .kpi-value { font-size: 30px; font-weight: 700; line-height: 1; }
+  .kpi.green .kpi-value { color: var(--green); }
+  .kpi.blue  .kpi-value { color: var(--blue); }
+  .kpi-unit  { font-size: 13px; font-weight: 400; color: #9ca3af; margin-left: 2px; }
+  .kpi-note  { font-size: 11px; color: #9ca3af; margin-top: 6px; }
+
+  /* ── latency bar chart ── */
+  .lat-chart { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+  .lat-row { display: flex; align-items: center; gap: 10px; }
+  .lat-label { width: 36px; font-size: 12px; font-weight: 600; color: #6b7280; text-align: right; }
+  .lat-bar-wrap { flex: 1; background: #f3f4f6; border-radius: 4px; height: 22px; overflow: hidden; }
+  .lat-bar {
+    height: 100%; border-radius: 4px; display: flex; align-items: center;
+    padding-left: 8px; font-size: 12px; font-weight: 600; color: white;
+    transition: width .4s ease;
+  }
+  .lat-p50  { background: #3b82f6; }
+  .lat-p75  { background: #6366f1; }
+  .lat-p95  { background: #f59e0b; }
+  .lat-p99  { background: #ef4444; }
+  .lat-max  { background: #9ca3af; }
+
+  /* ── endpoint table ── */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: var(--gray-light); padding: 10px 14px; text-align: left;
+       font-size: 11px; font-weight: 700; text-transform: uppercase;
+       letter-spacing: .4px; color: #6b7280;
+       border-bottom: 1px solid var(--gray-border); }
+  td { padding: 11px 14px; border-bottom: 1px solid #f3f4f6; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #fafafa; }
+  .tag {
+    display: inline-block; padding: 2px 8px; border-radius: 10px;
+    font-size: 11px; font-weight: 600; letter-spacing: .3px;
+  }
+  .tag.pass { background: var(--green-bg); color: var(--green); }
+  .tag.fail { background: var(--red-bg);   color: var(--red); }
+  .tag.method-post { background: #ede9fe; color: #7c3aed; }
+  .tag.method-get  { background: #d1fae5; color: #065f46; }
+  .pill {
+    display: inline-block; padding: 1px 7px; border-radius: 8px;
+    background: #f3f4f6; font-size: 11px; color: #374151;
+  }
+
+  /* ── case detail ── */
+  .case-list { display: flex; flex-direction: column; gap: 12px; }
+  .case-item {
+    border: 1px solid var(--gray-border); border-radius: 8px; overflow: hidden;
+  }
+  .case-item-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px; background: var(--gray-light);
+  }
+  .case-id { font-size: 12px; font-weight: 700; color: var(--blue); }
+  .case-title { font-size: 13px; font-weight: 600; flex: 1; }
+  .case-item-body { padding: 12px 16px; }
+  .step-list { display: flex; flex-direction: column; gap: 6px; }
+  .step {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px; border-radius: 6px; background: #f9fafb;
+    border: 1px solid #f3f4f6; font-size: 12px;
+  }
+  .step-num { width: 20px; height: 20px; border-radius: 50%;
+              background: #e5e7eb; display: flex; align-items: center;
+              justify-content: center; font-size: 10px; font-weight: 700;
+              color: #6b7280; flex-shrink: 0; }
+  .step-action {
+    padding: 1px 7px; border-radius: 4px; font-size: 11px; font-weight: 700;
+    letter-spacing: .3px; flex-shrink: 0;
+  }
+  .step-action.send   { background: #ede9fe; color: #7c3aed; }
+  .step-action.verify { background: #d1fae5; color: #065f46; }
+  .step-detail { color: #6b7280; }
+  .step-detail strong { color: var(--gray); }
+
+  /* ── compiled output ── */
+  pre {
+    background: #1e293b; color: #e2e8f0; border-radius: 8px;
+    padding: 20px; font-size: 12px; line-height: 1.65; overflow-x: auto;
+    font-family: "Fira Code", "JetBrains Mono", "SF Mono", Consolas, monospace;
+  }
+  .kw-comment  { color: #64748b; }
+  .kw-import   { color: #93c5fd; }
+  .kw-class    { color: #f472b6; font-weight: 600; }
+  .kw-def      { color: #34d399; font-weight: 600; }
+  .kw-decorator{ color: #fbbf24; }
+  .kw-string   { color: #a3e635; }
+  .kw-builtin  { color: #fb923c; }
+  .kw-const    { color: #e2e8f0; }
+
+  /* ── constraints checklist ── */
+  .check-list { display: flex; flex-direction: column; gap: 6px; }
+  .check-item { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; }
+  .check-icon { flex-shrink: 0; font-size: 15px; }
+
+  /* ── footer ── */
+  .footer {
+    text-align: center; font-size: 12px; color: #9ca3af;
+    padding: 24px; margin-top: 8px;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🚀 RodSki v8.0 — 性能压测验收报告</h1>
+  <div class="sub">分支: feature/v8.0-load-testing &nbsp;·&nbsp; 迭代: iteration-56 + iteration-57 &nbsp;·&nbsp; 生成时间: 2026-06-07</div>
+  <div class="badges">
+    <span class="badge pass">✅ 验收通过</span>
+    <span class="badge">📋 计划: api_load_basic</span>
+    <span class="badge">⚡ 5 VU × 30s</span>
+    <span class="badge">🔧 Locust 2.44.1</span>
+    <span class="badge">📦 提交: 1ccc648</span>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- ── KPI ── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="icon">📊</span>
+      <h2>性能 KPI 概览</h2>
+    </div>
+    <div class="card-body">
+      <div class="kpi-grid">
+        <div class="kpi green">
+          <div class="kpi-label">总请求数</div>
+          <div class="kpi-value">445<span class="kpi-unit">req</span></div>
+          <div class="kpi-note">5 VU × 30 秒</div>
+        </div>
+        <div class="kpi blue">
+          <div class="kpi-label">平均 RPS</div>
+          <div class="kpi-value">15.03<span class="kpi-unit">req/s</span></div>
+          <div class="kpi-note">峰值 — (local demo)</div>
+        </div>
+        <div class="kpi green">
+          <div class="kpi-label">错误率</div>
+          <div class="kpi-value">0.00<span class="kpi-unit">%</span></div>
+          <div class="kpi-note">0 / 445 失败</div>
+        </div>
+        <div class="kpi blue">
+          <div class="kpi-label">P95 延迟</div>
+          <div class="kpi-value">3<span class="kpi-unit">ms</span></div>
+          <div class="kpi-note">本地 Flask，无网络延迟</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 延迟分布 ── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="icon">⏱</span>
+      <h2>响应延迟分布</h2>
+    </div>
+    <div class="card-body">
+      <div class="lat-chart">
+        <div class="lat-row">
+          <div class="lat-label">P50</div>
+          <div class="lat-bar-wrap">
+            <div class="lat-bar lat-p50" style="width:50%">2 ms</div>
+          </div>
+        </div>
+        <div class="lat-row">
+          <div class="lat-label">P75</div>
+          <div class="lat-bar-wrap">
+            <div class="lat-bar lat-p75" style="width:50%">2 ms</div>
+          </div>
+        </div>
+        <div class="lat-row">
+          <div class="lat-label">P95</div>
+          <div class="lat-bar-wrap">
+            <div class="lat-bar lat-p95" style="width:75%">3 ms</div>
+          </div>
+        </div>
+        <div class="lat-row">
+          <div class="lat-label">P99</div>
+          <div class="lat-bar-wrap">
+            <div class="lat-bar lat-p99" style="width:100%">4 ms</div>
+          </div>
+        </div>
+        <div class="lat-row">
+          <div class="lat-label">Max</div>
+          <div class="lat-bar-wrap">
+            <div class="lat-bar lat-max" style="width:100%">4 ms &nbsp;(最大)</div>
+          </div>
+        </div>
+      </div>
+      <table style="margin-top:20px">
+        <tr>
+          <th>指标</th><th>P50</th><th>P75</th><th>P95</th><th>P99</th><th>Avg</th><th>Max</th>
+        </tr>
+        <tr>
+          <td><strong>延迟</strong></td>
+          <td>2 ms</td><td>2 ms</td><td>3 ms</td><td>4 ms</td><td>1.7 ms</td><td>4 ms</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── 接口明细 ── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="icon">🌐</span>
+      <h2>接口请求明细</h2>
+    </div>
+    <div class="card-body">
+      <table>
+        <thead>
+          <tr>
+            <th>接口</th><th>方法</th><th>URL</th>
+            <th>请求数</th><th>失败数</th><th>RPS 均值</th>
+            <th>P95 延迟</th><th>状态</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>登录接口</strong><br/><span class="pill">TC-LOAD-001</span></td>
+            <td><span class="tag method-post">POST</span></td>
+            <td style="font-size:12px;color:#6b7280">/api/login</td>
+            <td>299</td><td>0</td><td>10.10 req/s</td>
+            <td>2 ms</td>
+            <td><span class="tag pass">PASS</span></td>
+          </tr>
+          <tr>
+            <td><strong>查询订单</strong><br/><span class="pill">TC-LOAD-002</span></td>
+            <td><span class="tag method-get">GET</span></td>
+            <td style="font-size:12px;color:#6b7280">/api/orders</td>
+            <td>146</td><td>0</td><td>4.93 req/s</td>
+            <td>3 ms</td>
+            <td><span class="tag pass">PASS</span></td>
+          </tr>
+          <tr style="background:#f9fafb;font-weight:600">
+            <td colspan="3">合计</td>
+            <td>445</td><td>0</td><td>15.03 req/s</td>
+            <td>3 ms</td>
+            <td><span class="tag pass">PASS</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <div style="margin-top:14px;font-size:12px;color:#9ca3af">
+        💡 weight 分布：TC-LOAD-001 × 2 / TC-LOAD-002 × 1，实际请求比例约 2:1（299:146 ≈ 2.05:1）
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 验收用例 ── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="icon">📋</span>
+      <h2>验收用例列表</h2>
+    </div>
+    <div class="card-body">
+      <div class="case-list">
+
+        <!-- TC-LOAD-001 -->
+        <div class="case-item">
+          <div class="case-item-header">
+            <span class="case-id">TC-LOAD-001</span>
+            <span class="case-title">登录接口压测</span>
+            <span class="tag pass">PASS</span>
+            <span class="pill">接口</span>
+            <span class="pill">weight: 2</span>
+            <span class="pill">299 req</span>
+          </div>
+          <div class="case-item-body">
+            <div style="font-size:12px;color:#6b7280;margin-bottom:10px">
+              验证登录接口（POST /api/login）在 5 并发 30 秒内的稳定性
+            </div>
+            <div class="step-list">
+              <div class="step">
+                <div class="step-num">1</div>
+                <span class="step-action send">send</span>
+                <span class="step-detail"><strong>model:</strong> LoginAPI &nbsp; <strong>data:</strong> D001 &nbsp; (POST /api/login, body: {username, password})</span>
+              </div>
+              <div class="step">
+                <div class="step-num">2</div>
+                <span class="step-action verify">verify</span>
+                <span class="step-detail"><strong>model:</strong> LoginAPI &nbsp; <strong>data:</strong> V001 &nbsp; (期望: status=200)</span>
+              </div>
+            </div>
+            <div style="margin-top:10px;padding:10px 12px;background:#f9fafb;border-radius:6px;font-size:12px">
+              <strong>测试数据：</strong> LoginAPI.D001 → username=admin, password=123456 &nbsp;|&nbsp;
+              <strong>预期：</strong> LoginAPI_verify.V001 → status=200
+            </div>
+          </div>
+        </div>
+
+        <!-- TC-LOAD-002 -->
+        <div class="case-item">
+          <div class="case-item-header">
+            <span class="case-id">TC-LOAD-002</span>
+            <span class="case-title">查询订单接口压测</span>
+            <span class="tag pass">PASS</span>
+            <span class="pill">接口</span>
+            <span class="pill">weight: 1</span>
+            <span class="pill">146 req</span>
+          </div>
+          <div class="case-item-body">
+            <div style="font-size:12px;color:#6b7280;margin-bottom:10px">
+              验证订单查询接口（GET /api/orders）在 5 并发 30 秒内的响应时间
+            </div>
+            <div class="step-list">
+              <div class="step">
+                <div class="step-num">1</div>
+                <span class="step-action send">send</span>
+                <span class="step-detail"><strong>model:</strong> OrderAPI &nbsp; <strong>data:</strong> D001 &nbsp; (GET /api/orders)</span>
+              </div>
+              <div class="step">
+                <div class="step-num">2</div>
+                <span class="step-action verify">verify</span>
+                <span class="step-detail"><strong>model:</strong> OrderAPI &nbsp; <strong>data:</strong> V001 &nbsp; (期望: status=200)</span>
+              </div>
+            </div>
+            <div style="margin-top:10px;padding:10px 12px;background:#f9fafb;border-radius:6px;font-size:12px">
+              <strong>测试数据：</strong> OrderAPI.D001 → GET 请求无 body &nbsp;|&nbsp;
+              <strong>预期：</strong> OrderAPI_verify.V001 → status=200
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 执行配置 ── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="icon">⚙️</span>
+      <h2>执行配置（plan/api_load_basic.xml）</h2>
+    </div>
+    <div class="card-body">
+      <table>
+        <tr><th>参数</th><th>值</th><th>说明</th></tr>
+        <tr><td>kind</td><td><strong>load</strong></td><td>性能压测模式（独立于 suite 模式）</td></tr>
+        <tr><td>mode</td><td><strong>api</strong></td><td>接口压测，Locust FastHttpUser 后端</td></tr>
+        <tr><td>concurrency</td><td><strong>5</strong></td><td>并发虚拟用户数（VU）</td></tr>
+        <tr><td>duration_seconds</td><td><strong>30</strong></td><td>压测持续时长</td></tr>
+        <tr><td>ramp_up_seconds</td><td><strong>5</strong></td><td>VU 爬坡时间（5s 内从 0 到 5 VU）</td></tr>
+        <tr><td>think_time_ms</td><td><strong>100 ~ 500</strong></td><td>每次迭代间隔（模拟真实用户思考时间）</td></tr>
+        <tr><td>TC-LOAD-001 weight</td><td><strong>2</strong></td><td>登录接口调度权重（约 2/3 请求量）</td></tr>
+        <tr><td>TC-LOAD-002 weight</td><td><strong>1</strong></td><td>订单查询调度权重（约 1/3 请求量）</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── 预编译产物 ── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="icon">🔧</span>
+      <h2>预编译产物（perf/api_load_basic.py）</h2>
+    </div>
+    <div class="card-body">
+      <div style="font-size:13px;color:#6b7280;margin-bottom:12px">
+        LoadCompiler 将 RodSki XML 用例编译为标准 Locust locustfile.py，消除热路径解析开销。产物可脱离 RodSki 独立运行：
+        <code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:12px">
+          locust -f api_load_basic.py --host http://localhost:8000 --users 5 --run-time 30s
+        </code>
+      </div>
+      <pre><span class="kw-comment"># ============================================================
+# RodSki LoadCompiler — plan_id: api_load_basic
+# Generated: 2026-06-07 07:24:17 UTC
+# Run: locust -f &lt;this_file&gt; --host http://localhost --users 5 --run-time 30s
+# ============================================================</span>
+<span class="kw-import">import</span> random <span class="kw-import">as</span> _random
+<span class="kw-import">from</span> datetime <span class="kw-import">import</span> datetime <span class="kw-import">as</span> _datetime
+<span class="kw-import">from</span> locust <span class="kw-import">import</span> FastHttpUser, task, between
+
+<span class="kw-comment"># --- 编译期内联常量（消除运行时 DataResolver 解析开销）---</span>
+<span class="kw-const">_TC_TC_LOAD_001_STEP0_METHOD</span> = <span class="kw-string">'POST'</span>
+<span class="kw-const">_TC_TC_LOAD_001_STEP0_URL</span>    = <span class="kw-string">'http://localhost:8000/api/login'</span>
+<span class="kw-const">_TC_TC_LOAD_002_STEP0_METHOD</span> = <span class="kw-string">'GET'</span>
+<span class="kw-const">_TC_TC_LOAD_002_STEP0_URL</span>    = <span class="kw-string">'http://localhost:8000/api/orders'</span>
+
+<span class="kw-class">class</span> CompiledRodskiUser(FastHttpUser):
+    host      = <span class="kw-string">'http://localhost:8000'</span>
+    wait_time = <span class="kw-builtin">between</span>(0.1, 0.5)
+
+    <span class="kw-def">def</span> on_start(self):
+        self._returns = []
+
+    <span class="kw-decorator">@task(2)</span>          <span class="kw-comment"># weight=2，约占 2/3 请求量</span>
+    <span class="kw-def">def</span> task_TC_LOAD_001(self):
+        self._returns = []
+        _resp = self.client.request(
+            _TC_TC_LOAD_001_STEP0_METHOD, _TC_TC_LOAD_001_STEP0_URL,
+            json={<span class="kw-string">'username'</span>: <span class="kw-string">'admin'</span>, <span class="kw-string">'password'</span>: <span class="kw-string">'123456'</span>},
+            headers={}
+        )
+        self._returns.append({<span class="kw-string">'status_code'</span>: _resp.status_code, <span class="kw-string">'text'</span>: _resp.text})
+
+    <span class="kw-decorator">@task(1)</span>          <span class="kw-comment"># weight=1，约占 1/3 请求量</span>
+    <span class="kw-def">def</span> task_TC_LOAD_002(self):
+        self._returns = []
+        _resp = self.client.request(
+            _TC_TC_LOAD_002_STEP0_METHOD, _TC_TC_LOAD_002_STEP0_URL,
+            json={}, headers={}
+        )
+        self._returns.append({<span class="kw-string">'status_code'</span>: _resp.status_code, <span class="kw-string">'text'</span>: _resp.text})</pre>
+    </div>
+  </div>
+
+  <!-- ── 验收标准检查 ── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="icon">✅</span>
+      <h2>验收标准检查清单</h2>
+    </div>
+    <div class="card-body">
+      <div class="check-list">
+        <div class="check-item"><span class="check-icon">✅</span><span>压测命令 <code>rodski run @api_load_basic</code> 执行无报错</span></div>
+        <div class="check-item"><span class="check-icon">✅</span><span><code>perf/api_load_basic.py</code> 已生成并通过 <code>python3 -m py_compile</code> 语法检查</span></div>
+        <div class="check-item"><span class="check-icon">✅</span><span><code>result/result_*.xml</code> 存在且含 <code>&lt;load_summary&gt;</code> 节点</span></div>
+        <div class="check-item"><span class="check-icon">✅</span><span><code>total_requests = 445 ≥ 30</code>（验收标准：≥ 30）</span></div>
+        <div class="check-item"><span class="check-icon">✅</span><span><code>error_rate_pct = 0.00% ≤ 1.0%</code>（验收标准：≤ 1%）</span></div>
+        <div class="check-item"><span class="check-icon">✅</span><span><code>p95_ms = 3ms ≤ 2000ms</code>（验收标准：≤ 2s，本地服务无网络延迟）</span></div>
+        <div class="check-item"><span class="check-icon">✅</span><span>result XML 通过 <code>xmllint --schema result.xsd</code> 校验</span></div>
+        <div class="check-item"><span class="check-icon">✅</span><span>case / model / plan XML 全部通过 XSD 校验</span></div>
+        <div class="check-item"><span class="check-icon">✅</span><span>全量单元测试 <strong>1971 passed, 0 failed</strong>（修复 MagicMock 误判回归后）</span></div>
+        <div class="check-item"><span class="check-icon">✅</span><span><code>CORE_DESIGN_CONSTRAINTS.md §21</code> 压测模式约束已落地</span></div>
+        <div class="check-item"><span class="check-icon">✅</span><span><code>CLAUDE.md</code> 常用命令新增压测示例</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 新增模块结构 ── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="icon">📦</span>
+      <h2>新增代码模块（v8.0）</h2>
+    </div>
+    <div class="card-body">
+      <table>
+        <thead><tr><th>文件</th><th>WI</th><th>职责</th><th>单元测试</th></tr></thead>
+        <tbody>
+          <tr><td><code>rodski/schemas/plan.xsd</code></td><td>WI-35</td><td>新增 kind=load + load_profile + weight + mode</td><td>schema self-check ✅</td></tr>
+          <tr><td><code>rodski/schemas/result.xsd</code></td><td>WI-39</td><td>新增可选 &lt;load_summary&gt; 节点（向后兼容）</td><td>schema self-check ✅</td></tr>
+          <tr><td><code>rodski/drivers/load_driver.py</code></td><td>WI-36</td><td>压测专用驱动，Locust FastHttpClient 桥接</td><td>31 passed ✅</td></tr>
+          <tr><td><code>rodski/core/exceptions.py</code></td><td>WI-36</td><td>新增 SKI601~604 压测异常</td><td>已覆盖 ✅</td></tr>
+          <tr><td><code>rodski/load/stats.py</code></td><td>WI-45</td><td>LoadStats 指标聚合（P50/P95/P99/error_rate）</td><td>24 passed ✅</td></tr>
+          <tr><td><code>rodski/load/context.py</code></td><td>WI-37</td><td>SharedLoadContext 只读冻结上下文</td><td>12 passed ✅</td></tr>
+          <tr><td><code>rodski/load/user.py</code></td><td>WI-37</td><td>RodskiLoadUser Locust VU 基类</td><td>12 passed ✅</td></tr>
+          <tr><td><code>rodski/load/locust_engine.py</code></td><td>WI-38</td><td>LocustLoadEngine LocalRunner 编排</td><td>27 passed ✅</td></tr>
+          <tr><td><code>rodski/load/result_writer.py</code></td><td>WI-39</td><td>LoadResultWriter 含 load_summary 的 XML 写入</td><td>13 passed ✅</td></tr>
+          <tr><td><code>rodski/load/compiler.py</code></td><td>WI-44</td><td>LoadCompiler 预编译 → locustfile.py + perf/ 持久化</td><td>23 passed ✅</td></tr>
+          <tr><td><code>rodski/rodski_cli/run.py</code></td><td>WI-41</td><td>CLI 接入 _handle_load_run()，--no-compile 等参数</td><td>12 passed ✅</td></tr>
+        </tbody>
+      </table>
+      <div style="margin-top:12px;padding:10px 14px;background:var(--green-bg);border-radius:6px;border:1px solid var(--green-border);font-size:13px">
+        <strong style="color:var(--green)">新增测试汇总：</strong> 119（iteration-56）+ 35（iteration-57）= <strong>154 个新测试</strong>，全部通过。
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 提交历史 ── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="icon">🔗</span>
+      <h2>分支提交历史</h2>
+    </div>
+    <div class="card-body">
+      <table>
+        <thead><tr><th>提交</th><th>迭代</th><th>内容</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>1ccc648</code></td><td>回归修复</td>
+            <td>修复 keyword_engine MagicMock 误判 + plan_parser weight 字段影响旧测试</td>
+          </tr>
+          <tr>
+            <td><code>a9f7fca</code></td><td>iteration-57</td>
+            <td>LoadCompiler + CLI 接入 + rodski-demo/DEMO/demo_load/ 验收用例</td>
+          </tr>
+          <tr>
+            <td><code>9294859</code></td><td>iteration-56</td>
+            <td>plan.xsd / result.xsd / LoadDriver / LoadStats / SharedLoadContext / LocustLoadEngine / LoadResultWriter</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<div class="footer">
+  RodSki v8.0 · branch: feature/v8.0-load-testing · 1971 passed, 0 failed · Generated 2026-06-07
+</div>
+
+</body>
+</html>
