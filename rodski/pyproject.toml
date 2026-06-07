@@ -10,13 +10,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rodski"
-version = "7.2.1"
+version = "8.0.0"
 description = "RodSki 关键字驱动自动化测试框架 (DEV-ONLY, see root pyproject.toml)"
 requires-python = ">=3.8"
 
 [project.optional-dependencies]
 # 与根 pyproject.toml 保持一致；详见 §2.6.6
 perception = ["rodski-perception>=0.2.0"]
+load = ["locust>=2.28.0,<3.0"]
 
 [project.scripts]
 rodski = "rodski_cli:main"
@@ -31,6 +32,7 @@ include = [
     "data*",
     "drivers*",
     "llm*",
+    "load*",
     "observability*",
     "report*",
     "reviewers*",

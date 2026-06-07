@@ -1,6 +1,6 @@
 # RodSki 项目 - Claude 协作指南
 
-> RodSki 是面向 AI Agent 的跨平台确定性测试执行引擎。当前版本：v7.2.0
+> RodSki 是面向 AI Agent 的跨平台确定性测试执行引擎。当前版本：v8.0.0
 
 ## 核心文档（每次开发前必读）
 
@@ -14,6 +14,7 @@
 | Agent 集成 | `rodski/docs/AGENT_INTEGRATION.md` | Agent 集成指南 |
 | 数据文件组织 | `rodski/docs/DATA_FILE_ORGANIZATION.md` | 数据文件规范 |
 | 数据库支持 | `rodski/docs/DB_DRIVER_SUPPORT.md` | DB 驱动 |
+| **性能压测指南** | `rodski/docs/LOAD_TESTING_GUIDE.md` | v8.0 压测能力（plan/perf/Web UI）|
 
 **项目管理文档存放在 `.pb/` 目录：**
 
@@ -180,6 +181,8 @@ rodski data list <module>
 rodski data show <module> <table> <data_id>
 
 # 性能压测（v8.0，需要 pip install rodski[load]）
-rodski run @api_load_basic           # 执行 kind=load 压测计划
-rodski run @api_load_basic --no-compile  # 跳过预编译（调试用）
+rodski run @api_load_basic                        # 执行 kind=load 压测计划
+rodski run @api_load_basic --load-ui              # 压测 + Locust Web UI 实时监控
+rodski run @api_load_basic --load-ui-port 9090    # 指定监控端口
+rodski run @api_load_basic --no-compile           # 跳过预编译（调试用）
 ```
