@@ -48,7 +48,13 @@ class LoadCompiler:
         self.shared_ctx = shared_ctx
         self.plan = plan
         self.perf_dir = Path(perf_dir)
-        self._plan_id: str = plan.get("plan_id") or plan.get("id", "unnamed")
+        plan_id = plan.get("plan_id") or plan.get("id", "")
+        if not plan_id:
+            raise ValueError(
+                "LoadCompiler: plan 必须包含非空的 'id' 字段，"
+                "请检查 plan XML 是否正确解析（plan.xsd 要求 id 属性必填）。"
+            )
+        self._plan_id: str = plan_id
         # 收集编译期生成的模块级常量 {const_name: value_repr}
         self._constants: Dict[str, str] = {}
 
