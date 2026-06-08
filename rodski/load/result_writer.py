@@ -51,18 +51,27 @@ class LoadResultWriter:
         summary_el.set("end_time",    datetime.now().strftime("%Y%m%d_%H%M%S"))
 
         # <results>
+        # 压测模式：case 级别按总量均摊，不按 endpoint 匹配
+        # （endpoint 名称是接口路径，不是 case_id）
         results_el = ET.SubElement(root, "results")
-        ep_map = {ep["name"]: ep for ep in endpoints_data}
+        n_cases = len(plan_cases)
+        total_req   = summary_data.get("total_requests", 0)
+        total_fail  = summary_data.get("total_failures", 0)
+        global_p95  = summary_data.get("p95_ms", 0)
         for case_cfg in plan_cases:
             case_id = case_cfg["id"]
+            weight  = int(case_cfg.get("weight", 1))
             result_el = ET.SubElement(results_el, "result")
             result_el.set("case_id", case_id)
-            result_el.set("status", "PASS")
-            ep = ep_map.get(case_id) or {}
-            if ep:
-                result_el.set("load_requests", str(ep.get("requests", 0)))
-                result_el.set("load_failures", str(ep.get("failures", 0)))
-                result_el.set("load_p95_ms",   str(ep.get("p95_ms", 0)))
+            # error_rate <= 5% 视为 PASS
+            result_el.set("status", "FAIL" if summary_data.get("error_rate_pct", 0) > 5.0 else "PASS")
+            # 按 weight 比例估算该 case 的请求量
+            total_weight = sum(int(c.get("weight", 1)) for c in plan_cases)
+            case_req  = int(total_req  * weight / max(total_weight, 1))
+            case_fail = int(total_fail * weight / max(total_weight, 1))
+            result_el.set("load_requests", str(case_req))
+            result_el.set("load_failures", str(case_fail))
+            result_el.set("load_p95_ms",   str(global_p95))
 
         # <load_summary>
         ls_el = ET.SubElement(root, "load_summary")

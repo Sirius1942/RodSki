@@ -221,7 +221,9 @@ def _make_mock_env(total_entry=None, endpoint_entries: dict | None = None):
     entries = {}
     if endpoint_entries:
         for name, entry in endpoint_entries.items():
-            entries[("GET", name)] = entry
+            # 真实 Locust entry_key 格式：(name_passed_to_request, method)
+            # name 通常是 "POST /api/login" 或完整 URL
+            entries[(name, "GET")] = entry
     env.stats.total = total
     env.stats.entries = entries
     return env

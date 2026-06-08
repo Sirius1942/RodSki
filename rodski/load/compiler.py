@@ -266,6 +266,7 @@ class LoadCompiler:
                 method_lines.append(
                     f"        _resp = self.client.request("
                     f"{method_const}, {url_const}, "
+                    f"name={repr(method_expr + ' ' + url_expr)}, "
                     f"json={body_repr}, headers={headers_repr})"
                 )
                 method_lines.append(

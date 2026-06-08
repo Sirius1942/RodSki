@@ -231,7 +231,13 @@ class LocustLoadEngine:
         }
         stats._locust_endpoints = []
         for entry_key, entry in locust_stats.entries.items():
-            name = entry_key[1] if isinstance(entry_key, tuple) else str(entry_key)
+            # entry_key 格式：(url_or_name, method)
+            # entry_key[0] 是传给 client.request(name=...) 的字符串
+            # entry_key[1] 是 HTTP method（POST/GET/...）
+            if isinstance(entry_key, tuple):
+                name   = str(entry_key[0])   # name= 参数已含 method，直接用
+            else:
+                name   = str(entry_key)
             ep_p95 = entry.get_response_time_percentile(0.95) or 0
             stats._locust_endpoints.append({
                 "name":      name,
