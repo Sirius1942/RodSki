@@ -76,17 +76,19 @@ class TestLoadResultWriter:
         assert root.tag == "testresult"
 
     def test_summary_element(self, tmp_path):
-        """<summary> 应包含 total/passed/failed 属性。"""
+        """<summary> 应包含 total/passed/failed 属性。
+        _make_stats 有 1/6 失败 (16.7% > 5%)，故 failed=1，passed=total-failed=1。
+        """
         writer = LoadResultWriter()
         result_path = writer.write(_make_stats(), _make_plan(), tmp_path)
 
         root = ET.parse(str(result_path)).getroot()
         summary = root.find("summary")
         assert summary is not None
-        # 只有 execute=是 的两个用例
         assert summary.get("total") == "2"
-        assert summary.get("passed") == "2"
-        assert "failed" in summary.attrib
+        # error_rate > 5% → failed=1, passed=total-failed=1
+        assert summary.get("failed") == "1"
+        assert summary.get("passed") == "1"
 
     def test_results_element_only_executed_cases(self, tmp_path):
         """<results> 只包含 execute=是 的用例。"""
@@ -216,3 +218,29 @@ class TestLoadResultWriter:
         assert ls is not None
         # endpoints 节点不应存在（空时不生成）
         assert ls.find("endpoints") is None
+
+    def test_perf_file_archived_to_result(self, tmp_path):
+        """每次压测后，perf/{plan_id}.py 应被复制归档到 result/ 目录。"""
+        # 构造 perf/api_load_basic.py
+        perf_dir = tmp_path / "perf"
+        perf_dir.mkdir()
+        perf_file = perf_dir / "api_load_basic.py"
+        perf_file.write_text("# compiled locustfile\npass\n")
+
+        writer = LoadResultWriter()
+        plan = {**_make_plan(), "id": "api_load_basic"}
+        result_path = writer.write(LoadStats(), plan, tmp_path)
+
+        # result/ 目录中应存在对应的 .py 归档文件
+        ts = result_path.stem.replace("result_", "")   # 20260608_HHMMSS
+        archived = tmp_path / "result" / f"api_load_basic_{ts}.py"
+        assert archived.exists(), f"归档文件不存在: {archived}"
+        assert archived.read_text() == "# compiled locustfile\npass\n"
+
+    def test_no_perf_archive_when_perf_missing(self, tmp_path):
+        """perf/ 文件不存在时，不报错，仅跳过归档。"""
+        writer = LoadResultWriter()
+        plan = {**_make_plan(), "id": "no_such_plan"}
+        # perf/no_such_plan.py 不存在，write() 应正常完成
+        result_path = writer.write(LoadStats(), plan, tmp_path)
+        assert result_path.exists()

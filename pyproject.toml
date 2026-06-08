@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rodski"
-version = "8.0.1"
+version = "8.0.2"
 description = "RodSki - AI Agent 跨平台确定性测试执行引擎"
 requires-python = ">=3.8"
 dependencies = [
