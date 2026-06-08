@@ -1,6 +1,6 @@
 # RodSki 项目 - Claude 协作指南
 
-> RodSki 是面向 AI Agent 的跨平台确定性测试执行引擎。当前版本：v8.0.0
+> RodSki 是面向 AI Agent 的跨平台确定性测试执行引擎。当前版本：v8.0.1
 
 ## 核心文档（每次开发前必读）
 
@@ -21,8 +21,23 @@
 - **需求文档** → `.pb/requirements/`
 - **迭代记录** → `.pb/iterations/`
 - **规格说明** → `.pb/specs/`
-- **项目约定** → `.pb/conventions/`
+- **项目约定** → `.pb/conventions/`（含版本号规范 `VERSIONING.md`）
 - **归档文档** → `.pb/archive/`
+
+---
+
+## 版本号规则（摘自 `.pb/conventions/VERSIONING.md`）
+
+格式：`MAJOR.MINOR.PATCH`（大版本.特性版本.修复版本）
+
+| 位 | 触发条件 | 谁来决定 |
+|----|---------|---------|
+| **PATCH（Z+1）** | 每修复一个 Bug | AI Agent 可自主操作 |
+| **MINOR（Y+1，Z→0）** | 每添加一个新功能 | AI Agent 可自主操作 |
+| **MAJOR（X+1，Y→0，Z→0）** | 架构级里程碑 | **Owner 手动决定，不得自行递增** |
+
+**版本号必须在以下文件同步更新**：
+`pyproject.toml`、`rodski/pyproject.toml`、`rodski/__init__.py`、`rodski-skills/VERSION`、`CLAUDE.md`
 
 ---
 

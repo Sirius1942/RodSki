@@ -1,155 +1,214 @@
 # 版本号管理规范
 
-**创建日期**: 2026-04-13
-**更新日期**: 2026-04-16
+**创建日期**: 2026-04-13  
+**更新日期**: 2026-06-08  
+**适用版本**: v8.0.0+
 
 ---
 
-## 1. 语义化版本格式
+## 1. 版本号格式
 
 ```
-MAJOR.MINOR.PATCH
-  X  .  Y  .  Z
+MAJOR . MINOR . PATCH
+  X   .   Y   .   Z
+大版本  特性版本  修复版本
 ```
 
-## 2. 递增规则
+**当前最新版本**: `8.0.1`（截至本文档更新）
 
-| 位 | 含义 | 何时递增 | Z/Y 归零 |
-|----|------|---------|---------|
-| **Z（PATCH）** | Bug 修复、文档纠错、小补丁 | 不改功能行为，只修问题 | — |
-| **Y（MINOR）** | 新功能、功能增强、重构 | **向后兼容**的功能变更 | Z 归零 |
-| **X（MAJOR）** | 架构级 Breaking Change | 旧用法/数据格式不兼容 | Y 和 Z 归零 |
+---
 
-## 3. 判断标准（重要）
+## 2. 三位版本号规则（核心）
 
-### 递增 PATCH (Z+1)
-- Bug 修复、热修补
-- 文档小修、注释更新
-- 测试补充（不改功能）
+### Z — 修复版本（Patch）
 
-### 递增 MINOR (Y+1)
-- 新增关键字、新增模块（如 report/、observability/）
-- 新增 CLI 参数（如 --tags、--report）
-- Schema 新增可选属性（向后兼容）
-- 新增内建函数（如 mock_route）
-- if/elif 语法扩展（原有 if/else 仍可用）
+**触发条件**：每修复一个 Bug，Z+1。
 
-### 递增 MAJOR (X+1) — 仅以下情况
-- XML Schema 不兼容变更（删除必需属性、修改元素结构）
-- 删除或重命名已发布关键字
-- 核心引擎架构重写（如 Excel → XML 迁移）
-- Python API 公共接口不兼容变更
+| 触发场景 | 示例 |
+|---------|------|
+| Bug 修复 | endpoint name 显示为 `POST` 而非 `POST /api/login` |
+| 行为修正 | MagicMock 误判导致测试失败 |
+| 文档纠错 | 指南中命令写错 |
+| 测试修复 | 测试期望值与新逻辑不符 |
+| 兼容性补丁 | gevent monkey-patch 干扰 argparse |
 
-### 绝对不递增 MAJOR 的场景
-- 新增功能（不管多大） — 用 MINOR
-- 内部重构（不影响用户接口） — 用 MINOR 或 PATCH
-- 路线图阶段推进（如 v7 路线图的功能） — 用 MINOR
+**规则**：
+- 修复了 N 个 Bug → Z+N（每个 Bug 对应一次 Z 递增，可合并成一次提交）
+- 或：一次发布批量修复多个 Bug → Z+1（批量修复算一次）
+- **推荐实践**：攒够一批修复后统一发布，而非每个 Bug 一个版本
 
-## 4. 路线图版本 vs 发布版本
+**示例**：`8.0.0` → 修复 3 个 Bug → `8.0.1`（或依次 `.1` `.2` `.3`，取决于修复节奏）
 
-**路线图版本**（如 v7、v8）是内部规划标识，标注功能方向和阶段。
+---
 
-**发布版本**（如 5.8.0）是面向用户的语义化版本号，写入 `pyproject.toml`。
+### Y — 特性版本（Minor）
 
-两者独立：
+**触发条件**：每添加一个新功能，Y+1，Z 归零。
 
-| 路线图 | 发布版本 | 说明 |
-|--------|---------|------|
-| v6 Phase 0-3 | 5.1.0 ~ 5.7.1 | 视觉定位、桌面自动化等 |
-| v7 Phase 4-6 | **5.8.0** | 报告系统、可观测性、tags、elif 等 |
-| v8（待定） | 5.9.0 或 5.10.0 | RPA 相关功能 |
+| 触发场景 | 示例 |
+|---------|------|
+| 新增能力 | 性能压测（v8.0.0 相对 v7.x.x）|
+| 新增关键字 | switch 关键字 |
+| 新增驱动 | PlaywrightLoadEngine |
+| 新增 CLI 参数 | --load-ui |
+| Schema 扩展（向后兼容）| plan.xsd 新增 kind=load |
+| 新增 optional extras | rodski[load] |
 
-只有真正不兼容的架构变更才推进到 **6.0.0**。
+**规则**：
+- 向后兼容的新功能 → Y+1，Z 归 0
+- **不能因为功能大就直接 X+1**（大版本由 owner 决定）
 
-## 5. 当前版本
+**示例**：`8.0.1` → 新增 browser 压测模式 → `8.1.0`
 
-- 最新发布：**v6.7.6**
-- 对应路线图：契约对齐修复
+---
+
+### X — 大版本（Major）
+
+**触发条件**：由 **owner（项目负责人）手动决定**，不自动递增。
+
+通常对应以下场景（但最终判断权在 owner）：
+
+| 场景 | 说明 |
+|------|------|
+| 重大架构方向转变 | 如引入性能压测体系（7.x → 8.0） |
+| 核心 Breaking Change | 删除已发布关键字、不兼容 XML 格式变更 |
+| 重大路线图里程碑 | 如 RPA 能力完整落地 |
+
+**规则**：
+- X 递增时，Y 和 Z 均归零（X.0.0）
+- **任何人不得在未经 owner 确认时递增 X**
+- AI Agent 在开发中遇到需要递增 X 的变更，应暂停并请 owner 确认
+
+---
+
+## 3. 版本号决策流程图
+
+```
+变更类型判断
+      │
+      ├── 修复了已有功能的问题？
+      │     └── YES → Z+1
+      │
+      ├── 添加了新功能/新能力？
+      │     └── YES → Y+1，Z 归 0
+      │
+      └── 需要 X 递增？
+            └── → 必须 owner 确认后才能操作
+```
+
+**判断时的常见陷阱**：
+
+| 容易误判的场景 | 正确处理 |
+|--------------|---------|
+| 修复了很多 Bug | Z+1（不管 Bug 数量，批量修复一次 Z+1）|
+| 加了很大的功能 | Y+1（大不等于 Major）|
+| 重构了内部代码 | Z+1（内部重构，不影响用户接口）|
+| 更新了文档 | Z+1 或不递增（视是否发布而定）|
+
+---
+
+## 4. 版本号文件清单
+
+每次版本发布，以下文件必须保持一致：
+
+| 文件 | 位置 | 更新方式 |
+|------|------|---------|
+| `pyproject.toml` | 根目录 | `version = "X.Y.Z"` |
+| `rodski/pyproject.toml` | rodski/ 子目录（dev-only）| 同上 |
+| `rodski/__init__.py` | 源码入口 | `__version__ = "X.Y.Z"` |
+| `rodski-skills/VERSION` | skills 目录 | 纯文本 `X.Y.Z` |
+| `CLAUDE.md` | 根目录 | 文档说明中的版本号 |
+
+**验证命令**：
+
+```bash
+# 一次性检查所有版本号
+rodski --version                            # 应输出 RodSki X.Y.Z
+python3 -c "import rodski; print(rodski.__version__)"
+grep '^version' pyproject.toml rodski/pyproject.toml
+cat rodski-skills/VERSION
+grep '当前版本' CLAUDE.md
+git describe --tags HEAD                    # 应输出 vX.Y.Z
+```
+
+---
+
+## 5. 发布操作步骤
+
+### 5.1 Patch 发布（修复版本）
+
+```bash
+# 1. 确认所有 Bug 都已修复并测试通过
+python3 -m pytest rodski/tests/unit -q
+
+# 2. 更新版本号（Z+1）
+#    修改以下文件中的版本号：
+#    - pyproject.toml
+#    - rodski/pyproject.toml
+#    - rodski/__init__.py
+#    - rodski-skills/VERSION
+#    - CLAUDE.md
+
+# 3. 提交
+git add pyproject.toml rodski/pyproject.toml rodski/__init__.py \
+        rodski-skills/VERSION CLAUDE.md
+git commit -m "chore(vX.Y.Z): 版本号更新到 X.Y.Z"
+
+# 4. 打 tag
+git tag -a vX.Y.Z -m "vX.Y.Z — 修复摘要"
+
+# 5. （可选）构建发布包
+scripts/release_check.sh X.Y.Z --build --publish
+```
+
+### 5.2 Minor 发布（特性版本）
+
+同 Patch 流程，但：
+- 更新版本号时 Y+1，Z 归零
+- commit message 用 `chore(vX.Y.0): 版本号更新到 X.Y.0`
+- tag message 说明新增的功能
+
+### 5.3 Major 发布（大版本）
+
+- **需要 owner 明确指示**后才能操作
+- 版本号更新时 X+1，Y 和 Z 归零（X.0.0）
+- 通常对应一次正式的迭代里程碑完成
+
+---
 
 ## 6. 版本历史摘要
 
-| 发布版本 | 路线图 | 主要变更 |
-|---------|--------|---------|
-| 5.0.0 | v5 | Excel → XML 迁移（Breaking Change → MAJOR） |
-| 5.1.0 ~ 5.3.2 | v5 | 契约统一、DB 支持、Bug 修复 |
-| 5.4.0 ~ 5.7.1 | v6 | 视觉定位、桌面自动化、Agent 架构 |
-| 5.8.0 ~ 5.8.1 | v7 | 报告系统、可观测性、KPI、tags、elif、网络拦截 |
-| 6.0.0 | v8 | 废弃 data.xml，统一 SQLite 数据层 |
-| 6.1.0 | v8 | VSCode 数据表管理插件 rodski-vscode |
-| **6.7.6** | **v8** | 契约对齐：XSD/运行时/数据严格化、打包统一 |
+| 版本 | 日期 | 类型 | 主要变更 |
+|------|------|------|---------|
+| 5.0.0 | — | Major | Excel → XML 迁移（Breaking Change）|
+| 5.8.0 | — | Minor | 报告系统、可观测性、tags、elif |
+| 6.0.0 | — | Major | 废弃 data.xml，统一 SQLite 数据层 |
+| 6.7.6 | 2026-04 | Patch | 契约对齐：XSD/运行时/数据严格化 |
+| 7.0.0 | 2026-04 | Major | Agent 优化、移动端能力增强 |
+| 7.2.1 | 2026-06 | Patch | observability 接线、WI-62 修正 |
+| **8.0.0** | **2026-06-07** | **Major** | **性能压测能力（api 模式，Locust 后端）** |
+| **8.0.1** | **2026-06-08** | **Patch** | **修复 endpoint name、result 数据、MagicMock 误判** |
 
-## 7. 发布流程规范
+---
 
-### 7.1 发布脚本（必须使用）
+## 7. 与迭代文档的对应关系
 
-所有版本级别的发布**必须**通过 `scripts/release_check.sh` 完成：
+| 版本类型 | 对应迭代文档 |
+|---------|------------|
+| Patch | 通常不单独开迭代，附在当前迭代的"修复"部分 |
+| Minor | `.pb/iterations/iteration-NN/` 独立迭代 |
+| Major | `.pb/iterations/iteration-NN/` + `.pb/requirements/roadmap_vX.md` |
 
-```bash
-# 完整流程：构建 + 验收 + 发布到 releases/
-scripts/release_check.sh <version> --build --publish
+---
 
-# 示例
-scripts/release_check.sh 6.7.6 --build --publish
-```
+## 8. 约束与禁止事项
 
-脚本自动完成以下步骤：
-1. 构建 wheel + sdist（`--build`）
-2. 检查构建产物存在性
-3. 验证 wheel 内容完整性（18 个关键文件）
-4. 干净 venv 安装态验证（模块导入、schemas、依赖）
-5. CLI 版本验证
-6. 复制到 `releases/rodski/v<version>/` 并生成 SHA256SUMS + README.md（`--publish`）
+- ✅ AI Agent 可以自主递增 Z（Patch）
+- ✅ AI Agent 在完成新功能迭代后可以递增 Y（Minor）
+- ❌ AI Agent **不得**在未经 owner 确认时递增 X（Major）
+- ❌ 版本号递增后，各文件必须同步更新，不允许只改部分文件
+- ❌ 已发布的版本号不可回退或重用
 
-**发布目录结构**：
-```
-releases/rodski/v<version>/
-├── README.md                          # 安装说明
-├── rodski-<version>-py3-none-any.whl  # wheel 包（推荐）
-├── rodski-<version>.tar.gz            # 源码包
-└── SHA256SUMS                         # 校验和
-```
+---
 
-### 7.2 发布前检查清单
-
-```bash
-# 1. 确认版本号已更新（三处必须一致）
-grep version pyproject.toml          # 根 pyproject.toml
-grep __version__ rodski/__init__.py  # 源码版本
-
-# 2. 运行全量单元测试
-PYTHONPATH=rodski python3 -m pytest rodski/tests -q
-
-# 3. 运行发布脚本
-scripts/release_check.sh <version> --build --publish
-
-# 4. 本地安装验证
-pip install releases/rodski/v<version>/rodski-<version>-py3-none-any.whl
-python3 -c "import rodski; print(rodski.__version__)"
-```
-
-### 7.3 提交与打 tag
-
-```bash
-# 提交代码（包含 releases/ 目录）
-git add rodski/ pyproject.toml releases/rodski/v<version>/ scripts/
-git commit -m "release(v<version>): <简要说明>"
-git tag v<version>
-
-# 推送
-git push origin main --tags
-```
-
-### 7.4 禁止事项
-
-- ❌ 手动复制 wheel 到 releases/ 目录（必须通过脚本）
-- ❌ 跳过安装态验证直接发布
-- ❌ 版本号不一致时发布（pyproject.toml 与 __init__.py 必须同步）
-- ❌ 在 releases/ 中修改已发布版本的文件（已发布即不可变）
-
-## 8. 分支与版本对应
-
-| 类型 | 分支命名 | 版本示例 |
-|-----|---------|---------|
-| 功能迭代 | `feature/xxx` → merge to `main` | v6.1.0 |
-| Bug 修复 | `fix/xxx` → merge to `main` | v6.1.1 |
-| 大版本 | `release/v7.0.0` | v7.0.0 |
+*文档版本: v2.0 | 最后更新: 2026-06-08*
