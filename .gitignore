@@ -67,6 +67,10 @@ CassMall_examples.zip
 rodski-demo/**/result/
 rodski-demo/**/result/**
 rodski-demo/**/narrative/
+# perf/ 中的编译产物由 LoadCompiler 运行时自动生成，不纳入版本控制
+# 目录本身由 .gitkeep 保持存在
+rodski-demo/**/perf/*.py
+rodski-demo/**/perf/*.py.meta
 
 # rodski-agent 本地配置（含内部 endpoint，不纳入版本控制）
 rodski-agent/config/agent_config.yaml
