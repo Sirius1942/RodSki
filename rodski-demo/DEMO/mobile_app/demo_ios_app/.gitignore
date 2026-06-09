@@ -1,0 +1,7 @@
+# xcodegen 生成的工程文件
+RodskiDemo.xcodeproj/
+
+# 构建产物
+build/
+DerivedData/
+*.xcuserstate

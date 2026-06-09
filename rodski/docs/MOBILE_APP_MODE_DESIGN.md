@@ -675,4 +675,165 @@ Agent 不应绕过 `data.sqlite` 直接生成旧 XML 数据文件。
 7. 创建 `rodski-demo/DEMO/mobile_app/` 标准模块和 README，记录设备前置条件。
 8. 补充单元测试和至少一个可在本地设备执行的 demo 验收用例。
 
+---
+
+## 17. iOS Simulator 验收（WI-55，v7.2.x）
+
+本章记录 iOS Simulator 端到端验收的完整链路、已修复的兼容性问题和跨平台 model 写法。
+
+### 17.1 验收结论
+
+**验收结果**：3/3 用例通过（APP001 / APP002 / APP003），所有核心路径（navigate → type → verify）在 iPhone 16 Simulator (iOS 18.5) 上实际执行通过。
+
+**验收日期**：2026-06-09  
+**Xcode**：16.4  
+**Appium**：3.4.2  
+**xcuitest driver**：11.9.1  
+**appium-python-client**：5.3.1  
+
+### 17.2 环境前置条件
+
+| 依赖 | 安装方式 | 验证命令 |
+|------|---------|---------|
+| Xcode 15+ | App Store | `xcodebuild -version` |
+| xcodegen（可选，已有 .xcodeproj 时不需要） | `brew install xcodegen` | `xcodegen --version` |
+| Node.js | `brew install node` | `node --version` |
+| Appium 2.x | `npm install -g appium` | `appium --version` |
+| xcuitest driver | `appium driver install xcuitest` | `appium driver list --installed` |
+| appium-python-client 5.x | `pip install Appium-Python-Client` | `pip show Appium-Python-Client` |
+
+**一键环境准备脚本**：
+
+```bash
+bash rodski-demo/DEMO/mobile_app/scripts/setup_ios.sh
+```
+
+该脚本完成：Xcode/Appium/xcuitest 检查 → 启动 iPhone 16 Simulator → 构建并安装 demo_ios_app → 提示启动 Appium server。
+
+### 17.3 跨平台 model 写法
+
+iOS 复用与 Android 相同的 model.xml，通过 `location platform="ios"` 属性区分平台定位器。模型 `driver_type="mobile"` 表示平台无关；运行时通过 `globalvalue.xml Mobile.Platform` 解析为具体平台。
+
+```xml
+<model name="LoginScreen" type="ui" driver_type="mobile" servicename="">
+  <element name="username" type="mobile">
+    <type>input</type>
+    <!-- Android 专用 -->
+    <location type="id" platform="android" priority="1">com.rodski.demo:id/username</location>
+    <!-- iOS 专用（accessibility identifier） -->
+    <location type="id" platform="ios" priority="1">username_field</location>
+    <!-- 通用兜底（无 platform，任何平台保留） -->
+    <location type="ocr" priority="2">用户名</location>
+  </element>
+</model>
+```
+
+**平台过滤规则**（`ModelParser.select_locations`）：
+
+| location.platform | current_platform | 保留？ |
+|-------------------|-----------------|--------|
+| `android` | `ios` | 跳过 |
+| `ios` | `android` | 跳过 |
+| `android` | `android` | 保留 |
+| `ios` | `ios` | 保留 |
+| `None`（无声明） | 任意 | 始终保留（向后兼容） |
+
+### 17.4 iOS 专用定位器类型
+
+IOSDriver（`rodski/drivers/ios_driver.py`）支持以下全部定位器：
+
+| type | Appium By | 说明 |
+|------|-----------|------|
+| `id` | `ACCESSIBILITY_ID` | SwiftUI `accessibilityIdentifier`（推荐首选） |
+| `name` | `NAME` | 元素 name 属性 |
+| `class` | `CLASS_NAME` | 原生类名（XCUIElementTypeButton 等） |
+| `xpath` | `XPATH` | 原生 XPath（功能全但较慢） |
+| `predicate` | `IOS_PREDICATE` | NSPredicate 字符串，性能优于 XPath |
+| `class_chain` | `IOS_CLASS_CHAIN` | XCUITest 原生路径，速度最快 |
+
+SwiftUI 项目推荐以 `accessibilityIdentifier` 为主定位器（对应 `type="id"`），配合 `predicate` 作为 P2 兜底。
+
+### 17.5 globalvalue.xml 双配置方案
+
+项目保留两个 globalvalue 文件以支持双平台切换：
+
+| 文件 | 用途 |
+|------|------|
+| `data/globalvalue.xml` | Android 默认配置（CI 和真机验收） |
+| `data/globalvalue_ios.xml` | iOS 配置（Simulator 验收参考） |
+
+**方案一：临时覆盖文件**（适合本地验证）
+
+```bash
+cp data/globalvalue_ios.xml data/globalvalue.xml
+rodski run case/login.xml
+```
+
+**方案二：CLI `--platform` 参数覆盖**（无需改文件，推荐）
+
+```bash
+# 仍使用 globalvalue_ios.xml 作为 globalvalue.xml 时（包含 BundleId 等 iOS caps）
+rodski run @ios_app_smoke --platform ios
+```
+
+注意：`--platform` 只覆盖 `Mobile.Platform`，不覆盖 `BundleId` / `AppPackage` 等 capability。如需同时切换设备配置，仍需使用 `globalvalue_ios.xml`。
+
+**globalvalue_ios.xml 关键字段**：
+
+```xml
+<group name="Mobile">
+  <var name="Platform" value="ios"/>
+  <var name="AppiumServer" value="http://127.0.0.1:4723"/>
+  <var name="DeviceName" value="iPhone 16"/>
+  <var name="BundleId" value="com.rodski.demo"/>
+  <var name="AppTarget" value="app://ios/com.rodski.demo"/>
+  <var name="NoReset" value="true"/>
+  <var name="NewCommandTimeout" value="120"/>
+</group>
+```
+
+### 17.6 iOS 冒烟测试计划
+
+```bash
+# 使用 globalvalue_ios.xml 作为活跃 globalvalue
+cp data/globalvalue_ios.xml data/globalvalue.xml
+
+# 启动 Appium server（另一个终端）
+appium --address 127.0.0.1 --port 4723
+
+# 运行 iOS 冒烟计划（APP001/APP002/APP003）
+cd rodski-demo/DEMO/mobile_app
+rodski run @ios_app_smoke
+```
+
+计划文件：`plan/ios_app_smoke.xml`（`kind=suite`，`default_execute="否"`，显式列出 APP001/APP002/APP003）。
+
+### 17.7 已修复的兼容性问题（appium-python-client 5.x）
+
+在 WI-55 中发现并修复了两处与 appium-python-client 5.3.x 的兼容性问题：
+
+**问题1：XCUITestOptions 导入路径变更**
+
+- 文件：`rodski/drivers/ios_driver.py`
+- 现象：`from appium.options import XCUITestOptions` 在 5.x 中 ImportError
+- 修复：优先尝试 `from appium.options.ios.xcuitest.base import XCUITestOptions`，失败则 fallback 到旧路径
+
+**问题2：`get_element_text_by_locator` 裸 core 导入**
+
+- 文件：`rodski/drivers/appium_driver.py`
+- 现象：`from core.exceptions import ElementNotFoundError`（bare import）在 rodski 包模式下 ModuleNotFoundError
+- 修复：改为 `from ..core.exceptions import ElementNotFoundError`，并保留 ImportError fallback
+
+### 17.8 WDA 首次编译说明
+
+xcuitest driver 首次连接 Simulator 时需要编译 WebDriverAgent（WDA），耗时约 60~120 秒，属正常现象。编译完成后会缓存，后续启动约 5~15 秒。
+
+```
+navigate 耗时 79.50s   ← 第一次（含 WDA 编译）
+navigate 耗时 7.79s    ← 后续（缓存复用）
+```
+
+CI 集成建议：首次构建允许 3 分钟超时；正常执行超时设 60 秒。
+
+
 这批任务完成后，RodSki 才能把移动端 App 模式从设计稿提升为可执行协议。

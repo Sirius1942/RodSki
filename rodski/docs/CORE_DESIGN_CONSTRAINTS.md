@@ -163,6 +163,26 @@ RodSki 支持 12 种定位器类型，分为传统定位器和视觉定位器两
 | `name` | name 属性 | 按 name 属性定位 | `<location type="name">username</location>` |
 | `static` | 静态值 | 字面量，不定位 | 用于接口 `_method` 等 |
 | `field` | 字段映射 | 接口请求字段 | 用于接口 body/query |
+| `predicate` | iOS NSPredicate 字符串 | **iOS 专用**，映射 Appium `IOS_PREDICATE` | `<location type="predicate" platform="ios">label == '登录'</location>` |
+| `class_chain` | iOS XCUITest Class Chain | **iOS 专用**，映射 Appium `IOS_CLASS_CHAIN` | `<location type="class_chain" platform="ios">**/XCUIElementTypeButton[`label == '登录'`]</location>` |
+
+**iOS 专用定位器说明（v7.2.x，WI-55）**：
+
+- `predicate`：NSPredicate 字符串，功能与 Android resource-id 类似，可按属性精确匹配（`label == '登录'`、`type == 'XCUIElementTypeButton' AND enabled == true` 等），性能优于 XPath
+- `class_chain`：XCUITest 原生路径语法，比 XPath 更快，支持索引和条件筛选
+
+二者仅对 `platform="ios"` 的模型元素生效（通过 `location.platform="ios"` 声明），跨平台 `mobile` 模型可同时保留 Android id 定位器。
+
+```xml
+<!-- 跨平台模型示例：Android + iOS 并存 -->
+<element name="loginBtn" type="mobile">
+    <type>button</type>
+    <location type="id" platform="android" priority="1">com.rodski.demo:id/loginBtn</location>
+    <location type="id" platform="ios" priority="1">login_button</location>
+    <location type="predicate" platform="ios" priority="2">label == '登录'</location>
+    <location type="text" priority="3">登录</location>
+</element>
+```
 
 ### 2.5.2 视觉定位器
 
@@ -1226,6 +1246,28 @@ rodski generate-model --elements elements.json \
 |------------|------|---------|
 | `windows` | Windows 桌面应用 | Win10/Win11 桌面自动化 |
 | `macos` | macOS 桌面应用 | macOS 桌面自动化 |
+
+移动端平台的 `driver_type` 枚举（见 `rodski/schemas/model.xsd` `DriverType`）：
+
+| driver_type | 说明 | 适用场景 |
+|------------|------|---------|
+| `android` | Android 设备（Appium + UiAutomator2） | Android 真机 / AVD |
+| `ios` | iOS 设备（Appium + XCUITest） | iPhone / iPad 真机 / Simulator |
+| `mobile` | 平台无关移动端标记，运行期通过 `globalvalue.xml Mobile.Platform` 解析为 `android` 或 `ios` | 跨平台共用模型 |
+
+**`mobile` 平台解析规则（v7.0.0）**：
+
+运行期 `_resolve_mobile_platform()` 读取顺序：
+1. `globalvalue.xml` `Mobile.Platform` 组变量
+2. `globalvalue.xml` `DefaultValue.Platform` 变量
+3. `--platform ios|android` CLI 参数（覆盖 globalvalue，最高优先级）
+4. 默认回退 `android`
+
+CLI 用法示例：
+```bash
+# 切换到 iOS Simulator 验收（不改 globalvalue.xml）
+rodski run @ios_app_smoke --platform ios
+```
 
 ### 11.2 桌面端设计原则
 

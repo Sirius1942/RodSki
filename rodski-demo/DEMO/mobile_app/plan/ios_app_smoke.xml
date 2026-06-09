@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  iOS Simulator 冒烟计划（WI-55）。
+  复用与 Android 同一套 case/ 与 model/，平台差异由：
+    1. location platform="ios" 平台专用定位器
+    2. 运行时平台注入：在 globalvalue.xml 的 Mobile.Platform 设为 ios
+       或直接用 globalvalue_ios.xml 内容覆盖 globalvalue.xml。
+  前置：iPhone 16 Simulator 已启动，com.rodski.demo 已安装，Appium server 运行。
+  详见 README.md 与 rodski/docs/MOBILE_APP_MODE_DESIGN.md iOS 章节。
+-->
+<test_plan id="ios_app_smoke"
+           title="iOS Simulator App 冒烟测试"
+           kind="suite"
+           execute="是"
+           default_execute="否">
+  <case id="APP001" execute="是"/>
+  <case id="APP002" execute="是"/>
+  <case id="APP003" execute="是"/>
+</test_plan>

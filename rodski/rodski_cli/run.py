@@ -89,7 +89,7 @@ def _needs_browser(case_path: Path, model_path: Optional[Path] = None) -> bool:
                     continue
                 model_name = (step.get("model") or "").strip()
                 driver_type = model_driver_types.get(model_name, "web") if model_name else "web"
-                if driver_type in {"android", "ios", "interface", "database"}:
+                if driver_type in {"android", "ios", "mobile", "interface", "database"}:
                     continue
                 if action == "launch" and driver_type in {"windows", "macos", "other"}:
                     continue
@@ -145,6 +145,8 @@ def setup_parser(subparsers):
                         help="压测模式：跳过预编译，直接使用已有 perf/*.py")
     parser.add_argument("--load-ui", action="store_true", dest="load_ui",
                         help="压测模式：启动 Locust Web UI")
+    parser.add_argument("--platform", choices=["android", "ios"], default=None,
+                        help="移动端平台（android/ios），覆盖 globalvalue.xml Mobile.Platform")
     parser.add_argument("--load-ui-port", type=int, default=8089, dest="load_ui_port",
                         help="压测 Web UI 端口 (默认: 8089)")
 
@@ -606,6 +608,14 @@ def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional
             runtime_control=runtime_control,
             enable_trace=enable_trace,
         )
+        # --platform 覆盖：将 CLI 指定的平台注入 global_vars['Mobile']['Platform']，
+        # 使 keyword_engine._resolve_mobile_platform() 返回正确平台。
+        # executor.global_vars 与 keyword_engine._global_vars 指向同一 dict 对象，
+        # 直接在此修改即可同时生效。
+        cli_platform = getattr(args, "platform", None)
+        if cli_platform:
+            executor.global_vars.setdefault("Mobile", {})["Platform"] = cli_platform
+            logger.info(f"--platform 覆盖：Mobile.Platform = {cli_platform}")
         executor.selector_filters = {
             "filter_tags": filter_tags,
             "filter_group": filter_group,

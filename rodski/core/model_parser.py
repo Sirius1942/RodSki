@@ -24,6 +24,8 @@ LEGACY_DRIVER_TYPES = {
     "macos",
     "android",
     "ios",
+    # 平台无关移动端标记：运行期由 keyword_engine 按 global Platform 解析为 android/ios
+    "mobile",
 }
 
 # 有效的定位器类型
@@ -168,12 +170,15 @@ class ModelParser:
                 loc_value = (loc.text or '').strip()
                 loc_priority_attr = loc.get('priority')
                 loc_priority = int(loc_priority_attr) if loc_priority_attr is not None else 1
+                # platform 属性可选：android/ios，缺省为 None（通用，适用所有平台）
+                loc_platform = (loc.get('platform') or '').strip() or None
                 has_explicit_priority.append(loc_priority_attr is not None)
                 if loc_type in VALID_LOCATOR_TYPES and loc_value:
                     locations.append({
                         'type': loc_type,
                         'value': loc_value,
                         'priority': loc_priority,
+                        'platform': loc_platform,
                         '_has_priority': loc_priority_attr is not None,
                     })
 
@@ -321,6 +326,37 @@ class ModelParser:
     def is_vision_locator(locator_type: str) -> bool:
         """判断是否是视觉定位器类型。"""
         return locator_type in VISION_LOCATOR_TYPES
+
+    @staticmethod
+    def select_locations(
+        element_locations: List[Dict[str, Any]],
+        current_platform: Optional[str],
+    ) -> List[Dict[str, Any]]:
+        """按当前平台过滤定位器，并按 priority 升序排序返回。
+
+        过滤规则：
+            - location 的 platform 等于 current_platform  → 保留（平台专用）
+            - location 的 platform 为 None（未声明）       → 保留（通用，向后兼容）
+            - location 的 platform 与 current_platform 不同 → 跳过
+
+        说明：现有不带 platform 属性的 location（platform=None）在任何平台
+        下都会保留，行为与改动前一致，保证向后兼容。
+
+        :param element_locations: 元素的 locations 列表（每项含 platform/priority 等）
+        :param current_platform: 当前执行平台（如 'android'/'ios'），None 时不做平台过滤
+        :return: 过滤后按 priority 升序排序的 location 列表
+        """
+        selected = []
+        for loc in element_locations or []:
+            loc_platform = loc.get('platform')
+            # 通用定位器（无 platform）始终保留
+            if loc_platform is None:
+                selected.append(loc)
+                continue
+            # 未指定当前平台时不做平台过滤，平台专用定位器同样保留
+            if current_platform is None or loc_platform == current_platform:
+                selected.append(loc)
+        return sorted(selected, key=lambda x: x.get('priority', 1))
 
     def get_locations(self, locator: str) -> List[Dict[str, Union[str, int]]]:
         """获取元素的所有定位器（按 priority 排序）。"""
