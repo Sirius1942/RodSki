@@ -608,14 +608,29 @@ def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional
             runtime_control=runtime_control,
             enable_trace=enable_trace,
         )
-        # --platform 覆盖：将 CLI 指定的平台注入 global_vars['Mobile']['Platform']，
+        # --platform 覆盖：将 CLI 指定的平台注入 global_vars，
         # 使 keyword_engine._resolve_mobile_platform() 返回正确平台。
-        # executor.global_vars 与 keyword_engine._global_vars 指向同一 dict 对象，
-        # 直接在此修改即可同时生效。
+        # 同时自动合并平台专属 globalvalue 文件（如 globalvalue_ios.xml），
+        # 覆盖 AppTarget / BundleId 等平台特有变量。
         cli_platform = getattr(args, "platform", None)
         if cli_platform:
             executor.global_vars.setdefault("Mobile", {})["Platform"] = cli_platform
-            logger.info(f"--platform 覆盖：Mobile.Platform = {cli_platform}")
+            # 尝试加载平台专属 globalvalue 文件（优先级高于默认 globalvalue.xml）
+            platform_gv_path = module_dir / "data" / f"globalvalue_{cli_platform}.xml"
+            if platform_gv_path.exists():
+                try:
+                    from ..core.global_value_parser import GlobalValueParser as _GVP
+                except ImportError:
+                    from core.global_value_parser import GlobalValueParser as _GVP
+                platform_vars = _GVP(str(platform_gv_path)).parse()
+                # 深度合并：平台 globalvalue 的 group/var 覆盖默认值
+                for group, vars_ in platform_vars.items():
+                    executor.global_vars.setdefault(group, {}).update(vars_)
+                logger.info(f"--platform 覆盖：加载 {platform_gv_path.name}，"
+                            f"Mobile.AppTarget={executor.global_vars.get('Mobile',{}).get('AppTarget','')}")
+            else:
+                logger.info(f"--platform 覆盖：Mobile.Platform = {cli_platform}"
+                            f"（未找到 {platform_gv_path.name}，仅覆盖 Platform 字段）")
         executor.selector_filters = {
             "filter_tags": filter_tags,
             "filter_group": filter_group,
