@@ -172,9 +172,14 @@ class KeywordEngine:
 
         遵循设计约束：驱动类型由模型元素的 type 属性决定。
         - web/interface → 使用 self.driver（PlaywrightDriver/InterfaceDriver）
+        - mobile → 按 global Platform 解析为 android/ios（平台无关移动端标记）
         - android/ios → 懒加载创建 AppiumDriver 并缓存
         - macos/windows/other → 懒加载创建 DesktopDriver 并缓存
         """
+        # 平台无关 mobile 标记：运行期解析为具体平台 android/ios
+        if driver_type == "mobile":
+            driver_type = self._resolve_mobile_platform()
+
         if driver_type not in self.NON_WEB_DRIVER_TYPES:
             return self.driver
 
@@ -250,6 +255,36 @@ class KeywordEngine:
                 cb(driver_type, driver)
             except Exception as e:
                 logger.warning(f"on_mobile_driver_created 回调异常: {e}")
+
+    def _current_locator_platform(self, model_name: str) -> Optional[str]:
+        """返回用于 location 平台过滤的当前平台。
+
+        模型 driver_type 为 android/ios/mobile 时返回具体平台（mobile 经
+        global Platform 解析）；其他（web/interface/...）返回 None 表示不过滤。
+        """
+        if not self.model_parser:
+            return None
+        driver_type = (self.model_parser.get_model_driver_type(model_name) or "").strip()
+        if driver_type in ("android", "ios"):
+            return driver_type
+        if driver_type == "mobile":
+            return self._resolve_mobile_platform()
+        return None
+
+    def _resolve_mobile_platform(self) -> str:
+        """将平台无关的 'mobile' driver_type 解析为具体平台。
+
+        读取顺序：global_vars['Mobile']['Platform'] → global_vars['DefaultValue']['Platform']
+        → 默认 'android'。返回值始终为 'android' 或 'ios'。
+        """
+        gv = self._global_vars or {}
+        platform = (
+            gv.get("Mobile", {}).get("Platform")
+            or gv.get("DefaultValue", {}).get("Platform")
+            or "android"
+        )
+        platform = str(platform).strip().lower()
+        return platform if platform in ("android", "ios") else "android"
 
     def _get_mobile_driver(self, platform: str = None) -> BaseDriver:
         """获取移动端驱动（navigate App URI 专用）
@@ -1191,6 +1226,11 @@ class KeywordEngine:
             locations = element_info.get('locations', [])
             if not locations:
                 locations = [{"type": element_info['locator_type'], "value": element_info['locator_value'], "priority": 1}]
+            else:
+                # 平台感知过滤（WI-48）：移动端按当前平台筛选 location
+                _platform = self._current_locator_platform(model_name)
+                if _platform is not None:
+                    locations = self.model_parser.select_locations(locations, _platform)
 
             locator_mode = element_info.get('locator_mode', 'sequential')
 
@@ -2106,6 +2146,15 @@ class KeywordEngine:
 
             locator_type = element_info['locator_type']
             locator_value = element_info['locator_value']
+            # 平台感知过滤（WI-48）：移动端按当前平台选取主定位器
+            if model_type == MODEL_TYPE_UI:
+                _platform = self._current_locator_platform(model_name)
+                _locs = element_info.get('locations') or []
+                if _platform is not None and _locs:
+                    _selected = self.model_parser.select_locations(_locs, _platform)
+                    if _selected:
+                        locator_type = _selected[0]['type']
+                        locator_value = _selected[0]['value']
             locator = f"{locator_type}={locator_value}"
 
             if model_type == MODEL_TYPE_UI:
@@ -2147,7 +2196,7 @@ class KeywordEngine:
                         logger.debug(
                             f"{element_name}: vision 未命中 (desc={locator_value})"
                         )
-                elif driver_type in ("android", "ios"):
+                elif driver_type in ("android", "ios", "mobile"):
                     # 移动端：通过 locator 直接读取元素文本
                     actual = target_driver.get_element_text_by_locator(
                         locator_type, locator_value

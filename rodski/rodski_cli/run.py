@@ -89,7 +89,7 @@ def _needs_browser(case_path: Path, model_path: Optional[Path] = None) -> bool:
                     continue
                 model_name = (step.get("model") or "").strip()
                 driver_type = model_driver_types.get(model_name, "web") if model_name else "web"
-                if driver_type in {"android", "ios", "interface", "database"}:
+                if driver_type in {"android", "ios", "mobile", "interface", "database"}:
                     continue
                 if action == "launch" and driver_type in {"windows", "macos", "other"}:
                     continue
@@ -145,6 +145,8 @@ def setup_parser(subparsers):
                         help="压测模式：跳过预编译，直接使用已有 perf/*.py")
     parser.add_argument("--load-ui", action="store_true", dest="load_ui",
                         help="压测模式：启动 Locust Web UI")
+    parser.add_argument("--platform", choices=["android", "ios"], default=None,
+                        help="移动端平台（android/ios），覆盖 globalvalue.xml Mobile.Platform")
     parser.add_argument("--load-ui-port", type=int, default=8089, dest="load_ui_port",
                         help="压测 Web UI 端口 (默认: 8089)")
 
@@ -606,6 +608,29 @@ def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional
             runtime_control=runtime_control,
             enable_trace=enable_trace,
         )
+        # --platform 覆盖：将 CLI 指定的平台注入 global_vars，
+        # 使 keyword_engine._resolve_mobile_platform() 返回正确平台。
+        # 同时自动合并平台专属 globalvalue 文件（如 globalvalue_ios.xml），
+        # 覆盖 AppTarget / BundleId 等平台特有变量。
+        cli_platform = getattr(args, "platform", None)
+        if cli_platform:
+            executor.global_vars.setdefault("Mobile", {})["Platform"] = cli_platform
+            # 尝试加载平台专属 globalvalue 文件（优先级高于默认 globalvalue.xml）
+            platform_gv_path = module_dir / "data" / f"globalvalue_{cli_platform}.xml"
+            if platform_gv_path.exists():
+                try:
+                    from ..core.global_value_parser import GlobalValueParser as _GVP
+                except ImportError:
+                    from core.global_value_parser import GlobalValueParser as _GVP
+                platform_vars = _GVP(str(platform_gv_path)).parse()
+                # 深度合并：平台 globalvalue 的 group/var 覆盖默认值
+                for group, vars_ in platform_vars.items():
+                    executor.global_vars.setdefault(group, {}).update(vars_)
+                logger.info(f"--platform 覆盖：加载 {platform_gv_path.name}，"
+                            f"Mobile.AppTarget={executor.global_vars.get('Mobile',{}).get('AppTarget','')}")
+            else:
+                logger.info(f"--platform 覆盖：Mobile.Platform = {cli_platform}"
+                            f"（未找到 {platform_gv_path.name}，仅覆盖 Platform 字段）")
         executor.selector_filters = {
             "filter_tags": filter_tags,
             "filter_group": filter_group,

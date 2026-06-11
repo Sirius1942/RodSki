@@ -108,6 +108,7 @@
       <xs:enumeration value="macos"/>
       <xs:enumeration value="android"/>
       <xs:enumeration value="ios"/>
+      <xs:enumeration value="mobile"/>
       <xs:enumeration value="other"/>
     </xs:restriction>
   </xs:simpleType>
@@ -117,6 +118,14 @@
     <xs:attribute name="type" type="LocatorType" use="required"/>
     <xs:attribute name="item" type="xs:string" use="optional" default=""/>
     <xs:attribute name="priority" type="xs:positiveInteger" use="optional" default="1"/>
+    <xs:attribute name="platform" use="optional">
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:enumeration value="android"/>
+          <xs:enumeration value="ios"/>
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:attribute>
   </xs:complexType>
 
   <!-- 定位类型枚举 -->
@@ -136,6 +145,9 @@
       <xs:enumeration value="ocr"/>
       <xs:enumeration value="vision_bbox"/>
       <xs:enumeration value="vision_image"/>
+      <!-- iOS 专属定位类型 -->
+      <xs:enumeration value="predicate"/>
+      <xs:enumeration value="class_chain"/>
     </xs:restriction>
   </xs:simpleType>
 

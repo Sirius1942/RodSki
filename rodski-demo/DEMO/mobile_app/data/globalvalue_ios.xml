@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<globalvalue>
+  <group name="DefaultValue">
+    <var name="WaitTime" value="2"/>
+    <var name="Headless" value="False"/>
+    <var name="AppURI" value="app://ios/com.rodski.demo"/>
+    <var name="Platform" value="ios"/>
+  </group>
+
+  <group name="Mobile">
+    <var name="Platform" value="ios"/>
+    <var name="AutomationBackend" value="appium"/>
+    <var name="AppiumServer" value="http://127.0.0.1:4723"/>
+    <var name="DeviceName" value="iPhone 16"/>
+    <var name="BundleId" value="com.rodski.demo"/>
+    <var name="AppTarget" value="app://ios/com.rodski.demo"/>
+    <var name="NoReset" value="true"/>
+    <var name="NewCommandTimeout" value="120"/>
+  </group>
+</globalvalue>

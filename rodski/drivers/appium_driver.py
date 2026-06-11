@@ -144,14 +144,21 @@ class AppiumDriver(BaseDriver):
             idx += 1
         return '\n'.join(lines), index_map
 
+    def _text_xpath(self, value):
+        """text 定位器转 XPath，子类可重写（Android: @text，iOS: @label/@name）"""
+        return f"//*[@text='{value}']"
+
+    def _get_locator_map(self):
+        """返回定位器类型映射，子类可重写（如 iOS: id->ACCESSIBILITY_ID）"""
+        return _LOCATOR_MAP
+
     def _resolve_locator(self, locator_type: str, locator_value: str) -> tuple:
         """将 locator_type/locator_value 解析为 (AppiumBy, value) 元组"""
         lt = locator_type.lower()
         if lt == "text":
-            # Android: //*[@text='值']
-            xpath = f"//*[@text='{locator_value}']"
+            xpath = self._text_xpath(locator_value)
             return AppiumBy.XPATH, xpath
-        by = _LOCATOR_MAP.get(lt)
+        by = self._get_locator_map().get(lt)
         if by is None:
             # 未知类型回退到 ID
             logger.debug(f"未知定位器类型 '{locator_type}'，回退到 AppiumBy.ID")
@@ -160,7 +167,10 @@ class AppiumDriver(BaseDriver):
 
     def get_element_text_by_locator(self, locator_type: str, locator_value: str) -> str:
         """通过定位器找到元素，按优先级读取文本属性（移动端 verify 专用）"""
-        from core.exceptions import ElementNotFoundError
+        try:
+            from ..core.exceptions import ElementNotFoundError
+        except ImportError:
+            from core.exceptions import ElementNotFoundError
         try:
             by, value = self._resolve_locator(locator_type, locator_value)
             element = self.driver.find_element(by, value)

@@ -1,0 +1,27 @@
+name: RodskiDemo
+options:
+  bundleIdPrefix: com.rodski
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "5.0"
+    GENERATE_INFOPLIST_FILE: true
+    TARGETED_DEVICE_FAMILY: "1"
+targets:
+  RodskiDemo:
+    type: application
+    platform: iOS
+    sources:
+      - RodskiDemo
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.rodski.demo
+        INFOPLIST_KEY_UILaunchScreen_Generation: true
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait"
+        CODE_SIGNING_REQUIRED: "NO"
+        CODE_SIGNING_ALLOWED: "NO"
+        CODE_SIGN_IDENTITY: ""
