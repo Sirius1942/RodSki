@@ -12,6 +12,7 @@
     <var name="AutomationBackend" value="appium"/>
     <var name="AppiumServer" value="http://127.0.0.1:4723"/>
     <var name="DeviceName" value="iPhone 16"/>
+    <var name="UDID" value="AC199BB6-54B6-424A-9D3C-B8CEA8DF89BC"/>
     <var name="BundleId" value="com.rodski.demo"/>
     <var name="AppTarget" value="app://ios/com.rodski.demo"/>
     <var name="NoReset" value="true"/>
