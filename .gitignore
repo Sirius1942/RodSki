@@ -73,7 +73,7 @@ rodski-demo/**/perf/*.py
 rodski-demo/**/perf/*.py.meta
 
 # 独立子项目 — 各自拥有独立 git 仓库，不由父仓库跟踪
-# rodski-web:   Web 可视化界面，独立发布（见 rodski-web/VERSION）
+# rodski-web:   官方网站（Next.js），独立发布（见 rodski-web/package.json）
 # rodski-agent: AI Agent 层，独立发布（见 rodski-agent/pyproject.toml）
 rodski-web/
 rodski-agent/
