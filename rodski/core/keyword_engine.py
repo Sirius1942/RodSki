@@ -151,6 +151,10 @@ class KeywordEngine:
         self._metrics = None
         self._tracer = None
 
+        # 慢步骤检测阈值（秒）。超过此阈值的关键字执行会输出 [SLOW] 警告到执行日志。
+        # 可通过外部设置覆盖，例如: engine.slow_step_threshold = 10.0
+        self.slow_step_threshold: float = 5.0
+
         # 移动端/桌面端 driver 懒加载创建后的回调（由 SKIExecutor 注入）。
         # 用于在真实 driver 就绪后再启动用例录像（移动端 driver 是懒加载的）。
         self.on_mobile_driver_created = None
@@ -398,6 +402,14 @@ class KeywordEngine:
                     self._metrics.increment("keyword.error", labels=_labels)
             if _span_open:
                 self._tracer.end_span(_span_status)
+
+            # ── 慢步骤检测 ──────────────────────────────────────────
+            _elapsed = time.time() - _kw_start
+            if _elapsed >= self.slow_step_threshold:
+                logger.warning(
+                    f"[SLOW] action={keyword} 耗时 {_elapsed:.1f}s"
+                    f"（阈值 {self.slow_step_threshold}s）"
+                )
 
     def _log_keyword_start(self, keyword: str, params: Dict) -> None:
         param_str = ", ".join(f"{k}={v}" for k, v in params.items() if v)
@@ -2424,6 +2436,9 @@ class KeywordEngine:
 
         用法: evaluate | javascript_expression
         表达式结果会自动 store_return，后续步骤通过 ${Return[-N]} 引用。
+
+        执行期间自动捕获浏览器 console.warn / console.error 并输出到执行日志，
+        使脚本内部发出的性能告警（如 [rs-perf]）能被自动发现。
         """
         expression = params.get("expression", "") or params.get("data", "")
         if not expression:
@@ -2446,10 +2461,26 @@ class KeywordEngine:
         if not isinstance(self.driver, PlaywrightDriver):
             raise DriverError("evaluate 仅支持 Web 浏览器驱动（PlaywrightDriver）")
 
+        # ── 注册 console 事件监听，捕获 warn/error 级别消息 ──
+        page = self.driver.page
+        console_messages: list = []
+
+        def _on_console(msg):
+            if msg.type in ("warning", "error"):
+                console_messages.append((msg.type, msg.text))
+
+        page.on("console", _on_console)
         try:
-            result = self.driver.page.evaluate(expression)
+            result = page.evaluate(expression)
         except Exception as e:
             raise DriverError(f"JavaScript 执行失败: {e}")
+        finally:
+            page.remove_listener("console", _on_console)
+
+        # ── 输出捕获到的 console 告警 ──
+        for level, text in console_messages:
+            # 截断过长消息，避免日志爆炸
+            logger.warning(f"[JS:{level}] {text[:500]}")
 
         logger.info(f"JS 结果: {str(result)[:200]}")
         self.store_return(result)

@@ -542,6 +542,13 @@ class SKIExecutor:
         self._current_case_scenario_statuses = []
         resources_snapshot = self._snapshot_runtime_resources()
         self._current_case_step_wait = case.get('step_wait')
+        # 慢步骤检测阈值：支持 case 级覆盖（cases 根元素 slow_threshold 属性，单位秒）
+        _slow_override = case.get('slow_threshold')
+        if _slow_override is not None:
+            try:
+                self.keyword_engine.slow_step_threshold = float(_slow_override)
+            except (ValueError, TypeError):
+                pass
         self._current_case_id = case.get('case_id', '')
         self._step_index = 0
         self._runtime_stopped_graceful = False
