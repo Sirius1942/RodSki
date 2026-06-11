@@ -211,4 +211,35 @@ scripts/release_check.sh X.Y.Z --build --publish
 
 ---
 
-*文档版本: v2.0 | 最后更新: 2026-06-08*
+## 9. 独立子项目版本管理
+
+`rodski-web` 和 `rodski-agent` 是独立代码库，各自维护版本号，与主仓库（`rodski`）完全解耦。
+
+### 9.1 版本号文件
+
+| 项目 | 版本文件 | 当前版本 | 备注 |
+|------|---------|---------|------|
+| **rodski**（主仓库）| `pyproject.toml` / `rodski/__init__.py` / `rodski-skills/VERSION` | 8.1.0 | 同步 5 处 |
+| **rodski-web** | `rodski-web/VERSION` | 1.0.0 | 纯文本 |
+| **rodski-agent** | `rodski-agent/pyproject.toml` + `src/rodski_agent/__init__.py` | 2.3.0 | Python 包 |
+
+### 9.2 独立子项目版本规则
+
+三者均遵循 `MAJOR.MINOR.PATCH` 规范，触发条件与主仓库相同（见第 2 节）。区别如下：
+
+- **rodski-web** 发布时只需更新 `rodski-web/VERSION`，打 tag 格式：`web-vX.Y.Z`
+- **rodski-agent** 发布时更新 `pyproject.toml` 和 `__init__.py`，打 tag 格式：`agent-vX.Y.Z`
+- 主仓库的 `CLAUDE.md` 中"当前版本"只反映主仓库版本，不随子项目变动
+
+### 9.3 AI Agent 操作范围
+
+| 操作 | 主仓库会话 | rodski-web 会话 | rodski-agent 会话 |
+|------|-----------|----------------|------------------|
+| 修改主仓库版本 | ✅ | ❌ | ❌ |
+| 修改 rodski-web 版本 | ❌ | ✅ | ❌ |
+| 修改 rodski-agent 版本 | ❌ | ❌ | ✅ |
+| 读取子项目代码 | ✅（只读参考）| ✅ | ✅ |
+
+---
+
+*文档版本: v3.0 | 最后更新: 2026-06-11*

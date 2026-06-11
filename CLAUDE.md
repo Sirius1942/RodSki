@@ -131,7 +131,7 @@ product/                    ← 顶层，固定名称
 ## 项目结构
 
 ```
-RodSki/
+RodSki/                     ← 主仓库（父仓库，git remote: github / origin / qa-gitlab）
 ├── .pb/                    # 项目管理文档（需求、迭代、规格）
 ├── .claude/                # Claude 项目配置
 ├── rodski/                 # 核心框架代码
@@ -142,6 +142,8 @@ RodSki/
 │   └── tests/              # 单元测试
 ├── rodski-demo/            # 框架官方示例（唯一示例目录）
 ├── cassmall/               # 业务测试用例
+├── rodski-web/             # ⚠️ 独立仓库（见下方"独立子项目"说明）
+├── rodski-agent/           # ⚠️ 独立仓库（见下方"独立子项目"说明）
 └── CLAUDE.md               # 本文件
 ```
 
@@ -154,6 +156,68 @@ RodSki/
 ### 禁止使用的旧目录
 
 ❌ 不再使用：`phoenixbear/`、`.kiro/`、`rodski/.kiro/`、`rodski/examples/`
+
+---
+
+## 独立子项目（独立代码库 + 独立发布）
+
+以下两个目录是**独立 Git 仓库**，物理上位于主仓库目录下，但不由主仓库 git 跟踪（已加入根 `.gitignore`）。它们拥有各自的 `.git/`、版本号和发布周期，与主仓库完全解耦。
+
+### rodski-web
+
+| 项目 | 说明 |
+|------|------|
+| **路径** | `rodski-web/` |
+| **定位** | RodSki 可视化 Web 管理界面（Flask）|
+| **版本文件** | `rodski-web/VERSION`（纯文本，当前 `1.0.0`）|
+| **版本格式** | `MAJOR.MINOR.PATCH`，规则同主仓库 |
+| **git 仓库** | `rodski-web/.git/`（独立本地仓库，需自行绑定 remote）|
+| **发布方式** | 独立 tag，与主仓库版本号无关 |
+
+**版本号同步文件**（rodski-web 内部）：
+- `rodski-web/VERSION`
+
+**启动方式**：
+```bash
+cd rodski-web && bash run.sh
+# 或
+cd rodski-web && python3 src/app.py
+```
+
+---
+
+### rodski-agent
+
+| 项目 | 说明 |
+|------|------|
+| **路径** | `rodski-agent/` |
+| **定位** | RodSki AI Agent 层（LangGraph + Anthropic/OpenAI）|
+| **版本文件** | `rodski-agent/pyproject.toml`（`[project] version`，当前 `2.3.0`）|
+| **版本格式** | `MAJOR.MINOR.PATCH`，规则同主仓库 |
+| **git 仓库** | `rodski-agent/.git/`（独立本地仓库，需自行绑定 remote）|
+| **发布方式** | 独立 tag，与主仓库版本号无关；可单独 `pip install` |
+
+**版本号同步文件**（rodski-agent 内部）：
+- `rodski-agent/pyproject.toml` → `[project] version`
+- `rodski-agent/src/rodski_agent/__init__.py` → `__version__`（若存在）
+
+**常用命令**：
+```bash
+cd rodski-agent
+pip install -e ".[dev]"
+rodski-agent --help
+pytest tests/ -q
+```
+
+---
+
+### 主仓库与独立子项目的协作规则
+
+1. **版本独立**：三者版本号完全独立，`rodski@8.1.0` 与 `rodski-agent@2.3.0`、`rodski-web@1.0.0` 没有绑定关系
+2. **git 独立**：`rodski-web/` 和 `rodski-agent/` 各自 `git init`，主仓库通过 `.gitignore` 忽略这两个目录
+3. **发布独立**：各自打 tag、走各自的发布脚本，不共用主仓库的 `release.sh`
+4. **依赖关系**：`rodski-agent` 依赖已安装的 `rodski` 包（通过 `pip install rodski`），但代码仓库独立
+5. **AI Agent 操作范围**：在主仓库会话中，不得修改 `rodski-web/` 和 `rodski-agent/` 的版本文件和 git 操作；如需操作需单独开启对应目录的会话
 
 ---
 
