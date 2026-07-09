@@ -936,11 +936,15 @@ class KeywordEngine:
     # ── UI 操作关键字 ─────────────────────────────────────────────
 
     def _ensure_driver(self) -> None:
-        """确保驱动可用，如果已关闭则通过工厂重新创建"""
+        """确保驱动可用，如果为 None 或已关闭则通过工厂重新创建"""
+        is_none = self.driver is None
         is_closed = getattr(self.driver, '_is_closed', False)
-        if is_closed is True:
+        if is_none or is_closed is True:
             if self._driver_factory:
-                logger.info("浏览器已关闭，自动创建新浏览器实例...")
+                if is_none:
+                    logger.info("driver 为 None，自动创建新浏览器实例...")
+                else:
+                    logger.info("浏览器已关闭，自动创建新浏览器实例...")
                 self.driver = self._driver_factory()
             else:
                 raise DriverStoppedError(
@@ -1822,6 +1826,7 @@ class KeywordEngine:
 
     def _kw_screenshot(self, params: Dict) -> bool:
         """截图"""
+        self._ensure_driver()
         path = params.get("path", "") or params.get("data", "") or "screenshot.png"
         # 解析相对路径：相对于 module_dir（与 assert 关键字一致）
         if self._module_dir:
