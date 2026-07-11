@@ -35,8 +35,8 @@ try:
     from ..data.data_resolver import DataResolver
     from ..drivers.base_driver import BaseDriver
 except ImportError:
-    from data.data_resolver import DataResolver
-    from drivers.base_driver import BaseDriver
+    from rodski.data.data_resolver import DataResolver
+    from rodski.drivers.base_driver import BaseDriver
 from .keyword_engine import KeywordEngine
 from .dynamic_executor import DynamicExecutor
 
@@ -898,7 +898,7 @@ class SKIExecutor:
             try:
                 from ..vision.screen_recorder import ScreenRecorder
             except ImportError:
-                from vision.screen_recorder import ScreenRecorder
+                from rodski.vision.screen_recorder import ScreenRecorder
             recorder = ScreenRecorder(
                 output_dir=str(output_dir),
                 fps=int(self._recording_option("fps", 10)),

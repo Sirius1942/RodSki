@@ -308,7 +308,7 @@ def handle(args):
         try:
             from ..core.test_plan_selection import check_plan_selector_conflict
         except ImportError:
-            from core.test_plan_selection import check_plan_selector_conflict
+            from rodski.core.test_plan_selection import check_plan_selector_conflict
         check_plan_selector_conflict(plan_path_str, selector_filters)
     except ValueError as e:
         print(f"错误: {e}", file=sys.stderr)
@@ -391,10 +391,10 @@ def _handle_dry_run(
         from ..core.plan_parser import PlanParser
         from ..core.test_plan_selection import TestPlanSelection, compile_from_selector
     except ImportError:
-        from core.case_parser import CaseParser
-        from core.model_parser import ModelParser
-        from core.plan_parser import PlanParser
-        from core.test_plan_selection import TestPlanSelection, compile_from_selector
+        from rodski.core.case_parser import CaseParser
+        from rodski.core.model_parser import ModelParser
+        from rodski.core.plan_parser import PlanParser
+        from rodski.core.test_plan_selection import TestPlanSelection, compile_from_selector
 
     try:
         model_parser = ModelParser(str(model_path))
@@ -557,11 +557,11 @@ def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional
         from ..core.json_formatter import JSONFormatter
         from ..core.runtime_control import RuntimeCommandQueue
     except ImportError:
-        from core.ski_executor import SKIExecutor
-        from core.config_manager import ConfigManager
-        from drivers.playwright_driver import PlaywrightDriver
-        from core.json_formatter import JSONFormatter
-        from core.runtime_control import RuntimeCommandQueue
+        from rodski.core.ski_executor import SKIExecutor
+        from rodski.core.config_manager import ConfigManager
+        from rodski.drivers.playwright_driver import PlaywrightDriver
+        from rodski.core.json_formatter import JSONFormatter
+        from rodski.core.runtime_control import RuntimeCommandQueue
     import time
 
     headless = getattr(args, "headless", False)
@@ -809,7 +809,7 @@ def _handle_load_run(plan_path: Path, module_dir: Path, args) -> int:
             from rodski.load.locust_engine import LocustLoadEngine  # type: ignore[no-redef]
             from rodski.load.result_writer import LoadResultWriter  # type: ignore[no-redef]
         except ImportError:
-            from core.plan_parser import PlanParser  # type: ignore[no-redef]
+            from rodski.core.plan_parser import PlanParser  # type: ignore[no-redef]
             from load.context import SharedLoadContext  # type: ignore[no-redef]
             from load.compiler import LoadCompiler  # type: ignore[no-redef]
             from load.locust_engine import LocustLoadEngine  # type: ignore[no-redef]

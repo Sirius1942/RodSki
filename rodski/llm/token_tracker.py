@@ -3,7 +3,7 @@
 零外部依赖，可选模块 — 没有 LLM 依赖时不报错。
 
 用法:
-    from llm.token_tracker import get_token_tracker, estimate_cost
+    from rodski.llm.token_tracker import get_token_tracker, estimate_cost
 
     tracker = get_token_tracker()
     tracker.record(

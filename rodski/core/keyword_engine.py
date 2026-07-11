@@ -9,7 +9,7 @@ from pathlib import Path
 try:
     from ..drivers.base_driver import BaseDriver
 except ImportError:
-    from drivers.base_driver import BaseDriver
+    from rodski.drivers.base_driver import BaseDriver
 from .performance import monitor_performance
 from .exceptions import (
     UnknownKeywordError,
@@ -235,7 +235,7 @@ class KeywordEngine:
         try:
             from ..drivers.desktop_driver import DesktopDriver
         except ImportError:
-            from drivers.desktop_driver import DesktopDriver
+            from rodski.drivers.desktop_driver import DesktopDriver
         try:
             desktop_driver = DesktopDriver(target_platform=driver_type if driver_type != "other" else None)
             self._desktop_drivers[driver_type] = desktop_driver
@@ -1626,7 +1626,7 @@ class KeywordEngine:
         try:
             from ..api.rest_helper import RestHelper
         except ImportError:
-            from api.rest_helper import RestHelper
+            from rodski.api.rest_helper import RestHelper
 
         # 从浏览器获取 cookies 以共享登录态
         browser_cookies = None
@@ -2511,7 +2511,7 @@ class KeywordEngine:
         try:
             from ..drivers.playwright_driver import PlaywrightDriver
         except ImportError:
-            from drivers.playwright_driver import PlaywrightDriver
+            from rodski.drivers.playwright_driver import PlaywrightDriver
         if not isinstance(self.driver, PlaywrightDriver):
             raise DriverError("evaluate 仅支持 Web 浏览器驱动（PlaywrightDriver）")
 

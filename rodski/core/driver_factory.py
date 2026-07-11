@@ -20,7 +20,7 @@ from typing import Dict, Optional, Any, Type, Callable
 try:
     from ..drivers.base_driver import BaseDriver
 except ImportError:
-    from drivers.base_driver import BaseDriver
+    from rodski.drivers.base_driver import BaseDriver
 
 logger = logging.getLogger("rodski")
 

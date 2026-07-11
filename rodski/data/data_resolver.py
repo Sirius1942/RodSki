@@ -6,7 +6,7 @@ from pathlib import Path
 try:
     from rodski.data.builtin_functions import call_function
 except ImportError:
-    from data.builtin_functions import call_function
+    from rodski.data.builtin_functions import call_function
 
 _FUNC_PATTERN = re.compile(r'\$\{(\w+)\(([^)]*)\)\}')
 _ESCAPE_PATTERN = re.compile(r'\$\$\{')

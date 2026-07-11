@@ -42,7 +42,7 @@ def _load(module: str):
     try:
         from rodski.core.data_table_parser import DataTableParser
     except ImportError:
-        from core.data_table_parser import DataTableParser
+        from rodski.core.data_table_parser import DataTableParser
     data_dir = Path(module) / "data"
     if not data_dir.exists():
         print(f"错误: 数据目录不存在: {data_dir}", file=sys.stderr)
@@ -105,7 +105,7 @@ def handle(args):
         try:
             from rodski.core.exceptions import DataParseError
         except ImportError:
-            from core.exceptions import DataParseError
+            from rodski.core.exceptions import DataParseError
         try:
             dm = _load(args.module)
         except DataParseError as e:
