@@ -196,6 +196,31 @@ class TestConditionEvaluatorVariableResolution:
         # undefined 变量解析为 None，None > 0 会抛异常，外层 catch 返回 False
         assert self.evaluator.evaluate("undefined_var > 0", {}) is False
 
+    # ---- _resolve_variable 直接调用：${} 语法边界条件 ----
+    # `${name}` 不是合法的 Python 标识符，evaluate() 走 ast.parse 时永远不会
+    # 产出这种 Name 节点，因此下面几个用例直接调用 _resolve_variable，
+    # 绕开 ast 解析这一层，专门验证 startswith/endswith 边界判断本身。
+
+    def test_resolve_variable_strips_dollar_brace_wrapper(self):
+        """同时具有 ${ 前缀和 } 后缀时，应剥离包裹后再查变量"""
+        result = self.evaluator._resolve_variable("${count}", {"count": 5})
+        assert result == 5
+
+    def test_resolve_variable_prefix_only_not_stripped(self):
+        """只有 ${ 前缀、没有 } 后缀时，不应剥离，原样按变量名查找（找不到则为 None）"""
+        # "${count" 不应被当成 "count" 处理
+        result = self.evaluator._resolve_variable("${count", {"count": 5, "${count": "raw"})
+        assert result == "raw"
+
+    def test_resolve_variable_suffix_only_not_stripped(self):
+        """只有 } 后缀、没有 ${ 前缀时，不应剥离，原样按变量名查找"""
+        result = self.evaluator._resolve_variable("count}", {"count": 5, "count}": "raw"})
+        assert result == "raw"
+
+    def test_resolve_variable_plain_name_unaffected(self):
+        """普通变量名（无 ${} 包裹）应直接查找，不受剥离逻辑影响"""
+        assert self.evaluator._resolve_variable("count", {"count": 5}) == 5
+
 
 class TestConditionEvaluatorEdgeCases:
     """边界条件测试 —— 语法错误、不安全表达式"""
@@ -215,6 +240,22 @@ class TestConditionEvaluatorEdgeCases:
         """调用不在 BUILTINS 白名单中的函数应安全失败"""
         # exec/eval/import 不在白名单中
         assert self.evaluator.evaluate("exec('print(1)')", {}) is False
+
+    def test_attribute_missing_returns_none_via_safe_eval(self):
+        """_safe_eval 直接调用：访问不存在的属性应返回 None（getattr 默认值生效）
+
+        直接调用 _safe_eval（而非 evaluate()）绕开外层 try/except，
+        这样才能真正区分 "安全返回 None" 与 "抛 AttributeError 被外层吞掉"
+        这两种在 evaluate() 层面表现相同、但代码路径完全不同的情况。
+        """
+        import ast
+
+        class Obj:
+            pass
+
+        tree = ast.parse("obj.nonexistent", mode='eval')
+        result = self.evaluator._safe_eval(tree.body, {"obj": Obj()})
+        assert result is None
 
     def test_operators_dict_completeness(self):
         """验证 OPERATORS 字典包含所有必要的运算符"""

@@ -11,6 +11,7 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 
+from .exceptions import RoamUnsupportedCaseError
 from .xml_schema_validator import RodskiXmlValidator
 
 logger = logging.getLogger("rodski")
@@ -59,6 +60,15 @@ class CaseParser:
         suite_tags = [t.strip() for t in raw_suite_tags.split(',') if t.strip()] if raw_suite_tags else []
 
         for case_node in root.findall('case'):
+            case_id = case_node.get('id', '')
+            roam = case_node.get('roam', '否').strip()
+            component_type = case_node.get('component_type', '').strip()
+            if roam == '是' and component_type not in ('', '界面'):
+                raise RoamUnsupportedCaseError(
+                    case_id=case_id,
+                    component_type=component_type,
+                )
+
             execute = case_node.get('execute', '否').strip()
             if execute != '是':
                 continue
@@ -73,10 +83,11 @@ class CaseParser:
             ]
 
             case = {
-                'case_id': case_node.get('id', ''),
+                'case_id': case_id,
                 'title': case_node.get('title', ''),
                 'description': case_node.get('description', ''),
-                'component_type': case_node.get('component_type', ''),
+                'component_type': component_type,
+                'roam': roam,
                 'expect_fail': case_node.get('expect_fail', '否').strip(),
                 'tags': suite_tags,
                 'priority': (case_node.get('priority') or '').strip(),

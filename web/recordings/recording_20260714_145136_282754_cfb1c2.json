@@ -1,0 +1,2703 @@
+{
+  "rodski_plugin_version": "1.0.0",
+  "recorded_at": "2026-07-14T06:51:17.616Z",
+  "exported_at": "2026-07-14T06:51:36.277Z",
+  "base_url": "https://www.baidu.com/s?ie=utf-8&f=8&rsv_bp=1&rsv_idx=1&tn=baidu&wd=rodski&fenlei=256&rsv_pq=0xb9006a8d06e6c4c8&rsv_t=92cdy1em23tFU%2FYKuzz%2B0DcXOxih95PGiGGHIF1kmmAUnRvuL0cmuDE4QnFN&rqlang=en&rsv_enter=1&rsv_dl=tb_click&rsv_sug3=6&rsv_sug1=6&rsv_sug7=100&rsv_btype=i&inputT=9955&rsv_sug4=9955",
+  "total_steps": 8,
+  "total_screenshots": 0,
+  "steps": [
+    {
+      "seq": 1,
+      "action": "navigate",
+      "timestamp": "2026-07-14T06:51:17.617Z",
+      "url": "https://www.baidu.com/s?ie=utf-8&f=8&rsv_bp=1&rsv_idx=1&tn=baidu&wd=rodski&fenlei=256&rsv_pq=0xb9006a8d06e6c4c8&rsv_t=92cdy1em23tFU%2FYKuzz%2B0DcXOxih95PGiGGHIF1kmmAUnRvuL0cmuDE4QnFN&rqlang=en&rsv_enter=1&rsv_dl=tb_click&rsv_sug3=6&rsv_sug1=6&rsv_sug7=100&rsv_btype=i&inputT=9955&rsv_sug4=9955",
+      "title": "rodski_百度搜索"
+    },
+    {
+      "seq": 2,
+      "action": "click",
+      "timestamp": "2026-07-14T06:51:20.007Z",
+      "url": "https://www.baidu.com/s?ie=utf-8&f=8&rsv_bp=1&rsv_idx=1&tn=baidu&wd=rodski&fenlei=256&rsv_pq=0xb9006a8d06e6c4c8&rsv_t=92cdy1em23tFU%2FYKuzz%2B0DcXOxih95PGiGGHIF1kmmAUnRvuL0cmuDE4QnFN&rqlang=en&rsv_enter=1&rsv_dl=tb_click&rsv_sug3=6&rsv_sug1=6&rsv_sug7=100&rsv_btype=i&inputT=9955&rsv_sug4=9955",
+      "target": {
+        "tag": "textarea",
+        "description": "<textarea#chat-textarea.chat-input-textarea>rodski</textarea>",
+        "locators": [
+          {
+            "type": "id",
+            "value": "chat-textarea",
+            "priority": 1
+          },
+          {
+            "type": "css",
+            "value": "textarea.chat-input-textarea",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/div[2]/div/div/div/div/div/div[4]/div[1]/div[2]/textarea",
+            "priority": 6
+          }
+        ]
+      }
+    },
+    {
+      "seq": 3,
+      "action": "input",
+      "timestamp": "2026-07-14T06:51:21.880Z",
+      "url": "https://www.baidu.com/s?ie=utf-8&f=8&rsv_bp=1&rsv_idx=1&tn=baidu&wd=rodski&fenlei=256&rsv_pq=0xb9006a8d06e6c4c8&rsv_t=92cdy1em23tFU%2FYKuzz%2B0DcXOxih95PGiGGHIF1kmmAUnRvuL0cmuDE4QnFN&rqlang=en&rsv_enter=1&rsv_dl=tb_click&rsv_sug3=6&rsv_sug1=6&rsv_sug7=100&rsv_btype=i&inputT=9955&rsv_sug4=9955",
+      "value": "",
+      "target": {
+        "tag": "textarea",
+        "description": "<textarea#chat-textarea.chat-input-textarea>rodski</textarea>",
+        "locators": [
+          {
+            "type": "id",
+            "value": "chat-textarea",
+            "priority": 1
+          },
+          {
+            "type": "css",
+            "value": "textarea.chat-input-textarea",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/div[2]/div/div/div/div/div/div[4]/div[1]/div[2]/textarea",
+            "priority": 6
+          }
+        ]
+      }
+    },
+    {
+      "seq": 4,
+      "action": "input",
+      "timestamp": "2026-07-14T06:51:23.594Z",
+      "url": "https://www.baidu.com/s?ie=utf-8&f=8&rsv_bp=1&rsv_idx=1&tn=baidu&wd=rodski&fenlei=256&rsv_pq=0xb9006a8d06e6c4c8&rsv_t=92cdy1em23tFU%2FYKuzz%2B0DcXOxih95PGiGGHIF1kmmAUnRvuL0cmuDE4QnFN&rqlang=en&rsv_enter=1&rsv_dl=tb_click&rsv_sug3=6&rsv_sug1=6&rsv_sug7=100&rsv_btype=i&inputT=9955&rsv_sug4=9955",
+      "value": "rodski",
+      "target": {
+        "tag": "textarea",
+        "description": "<textarea#chat-textarea.chat-input-textarea>rodski</textarea>",
+        "locators": [
+          {
+            "type": "id",
+            "value": "chat-textarea",
+            "priority": 1
+          },
+          {
+            "type": "css",
+            "value": "textarea.chat-input-textarea",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/div[2]/div/div/div/div/div/div[4]/div[1]/div[2]/textarea",
+            "priority": 6
+          }
+        ]
+      }
+    },
+    {
+      "seq": 5,
+      "action": "input",
+      "timestamp": "2026-07-14T06:51:23.924Z",
+      "url": "https://www.baidu.com/s?ie=utf-8&f=8&rsv_bp=1&rsv_idx=1&tn=baidu&wd=rodski&fenlei=256&rsv_pq=0xb9006a8d06e6c4c8&rsv_t=92cdy1em23tFU%2FYKuzz%2B0DcXOxih95PGiGGHIF1kmmAUnRvuL0cmuDE4QnFN&rqlang=en&rsv_enter=1&rsv_dl=tb_click&rsv_sug3=6&rsv_sug1=6&rsv_sug7=100&rsv_btype=i&inputT=9955&rsv_sug4=9955",
+      "value": "rodski",
+      "target": {
+        "tag": "textarea",
+        "description": "<textarea#chat-textarea.chat-input-textarea>rodski</textarea>",
+        "locators": [
+          {
+            "type": "id",
+            "value": "chat-textarea",
+            "priority": 1
+          },
+          {
+            "type": "css",
+            "value": "textarea.chat-input-textarea",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/div[2]/div/div/div/div/div/div[4]/div[1]/div[2]/textarea",
+            "priority": 6
+          }
+        ]
+      }
+    },
+    {
+      "seq": 6,
+      "action": "click",
+      "timestamp": "2026-07-14T06:51:26.233Z",
+      "url": "https://www.baidu.com/s?ie=utf-8&f=8&rsv_bp=1&rsv_idx=1&tn=baidu&wd=rodski&fenlei=256&rsv_pq=0xb9006a8d06e6c4c8&rsv_t=92cdy1em23tFU%2FYKuzz%2B0DcXOxih95PGiGGHIF1kmmAUnRvuL0cmuDE4QnFN&rqlang=en&rsv_enter=1&rsv_dl=tb_click&rsv_sug3=6&rsv_sug1=6&rsv_sug7=100&rsv_btype=i&inputT=9955&rsv_sug4=9955",
+      "target": {
+        "tag": "button",
+        "description": "<button#chat-submit-button>百度一下</button>",
+        "locators": [
+          {
+            "type": "id",
+            "value": "chat-submit-button",
+            "priority": 1
+          },
+          {
+            "type": "text",
+            "value": "百度一下",
+            "priority": 3
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/div[2]/div/div/div/div/div/div[4]/div[1]/div[3]/div[3]/button",
+            "priority": 6
+          }
+        ]
+      }
+    },
+    {
+      "seq": 7,
+      "action": "click",
+      "timestamp": "2026-07-14T06:51:29.167Z",
+      "url": "https://www.baidu.com/s?ie=utf-8&f=8&rsv_bp=1&rsv_idx=1&tn=baidu&wd=rodski&fenlei=256&oq=rodski&rsv_pq=b76386ba02861121&rsv_t=010coSUSP%2FnvityAj%2F5QHbLZViNvq7QkubvZD0lbR0URGsQju0uareYjJzQ&rqlang=cn&rsv_enter=1&rsv_dl=tb_click&rsv_btype=t&rsv_sug3=7&rsv_sug1=13&rsv_sug7=101",
+      "target": {
+        "tag": "div",
+        "description": "<div.cosd-fold-switch-mask_5SMHR></div>",
+        "locators": [
+          {
+            "type": "css",
+            "value": "div.cosd-fold-switch-mask_5SMHR",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[3]/div[1]/div/div[2]/div/div/div[2]/div[2]/div/div[1]",
+            "priority": 6
+          }
+        ]
+      }
+    },
+    {
+      "seq": 8,
+      "action": "click",
+      "timestamp": "2026-07-14T06:51:29.833Z",
+      "url": "https://www.baidu.com/s?ie=utf-8&f=8&rsv_bp=1&rsv_idx=1&tn=baidu&wd=rodski&fenlei=256&oq=rodski&rsv_pq=b76386ba02861121&rsv_t=010coSUSP%2FnvityAj%2F5QHbLZViNvq7QkubvZD0lbR0URGsQju0uareYjJzQ&rqlang=cn&rsv_enter=1&rsv_dl=tb_click&rsv_btype=t&rsv_sug3=7&rsv_sug1=13&rsv_sug7=101",
+      "target": {
+        "tag": "span",
+        "description": "<span.cos-fold-switch-text>展开</span>",
+        "locators": [
+          {
+            "type": "text",
+            "value": "展开",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "span.cos-fold-switch-text",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[3]/div[1]/div/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div/span",
+            "priority": 6
+          }
+        ]
+      }
+    }
+  ],
+  "screenshots": [],
+  "final_page_snapshot": {
+    "url": "https://www.baidu.com/s?ie=utf-8&f=8&rsv_bp=1&rsv_idx=1&tn=baidu&wd=rodski&fenlei=256&oq=rodski&rsv_pq=b76386ba02861121&rsv_t=010coSUSP%2FnvityAj%2F5QHbLZViNvq7QkubvZD0lbR0URGsQju0uareYjJzQ&rqlang=cn&rsv_enter=1&rsv_dl=tb_click&rsv_btype=t&rsv_sug3=7&rsv_sug1=13&rsv_sug7=101",
+    "title": "rodski_百度搜索",
+    "timestamp": "2026-07-14T06:51:36.270Z",
+    "interactive_elements": [
+      {
+        "tag": "a",
+        "id": "aging-total-page",
+        "name": null,
+        "type": null,
+        "text": null,
+        "placeholder": null,
+        "href": "javascript:void(0)",
+        "locators": [
+          {
+            "type": "id",
+            "value": "aging-total-page",
+            "priority": 1
+          },
+          {
+            "type": "aria-label",
+            "value": "欢迎进入 百度一下，你就知道，盲人用户进入读屏幕模式请按快捷键Ctrl加Alt加R；阅读详细操作说明请按快捷键Ctrl加Alt加问号键。",
+            "priority": 2
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "id": "s_is_result_css",
+        "name": null,
+        "type": "textarea",
+        "text": "<style data-for=\"result\" type=\"text/css\" >html{fon",
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "id",
+            "value": "s_is_result_css",
+            "priority": 1
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/textarea[1]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "id": "s_index_off_css",
+        "name": null,
+        "type": "textarea",
+        "text": "<style data-for=\"result\" id=\"css_result\" type=\"tex",
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "id",
+            "value": "s_index_off_css",
+            "priority": 1
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/textarea[2]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "百度首页",
+        "placeholder": null,
+        "href": "https://www.baidu.com/",
+        "locators": [
+          {
+            "type": "text",
+            "value": "百度首页",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.toindex",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[1]/div[2]/a[1]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": "tj_settingicon",
+        "type": null,
+        "text": "设置",
+        "placeholder": null,
+        "href": "javascript:;",
+        "locators": [
+          {
+            "type": "name",
+            "value": "tj_settingicon",
+            "priority": 2
+          },
+          {
+            "type": "text",
+            "value": "设置",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.pf",
+            "priority": 5
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": "tj_login",
+        "type": null,
+        "text": "登录",
+        "placeholder": null,
+        "href": "https://passport.baidu.com/v2/?login&tpl=mn&u=http%3A%2F%2Fwww.baidu.com%2F&sms=5",
+        "locators": [
+          {
+            "type": "name",
+            "value": "tj_login",
+            "priority": 2
+          },
+          {
+            "type": "text",
+            "value": "登录",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.lb",
+            "priority": 5
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "新闻",
+        "placeholder": null,
+        "href": "http://news.baidu.com/",
+        "locators": [
+          {
+            "type": "text",
+            "value": "新闻",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.mnav",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[1]/div[3]/a[1]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "hao123",
+        "placeholder": null,
+        "href": "https://www.hao123.com/?src=from_pc",
+        "locators": [
+          {
+            "type": "text",
+            "value": "hao123",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.mnav",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[1]/div[3]/a[2]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "地图",
+        "placeholder": null,
+        "href": "http://map.baidu.com/",
+        "locators": [
+          {
+            "type": "text",
+            "value": "地图",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.mnav",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[1]/div[3]/a[3]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "贴吧",
+        "placeholder": null,
+        "href": "http://tieba.baidu.com/",
+        "locators": [
+          {
+            "type": "text",
+            "value": "贴吧",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.mnav",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[1]/div[3]/a[4]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "视频",
+        "placeholder": null,
+        "href": "https://haokan.baidu.com/?sfrom=baidu-top",
+        "locators": [
+          {
+            "type": "text",
+            "value": "视频",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.mnav",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[1]/div[3]/a[5]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "图片",
+        "placeholder": null,
+        "href": "http://image.baidu.com/",
+        "locators": [
+          {
+            "type": "text",
+            "value": "图片",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.mnav",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[1]/div[3]/a[6]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "网盘",
+        "placeholder": null,
+        "href": "https://pan.baidu.com/?from=1026962h",
+        "locators": [
+          {
+            "type": "text",
+            "value": "网盘",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.mnav",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[1]/div[3]/a[7]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "文库",
+        "placeholder": null,
+        "href": "https://wenku.baidu.com/?fr=bdpcindex",
+        "locators": [
+          {
+            "type": "text",
+            "value": "文库",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.mnav",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[1]/div[3]/a[8]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": "csaitab",
+        "name": null,
+        "type": null,
+        "text": "文心",
+        "placeholder": null,
+        "href": "https://chat.baidu.com/search?isShowHello=1&pd=csaitab&setype=csaitab&extParamsJson=%7B%22enter_type%22%3A%22home_tab%22%7D",
+        "locators": [
+          {
+            "type": "id",
+            "value": "csaitab",
+            "priority": 1
+          },
+          {
+            "type": "text",
+            "value": "文心",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.mnav",
+            "priority": 5
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "搭子DuMate",
+        "placeholder": null,
+        "href": "https://dumate.cn/?track=bdsy",
+        "locators": [
+          {
+            "type": "text",
+            "value": "搭子DuMate",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.mnav",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[1]/div[3]/a[10]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": "tj_briicon",
+        "type": null,
+        "text": "更多",
+        "placeholder": null,
+        "href": "http://www.baidu.com/more/",
+        "locators": [
+          {
+            "type": "name",
+            "value": "tj_briicon",
+            "priority": 2
+          },
+          {
+            "type": "text",
+            "value": "更多",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.s-bri",
+            "priority": 5
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": "tj_fanyi",
+        "type": null,
+        "text": "翻译",
+        "placeholder": null,
+        "href": "http://fanyi.baidu.com/",
+        "locators": [
+          {
+            "type": "name",
+            "value": "tj_fanyi",
+            "priority": 2
+          },
+          {
+            "type": "text",
+            "value": "翻译",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.img-spacing",
+            "priority": 5
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": "tj_xueshu",
+        "type": null,
+        "text": "学术",
+        "placeholder": null,
+        "href": "http://xueshu.baidu.com/",
+        "locators": [
+          {
+            "type": "name",
+            "value": "tj_xueshu",
+            "priority": 2
+          },
+          {
+            "type": "text",
+            "value": "学术",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.img-spacing",
+            "priority": 5
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": "tj_baike",
+        "type": null,
+        "text": "百科",
+        "placeholder": null,
+        "href": "https://baike.baidu.com/",
+        "locators": [
+          {
+            "type": "name",
+            "value": "tj_baike",
+            "priority": 2
+          },
+          {
+            "type": "text",
+            "value": "百科",
+            "priority": 3
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[1]/div[3]/div/div/div[3]/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": "tj_zhidao",
+        "type": null,
+        "text": "知道",
+        "placeholder": null,
+        "href": "https://zhidao.baidu.com/",
+        "locators": [
+          {
+            "type": "name",
+            "value": "tj_zhidao",
+            "priority": 2
+          },
+          {
+            "type": "text",
+            "value": "知道",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.img-spacing",
+            "priority": 5
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": "tj_jiankang",
+        "type": null,
+        "text": "健康",
+        "placeholder": null,
+        "href": "https://jiankang.baidu.com/widescreen/home",
+        "locators": [
+          {
+            "type": "name",
+            "value": "tj_jiankang",
+            "priority": 2
+          },
+          {
+            "type": "text",
+            "value": "健康",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.img-spacing",
+            "priority": 5
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": "tj_yingxiaotuiguang",
+        "type": null,
+        "text": "营销推广",
+        "placeholder": null,
+        "href": "http://e.baidu.com/ebaidu/home?refer=887",
+        "locators": [
+          {
+            "type": "name",
+            "value": "tj_yingxiaotuiguang",
+            "priority": 2
+          },
+          {
+            "type": "text",
+            "value": "营销推广",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.img-spacing",
+            "priority": 5
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": "tj_live",
+        "type": null,
+        "text": "直播",
+        "placeholder": null,
+        "href": "https://live.baidu.com/",
+        "locators": [
+          {
+            "type": "name",
+            "value": "tj_live",
+            "priority": 2
+          },
+          {
+            "type": "text",
+            "value": "直播",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.img-spacing",
+            "priority": 5
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": "tj_mp3",
+        "type": null,
+        "text": "音乐",
+        "placeholder": null,
+        "href": "http://music.taihe.com/",
+        "locators": [
+          {
+            "type": "name",
+            "value": "tj_mp3",
+            "priority": 2
+          },
+          {
+            "type": "text",
+            "value": "音乐",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.img-spacing",
+            "priority": 5
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": "tj_chengpian",
+        "type": null,
+        "text": "橙篇",
+        "placeholder": null,
+        "href": "https://cp.baidu.com/?sa=bdindex",
+        "locators": [
+          {
+            "type": "name",
+            "value": "tj_chengpian",
+            "priority": 2
+          },
+          {
+            "type": "text",
+            "value": "橙篇",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.img-spacing",
+            "priority": 5
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": "tj_more",
+        "type": null,
+        "text": "查看全部百度产品 >",
+        "placeholder": null,
+        "href": "http://www.baidu.com/more/",
+        "locators": [
+          {
+            "type": "name",
+            "value": "tj_more",
+            "priority": 2
+          },
+          {
+            "type": "text",
+            "value": "查看全部百度产品 >",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.c-color-gray2",
+            "priority": 5
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": "s-top-loginbtn",
+        "name": "tj_login",
+        "type": null,
+        "text": "登录",
+        "placeholder": null,
+        "href": "https://passport.baidu.com/v2/?login&tpl=mn&u=http%3A%2F%2Fwww.baidu.com%2F&sms=5",
+        "locators": [
+          {
+            "type": "id",
+            "value": "s-top-loginbtn",
+            "priority": 1
+          },
+          {
+            "type": "name",
+            "value": "tj_login",
+            "priority": 2
+          },
+          {
+            "type": "text",
+            "value": "登录",
+            "priority": 3
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "关闭热搜",
+        "placeholder": null,
+        "href": "javascript:;",
+        "locators": [
+          {
+            "type": "text",
+            "value": "关闭热搜",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.s-set-hotsearch",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[1]/div[4]/div[1]/a[1]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "开启热搜",
+        "placeholder": null,
+        "href": "javascript:;",
+        "locators": [
+          {
+            "type": "text",
+            "value": "开启热搜",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.s-set-hotsearch",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[1]/div[4]/div[1]/a[2]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": "result_logo",
+        "name": null,
+        "type": null,
+        "text": null,
+        "placeholder": null,
+        "href": "https://www.baidu.com/",
+        "locators": [
+          {
+            "type": "id",
+            "value": "result_logo",
+            "priority": 1
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "id": "chat-textarea",
+        "name": null,
+        "type": "textarea",
+        "text": "rodski",
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "id",
+            "value": "chat-textarea",
+            "priority": 1
+          },
+          {
+            "type": "css",
+            "value": "textarea.chat-input-textarea",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/div[2]/div/div/div/div/div/div[4]/div[1]/div[2]/textarea",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "id": "chat-submit-button",
+        "name": null,
+        "type": "submit",
+        "text": "百度一下",
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "id",
+            "value": "chat-submit-button",
+            "priority": 1
+          },
+          {
+            "type": "text",
+            "value": "百度一下",
+            "priority": 3
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/div[2]/div/div/div/div/div/div[4]/div[1]/div[3]/div[3]/button",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "id": null,
+        "name": "ie",
+        "type": "hidden",
+        "text": null,
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "name",
+            "value": "ie",
+            "priority": 2
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/input[1]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "id": null,
+        "name": "f",
+        "type": "hidden",
+        "text": null,
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "name",
+            "value": "f",
+            "priority": 2
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/input[2]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "id": null,
+        "name": "rsv_bp",
+        "type": "hidden",
+        "text": null,
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "name",
+            "value": "rsv_bp",
+            "priority": 2
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/input[3]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "id": null,
+        "name": "rsv_idx",
+        "type": "hidden",
+        "text": null,
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "name",
+            "value": "rsv_idx",
+            "priority": 2
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/input[4]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "id": null,
+        "name": "ch",
+        "type": "hidden",
+        "text": null,
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "name",
+            "value": "ch",
+            "priority": 2
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/input[5]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "id": null,
+        "name": "tn",
+        "type": "hidden",
+        "text": null,
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "name",
+            "value": "tn",
+            "priority": 2
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/input[6]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "id": null,
+        "name": "bar",
+        "type": "hidden",
+        "text": null,
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "name",
+            "value": "bar",
+            "priority": 2
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/input[7]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "id": "kw",
+        "name": "wd",
+        "type": "text",
+        "text": null,
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "id",
+            "value": "kw",
+            "priority": 1
+          },
+          {
+            "type": "name",
+            "value": "wd",
+            "priority": 2
+          },
+          {
+            "type": "css",
+            "value": "input.s_ipt",
+            "priority": 5
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "id": "su",
+        "name": null,
+        "type": "submit",
+        "text": null,
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "id",
+            "value": "su",
+            "priority": 1
+          },
+          {
+            "type": "css",
+            "value": "input.bg",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/span[2]/input",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": "ime_hw",
+        "type": null,
+        "text": "手写",
+        "placeholder": null,
+        "href": "javascript:;",
+        "locators": [
+          {
+            "type": "name",
+            "value": "ime_hw",
+            "priority": 2
+          },
+          {
+            "type": "text",
+            "value": "手写",
+            "priority": 3
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/span[3]/span/ul/li[1]/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": "ime_py",
+        "type": null,
+        "text": "拼音",
+        "placeholder": null,
+        "href": "javascript:;",
+        "locators": [
+          {
+            "type": "name",
+            "value": "ime_py",
+            "priority": 2
+          },
+          {
+            "type": "text",
+            "value": "拼音",
+            "priority": 3
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/span[3]/span/ul/li[2]/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": "ime_cl",
+        "type": null,
+        "text": "关闭",
+        "placeholder": null,
+        "href": "javascript:;",
+        "locators": [
+          {
+            "type": "name",
+            "value": "ime_cl",
+            "priority": 2
+          },
+          {
+            "type": "text",
+            "value": "关闭",
+            "priority": 3
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/span[3]/span/ul/li[4]/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "id": null,
+        "name": "rn",
+        "type": "hidden",
+        "text": null,
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "name",
+            "value": "rn",
+            "priority": 2
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/input[8]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "id": null,
+        "name": "fenlei",
+        "type": "hidden",
+        "text": null,
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "name",
+            "value": "fenlei",
+            "priority": 2
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/input[9]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "id": null,
+        "name": "oq",
+        "type": "hidden",
+        "text": null,
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "name",
+            "value": "oq",
+            "priority": 2
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/input[10]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "id": null,
+        "name": "rsv_pq",
+        "type": "hidden",
+        "text": null,
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "name",
+            "value": "rsv_pq",
+            "priority": 2
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/input[11]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "id": null,
+        "name": "rsv_t",
+        "type": "hidden",
+        "text": null,
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "name",
+            "value": "rsv_t",
+            "priority": 2
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/input[12]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "id": null,
+        "name": "rqlang",
+        "type": "hidden",
+        "text": null,
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "name",
+            "value": "rqlang",
+            "priority": 2
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/input[13]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "id": null,
+        "name": "rsv_enter",
+        "type": "hidden",
+        "text": null,
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "name",
+            "value": "rsv_enter",
+            "priority": 2
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/input[14]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "id": null,
+        "name": "rsv_dl",
+        "type": "hidden",
+        "text": null,
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "name",
+            "value": "rsv_dl",
+            "priority": 2
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/input[15]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "id": null,
+        "name": "rsv_btype",
+        "type": "hidden",
+        "text": null,
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "name",
+            "value": "rsv_btype",
+            "priority": 2
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/input[16]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "id": null,
+        "name": "inputT",
+        "type": "hidden",
+        "text": null,
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "name",
+            "value": "inputT",
+            "priority": 2
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/input[17]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "id": "hotsearch_data",
+        "name": null,
+        "type": "textarea",
+        "text": "{\n    \"hotsearch\": [\n        \n            \n       ",
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "id",
+            "value": "hotsearch_data",
+            "priority": 1
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/textarea",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "关于百度",
+        "placeholder": null,
+        "href": "https://home.baidu.com/",
+        "locators": [
+          {
+            "type": "text",
+            "value": "关于百度",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.text-color",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[5]/div/p[1]/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "About Baidu",
+        "placeholder": null,
+        "href": "http://ir.baidu.com/",
+        "locators": [
+          {
+            "type": "text",
+            "value": "About Baidu",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.text-color",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[5]/div/p[2]/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "使用百度前必读",
+        "placeholder": null,
+        "href": "https://www.baidu.com/duty",
+        "locators": [
+          {
+            "type": "text",
+            "value": "使用百度前必读",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.text-color",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[5]/div/p[3]/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "帮助中心",
+        "placeholder": null,
+        "href": "https://help.baidu.com/question?prod_id=1",
+        "locators": [
+          {
+            "type": "text",
+            "value": "帮助中心",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.text-color",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[5]/div/p[4]/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "企业推广",
+        "placeholder": null,
+        "href": "https://e.baidu.com/?refer=1271",
+        "locators": [
+          {
+            "type": "text",
+            "value": "企业推广",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.text-color",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[5]/div/p[5]/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "京公网安备11000002000001号",
+        "placeholder": null,
+        "href": "http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=11000002000001",
+        "locators": [
+          {
+            "type": "text",
+            "value": "京公网安备11000002000001号",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.text-color",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[5]/div/p[6]/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "京ICP证030173号",
+        "placeholder": null,
+        "href": "https://beian.miit.gov.cn/",
+        "locators": [
+          {
+            "type": "text",
+            "value": "京ICP证030173号",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.text-color",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[5]/div/p[7]/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "信息网络传播视听节目许可证 0110516",
+        "placeholder": null,
+        "href": "https://www.baidu.com/licence/",
+        "locators": [
+          {
+            "type": "text",
+            "value": "信息网络传播视听节目许可证 0110516",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.text-color",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[5]/div/p[10]/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "About Baidu",
+        "placeholder": null,
+        "href": "http://ir.baidu.com/",
+        "locators": [
+          {
+            "type": "text",
+            "value": "About Baidu",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.text-color",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[5]/div/div[2]/div/div/div[1]/p[1]/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "使用百度前必读",
+        "placeholder": null,
+        "href": "https://www.baidu.com/duty",
+        "locators": [
+          {
+            "type": "text",
+            "value": "使用百度前必读",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.text-color",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[5]/div/div[2]/div/div/div[1]/p[2]/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "帮助中心",
+        "placeholder": null,
+        "href": "https://help.baidu.com/question?prod_id=1",
+        "locators": [
+          {
+            "type": "text",
+            "value": "帮助中心",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.text-color",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[5]/div/div[2]/div/div/div[1]/p[3]/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "企业推广",
+        "placeholder": null,
+        "href": "https://e.baidu.com/?refer=1271",
+        "locators": [
+          {
+            "type": "text",
+            "value": "企业推广",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.text-color",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[5]/div/div[2]/div/div/div[1]/p[4]/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "京公网安备11000002000001号",
+        "placeholder": null,
+        "href": "http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=11000002000001",
+        "locators": [
+          {
+            "type": "text",
+            "value": "京公网安备11000002000001号",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.text-color",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[5]/div/div[2]/div/div/div[1]/p[5]/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "京ICP证030173号",
+        "placeholder": null,
+        "href": "https://beian.miit.gov.cn/",
+        "locators": [
+          {
+            "type": "text",
+            "value": "京ICP证030173号",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.text-color",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[5]/div/div[2]/div/div/div[2]/p[1]/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "信息网络传播视听节目许可证 0110516",
+        "placeholder": null,
+        "href": "https://www.baidu.com/licence/",
+        "locators": [
+          {
+            "type": "text",
+            "value": "信息网络传播视听节目许可证 0110516",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.text-color",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[5]/div/div[2]/div/div/div[4]/p/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": null,
+        "placeholder": null,
+        "href": "https://chat.baidu.com/search?word=rodski&dyTabStr=MTIsMCwzLDEsMiwxMyw3LDYsNSw5&pd=csaitab&setype=csaitab&extParamsJson=%7B%22enter_type%22%3A%22search_a_tab%22%2C%22sa%22%3A%22vs_tab%22%2C%22apagelid%22%3A%2214676597948738106497%22%2C%22ori_lid%22%3A%2214676597948738106497%22%7D",
+        "locators": [
+          {
+            "type": "css",
+            "value": "a.s-tab-item",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[3]/div/div/a[1]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "图片",
+        "placeholder": null,
+        "href": "http://image.baidu.com/i?tn=baiduimage&ps=1&ct=201326592&lm=-1&cl=2&nc=1&ie=utf-8&lid=cbadc0130dc2f481&dyTabStr=MTIsMCwzLDEsMiwxMyw3LDYsNSw5&word=rodski",
+        "locators": [
+          {
+            "type": "text",
+            "value": "图片",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.s-tab-item",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[3]/div/div/a[2]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "资讯",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?rtt=1&bsst=1&cl=2&tn=news&ie=utf-8&word=rodski",
+        "locators": [
+          {
+            "type": "text",
+            "value": "资讯",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.s-tab-item",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[3]/div/div/a[3]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "视频",
+        "placeholder": null,
+        "href": "https://www.baidu.com/sf/vsearch?pd=video&tn=vsearch&lid=cbadc0130dc2f481&ie=utf-8&wd=rodski&rsv_spt=7&rsv_bp=1&f=8&oq=rodski&rsv_pq=cbadc0130dc2f481&rsv_t=c572UVRpx0MN%2FnC1wUzx6gPHGB%2FsrMcWCx6qj%2FY%2BrwNbbS2p6sQc7%2FyN5l0",
+        "locators": [
+          {
+            "type": "text",
+            "value": "视频",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.s-tab-item",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[3]/div/div/a[4]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "笔记",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?pd=note&rpf=pc&dyTabStr=MTIsMCwzLDEsMiwxMyw3LDYsNSw5&word=rodski",
+        "locators": [
+          {
+            "type": "text",
+            "value": "笔记",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.s-tab-item",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[3]/div/div/a[5]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "地图",
+        "placeholder": null,
+        "href": "https://map.baidu.com/?newmap=1&ie=utf-8&from=pstab&s=s%26wd%3Drodski",
+        "locators": [
+          {
+            "type": "text",
+            "value": "地图",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.s-tab-item",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[3]/div/div/a[6]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "贴吧",
+        "placeholder": null,
+        "href": "http://tieba.baidu.com/f?fr=wwwt&ie=utf-8&dyTabStr=MTIsMCwzLDEsMiwxMyw3LDYsNSw5&kw=rodski",
+        "locators": [
+          {
+            "type": "text",
+            "value": "贴吧",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.s-tab-item",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[3]/div/div/a[7]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "文库",
+        "placeholder": null,
+        "href": "http://wenku.baidu.com/search?lm=0&od=0&ie=utf-8&dyTabStr=MTIsMCwzLDEsMiwxMyw3LDYsNSw5&word=rodski",
+        "locators": [
+          {
+            "type": "text",
+            "value": "文库",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.s-tab-item",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[3]/div/div/a[8]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "更多",
+        "placeholder": null,
+        "href": "http://www.baidu.com/more/",
+        "locators": [
+          {
+            "type": "text",
+            "value": "更多",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.s-tab-item",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[3]/div/div/a[9]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "rodesko官网",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?rsv_idx=1&wd=rodesko%E5%AE%98%E7%BD%91&fenlei=256&usm=3&ie=utf-8&rsv_pq=cbadc0130dc2f481&oq=rodski&rsv_t=ecb4bLlj7Gt3mdB4mofD2CABI8N1hLZPPz68mxpYJxVKGRk%2BJmyfkXiCNDo&rfqid=cbadc0130dc2f481&rsv_dl=0_prs_28616_1&rq=rodski&rsf=101636703",
+        "locators": [
+          {
+            "type": "text",
+            "value": "rodesko官网",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.cos-no-underline",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[1]/div[1]/div/div/div/div/div/div[2]/div[1]/div/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "rodesko是什么牌子",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?rsv_idx=1&wd=rodesko%E6%98%AF%E4%BB%80%E4%B9%88%E7%89%8C%E5%AD%90&fenlei=256&usm=3&ie=utf-8&rsv_pq=cbadc0130dc2f481&oq=rodski&rsv_t=ecb4bLlj7Gt3mdB4mofD2CABI8N1hLZPPz68mxpYJxVKGRk%2BJmyfkXiCNDo&rfqid=cbadc0130dc2f481&rsv_dl=0_prs_28616_2&rq=rodski&rsf=101636703",
+        "locators": [
+          {
+            "type": "text",
+            "value": "rodesko是什么牌子",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.cos-no-underline",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[1]/div[1]/div/div/div/div/div/div[2]/div[2]/div/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "rockski是哪国品牌",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?rsv_idx=1&wd=rockski%E6%98%AF%E5%93%AA%E5%9B%BD%E5%93%81%E7%89%8C&fenlei=256&usm=3&ie=utf-8&rsv_pq=cbadc0130dc2f481&oq=rodski&rsv_t=9b0dAa5koumjG5wq0I%2B7OiAcV%2FZTRcrDSRg9%2BAhOZfU%2F1QSCdVqFgG2XCfc&rfqid=cbadc0130dc2f481&rsv_dl=0_prs_28616_3&rq=rodski&rsf=101636703",
+        "locators": [
+          {
+            "type": "text",
+            "value": "rockski是哪国品牌",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.cos-no-underline",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[1]/div[1]/div/div/div/div/div/div[2]/div[3]/div/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "roki是什么意思",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?rsv_idx=1&wd=roki%E6%98%AF%E4%BB%80%E4%B9%88%E6%84%8F%E6%80%9D&fenlei=256&usm=3&ie=utf-8&rsv_pq=cbadc0130dc2f481&oq=rodski&rsv_t=9b0dAa5koumjG5wq0I%2B7OiAcV%2FZTRcrDSRg9%2BAhOZfU%2F1QSCdVqFgG2XCfc&rfqid=cbadc0130dc2f481&rsv_dl=0_prs_28616_4&rq=rodski&rsf=101636703",
+        "locators": [
+          {
+            "type": "text",
+            "value": "roki是什么意思",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.cos-no-underline",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[1]/div[1]/div/div/div/div/div/div[2]/div[4]/div/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "自行车R0ck是什么牌子",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?rsv_idx=1&wd=%E8%87%AA%E8%A1%8C%E8%BD%A6R0ck%E6%98%AF%E4%BB%80%E4%B9%88%E7%89%8C%E5%AD%90&fenlei=256&usm=3&ie=utf-8&rsv_pq=cbadc0130dc2f481&oq=rodski&rsv_t=9b0dAa5koumjG5wq0I%2B7OiAcV%2FZTRcrDSRg9%2BAhOZfU%2F1QSCdVqFgG2XCfc&rfqid=cbadc0130dc2f481&rsv_dl=0_prs_28616_5&rq=rodski&rsf=101636703",
+        "locators": [
+          {
+            "type": "text",
+            "value": "自行车R0ck是什么牌子",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.cos-no-underline",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[1]/div[1]/div/div/div/div/div/div[2]/div[5]/div/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "Rkoich的梗现在改名叫啥",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?rsv_idx=1&wd=Rkoich%E7%9A%84%E6%A2%97%E7%8E%B0%E5%9C%A8%E6%94%B9%E5%90%8D%E5%8F%AB%E5%95%A5&fenlei=256&usm=3&ie=utf-8&rsv_pq=cbadc0130dc2f481&oq=rodski&rsv_t=9b0dAa5koumjG5wq0I%2B7OiAcV%2FZTRcrDSRg9%2BAhOZfU%2F1QSCdVqFgG2XCfc&rfqid=cbadc0130dc2f481&rsv_dl=0_prs_28616_6&rq=rodski&rsf=101636703",
+        "locators": [
+          {
+            "type": "text",
+            "value": "Rkoich的梗现在改名叫啥",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.cos-no-underline",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[1]/div[1]/div/div/div/div/div/div[2]/div[6]/div/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "",
+        "placeholder": null,
+        "href": "https://top.baidu.com/board?platform=pc&sa=pcindex_a_right",
+        "locators": [
+          {
+            "type": "text",
+            "value": "",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.c-color-t",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[1]/div[2]/div/div/div/div[1]/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "换一换",
+        "placeholder": null,
+        "href": "javascript:void(0);",
+        "locators": [
+          {
+            "type": "text",
+            "value": "换一换",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.OP_LOG_BTN",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[1]/div[2]/div/div/div/div[1]/div/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "锻造高质量发展新引擎",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?rsv_idx=1&wd=%E9%94%BB%E9%80%A0%E9%AB%98%E8%B4%A8%E9%87%8F%E5%8F%91%E5%B1%95%E6%96%B0%E5%BC%95%E6%93%8E&fenlei=256&usm=3&ie=utf-8&rsv_pq=cbadc0130dc2f481&oq=rodski&rsv_t=ecb4bLlj7Gt3mdB4mofD2CABI8N1hLZPPz68mxpYJxVKGRk%2BJmyfkXiCNDo&rqid=cbadc0130dc2f481&rsf=53f2179b060e3bb918097f9e464768dc_1_15_1&rsv_dl=0_right_fyb_pchot_20811&sa=0_right_fyb_pchot_20811",
+        "locators": [
+          {
+            "type": "text",
+            "value": "锻造高质量发展新引擎",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.c-font-medium",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[1]/div[2]/div/div/div/div[3]/div[1]/div[1]/div/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "马兴瑞被双开",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?rsv_idx=1&wd=%E9%A9%AC%E5%85%B4%E7%91%9E%E8%A2%AB%E5%8F%8C%E5%BC%80&fenlei=256&usm=3&ie=utf-8&rsv_pq=cbadc0130dc2f481&oq=rodski&rsv_t=ecb4bLlj7Gt3mdB4mofD2CABI8N1hLZPPz68mxpYJxVKGRk%2BJmyfkXiCNDo&rqid=cbadc0130dc2f481&rsf=53f2179b060e3bb918097f9e464768dc_1_15_2&rsv_dl=0_right_fyb_pchot_20811&sa=0_right_fyb_pchot_20811",
+        "locators": [
+          {
+            "type": "text",
+            "value": "马兴瑞被双开",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.c-font-medium",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[1]/div[2]/div/div/div/div[3]/div[1]/div[2]/div/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "存100万5.25%利息？四大行紧急提示",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?rsv_idx=1&wd=%E5%AD%98100%E4%B8%875.25%25%E5%88%A9%E6%81%AF%EF%BC%9F%E5%9B%9B%E5%A4%A7%E8%A1%8C%E7%B4%A7%E6%80%A5%E6%8F%90%E7%A4%BA&fenlei=256&usm=3&ie=utf-8&rsv_pq=cbadc0130dc2f481&oq=rodski&rsv_t=ecb4bLlj7Gt3mdB4mofD2CABI8N1hLZPPz68mxpYJxVKGRk%2BJmyfkXiCNDo&rqid=cbadc0130dc2f481&rsf=53f2179b060e3bb918097f9e464768dc_1_15_3&rsv_dl=0_right_fyb_pchot_20811&sa=0_right_fyb_pchot_20811",
+        "locators": [
+          {
+            "type": "text",
+            "value": "存100万5.25%利息？四大行紧急提示",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.c-font-medium",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[1]/div[2]/div/div/div/div[3]/div[1]/div[3]/div/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "事关收入假期等 未来5年有这些变化",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?rsv_idx=1&wd=%E4%BA%8B%E5%85%B3%E6%94%B6%E5%85%A5%E5%81%87%E6%9C%9F%E7%AD%89%20%E6%9C%AA%E6%9D%A55%E5%B9%B4%E6%9C%89%E8%BF%99%E4%BA%9B%E5%8F%98%E5%8C%96&fenlei=256&usm=3&ie=utf-8&rsv_pq=cbadc0130dc2f481&oq=rodski&rsv_t=ecb4bLlj7Gt3mdB4mofD2CABI8N1hLZPPz68mxpYJxVKGRk%2BJmyfkXiCNDo&rqid=cbadc0130dc2f481&rsf=53f2179b060e3bb918097f9e464768dc_1_15_4&rsv_dl=0_right_fyb_pchot_20811&sa=0_right_fyb_pchot_20811",
+        "locators": [
+          {
+            "type": "text",
+            "value": "事关收入假期等 未来5年有这些变化",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.c-font-medium",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[1]/div[2]/div/div/div/div[3]/div[1]/div[4]/div/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "俞敏洪回应孙东旭与明明天权开公司",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?rsv_idx=1&wd=%E4%BF%9E%E6%95%8F%E6%B4%AA%E5%9B%9E%E5%BA%94%E5%AD%99%E4%B8%9C%E6%97%AD%E4%B8%8E%E6%98%8E%E6%98%8E%E5%A4%A9%E6%9D%83%E5%BC%80%E5%85%AC%E5%8F%B8&fenlei=256&usm=3&ie=utf-8&rsv_pq=cbadc0130dc2f481&oq=rodski&rsv_t=ecb4bLlj7Gt3mdB4mofD2CABI8N1hLZPPz68mxpYJxVKGRk%2BJmyfkXiCNDo&rqid=cbadc0130dc2f481&rsf=53f2179b060e3bb918097f9e464768dc_1_15_5&rsv_dl=0_right_fyb_pchot_20811&sa=0_right_fyb_pchot_20811",
+        "locators": [
+          {
+            "type": "text",
+            "value": "俞敏洪回应孙东旭与明明天权开公司",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.c-font-medium",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[1]/div[2]/div/div/div/div[3]/div[1]/div[5]/div/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "法国男子上海出差背了一台空调回国",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?rsv_idx=1&wd=%E6%B3%95%E5%9B%BD%E7%94%B7%E5%AD%90%E4%B8%8A%E6%B5%B7%E5%87%BA%E5%B7%AE%E8%83%8C%E4%BA%86%E4%B8%80%E5%8F%B0%E7%A9%BA%E8%B0%83%E5%9B%9E%E5%9B%BD&fenlei=256&usm=3&ie=utf-8&rsv_pq=cbadc0130dc2f481&oq=rodski&rsv_t=9b0dAa5koumjG5wq0I%2B7OiAcV%2FZTRcrDSRg9%2BAhOZfU%2F1QSCdVqFgG2XCfc&rqid=cbadc0130dc2f481&rsf=53f2179b060e3bb918097f9e464768dc_1_15_6&rsv_dl=0_right_fyb_pchot_20811&sa=0_right_fyb_pchot_20811",
+        "locators": [
+          {
+            "type": "text",
+            "value": "法国男子上海出差背了一台空调回国",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.c-font-medium",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[1]/div[2]/div/div/div/div[3]/div[1]/div[6]/div/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "被高铁“逼退”的大巴车换了个活法",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?rsv_idx=1&wd=%E8%A2%AB%E9%AB%98%E9%93%81%E2%80%9C%E9%80%BC%E9%80%80%E2%80%9D%E7%9A%84%E5%A4%A7%E5%B7%B4%E8%BD%A6%E6%8D%A2%E4%BA%86%E4%B8%AA%E6%B4%BB%E6%B3%95&fenlei=256&usm=3&ie=utf-8&rsv_pq=cbadc0130dc2f481&oq=rodski&rsv_t=9b0dAa5koumjG5wq0I%2B7OiAcV%2FZTRcrDSRg9%2BAhOZfU%2F1QSCdVqFgG2XCfc&rqid=cbadc0130dc2f481&rsf=53f2179b060e3bb918097f9e464768dc_1_15_7&rsv_dl=0_right_fyb_pchot_20811&sa=0_right_fyb_pchot_20811",
+        "locators": [
+          {
+            "type": "text",
+            "value": "被高铁“逼退”的大巴车换了个活法",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.c-font-medium",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[1]/div[2]/div/div/div/div[3]/div[1]/div[7]/div/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "新车先在国外上市 售价是国内3倍",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?rsv_idx=1&wd=%E6%96%B0%E8%BD%A6%E5%85%88%E5%9C%A8%E5%9B%BD%E5%A4%96%E4%B8%8A%E5%B8%82%20%E5%94%AE%E4%BB%B7%E6%98%AF%E5%9B%BD%E5%86%853%E5%80%8D&fenlei=256&usm=3&ie=utf-8&rsv_pq=cbadc0130dc2f481&oq=rodski&rsv_t=9b0dAa5koumjG5wq0I%2B7OiAcV%2FZTRcrDSRg9%2BAhOZfU%2F1QSCdVqFgG2XCfc&rqid=cbadc0130dc2f481&rsf=53f2179b060e3bb918097f9e464768dc_1_15_8&rsv_dl=0_right_fyb_pchot_20811&sa=0_right_fyb_pchot_20811",
+        "locators": [
+          {
+            "type": "text",
+            "value": "新车先在国外上市 售价是国内3倍",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.c-font-medium",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[1]/div[2]/div/div/div/div[3]/div[1]/div[8]/div/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "伴娘遭婚闹被抛摔致骨折 11人赔23万",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?rsv_idx=1&wd=%E4%BC%B4%E5%A8%98%E9%81%AD%E5%A9%9A%E9%97%B9%E8%A2%AB%E6%8A%9B%E6%91%94%E8%87%B4%E9%AA%A8%E6%8A%98%2011%E4%BA%BA%E8%B5%9423%E4%B8%87&fenlei=256&usm=3&ie=utf-8&rsv_pq=cbadc0130dc2f481&oq=rodski&rsv_t=9b0dAa5koumjG5wq0I%2B7OiAcV%2FZTRcrDSRg9%2BAhOZfU%2F1QSCdVqFgG2XCfc&rqid=cbadc0130dc2f481&rsf=53f2179b060e3bb918097f9e464768dc_1_15_9&rsv_dl=0_right_fyb_pchot_20811&sa=0_right_fyb_pchot_20811",
+        "locators": [
+          {
+            "type": "text",
+            "value": "伴娘遭婚闹被抛摔致骨折 11人赔23万",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.c-font-medium",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[1]/div[2]/div/div/div/div[3]/div[1]/div[9]/div/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "大理百元豪车租赁乱象调查",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?rsv_idx=1&wd=%E5%A4%A7%E7%90%86%E7%99%BE%E5%85%83%E8%B1%AA%E8%BD%A6%E7%A7%9F%E8%B5%81%E4%B9%B1%E8%B1%A1%E8%B0%83%E6%9F%A5&fenlei=256&usm=3&ie=utf-8&rsv_pq=cbadc0130dc2f481&oq=rodski&rsv_t=9b0dAa5koumjG5wq0I%2B7OiAcV%2FZTRcrDSRg9%2BAhOZfU%2F1QSCdVqFgG2XCfc&rqid=cbadc0130dc2f481&rsf=53f2179b060e3bb918097f9e464768dc_1_15_10&rsv_dl=0_right_fyb_pchot_20811&sa=0_right_fyb_pchot_20811",
+        "locators": [
+          {
+            "type": "text",
+            "value": "大理百元豪车租赁乱象调查",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.c-font-medium",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[1]/div[2]/div/div/div/div[3]/div[1]/div[10]/div/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "小贝不顾形象狂欢 妻子一脸不屑",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?rsv_idx=1&wd=%E5%B0%8F%E8%B4%9D%E4%B8%8D%E9%A1%BE%E5%BD%A2%E8%B1%A1%E7%8B%82%E6%AC%A2%20%E5%A6%BB%E5%AD%90%E4%B8%80%E8%84%B8%E4%B8%8D%E5%B1%91&fenlei=256&usm=3&ie=utf-8&rsv_pq=cbadc0130dc2f481&oq=rodski&rsv_t=9b0dAa5koumjG5wq0I%2B7OiAcV%2FZTRcrDSRg9%2BAhOZfU%2F1QSCdVqFgG2XCfc&rqid=cbadc0130dc2f481&rsf=53f2179b060e3bb918097f9e464768dc_1_15_11&rsv_dl=0_right_fyb_pchot_20811&sa=0_right_fyb_pchot_20811",
+        "locators": [
+          {
+            "type": "text",
+            "value": "小贝不顾形象狂欢 妻子一脸不屑",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.c-font-medium",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[1]/div[2]/div/div/div/div[3]/div[1]/div[11]/div/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "台风淹水致商铺狼藉图片为AI合成",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?rsv_idx=1&wd=%E5%8F%B0%E9%A3%8E%E6%B7%B9%E6%B0%B4%E8%87%B4%E5%95%86%E9%93%BA%E7%8B%BC%E8%97%89%E5%9B%BE%E7%89%87%E4%B8%BAAI%E5%90%88%E6%88%90&fenlei=256&usm=3&ie=utf-8&rsv_pq=cbadc0130dc2f481&oq=rodski&rsv_t=9b0dAa5koumjG5wq0I%2B7OiAcV%2FZTRcrDSRg9%2BAhOZfU%2F1QSCdVqFgG2XCfc&rqid=cbadc0130dc2f481&rsf=53f2179b060e3bb918097f9e464768dc_1_15_12&rsv_dl=0_right_fyb_pchot_20811&sa=0_right_fyb_pchot_20811",
+        "locators": [
+          {
+            "type": "text",
+            "value": "台风淹水致商铺狼藉图片为AI合成",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.c-font-medium",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[1]/div[2]/div/div/div/div[3]/div[1]/div[12]/div/a",
+            "priority": 6
+          }
+        ]
+      }
+    ]
+  },
+  "ai_hint": "这是一份 RodSki 测试录制素材包。请基于 steps（操作序列）和 final_page_snapshot（页面元素）生成符合 RodSki 格式的 case XML 和 model.xml。注意：\n1. type 关键字支持批量数据，合并连续 input 步骤为单行\n2. 在关键断言点补充 verify 步骤\n3. 定位器优先使用 id，其次 xpath\n4. 输出格式参考 rodski/docs/TEST_CASE_WRITING_GUIDE.md"
+}

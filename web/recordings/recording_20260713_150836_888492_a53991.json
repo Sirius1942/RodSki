@@ -1,0 +1,29 @@
+{
+  "rodski_plugin_version": "1.0.0",
+  "recorded_at": "2026-07-13T10:00:00Z",
+  "exported_at": "2026-07-13T10:01:00Z",
+  "base_url": "http://localhost/worker-0",
+  "total_steps": 1,
+  "total_screenshots": 0,
+  "steps": [
+    {
+      "seq": 1,
+      "action": "click",
+      "url": "http://localhost/worker-0",
+      "timestamp": "2026-07-13T10:00:01Z",
+      "target": {
+        "tag": "button",
+        "locators": [
+          {
+            "type": "id",
+            "value": "btn-w0-s0",
+            "priority": 1
+          }
+        ]
+      }
+    }
+  ],
+  "screenshots": [],
+  "final_page_snapshot": null,
+  "__worker_id": 0
+}

@@ -1,0 +1,49 @@
+{
+  "edges": [
+    {
+      "action": {
+        "action": "type",
+        "data": "D002",
+        "model": "RoamForm"
+      },
+      "confidence": 1.0,
+      "discovered_by": "case:RT001",
+      "from": "case:RT001",
+      "to": "case:RT001:data:RoamForm:D002"
+    }
+  ],
+  "module": "/Users/sirius.chen/Projects/rodski/rodski-demo/DEMO/demo_roaming_test",
+  "nodes": [
+    {
+      "business_tags": [
+        "roaming",
+        "offline"
+      ],
+      "coverage": "case_verified",
+      "covered_by_cases": [
+        "RT001"
+      ],
+      "findings": [],
+      "id": "case:RT001",
+      "label": "Offline roaming data variant",
+      "last_visited": "2026-08-13T06:27:15Z"
+    },
+    {
+      "business_tags": [
+        "roaming",
+        "offline"
+      ],
+      "coverage": "roam_only",
+      "covered_by_cases": [
+        "RT001"
+      ],
+      "findings": [],
+      "id": "case:RT001:data:RoamForm:D002",
+      "label": "RoamForm:D002",
+      "last_visited": "2026-08-13T06:27:15Z",
+      "roam_visit_count": 1
+    }
+  ],
+  "schema_version": 1,
+  "updated_at": "2026-08-13T06:27:15.305822Z"
+}

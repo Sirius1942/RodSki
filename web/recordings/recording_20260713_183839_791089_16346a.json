@@ -1,0 +1,2664 @@
+{
+  "rodski_plugin_version": "1.0.0",
+  "recorded_at": "2026-07-13T10:38:21.772Z",
+  "exported_at": "2026-07-13T10:38:39.785Z",
+  "base_url": "https://www.baidu.com/",
+  "total_steps": 7,
+  "total_screenshots": 0,
+  "steps": [
+    {
+      "seq": 1,
+      "action": "navigate",
+      "timestamp": "2026-07-13T10:38:21.773Z",
+      "url": "https://www.baidu.com/",
+      "title": "百度一下，你就知道"
+    },
+    {
+      "seq": 2,
+      "action": "click",
+      "timestamp": "2026-07-13T10:38:28.192Z",
+      "url": "https://www.baidu.com/",
+      "target": {
+        "tag": "div",
+        "description": "<div.chat-input-container>👈 复杂问题文心助手回答更优     </div>",
+        "locators": [
+          {
+            "type": "css",
+            "value": "div.chat-input-container",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[1]/div[2]/div[3]/div/div/div[2]/div/div/div/div/div[1]/div[4]/div[1]",
+            "priority": 6
+          }
+        ]
+      }
+    },
+    {
+      "seq": 3,
+      "action": "click",
+      "timestamp": "2026-07-13T10:38:29.673Z",
+      "url": "https://www.baidu.com/",
+      "target": {
+        "tag": "div",
+        "description": "<div.chat-input-tool>👈 复杂问题文心助手回答更优     </div>",
+        "locators": [
+          {
+            "type": "css",
+            "value": "div.chat-input-tool",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[1]/div[2]/div[3]/div/div/div[2]/div/div/div/div/div[1]/div[4]/div[1]/div[3]",
+            "priority": 6
+          }
+        ]
+      }
+    },
+    {
+      "seq": 4,
+      "action": "click",
+      "timestamp": "2026-07-13T10:38:30.622Z",
+      "url": "https://www.baidu.com/",
+      "target": {
+        "tag": "textarea",
+        "description": "<textarea#chat-textarea.chat-input-textarea></textarea>",
+        "locators": [
+          {
+            "type": "id",
+            "value": "chat-textarea",
+            "priority": 1
+          },
+          {
+            "type": "css",
+            "value": "textarea.chat-input-textarea",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[1]/div[2]/div[3]/div/div/div[2]/div/div/div/div/div[1]/div[4]/div[1]/div[2]/textarea",
+            "priority": 6
+          }
+        ]
+      }
+    },
+    {
+      "seq": 5,
+      "action": "input",
+      "timestamp": "2026-07-13T10:38:31.947Z",
+      "url": "https://www.baidu.com/",
+      "value": "测试",
+      "target": {
+        "tag": "textarea",
+        "description": "<textarea#chat-textarea.chat-input-textarea></textarea>",
+        "locators": [
+          {
+            "type": "id",
+            "value": "chat-textarea",
+            "priority": 1
+          },
+          {
+            "type": "css",
+            "value": "textarea.chat-input-textarea",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[1]/div[2]/div[3]/div[2]/div/div[2]/div/div/div/div/div[1]/div[4]/div[1]/div[2]/textarea",
+            "priority": 6
+          }
+        ]
+      }
+    },
+    {
+      "seq": 6,
+      "action": "click",
+      "timestamp": "2026-07-13T10:38:33.823Z",
+      "url": "https://www.baidu.com/",
+      "target": {
+        "tag": "li",
+        "description": "<li.bdsug-item>测试一下</li>",
+        "locators": [
+          {
+            "type": "css",
+            "value": "li.bdsug-item",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[1]/div[2]/div[3]/div[2]/div/div[2]/div/div/div/div/div[1]/div[4]/div[2]/div[1]/ul/li[1]",
+            "priority": 6
+          }
+        ]
+      }
+    },
+    {
+      "seq": 7,
+      "action": "click",
+      "timestamp": "2026-07-13T10:38:34.810Z",
+      "url": "https://www.baidu.com/s?ie=utf-8&f=3&rsv_bp=1&rsv_idx=1&tn=baidu&wd=%E6%B5%8B%E8%AF%95%E4%B8%80%E4%B8%8B&fenlei=256&rsv_pq=0xc75d1f63071ccd5e&rsv_t=8df9T0HNT0p9p9BiPF%2FHIJJ0w2Sj3KZFIrRIGzE7Ffzezfguw%2BxKN6gFGkqU&rqlang=en&rsv_enter=1&rsv_dl=ts_0&rsv_sug3=7&rsv_sug1=5&rsv_sug7=101&rsv_sug2=1&rsv_btype=i&prefixsug=%25E6%25B5%258B%25E8%25AF%2595&rsp=0&inputT=5318&rsv_sug4=5318&rsv_sug=1",
+      "target": {
+        "tag": "button",
+        "description": "<button#chat-submit-button>百度一下</button>",
+        "locators": [
+          {
+            "type": "id",
+            "value": "chat-submit-button",
+            "priority": 1
+          },
+          {
+            "type": "text",
+            "value": "百度一下",
+            "priority": 3
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/div[2]/div[2]/div/div/div/div[1]/div[4]/div[1]/div[3]/div[3]/button",
+            "priority": 6
+          }
+        ]
+      }
+    }
+  ],
+  "screenshots": [],
+  "final_page_snapshot": {
+    "url": "https://www.baidu.com/s?ie=utf-8&f=3&rsv_bp=1&rsv_idx=1&tn=baidu&wd=%E6%B5%8B%E8%AF%95%E4%B8%80%E4%B8%8B&fenlei=256&oq=%25E6%25B5%258B%25E8%25AF%2595%25E4%25B8%2580%25E4%25B8%258B&rsv_pq=95b65aa8056e09d5&rsv_t=e5a5rM%2BbNDwfTmHRlyDWnD4a4oFWAhjFTlR9UvUPGOOVCIrZpFp%2BVUXs1BQ&rqlang=en&rsv_enter=1&rsv_dl=ts_0&rsv_btype=t&rsv_sug3=8&prefixsug=%25E6%25B5%258B%25E8%25AF%2595%25E4%25B8%2580%25E4%25B8%258B&rsp=0&rsv_sug=1",
+    "title": "测试一下_百度搜索",
+    "timestamp": "2026-07-13T10:38:39.776Z",
+    "interactive_elements": [
+      {
+        "tag": "a",
+        "id": "aging-total-page",
+        "name": null,
+        "type": null,
+        "text": null,
+        "placeholder": null,
+        "href": "javascript:void(0)",
+        "locators": [
+          {
+            "type": "id",
+            "value": "aging-total-page",
+            "priority": 1
+          },
+          {
+            "type": "aria-label",
+            "value": "欢迎进入 百度一下，你就知道，盲人用户进入读屏幕模式请按快捷键Ctrl加Alt加R；阅读详细操作说明请按快捷键Ctrl加Alt加问号键。",
+            "priority": 2
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "id": "s_is_result_css",
+        "name": null,
+        "type": "textarea",
+        "text": "<style data-for=\"result\" type=\"text/css\" >html{fon",
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "id",
+            "value": "s_is_result_css",
+            "priority": 1
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/textarea[1]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "id": "s_index_off_css",
+        "name": null,
+        "type": "textarea",
+        "text": "<style data-for=\"result\" id=\"css_result\" type=\"tex",
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "id",
+            "value": "s_index_off_css",
+            "priority": 1
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/textarea[2]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "百度首页",
+        "placeholder": null,
+        "href": "https://www.baidu.com/",
+        "locators": [
+          {
+            "type": "text",
+            "value": "百度首页",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.toindex",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[1]/div[2]/a[1]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": "tj_settingicon",
+        "type": null,
+        "text": "设置",
+        "placeholder": null,
+        "href": "javascript:;",
+        "locators": [
+          {
+            "type": "name",
+            "value": "tj_settingicon",
+            "priority": 2
+          },
+          {
+            "type": "text",
+            "value": "设置",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.pf",
+            "priority": 5
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": "tj_login",
+        "type": null,
+        "text": "登录",
+        "placeholder": null,
+        "href": "https://passport.baidu.com/v2/?login&tpl=mn&u=http%3A%2F%2Fwww.baidu.com%2F&sms=5",
+        "locators": [
+          {
+            "type": "name",
+            "value": "tj_login",
+            "priority": 2
+          },
+          {
+            "type": "text",
+            "value": "登录",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.lb",
+            "priority": 5
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "新闻",
+        "placeholder": null,
+        "href": "http://news.baidu.com/",
+        "locators": [
+          {
+            "type": "text",
+            "value": "新闻",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.mnav",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[1]/div[3]/a[1]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "hao123",
+        "placeholder": null,
+        "href": "https://www.hao123.com/?src=from_pc",
+        "locators": [
+          {
+            "type": "text",
+            "value": "hao123",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.mnav",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[1]/div[3]/a[2]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "地图",
+        "placeholder": null,
+        "href": "http://map.baidu.com/",
+        "locators": [
+          {
+            "type": "text",
+            "value": "地图",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.mnav",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[1]/div[3]/a[3]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "贴吧",
+        "placeholder": null,
+        "href": "http://tieba.baidu.com/",
+        "locators": [
+          {
+            "type": "text",
+            "value": "贴吧",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.mnav",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[1]/div[3]/a[4]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "视频",
+        "placeholder": null,
+        "href": "https://haokan.baidu.com/?sfrom=baidu-top",
+        "locators": [
+          {
+            "type": "text",
+            "value": "视频",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.mnav",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[1]/div[3]/a[5]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "图片",
+        "placeholder": null,
+        "href": "http://image.baidu.com/",
+        "locators": [
+          {
+            "type": "text",
+            "value": "图片",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.mnav",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[1]/div[3]/a[6]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "网盘",
+        "placeholder": null,
+        "href": "https://pan.baidu.com/?from=1026962h",
+        "locators": [
+          {
+            "type": "text",
+            "value": "网盘",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.mnav",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[1]/div[3]/a[7]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "文库",
+        "placeholder": null,
+        "href": "https://wenku.baidu.com/?fr=bdpcindex",
+        "locators": [
+          {
+            "type": "text",
+            "value": "文库",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.mnav",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[1]/div[3]/a[8]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": "csaitab",
+        "name": null,
+        "type": null,
+        "text": "文心",
+        "placeholder": null,
+        "href": "https://chat.baidu.com/search?isShowHello=1&pd=csaitab&setype=csaitab&extParamsJson=%7B%22enter_type%22%3A%22home_tab%22%7D",
+        "locators": [
+          {
+            "type": "id",
+            "value": "csaitab",
+            "priority": 1
+          },
+          {
+            "type": "text",
+            "value": "文心",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.mnav",
+            "priority": 5
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "搭子DuMate",
+        "placeholder": null,
+        "href": "https://dumate.cn/?track=bdsy",
+        "locators": [
+          {
+            "type": "text",
+            "value": "搭子DuMate",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.mnav",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[1]/div[3]/a[10]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": "tj_briicon",
+        "type": null,
+        "text": "更多",
+        "placeholder": null,
+        "href": "http://www.baidu.com/more/",
+        "locators": [
+          {
+            "type": "name",
+            "value": "tj_briicon",
+            "priority": 2
+          },
+          {
+            "type": "text",
+            "value": "更多",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.s-bri",
+            "priority": 5
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": "tj_fanyi",
+        "type": null,
+        "text": "翻译",
+        "placeholder": null,
+        "href": "http://fanyi.baidu.com/",
+        "locators": [
+          {
+            "type": "name",
+            "value": "tj_fanyi",
+            "priority": 2
+          },
+          {
+            "type": "text",
+            "value": "翻译",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.img-spacing",
+            "priority": 5
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": "tj_xueshu",
+        "type": null,
+        "text": "学术",
+        "placeholder": null,
+        "href": "http://xueshu.baidu.com/",
+        "locators": [
+          {
+            "type": "name",
+            "value": "tj_xueshu",
+            "priority": 2
+          },
+          {
+            "type": "text",
+            "value": "学术",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.img-spacing",
+            "priority": 5
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": "tj_baike",
+        "type": null,
+        "text": "百科",
+        "placeholder": null,
+        "href": "https://baike.baidu.com/",
+        "locators": [
+          {
+            "type": "name",
+            "value": "tj_baike",
+            "priority": 2
+          },
+          {
+            "type": "text",
+            "value": "百科",
+            "priority": 3
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[1]/div[3]/div/div/div[3]/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": "tj_zhidao",
+        "type": null,
+        "text": "知道",
+        "placeholder": null,
+        "href": "https://zhidao.baidu.com/",
+        "locators": [
+          {
+            "type": "name",
+            "value": "tj_zhidao",
+            "priority": 2
+          },
+          {
+            "type": "text",
+            "value": "知道",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.img-spacing",
+            "priority": 5
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": "tj_jiankang",
+        "type": null,
+        "text": "健康",
+        "placeholder": null,
+        "href": "https://jiankang.baidu.com/widescreen/home",
+        "locators": [
+          {
+            "type": "name",
+            "value": "tj_jiankang",
+            "priority": 2
+          },
+          {
+            "type": "text",
+            "value": "健康",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.img-spacing",
+            "priority": 5
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": "tj_yingxiaotuiguang",
+        "type": null,
+        "text": "营销推广",
+        "placeholder": null,
+        "href": "http://e.baidu.com/ebaidu/home?refer=887",
+        "locators": [
+          {
+            "type": "name",
+            "value": "tj_yingxiaotuiguang",
+            "priority": 2
+          },
+          {
+            "type": "text",
+            "value": "营销推广",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.img-spacing",
+            "priority": 5
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": "tj_live",
+        "type": null,
+        "text": "直播",
+        "placeholder": null,
+        "href": "https://live.baidu.com/",
+        "locators": [
+          {
+            "type": "name",
+            "value": "tj_live",
+            "priority": 2
+          },
+          {
+            "type": "text",
+            "value": "直播",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.img-spacing",
+            "priority": 5
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": "tj_mp3",
+        "type": null,
+        "text": "音乐",
+        "placeholder": null,
+        "href": "http://music.taihe.com/",
+        "locators": [
+          {
+            "type": "name",
+            "value": "tj_mp3",
+            "priority": 2
+          },
+          {
+            "type": "text",
+            "value": "音乐",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.img-spacing",
+            "priority": 5
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": "tj_chengpian",
+        "type": null,
+        "text": "橙篇",
+        "placeholder": null,
+        "href": "https://cp.baidu.com/?sa=bdindex",
+        "locators": [
+          {
+            "type": "name",
+            "value": "tj_chengpian",
+            "priority": 2
+          },
+          {
+            "type": "text",
+            "value": "橙篇",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.img-spacing",
+            "priority": 5
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": "tj_more",
+        "type": null,
+        "text": "查看全部百度产品 >",
+        "placeholder": null,
+        "href": "http://www.baidu.com/more/",
+        "locators": [
+          {
+            "type": "name",
+            "value": "tj_more",
+            "priority": 2
+          },
+          {
+            "type": "text",
+            "value": "查看全部百度产品 >",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.c-color-gray2",
+            "priority": 5
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": "s-top-loginbtn",
+        "name": "tj_login",
+        "type": null,
+        "text": "登录",
+        "placeholder": null,
+        "href": "https://passport.baidu.com/v2/?login&tpl=mn&u=http%3A%2F%2Fwww.baidu.com%2F&sms=5",
+        "locators": [
+          {
+            "type": "id",
+            "value": "s-top-loginbtn",
+            "priority": 1
+          },
+          {
+            "type": "name",
+            "value": "tj_login",
+            "priority": 2
+          },
+          {
+            "type": "text",
+            "value": "登录",
+            "priority": 3
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "关闭热搜",
+        "placeholder": null,
+        "href": "javascript:;",
+        "locators": [
+          {
+            "type": "text",
+            "value": "关闭热搜",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.s-set-hotsearch",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[1]/div[4]/div[1]/a[1]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "开启热搜",
+        "placeholder": null,
+        "href": "javascript:;",
+        "locators": [
+          {
+            "type": "text",
+            "value": "开启热搜",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.s-set-hotsearch",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[1]/div[4]/div[1]/a[2]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": "result_logo",
+        "name": null,
+        "type": null,
+        "text": null,
+        "placeholder": null,
+        "href": "https://www.baidu.com/",
+        "locators": [
+          {
+            "type": "id",
+            "value": "result_logo",
+            "priority": 1
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "id": "chat-textarea",
+        "name": null,
+        "type": "textarea",
+        "text": "测试一下",
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "id",
+            "value": "chat-textarea",
+            "priority": 1
+          },
+          {
+            "type": "css",
+            "value": "textarea.chat-input-textarea",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/div[2]/div/div/div/div/div/div[4]/div[1]/div[2]/textarea",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "button",
+        "id": "chat-submit-button",
+        "name": null,
+        "type": "submit",
+        "text": "百度一下",
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "id",
+            "value": "chat-submit-button",
+            "priority": 1
+          },
+          {
+            "type": "text",
+            "value": "百度一下",
+            "priority": 3
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/div[2]/div/div/div/div/div/div[4]/div[1]/div[3]/div[3]/button",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "id": null,
+        "name": "ie",
+        "type": "hidden",
+        "text": null,
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "name",
+            "value": "ie",
+            "priority": 2
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/input[1]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "id": null,
+        "name": "f",
+        "type": "hidden",
+        "text": null,
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "name",
+            "value": "f",
+            "priority": 2
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/input[2]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "id": null,
+        "name": "rsv_bp",
+        "type": "hidden",
+        "text": null,
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "name",
+            "value": "rsv_bp",
+            "priority": 2
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/input[3]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "id": null,
+        "name": "rsv_idx",
+        "type": "hidden",
+        "text": null,
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "name",
+            "value": "rsv_idx",
+            "priority": 2
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/input[4]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "id": null,
+        "name": "ch",
+        "type": "hidden",
+        "text": null,
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "name",
+            "value": "ch",
+            "priority": 2
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/input[5]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "id": null,
+        "name": "tn",
+        "type": "hidden",
+        "text": null,
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "name",
+            "value": "tn",
+            "priority": 2
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/input[6]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "id": null,
+        "name": "bar",
+        "type": "hidden",
+        "text": null,
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "name",
+            "value": "bar",
+            "priority": 2
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/input[7]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "id": "kw",
+        "name": "wd",
+        "type": "text",
+        "text": null,
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "id",
+            "value": "kw",
+            "priority": 1
+          },
+          {
+            "type": "name",
+            "value": "wd",
+            "priority": 2
+          },
+          {
+            "type": "css",
+            "value": "input.s_ipt",
+            "priority": 5
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "id": "su",
+        "name": null,
+        "type": "submit",
+        "text": null,
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "id",
+            "value": "su",
+            "priority": 1
+          },
+          {
+            "type": "css",
+            "value": "input.bg",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/span[2]/input",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": "ime_hw",
+        "type": null,
+        "text": "手写",
+        "placeholder": null,
+        "href": "javascript:;",
+        "locators": [
+          {
+            "type": "name",
+            "value": "ime_hw",
+            "priority": 2
+          },
+          {
+            "type": "text",
+            "value": "手写",
+            "priority": 3
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/span[3]/span/ul/li[1]/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": "ime_py",
+        "type": null,
+        "text": "拼音",
+        "placeholder": null,
+        "href": "javascript:;",
+        "locators": [
+          {
+            "type": "name",
+            "value": "ime_py",
+            "priority": 2
+          },
+          {
+            "type": "text",
+            "value": "拼音",
+            "priority": 3
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/span[3]/span/ul/li[2]/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": "ime_cl",
+        "type": null,
+        "text": "关闭",
+        "placeholder": null,
+        "href": "javascript:;",
+        "locators": [
+          {
+            "type": "name",
+            "value": "ime_cl",
+            "priority": 2
+          },
+          {
+            "type": "text",
+            "value": "关闭",
+            "priority": 3
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/span[3]/span/ul/li[4]/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "id": null,
+        "name": "rn",
+        "type": "hidden",
+        "text": null,
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "name",
+            "value": "rn",
+            "priority": 2
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/input[8]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "id": null,
+        "name": "fenlei",
+        "type": "hidden",
+        "text": null,
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "name",
+            "value": "fenlei",
+            "priority": 2
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/input[9]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "id": null,
+        "name": "oq",
+        "type": "hidden",
+        "text": null,
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "name",
+            "value": "oq",
+            "priority": 2
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/input[10]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "id": null,
+        "name": "rsv_pq",
+        "type": "hidden",
+        "text": null,
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "name",
+            "value": "rsv_pq",
+            "priority": 2
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/input[11]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "id": null,
+        "name": "rsv_t",
+        "type": "hidden",
+        "text": null,
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "name",
+            "value": "rsv_t",
+            "priority": 2
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/input[12]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "id": null,
+        "name": "rqlang",
+        "type": "hidden",
+        "text": null,
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "name",
+            "value": "rqlang",
+            "priority": 2
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/input[13]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "id": null,
+        "name": "rsv_enter",
+        "type": "hidden",
+        "text": null,
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "name",
+            "value": "rsv_enter",
+            "priority": 2
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/input[14]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "id": null,
+        "name": "rsv_dl",
+        "type": "hidden",
+        "text": null,
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "name",
+            "value": "rsv_dl",
+            "priority": 2
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/input[15]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "id": null,
+        "name": "rsv_btype",
+        "type": "hidden",
+        "text": null,
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "name",
+            "value": "rsv_btype",
+            "priority": 2
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/input[16]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "input",
+        "id": null,
+        "name": "rsv_sug3",
+        "type": "hidden",
+        "text": null,
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "name",
+            "value": "rsv_sug3",
+            "priority": 2
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/form/input[17]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "textarea",
+        "id": "hotsearch_data",
+        "name": null,
+        "type": "textarea",
+        "text": "{\n    \"hotsearch\": [\n        \n            \n       ",
+        "placeholder": null,
+        "href": null,
+        "locators": [
+          {
+            "type": "id",
+            "value": "hotsearch_data",
+            "priority": 1
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[3]/div/div/textarea",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "关于百度",
+        "placeholder": null,
+        "href": "https://home.baidu.com/",
+        "locators": [
+          {
+            "type": "text",
+            "value": "关于百度",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.text-color",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[5]/div/p[1]/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "About Baidu",
+        "placeholder": null,
+        "href": "http://ir.baidu.com/",
+        "locators": [
+          {
+            "type": "text",
+            "value": "About Baidu",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.text-color",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[5]/div/p[2]/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "使用百度前必读",
+        "placeholder": null,
+        "href": "https://www.baidu.com/duty",
+        "locators": [
+          {
+            "type": "text",
+            "value": "使用百度前必读",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.text-color",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[5]/div/p[3]/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "帮助中心",
+        "placeholder": null,
+        "href": "https://help.baidu.com/question?prod_id=1",
+        "locators": [
+          {
+            "type": "text",
+            "value": "帮助中心",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.text-color",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[5]/div/p[4]/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "企业推广",
+        "placeholder": null,
+        "href": "https://e.baidu.com/?refer=1271",
+        "locators": [
+          {
+            "type": "text",
+            "value": "企业推广",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.text-color",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[5]/div/p[5]/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "京公网安备11000002000001号",
+        "placeholder": null,
+        "href": "http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=11000002000001",
+        "locators": [
+          {
+            "type": "text",
+            "value": "京公网安备11000002000001号",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.text-color",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[5]/div/p[6]/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "京ICP证030173号",
+        "placeholder": null,
+        "href": "https://beian.miit.gov.cn/",
+        "locators": [
+          {
+            "type": "text",
+            "value": "京ICP证030173号",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.text-color",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[5]/div/p[7]/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "信息网络传播视听节目许可证 0110516",
+        "placeholder": null,
+        "href": "https://www.baidu.com/licence/",
+        "locators": [
+          {
+            "type": "text",
+            "value": "信息网络传播视听节目许可证 0110516",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.text-color",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[5]/div/p[10]/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "About Baidu",
+        "placeholder": null,
+        "href": "http://ir.baidu.com/",
+        "locators": [
+          {
+            "type": "text",
+            "value": "About Baidu",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.text-color",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[5]/div/div[2]/div/div/div[1]/p[1]/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "使用百度前必读",
+        "placeholder": null,
+        "href": "https://www.baidu.com/duty",
+        "locators": [
+          {
+            "type": "text",
+            "value": "使用百度前必读",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.text-color",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[5]/div/div[2]/div/div/div[1]/p[2]/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "帮助中心",
+        "placeholder": null,
+        "href": "https://help.baidu.com/question?prod_id=1",
+        "locators": [
+          {
+            "type": "text",
+            "value": "帮助中心",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.text-color",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[5]/div/div[2]/div/div/div[1]/p[3]/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "企业推广",
+        "placeholder": null,
+        "href": "https://e.baidu.com/?refer=1271",
+        "locators": [
+          {
+            "type": "text",
+            "value": "企业推广",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.text-color",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[5]/div/div[2]/div/div/div[1]/p[4]/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "京公网安备11000002000001号",
+        "placeholder": null,
+        "href": "http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=11000002000001",
+        "locators": [
+          {
+            "type": "text",
+            "value": "京公网安备11000002000001号",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.text-color",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[5]/div/div[2]/div/div/div[1]/p[5]/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "京ICP证030173号",
+        "placeholder": null,
+        "href": "https://beian.miit.gov.cn/",
+        "locators": [
+          {
+            "type": "text",
+            "value": "京ICP证030173号",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.text-color",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[5]/div/div[2]/div/div/div[2]/p[1]/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "信息网络传播视听节目许可证 0110516",
+        "placeholder": null,
+        "href": "https://www.baidu.com/licence/",
+        "locators": [
+          {
+            "type": "text",
+            "value": "信息网络传播视听节目许可证 0110516",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.text-color",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[2]/div[5]/div/div[2]/div/div/div[4]/p/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": null,
+        "placeholder": null,
+        "href": "https://chat.baidu.com/search?word=%E6%B5%8B%E8%AF%95%E4%B8%80%E4%B8%8B&dyTabStr=MTIsMCwzLDEsMiwxMyw3LDYsNSw5&pd=csaitab&setype=csaitab&extParamsJson=%7B%22enter_type%22%3A%22search_a_tab%22%2C%22sa%22%3A%22vs_tab%22%2C%22apagelid%22%3A%2210967918058175432398%22%2C%22ori_lid%22%3A%2210967918058175432398%22%7D",
+        "locators": [
+          {
+            "type": "css",
+            "value": "a.s-tab-item",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[3]/div/div/a[1]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "图片",
+        "placeholder": null,
+        "href": "http://image.baidu.com/i?tn=baiduimage&ps=1&ct=201326592&lm=-1&cl=2&nc=1&ie=utf-8&lid=9835df5d072386ce&dyTabStr=MTIsMCwzLDEsMiwxMyw3LDYsNSw5&word=%E6%B5%8B%E8%AF%95%E4%B8%80%E4%B8%8B",
+        "locators": [
+          {
+            "type": "text",
+            "value": "图片",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.s-tab-item",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[3]/div/div/a[2]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "资讯",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?rtt=1&bsst=1&cl=2&tn=news&ie=utf-8&word=%E6%B5%8B%E8%AF%95%E4%B8%80%E4%B8%8B",
+        "locators": [
+          {
+            "type": "text",
+            "value": "资讯",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.s-tab-item",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[3]/div/div/a[3]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "视频",
+        "placeholder": null,
+        "href": "https://www.baidu.com/sf/vsearch?pd=video&tn=vsearch&lid=9835df5d072386ce&ie=utf-8&wd=%E6%B5%8B%E8%AF%95%E4%B8%80%E4%B8%8B&rsv_spt=7&rsv_bp=1&f=8&oq=%E6%B5%8B%E8%AF%95%E4%B8%80%E4%B8%8B&rsv_pq=9835df5d072386ce&rsv_t=733ct8MJhDqWOCs%2FhFlfUC2r8332KvSHuKwDFoqIV2S%2BV4HKP6PLkNelGAM",
+        "locators": [
+          {
+            "type": "text",
+            "value": "视频",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.s-tab-item",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[3]/div/div/a[4]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "笔记",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?pd=note&rpf=pc&dyTabStr=MTIsMCwzLDEsMiwxMyw3LDYsNSw5&word=%E6%B5%8B%E8%AF%95%E4%B8%80%E4%B8%8B",
+        "locators": [
+          {
+            "type": "text",
+            "value": "笔记",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.s-tab-item",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[3]/div/div/a[5]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "地图",
+        "placeholder": null,
+        "href": "https://map.baidu.com/?newmap=1&ie=utf-8&from=pstab&s=s%26wd%3D%E6%B5%8B%E8%AF%95%E4%B8%80%E4%B8%8B",
+        "locators": [
+          {
+            "type": "text",
+            "value": "地图",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.s-tab-item",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[3]/div/div/a[6]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "贴吧",
+        "placeholder": null,
+        "href": "http://tieba.baidu.com/f?fr=wwwt&ie=utf-8&dyTabStr=MTIsMCwzLDEsMiwxMyw3LDYsNSw5&kw=%E6%B5%8B%E8%AF%95%E4%B8%80%E4%B8%8B",
+        "locators": [
+          {
+            "type": "text",
+            "value": "贴吧",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.s-tab-item",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[3]/div/div/a[7]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "文库",
+        "placeholder": null,
+        "href": "http://wenku.baidu.com/search?lm=0&od=0&ie=utf-8&dyTabStr=MTIsMCwzLDEsMiwxMyw3LDYsNSw5&word=%E6%B5%8B%E8%AF%95%E4%B8%80%E4%B8%8B",
+        "locators": [
+          {
+            "type": "text",
+            "value": "文库",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.s-tab-item",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[3]/div/div/a[8]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "更多",
+        "placeholder": null,
+        "href": "http://www.baidu.com/more/",
+        "locators": [
+          {
+            "type": "text",
+            "value": "更多",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.s-tab-item",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[3]/div/div/a[9]",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "测试心理",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?rsv_idx=1&wd=%E6%B5%8B%E8%AF%95%E5%BF%83%E7%90%86&fenlei=256&usm=4&ie=utf-8&rsv_pq=9835df5d072386ce&oq=%E6%B5%8B%E8%AF%95%E4%B8%80%E4%B8%8B&rsv_t=f42aRTBnxJLanVr4qgOqmyvaITxafYnxsutBonq9I9bve2%2Ft4D44bZmxuqs&rfqid=9835df5d072386ce&rsv_dl=0_prs_28616_1&rq=%E6%B5%8B%E8%AF%95%E4%B8%80%E4%B8%8B&rsf=101636703",
+        "locators": [
+          {
+            "type": "text",
+            "value": "测试心理",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.cos-no-underline",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[2]/div[1]/div/div/div/div/div/div[2]/div[1]/div/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "测试抑郁",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?rsv_idx=1&wd=%E6%B5%8B%E8%AF%95%E6%8A%91%E9%83%81&fenlei=256&usm=4&ie=utf-8&rsv_pq=9835df5d072386ce&oq=%E6%B5%8B%E8%AF%95%E4%B8%80%E4%B8%8B&rsv_t=1c0f6FViBqYvU1u%2B2r70o8Zbo1gqX3VTlFU%2FAXTuYHOKbhc7wJy4VDNKMIQ&rfqid=9835df5d072386ce&rsv_dl=0_prs_28616_2&rq=%E6%B5%8B%E8%AF%95%E4%B8%80%E4%B8%8B&rsf=101631101",
+        "locators": [
+          {
+            "type": "text",
+            "value": "测试抑郁",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.cos-no-underline",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[2]/div[1]/div/div/div/div/div/div[2]/div[2]/div/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "婚姻测试免费",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?rsv_idx=1&wd=%E5%A9%9A%E5%A7%BB%E6%B5%8B%E8%AF%95%E5%85%8D%E8%B4%B9&fenlei=256&usm=4&ie=utf-8&rsv_pq=9835df5d072386ce&oq=%E6%B5%8B%E8%AF%95%E4%B8%80%E4%B8%8B&rsv_t=1c0f6FViBqYvU1u%2B2r70o8Zbo1gqX3VTlFU%2FAXTuYHOKbhc7wJy4VDNKMIQ&rfqid=9835df5d072386ce&rsv_dl=0_prs_28616_3&rq=%E6%B5%8B%E8%AF%95%E4%B8%80%E4%B8%8B&rsf=101631101",
+        "locators": [
+          {
+            "type": "text",
+            "value": "婚姻测试免费",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.cos-no-underline",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[2]/div[1]/div/div/div/div/div/div[2]/div[3]/div/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "测一下",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?rsv_idx=1&wd=%E6%B5%8B%E4%B8%80%E4%B8%8B&fenlei=256&usm=4&ie=utf-8&rsv_pq=9835df5d072386ce&oq=%E6%B5%8B%E8%AF%95%E4%B8%80%E4%B8%8B&rsv_t=1c0f6FViBqYvU1u%2B2r70o8Zbo1gqX3VTlFU%2FAXTuYHOKbhc7wJy4VDNKMIQ&rfqid=9835df5d072386ce&rsv_dl=0_prs_28616_4&rq=%E6%B5%8B%E8%AF%95%E4%B8%80%E4%B8%8B&rsf=101631161",
+        "locators": [
+          {
+            "type": "text",
+            "value": "测一下",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.cos-no-underline",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[2]/div[1]/div/div/div/div/div/div[2]/div[4]/div/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "人脸相似度对比在线测试",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?rsv_idx=1&wd=%E4%BA%BA%E8%84%B8%E7%9B%B8%E4%BC%BC%E5%BA%A6%E5%AF%B9%E6%AF%94%E5%9C%A8%E7%BA%BF%E6%B5%8B%E8%AF%95&fenlei=256&usm=4&ie=utf-8&rsv_pq=9835df5d072386ce&oq=%E6%B5%8B%E8%AF%95%E4%B8%80%E4%B8%8B&rsv_t=1c0f6FViBqYvU1u%2B2r70o8Zbo1gqX3VTlFU%2FAXTuYHOKbhc7wJy4VDNKMIQ&rfqid=9835df5d072386ce&rsv_dl=0_prs_28616_5&rq=%E6%B5%8B%E8%AF%95%E4%B8%80%E4%B8%8B&rsf=101634503",
+        "locators": [
+          {
+            "type": "text",
+            "value": "人脸相似度对比在线测试",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.cos-no-underline",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[2]/div[1]/div/div/div/div/div/div[2]/div[5]/div/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "职业倾向测试免费",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?rsv_idx=1&wd=%E8%81%8C%E4%B8%9A%E5%80%BE%E5%90%91%E6%B5%8B%E8%AF%95%E5%85%8D%E8%B4%B9&fenlei=256&usm=4&ie=utf-8&rsv_pq=9835df5d072386ce&oq=%E6%B5%8B%E8%AF%95%E4%B8%80%E4%B8%8B&rsv_t=1c0f6FViBqYvU1u%2B2r70o8Zbo1gqX3VTlFU%2FAXTuYHOKbhc7wJy4VDNKMIQ&rfqid=9835df5d072386ce&rsv_dl=0_prs_28616_6&rq=%E6%B5%8B%E8%AF%95%E4%B8%80%E4%B8%8B&rsf=101633803",
+        "locators": [
+          {
+            "type": "text",
+            "value": "职业倾向测试免费",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.cos-no-underline",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[2]/div[1]/div/div/div/div/div/div[2]/div[6]/div/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "",
+        "placeholder": null,
+        "href": "https://top.baidu.com/board?platform=pc&sa=pcindex_a_right",
+        "locators": [
+          {
+            "type": "text",
+            "value": "",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.c-color-t",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[2]/div[2]/div/div/div/div[1]/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "换一换",
+        "placeholder": null,
+        "href": "javascript:void(0);",
+        "locators": [
+          {
+            "type": "text",
+            "value": "换一换",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.OP_LOG_BTN",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[2]/div[2]/div/div/div/div[1]/div/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "大国外交的“中国时间”",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?rsv_idx=1&wd=%E5%A4%A7%E5%9B%BD%E5%A4%96%E4%BA%A4%E7%9A%84%E2%80%9C%E4%B8%AD%E5%9B%BD%E6%97%B6%E9%97%B4%E2%80%9D&fenlei=256&usm=4&ie=utf-8&rsv_pq=9835df5d072386ce&oq=%E6%B5%8B%E8%AF%95%E4%B8%80%E4%B8%8B&rsv_t=df8dMxyM2gVLMPAxugI9tBQ5LvE4a7wBe10sF701Ye5Da1NmeXr9qEZlUfQ&rqid=9835df5d072386ce&rsf=5ac7c7550e69b3fd21891e59e15fbd71_1_15_1&rsv_dl=0_right_fyb_pchot_20811&sa=0_right_fyb_pchot_20811",
+        "locators": [
+          {
+            "type": "text",
+            "value": "大国外交的“中国时间”",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.c-font-medium",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[2]/div[2]/div/div/div/div[3]/div[1]/div[1]/div/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "沈阳百年一遇暴雨",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?rsv_idx=1&wd=%E6%B2%88%E9%98%B3%E7%99%BE%E5%B9%B4%E4%B8%80%E9%81%87%E6%9A%B4%E9%9B%A8&fenlei=256&usm=4&ie=utf-8&rsv_pq=9835df5d072386ce&oq=%E6%B5%8B%E8%AF%95%E4%B8%80%E4%B8%8B&rsv_t=df8dMxyM2gVLMPAxugI9tBQ5LvE4a7wBe10sF701Ye5Da1NmeXr9qEZlUfQ&rqid=9835df5d072386ce&rsf=5ac7c7550e69b3fd21891e59e15fbd71_1_15_2&rsv_dl=0_right_fyb_pchot_20811&sa=0_right_fyb_pchot_20811",
+        "locators": [
+          {
+            "type": "text",
+            "value": "沈阳百年一遇暴雨",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.c-font-medium",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[2]/div[2]/div/div/div/div[3]/div[1]/div[2]/div/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "台风过境 唯一贴了米字的窗户破了",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?rsv_idx=1&wd=%E5%8F%B0%E9%A3%8E%E8%BF%87%E5%A2%83%20%E5%94%AF%E4%B8%80%E8%B4%B4%E4%BA%86%E7%B1%B3%E5%AD%97%E7%9A%84%E7%AA%97%E6%88%B7%E7%A0%B4%E4%BA%86&fenlei=256&usm=4&ie=utf-8&rsv_pq=9835df5d072386ce&oq=%E6%B5%8B%E8%AF%95%E4%B8%80%E4%B8%8B&rsv_t=df8dMxyM2gVLMPAxugI9tBQ5LvE4a7wBe10sF701Ye5Da1NmeXr9qEZlUfQ&rqid=9835df5d072386ce&rsf=5ac7c7550e69b3fd21891e59e15fbd71_1_15_3&rsv_dl=0_right_fyb_pchot_20811&sa=0_right_fyb_pchot_20811",
+        "locators": [
+          {
+            "type": "text",
+            "value": "台风过境 唯一贴了米字的窗户破了",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.c-font-medium",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[2]/div[2]/div/div/div/div[3]/div[1]/div[3]/div/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "多元业态激发夏日经济活力",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?rsv_idx=1&wd=%E5%A4%9A%E5%85%83%E4%B8%9A%E6%80%81%E6%BF%80%E5%8F%91%E5%A4%8F%E6%97%A5%E7%BB%8F%E6%B5%8E%E6%B4%BB%E5%8A%9B&fenlei=256&usm=4&ie=utf-8&rsv_pq=9835df5d072386ce&oq=%E6%B5%8B%E8%AF%95%E4%B8%80%E4%B8%8B&rsv_t=df8dMxyM2gVLMPAxugI9tBQ5LvE4a7wBe10sF701Ye5Da1NmeXr9qEZlUfQ&rqid=9835df5d072386ce&rsf=5ac7c7550e69b3fd21891e59e15fbd71_1_15_4&rsv_dl=0_right_fyb_pchot_20811&sa=0_right_fyb_pchot_20811",
+        "locators": [
+          {
+            "type": "text",
+            "value": "多元业态激发夏日经济活力",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.c-font-medium",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[2]/div[2]/div/div/div/div[3]/div[1]/div[4]/div/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "《功夫女足》破5亿 周星驰：感到惭愧",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?rsv_idx=1&wd=%E3%80%8A%E5%8A%9F%E5%A4%AB%E5%A5%B3%E8%B6%B3%E3%80%8B%E7%A0%B45%E4%BA%BF%20%E5%91%A8%E6%98%9F%E9%A9%B0%EF%BC%9A%E6%84%9F%E5%88%B0%E6%83%AD%E6%84%A7&fenlei=256&usm=4&ie=utf-8&rsv_pq=9835df5d072386ce&oq=%E6%B5%8B%E8%AF%95%E4%B8%80%E4%B8%8B&rsv_t=df8dMxyM2gVLMPAxugI9tBQ5LvE4a7wBe10sF701Ye5Da1NmeXr9qEZlUfQ&rqid=9835df5d072386ce&rsf=5ac7c7550e69b3fd21891e59e15fbd71_1_15_5&rsv_dl=0_right_fyb_pchot_20811&sa=0_right_fyb_pchot_20811",
+        "locators": [
+          {
+            "type": "text",
+            "value": "《功夫女足》破5亿 周星驰：感到惭愧",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.c-font-medium",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[2]/div[2]/div/div/div/div[3]/div[1]/div[5]/div/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "沈阳特大暴雨 男子在家隔窗“赏鱼”",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?rsv_idx=1&wd=%E6%B2%88%E9%98%B3%E7%89%B9%E5%A4%A7%E6%9A%B4%E9%9B%A8%20%E7%94%B7%E5%AD%90%E5%9C%A8%E5%AE%B6%E9%9A%94%E7%AA%97%E2%80%9C%E8%B5%8F%E9%B1%BC%E2%80%9D&fenlei=256&usm=4&ie=utf-8&rsv_pq=9835df5d072386ce&oq=%E6%B5%8B%E8%AF%95%E4%B8%80%E4%B8%8B&rsv_t=f42aRTBnxJLanVr4qgOqmyvaITxafYnxsutBonq9I9bve2%2Ft4D44bZmxuqs&rqid=9835df5d072386ce&rsf=5ac7c7550e69b3fd21891e59e15fbd71_1_15_6&rsv_dl=0_right_fyb_pchot_20811&sa=0_right_fyb_pchot_20811",
+        "locators": [
+          {
+            "type": "text",
+            "value": "沈阳特大暴雨 男子在家隔窗“赏鱼”",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.c-font-medium",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[2]/div[2]/div/div/div/div[3]/div[1]/div[6]/div/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "净网：严打编造传播涉汛等涉灾谣言",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?rsv_idx=1&wd=%E5%87%80%E7%BD%91%EF%BC%9A%E4%B8%A5%E6%89%93%E7%BC%96%E9%80%A0%E4%BC%A0%E6%92%AD%E6%B6%89%E6%B1%9B%E7%AD%89%E6%B6%89%E7%81%BE%E8%B0%A3%E8%A8%80&fenlei=256&usm=4&ie=utf-8&rsv_pq=9835df5d072386ce&oq=%E6%B5%8B%E8%AF%95%E4%B8%80%E4%B8%8B&rsv_t=f42aRTBnxJLanVr4qgOqmyvaITxafYnxsutBonq9I9bve2%2Ft4D44bZmxuqs&rqid=9835df5d072386ce&rsf=5ac7c7550e69b3fd21891e59e15fbd71_1_15_7&rsv_dl=0_right_fyb_pchot_20811&sa=0_right_fyb_pchot_20811",
+        "locators": [
+          {
+            "type": "text",
+            "value": "净网：严打编造传播涉汛等涉灾谣言",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.c-font-medium",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[2]/div[2]/div/div/div/div[3]/div[1]/div[7]/div/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "中国首个禁售燃油车省份确认",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?rsv_idx=1&wd=%E4%B8%AD%E5%9B%BD%E9%A6%96%E4%B8%AA%E7%A6%81%E5%94%AE%E7%87%83%E6%B2%B9%E8%BD%A6%E7%9C%81%E4%BB%BD%E7%A1%AE%E8%AE%A4&fenlei=256&usm=4&ie=utf-8&rsv_pq=9835df5d072386ce&oq=%E6%B5%8B%E8%AF%95%E4%B8%80%E4%B8%8B&rsv_t=f42aRTBnxJLanVr4qgOqmyvaITxafYnxsutBonq9I9bve2%2Ft4D44bZmxuqs&rqid=9835df5d072386ce&rsf=5ac7c7550e69b3fd21891e59e15fbd71_1_15_8&rsv_dl=0_right_fyb_pchot_20811&sa=0_right_fyb_pchot_20811",
+        "locators": [
+          {
+            "type": "text",
+            "value": "中国首个禁售燃油车省份确认",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.c-font-medium",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[2]/div[2]/div/div/div/div[3]/div[1]/div[8]/div/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "高盛：中国股票出现“轮动信号”",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?rsv_idx=1&wd=%E9%AB%98%E7%9B%9B%EF%BC%9A%E4%B8%AD%E5%9B%BD%E8%82%A1%E7%A5%A8%E5%87%BA%E7%8E%B0%E2%80%9C%E8%BD%AE%E5%8A%A8%E4%BF%A1%E5%8F%B7%E2%80%9D&fenlei=256&usm=4&ie=utf-8&rsv_pq=9835df5d072386ce&oq=%E6%B5%8B%E8%AF%95%E4%B8%80%E4%B8%8B&rsv_t=f42aRTBnxJLanVr4qgOqmyvaITxafYnxsutBonq9I9bve2%2Ft4D44bZmxuqs&rqid=9835df5d072386ce&rsf=5ac7c7550e69b3fd21891e59e15fbd71_1_15_9&rsv_dl=0_right_fyb_pchot_20811&sa=0_right_fyb_pchot_20811",
+        "locators": [
+          {
+            "type": "text",
+            "value": "高盛：中国股票出现“轮动信号”",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.c-font-medium",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[2]/div[2]/div/div/div/div[3]/div[1]/div[9]/div/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "巴威还在北上 新台风已生成",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?rsv_idx=1&wd=%E5%B7%B4%E5%A8%81%E8%BF%98%E5%9C%A8%E5%8C%97%E4%B8%8A%20%E6%96%B0%E5%8F%B0%E9%A3%8E%E5%B7%B2%E7%94%9F%E6%88%90&fenlei=256&usm=4&ie=utf-8&rsv_pq=9835df5d072386ce&oq=%E6%B5%8B%E8%AF%95%E4%B8%80%E4%B8%8B&rsv_t=f42aRTBnxJLanVr4qgOqmyvaITxafYnxsutBonq9I9bve2%2Ft4D44bZmxuqs&rqid=9835df5d072386ce&rsf=5ac7c7550e69b3fd21891e59e15fbd71_1_15_10&rsv_dl=0_right_fyb_pchot_20811&sa=0_right_fyb_pchot_20811",
+        "locators": [
+          {
+            "type": "text",
+            "value": "巴威还在北上 新台风已生成",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.c-font-medium",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[2]/div[2]/div/div/div/div[3]/div[1]/div[10]/div/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "湖北恩施暴雨呈水柱状铺天盖地倾泻",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?rsv_idx=1&wd=%E6%B9%96%E5%8C%97%E6%81%A9%E6%96%BD%E6%9A%B4%E9%9B%A8%E5%91%88%E6%B0%B4%E6%9F%B1%E7%8A%B6%E9%93%BA%E5%A4%A9%E7%9B%96%E5%9C%B0%E5%80%BE%E6%B3%BB&fenlei=256&usm=4&ie=utf-8&rsv_pq=9835df5d072386ce&oq=%E6%B5%8B%E8%AF%95%E4%B8%80%E4%B8%8B&rsv_t=f42aRTBnxJLanVr4qgOqmyvaITxafYnxsutBonq9I9bve2%2Ft4D44bZmxuqs&rqid=9835df5d072386ce&rsf=5ac7c7550e69b3fd21891e59e15fbd71_1_15_11&rsv_dl=0_right_fyb_pchot_20811&sa=0_right_fyb_pchot_20811",
+        "locators": [
+          {
+            "type": "text",
+            "value": "湖北恩施暴雨呈水柱状铺天盖地倾泻",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.c-font-medium",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[2]/div[2]/div/div/div/div[3]/div[1]/div[11]/div/a",
+            "priority": 6
+          }
+        ]
+      },
+      {
+        "tag": "a",
+        "id": null,
+        "name": null,
+        "type": null,
+        "text": "多人因捏造散布涉汛谣言被拘",
+        "placeholder": null,
+        "href": "https://www.baidu.com/s?rsv_idx=1&wd=%E5%A4%9A%E4%BA%BA%E5%9B%A0%E6%8D%8F%E9%80%A0%E6%95%A3%E5%B8%83%E6%B6%89%E6%B1%9B%E8%B0%A3%E8%A8%80%E8%A2%AB%E6%8B%98&fenlei=256&usm=4&ie=utf-8&rsv_pq=9835df5d072386ce&oq=%E6%B5%8B%E8%AF%95%E4%B8%80%E4%B8%8B&rsv_t=f42aRTBnxJLanVr4qgOqmyvaITxafYnxsutBonq9I9bve2%2Ft4D44bZmxuqs&rqid=9835df5d072386ce&rsf=5ac7c7550e69b3fd21891e59e15fbd71_1_15_12&rsv_dl=0_right_fyb_pchot_20811&sa=0_right_fyb_pchot_20811",
+        "locators": [
+          {
+            "type": "text",
+            "value": "多人因捏造散布涉汛谣言被拘",
+            "priority": 3
+          },
+          {
+            "type": "css",
+            "value": "a.c-font-medium",
+            "priority": 5
+          },
+          {
+            "type": "xpath",
+            "value": "/html/body/div[2]/div[4]/div[1]/div[1]/table/tbody/tr/td/div[2]/div[2]/div/div/div/div[3]/div[1]/div[12]/div/a",
+            "priority": 6
+          }
+        ]
+      }
+    ]
+  },
+  "ai_hint": "这是一份 RodSki 测试录制素材包。请基于 steps（操作序列）和 final_page_snapshot（页面元素）生成符合 RodSki 格式的 case XML 和 model.xml。注意：\n1. type 关键字支持批量数据，合并连续 input 步骤为单行\n2. 在关键断言点补充 verify 步骤\n3. 定位器优先使用 id，其次 xpath\n4. 输出格式参考 rodski/docs/TEST_CASE_WRITING_GUIDE.md"
+}

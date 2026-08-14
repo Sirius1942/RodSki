@@ -213,23 +213,30 @@ scripts/release_check.sh X.Y.Z --build --publish
 
 ## 9. 独立子项目版本管理
 
-`rodski-web` 和 `rodski-agent` 是独立代码库，各自维护版本号，与主仓库（`rodski`）完全解耦。
+`rodski-web`、`rodski-agent`、`rodski-browser-plugin` 是独立代码库，各自维护 git 仓库
+和发布节奏，但**版本号与主仓库（`rodski`）保持同步**（v8.4.0 起）。
 
 ### 9.1 版本号文件
 
 | 项目 | 版本文件 | 当前版本 | 备注 |
 |------|---------|---------|------|
-| **rodski**（主仓库）| `pyproject.toml` / `rodski/__init__.py` / `rodski-skills/VERSION` | 8.1.0 | 同步 5 处 |
-| **rodski-web** | `rodski-web/VERSION` | 1.0.0 | 纯文本 |
-| **rodski-agent** | `rodski-agent/pyproject.toml` + `src/rodski_agent/__init__.py` | 2.3.0 | Python 包 |
+| **rodski**（主仓库）| `pyproject.toml` / `rodski/__init__.py` / `rodski-skills/VERSION` | 8.4.0 | 同步 5 处 |
+| **rodski-web** | `rodski-web/VERSION` | — | 独立演进，不做版本同步 |
+| **rodski-agent** | `rodski-agent/pyproject.toml` + `src/rodski_agent/__init__.py` | 8.4.0 | 与主仓库同步 |
+| **rodski-browser-plugin** | `rodski-browser-plugin/manifest.json` → `"version"` | 8.4.0 | 与主仓库同步 |
 
-### 9.2 独立子项目版本规则
+> `rodski-web` 定位为独立 Web 工具，演进节奏与主仓库差异较大，维持独立版本号。
 
-三者均遵循 `MAJOR.MINOR.PATCH` 规范，触发条件与主仓库相同（见第 2 节）。区别如下：
+### 9.2 版本同步规则
 
-- **rodski-web** 发布时只需更新 `rodski-web/VERSION`，打 tag 格式：`web-vX.Y.Z`
-- **rodski-agent** 发布时更新 `pyproject.toml` 和 `__init__.py`，打 tag 格式：`agent-vX.Y.Z`
-- 主仓库的 `CLAUDE.md` 中"当前版本"只反映主仓库版本，不随子项目变动
+`rodski-agent` 和 `rodski-browser-plugin` 与主仓库采用**统一版本号**发布：
+
+- 每次主仓库发版（PATCH / MINOR），同步更新上述两个子项目的版本号文件
+- tag 格式保持项目前缀，与主仓库 tag 同批打出：
+  - 主仓库：`v8.4.0`
+  - rodski-agent：`agent-v8.4.0`
+  - rodski-browser-plugin：`plugin-v8.4.0`
+- 三个仓库 git 操作独立（各自 `git commit` + `git push`），不共用发布脚本
 
 ### 9.3 AI Agent 操作范围
 
@@ -237,9 +244,13 @@ scripts/release_check.sh X.Y.Z --build --publish
 |------|-----------|----------------|------------------|
 | 修改主仓库版本 | ✅ | ❌ | ❌ |
 | 修改 rodski-web 版本 | ❌ | ✅ | ❌ |
-| 修改 rodski-agent 版本 | ❌ | ❌ | ✅ |
+| 修改 rodski-agent 版本 | ✅（版本同步时）| ❌ | ✅ |
+| 修改 browser-plugin 版本 | ✅（版本同步时）| ❌ | ❌ |
 | 读取子项目代码 | ✅（只读参考）| ✅ | ✅ |
+
+主仓库会话执行版本同步时，可一并更新 `rodski-agent` 和 `rodski-browser-plugin`
+的版本文件，但**不得执行这两个仓库的 git commit / push**，仅更新文件内容。
 
 ---
 
-*文档版本: v3.0 | 最后更新: 2026-06-11*
+*文档版本: v4.0 | 最后更新: 2026-08-13*

@@ -654,8 +654,12 @@ product/                           ← 产品根目录（顶层）
         │   └── data.sqlite        ← 唯一测试数据文件（必须）
         ├── plan/                  ← 测试计划 XML 文件
         │   └── *.xml
-        └── result/                ← 测试结果 XML（框架自动生成）
-            └── result_*.xml
+        ├── result/                ← 测试结果 XML（框架自动生成）
+        │   └── result_*.xml
+        ├── perf/                  ← 可选：压测预编译产物（kind=load 时生成）
+        └── knowledge/             ← 可选：首次写入漫游测试地图时自动生成
+            ├── test_map.json
+            └── test_map.json.lock
 ```
 
 ### 6.2 层级说明
@@ -665,7 +669,7 @@ product/                           ← 产品根目录（顶层）
 | product/ | 产品根目录，固定名称，是最顶层目录 | `product/` |
 | 测试项目 | 按产品/项目组织，可有多个 | `DEMO/`、`ERP/` |
 | 测试模块 | 按业务模块划分，可有多个 | `demo_site/`、`user_module/` |
-| 固定文件夹 | 每个测试模块下必须包含的 6 个目录 | `case/`、`model/`、`fun/`、`data/`、`plan/`、`result/` |
+| 标准文件夹 | 测试模块的 6 个固定命名目录；按能力按需存在 | `case/`、`model/`、`fun/`、`data/`、`plan/`、`result/` |
 
 ### 6.3 固定文件夹职责
 
@@ -677,13 +681,18 @@ product/                           ← 产品根目录（顶层）
 | `data/` | 存放数据表和全局变量 | `data.sqlite`（必须）、`globalvalue.xml`（符合 globalvalue.xsd） |
 | `plan/` | 存放测试计划定义 | `*.xml`（符合 plan.xsd） |
 | `result/` | 存放测试执行结果 | `result_*.xml`（符合 result.xsd，框架自动生成） |
+| `perf/` | 性能压测功能专属的预编译产物目录，可选 | `{plan_id}.py`、`{plan_id}.py.meta` |
+| `knowledge/` | 漫游测试功能专属的知识目录，首次写入时自动创建，可选 | `test_map.json`、`test_map.json.lock` |
+
+`case/`、`model/`、`fun/`、`data/`、`plan/`、`result/` 是标准模块布局中的 6 个固定目录名，但当前 `directory_structure` 合规硬检查只要求 `case/`、`model/`、`data/`。`fun/` 在使用 `run` 工程时需要，`plan/` 在按计划执行时需要，`result/` 由框架按输出需要生成。`perf/` 与 `knowledge/` 都是功能专属目录；尤其不得要求用户为了未启用漫游而手工创建 `knowledge/`。
 
 ### 6.4 禁止变更
 
 - **product 必须是最顶层目录**，不可将项目/模块提升到 product 之上
-- **6 个固定文件夹名称不可更改**（case/model/fun/data/plan/result）
+- **标准文件夹名称不可更改**（case/model/fun/data/plan/result）；是否必须存在按上一节能力与合规规则判断
 - **固定文件夹只出现在测试模块层级下**，不可出现在测试项目层级
 - **model.xml 是唯一的模型文件名**，不可改名
+- **不得把 `perf/` 或 `knowledge/` 加入 `REQUIRED_MODULE_DIRS`**；它们按功能需要生成
 
 ---
 
@@ -722,10 +731,17 @@ RodskiXmlValidator.validate_file("path/to/case.xml", RodskiXmlValidator.KIND_CAS
 | 全局变量 XML | `schemas/globalvalue.xsd` | `data/` | 全局变量定义 |
 | 测试计划 XML | `schemas/plan.xsd` | `plan/` | 测试计划定义 |
 | 结果 XML | `schemas/result.xsd` | `result/` | 测试结果 + 测试摘要 |
+| 漫游测试地图 JSON | 无 XSD/JSON Schema；应用层校验 | `knowledge/` | `test_map.json`，固定 `schema_version=1`；更高版本只读 |
 
 ### 7.2 Case XML 格式约束（三阶段 · 多 `test_step`）
 
-每个 `<case>` 下**固定三个阶段容器**（XSD 顺序：`pre_process` → `test_case` → `post_process`）：
+每个 `<case>` 下**固定三个 XML 阶段容器**（XSD 顺序：`pre_process` → `test_case` → `post_process`）。启用漫游时，执行器在成功的 `test_case` 与 `post_process` 之间增加一个同步运行时阶段：
+
+```text
+pre_process → test_case → roaming（可选）→ post_process
+```
+
+漫游不是新的 XML 容器，不写入 case 文件；`post_process` 无论是否漫游都恰好执行一次。
 
 | 阶段容器 | XSD | 说明 |
 |---------|-----|------|
@@ -738,12 +754,13 @@ RodskiXmlValidator.validate_file("path/to/case.xml", RodskiXmlValidator.KIND_CAS
 - 各阶段内按 `<test_step>` 出现顺序依次执行。
 - **预处理**若某步失败：跳过**用例阶段**，**仍执行后处理**（便于清理）。
 - **用例阶段**若某步失败：**仍执行后处理**（关闭浏览器、回滚等清理步骤）。
+- **用例阶段成功且漫游三层开关均满足**：同步执行漫游后再进入后处理；漫游发现/失败不改变基础用例 PASS/FAIL。
 - **后处理**若失败：整条用例记为失败。
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <cases>
-  <case execute="是" id="c001" title="登录测试" description="..." component_type="界面">
+  <case execute="是" id="c001" title="登录测试" description="..." component_type="界面" roam="是">
     <pre_process>
       <test_step action="navigate" model="" data="GlobalValue.DefaultValue.URL/login"/>
     </pre_process>
@@ -765,6 +782,7 @@ RodskiXmlValidator.validate_file("path/to/case.xml", RodskiXmlValidator.KIND_CAS
 | `case.title` | 是 | 用例标题 |
 | `case.description` | 否 | 用例描述 |
 | `case.component_type` | 否 | `界面` / `接口` / `数据库` |
+| `case.roam` | 否 | `是` / `否`，默认 `否`；仅 `component_type=""` 或 `界面` 可设为 `是`，非空且非 `界面` 时抛 `SKI803` |
 | `pre_process` | 否 | 预处理阶段容器；可省略或为空容器 |
 | `test_case` | **是** | **每个 case 必须且仅有 1 个**；内至少 1 个 `test_step` |
 | `post_process` | 否 | 后处理阶段容器 |
@@ -1068,6 +1086,28 @@ case XML 中 <case execute="否">
 - 若接入多模态 LLM，必须保留“证据引用 + 置信度”，禁止裸结论。
 - 低置信度（如 < 0.6）不得自动执行高风险动作（如 `force_terminate`），需降级为人工确认或仅 `pause`。
 - 判别结果属于“策略输入”，不直接改写原始执行结果；最终状态仍由执行器语义决定（PASS/FAIL/SKIP/ERROR）。
+
+---
+
+### 8.9 漫游测试执行约束（v8.3.0）
+
+漫游是成功 `test_case` 与恰好一次 `post_process` 之间的**同步可选阶段**，不是 §8.6 的外部运行时控制命令。进入漫游必须同时满足：
+
+1. `globalvalue.xml` 中 `Roam.Enabled=是`
+2. 当前 `case.roam="是"`
+3. CLI 显式使用 `rodski roam --case` 或 `rodski run --roam`
+
+单用例命令对找不到或不满足条件的目标分别报告 `SKI801`/`SKI802`；批量 `--roam` 对不满足条件的用例静默跳过。`case.roam="是"` 仅允许 `component_type` 为空或为 `界面`，否则抛 `SKI803`。
+
+**决策引擎**（v8.4.0 架构解耦）：`rodski/core/` 不含任何具体决策引擎实现。进程内 `on_case_pass_roam_ready` Hook 必须注入决策引擎；没有有效 Handler 时以 `stopped_reason="no_handler"` 正常结束。CLI 可通过 `--roam-engine path/to/module.py` 加载引擎模块（模块须导出 `create_engine()` 工厂函数），适用于 subprocess 场景。
+
+**步骤执行**：`_run_roam_session()` 把每个可执行动作转换为普通 test-step 字典，并同步调用 `_run_steps([step], "漫游")`。临时资源采用“快照 → `apply_insert_resources` → `_run_steps` → `finally` 恢复”流程。漫游步骤**不得**通过运行时控制命令的 insert 通道执行。
+
+**安全守卫**：不可逆动作和低于 `MinConfidenceToAct` 的动作只记录不执行；同一 `(action, model, data)` 不重复执行；变体数、时长、token 或成本预算耗尽只写入 `stopped_reason`，不抛异常。核心默认引擎不调用 LLM，自定义引擎可回报 token/cost usage 并受同一预算约束。
+
+**结果边界**：漫游 finding 或执行失败均不改变基础用例 PASS/FAIL。`roam_summary` 附加到结果字典并通过 JSON formatter 透传；v8.4.0 起同时写入 `CaseReport.roam`（`RoamReport` dataclass）；XSD 已定义 `RoamSummaryType`/`RoamFindingType`，HTML 报告扩展留后续迭代。
+
+**测试地图**：`knowledge/` 只在首次写入时自动创建。`test_map.json` 使用 `schema_version=1`；标准库 Unix/Windows 文件锁超时 5 秒；锁内重新读取、按节点 `id` 和边 `(from,to,action)` 合并，再原子替换。读取到更高 schema 版本时只读，禁止旧实现覆盖。
 
 ---
 
@@ -1920,11 +1960,16 @@ test:
 - [ ] SUPPORTED 关键字列表与文档一致（§5）
 - [ ] UI 原子动作（click/hover 等）不在 SUPPORTED 中（§1.2）
 - [ ] 目录结构符合 `product/项目/模块` 规范（§6）
+- [ ] `directory_structure` 硬检查只要求 `case/model/data`；`fun/plan/result` 按能力需要，`perf/knowledge` 保持功能专属目录（§6）
 - [ ] 测试计划只存放在 `plan/*.xml`，不进入 `data.sqlite`（§7.7）
 - [ ] `@plan_id` 与 tag/group/priority selector 固定互斥（§7.7）
 - [ ] 自检不使用 pytest（§9）
 - [ ] 数据表格式符合规范（§7.3）
 - [ ] 视觉定位器类型符合规范（§10）
+- [ ] `case.roam` 仅用于 UI case，三层开关、四阶段时序和基础 PASS/FAIL 语义符合 §7.2/§8.9
+- [ ] 漫游动作复用现有关键字和 `_run_steps`，未新增关键字或借用外部运行时 insert 通道
+- [ ] `rodski/core/` 不含具体决策引擎实现；`on_case_pass_roam_ready` 或 `--roam-engine` 提供引擎（§8.9）
+- [ ] `CaseReport.roam`（`RoamReport`）已在 `data_model.py` 声明，XSD 已定义 `RoamSummaryType`
 
 ---
 
@@ -1952,7 +1997,7 @@ kind=load 与 kind=suite 是完全独立的执行路径：
 - 压测时不截图，不执行 post_process 阶段
 
 ### 21.5 目录结构新增 perf/
-各测试模块固定目录：case/ model/ data/ plan/ fun/ result/ perf/（v8.0 新增）
+`perf/` 是 v8.0 新增的性能压测功能专属目录，仅在需要预编译压测计划时生成；它不改变 §6 定义的标准目录布局或 `case/model/data` 硬检查。漫游的 `knowledge/` 同样遵循这一可选/自动生成先例。
 
 ## 统一运行时上下文约束（§10）
 

@@ -11,6 +11,13 @@ os.chdir(project_root)  # 切换到项目根目录以便正确加载 config.yaml
 import yaml
 from flask import Flask, render_template, jsonify, request, session
 
+# CORS 支持（浏览器插件跨域访问）
+try:
+    from flask_cors import CORS
+    _has_cors = True
+except ImportError:
+    _has_cors = False
+
 # 加载配置
 with open('config.yaml') as f:
     CONFIG = yaml.safe_load(f)
@@ -18,6 +25,10 @@ with open('config.yaml') as f:
 app = Flask(__name__, template_folder=os.path.join(project_root, 'templates'), static_folder=os.path.join(project_root, 'static'))
 app.secret_key = os.urandom(24)
 app.config['RODSKI_CONFIG'] = CONFIG
+
+# 配置 CORS：允许浏览器插件（chrome-extension:// 和 moz-extension://）跨域访问 /api/*
+if _has_cors:
+    CORS(app, resources={r'/api/*': {'origins': ['chrome-extension://*', 'moz-extension://*', 'http://localhost:*', 'http://127.0.0.1:*']}})
 
 
 def get_current_project():
@@ -35,11 +46,12 @@ def get_data_path():
 
 
 # 注册蓝图
-from src.api import cases, models, results, runner
+from src.api import cases, models, results, runner, plugin
 app.register_blueprint(cases.bp)
 app.register_blueprint(models.bp)
 app.register_blueprint(results.bp)
 app.register_blueprint(runner.bp)
+app.register_blueprint(plugin.bp)
 
 
 @app.route('/')

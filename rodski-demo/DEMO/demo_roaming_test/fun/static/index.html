@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>RodSki Offline Roaming Target</title>
+    <style>
+        body { font-family: sans-serif; max-width: 36rem; margin: 3rem auto; }
+        label { display: grid; gap: 0.5rem; }
+        input { font: inherit; padding: 0.75rem; }
+        output { display: block; margin-top: 1rem; }
+    </style>
+</head>
+<body>
+    <main>
+        <h1>Offline roaming target</h1>
+        <label for="username">
+            Username
+            <input id="username" name="username" autocomplete="off">
+        </label>
+        <output id="typed-value">empty</output>
+    </main>
+    <script>
+        const input = document.querySelector('#username');
+        const output = document.querySelector('#typed-value');
+        input.addEventListener('input', () => { output.textContent = input.value; });
+    </script>
+</body>
+</html>

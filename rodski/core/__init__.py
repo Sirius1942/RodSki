@@ -8,6 +8,7 @@ __all__ = [
     'RodskiXmlValidator',
     'XmlSchemaValidationError',
     'DriverFactory',
+    'ExploreExecutor',
 ]
 
 
@@ -33,4 +34,7 @@ def __getattr__(name):
     if name == 'DriverFactory':
         from .driver_factory import DriverFactory
         return DriverFactory
+    if name == 'ExploreExecutor':
+        from .explore_executor import ExploreExecutor
+        return ExploreExecutor
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

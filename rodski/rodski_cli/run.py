@@ -119,6 +119,10 @@ def setup_parser(subparsers):
                         help="执行完毕后自动生成报告 (可选值: html)")
     parser.add_argument("--trace", action="store_true",
                         help="启用 observability，导出 trace.json（执行 trace 树 + 耗时/重试指标）")
+    parser.add_argument("--coverage", action="store_true",
+                        help="启用 JS 代码覆盖率采集（基于 Playwright page.coverage，仅 Chromium 支持）")
+    parser.add_argument("--coverage-output", type=str, default=None, dest="coverage_output",
+                        help="覆盖率报告输出路径（默认: 本次运行结果目录下的 coverage.json）")
     parser.add_argument("--insert-step", action="append", dest="insert_steps",
                         help="插入动态步骤 (格式: action,model,data)")
     parser.add_argument("--tag", "--tags", type=str, default=None, action="append", dest="tags",
@@ -149,6 +153,13 @@ def setup_parser(subparsers):
                         help="移动端平台（android/ios），覆盖 globalvalue.xml Mobile.Platform")
     parser.add_argument("--load-ui-port", type=int, default=8089, dest="load_ui_port",
                         help="压测 Web UI 端口 (默认: 8089)")
+    parser.add_argument("--force-compliance", action="store_true", dest="force_compliance",
+                        help="on_run_start 内置合规检查失败时显式跳过（目录结构缺失除外），跳过会留痕到日志")
+    parser.add_argument("--roam", action="store_true",
+                        help="对本次执行中满足三层开关的通过用例执行漫游测试")
+    parser.add_argument("--roam-engine", dest="roam_engine_module", default=None,
+                        metavar="MODULE_PATH",
+                        help="漫游决策引擎模块路径（Python 文件），须导出 create_engine() 工厂函数")
 
 
 def _get_plan_kind(plan_path) -> str:
@@ -187,6 +198,40 @@ def _build_selector_filters(args) -> Dict[str, Any]:
         "filter_group": getattr(args, "filter_group", None),
         "filter_priority": _split_csv_values(getattr(args, "priority", None)),
         "exclude_tags": _split_csv_values(getattr(args, "exclude_tags", None)),
+    }
+
+
+def _build_hook_context(
+    case_path: Path,
+    module_dir: Path,
+    plan_path: Optional[Path],
+    selector_filters: Dict[str, Any],
+) -> Dict[str, Any]:
+    """构建所有外部 hook 共享的版本、能力和本次运行上下文。"""
+    try:
+        from .capabilities import get_capabilities
+    except ImportError:
+        from rodski.rodski_cli.capabilities import get_capabilities
+
+    capabilities = get_capabilities()
+    context = dict(capabilities)
+    context.update({
+        "rodski_version": capabilities.get("version", "dev"),
+        "case_path": str(case_path),
+        "module_dir": str(module_dir),
+        "plan_id": plan_path.stem if plan_path is not None else None,
+        "plan_path": str(plan_path) if plan_path is not None else None,
+        "selector_filters": selector_filters,
+    })
+    return context
+
+
+def _default_compliance_audit() -> Dict[str, Any]:
+    return {
+        "passed": True,
+        "failed_checks": [],
+        "skipped": False,
+        "skipped_checks": [],
     }
 
 
@@ -301,18 +346,87 @@ def handle(args):
         logging.basicConfig(level=logging.DEBUG)
         logger.setLevel(logging.DEBUG)
 
-    # 构建 selector 过滤参数并检查互斥
+    # 构建 selector 过滤参数。@plan_id 与 selector 互斥检查已归入下方 v8.2.0
+    # on_run_start 合规检查聚合（run_compliance_checks 内的 plan_selector_conflict
+    # 项），不再在此单独硬校验——这样该检查项与其余三项一致，可用 --force-compliance
+    # 显式跳过；只有 directory_structure 检查不可跳过。默认行为（未加
+    # --force-compliance 时冲突仍会阻断执行）与迭代前一致。
     selector_filters = _build_selector_filters(args)
     plan_path_str = str(plan_path) if plan_path else None
+
+    # v8.2.0 Hooks 机制：hooks.json 加载 + on_session_start + on_run_start 合规检查
     try:
-        try:
-            from ..core.test_plan_selection import check_plan_selector_conflict
-        except ImportError:
-            from rodski.core.test_plan_selection import check_plan_selector_conflict
-        check_plan_selector_conflict(plan_path_str, selector_filters)
-    except ValueError as e:
+        from ..core.hooks_config import load_hooks_config
+        from ..core.hooks_runner import run_external_hook
+        from ..core.compliance_check import run_compliance_checks
+        from ..core.exceptions import ComplianceCheckFailedError, InvalidConfigError
+    except ImportError:
+        from rodski.core.hooks_config import load_hooks_config
+        from rodski.core.hooks_runner import run_external_hook
+        from rodski.core.compliance_check import run_compliance_checks
+        from rodski.core.exceptions import ComplianceCheckFailedError, InvalidConfigError
+
+    try:
+        hooks_config = load_hooks_config(module_dir)
+    except InvalidConfigError as e:
         print(f"错误: {e}", file=sys.stderr)
         return 1
+
+    hook_context = _build_hook_context(
+        case_path=case_path,
+        module_dir=module_dir,
+        plan_path=plan_path,
+        selector_filters=selector_filters,
+    )
+
+    if hooks_config.get("on_session_start"):
+        decision = run_external_hook(
+            "on_session_start",
+            hook_context,
+            hooks_config["on_session_start"],
+        )
+        if not decision.allow:
+            print(f"错误: on_session_start hook 拒绝: {decision.reason}", file=sys.stderr)
+            return 1
+
+    force_compliance = getattr(args, "force_compliance", False)
+    compliance_report = run_compliance_checks(
+        case_path=str(case_path),
+        module_dir=str(module_dir),
+        plan_path=plan_path_str,
+        selector_filters=selector_filters,
+    )
+    compliance_audit = compliance_report.to_dict()
+    compliance_audit["skipped"] = bool(force_compliance and not compliance_report.passed)
+    compliance_audit["skipped_checks"] = (
+        list(compliance_report.failed_checks) if compliance_audit["skipped"] else []
+    )
+    if not compliance_report.passed:
+        # 目录结构缺失是硬性前提（连基本文件都定位不到），--force-compliance 不能跳过
+        directory_failure = any(
+            c["check_name"] == "directory_structure" for c in compliance_report.failed_checks
+        )
+        if directory_failure or not force_compliance:
+            try:
+                raise ComplianceCheckFailedError(checks_failed=compliance_report.failed_checks)
+            except ComplianceCheckFailedError as e:
+                print(f"错误: {e}", file=sys.stderr)
+                if not directory_failure:
+                    print("提示: 可使用 --force-compliance 显式跳过（跳过会记录到日志）", file=sys.stderr)
+                return 1
+        else:
+            names = ", ".join(c["check_name"] for c in compliance_report.failed_checks)
+            logger.warning(f"[--force-compliance] 已跳过合规检查失败项: {names}")
+
+    if hooks_config.get("on_run_start"):
+        decision = run_external_hook(
+            "on_run_start",
+            {**hook_context, "compliance": compliance_audit},
+            hooks_config["on_run_start"],
+        )
+        if not decision.allow:
+            print(f"错误: on_run_start hook 拒绝: {decision.reason}", file=sys.stderr)
+            return 1
 
     needs_browser = _needs_browser(case_path, model_path)
 
@@ -324,6 +438,60 @@ def handle(args):
         print(f"浏览器: {args.browser}")
     else:
         print(f"执行模式: 接口 / 浏览器: 未启用")
+
+    # 供 _handle_execute 内 on_case_failure/on_run_end 挂载点和 JSON 审计输出读取。
+    # 这些属性仅用于同一次 handle() 调用内传递，不属于 argparse 的公开契约。
+    args._hooks_config = hooks_config
+    args._hook_context = hook_context
+    args._compliance_audit = compliance_audit
+    args._executor_hooks = {}
+
+    if hooks_config.get("on_case_failure"):
+        failure_specs = hooks_config["on_case_failure"]
+
+        def _notify_case_failure(case, error, screenshot_path):
+            decision = run_external_hook(
+                "on_case_failure",
+                {
+                    **hook_context,
+                    "case_id": case.get("case_id", ""),
+                    "title": case.get("title", ""),
+                    "description": case.get("description", ""),
+                    "component_type": case.get("component_type", ""),
+                    "error_type": type(error).__name__,
+                    "error_message": str(error),
+                    "screenshot_path": screenshot_path,
+                },
+                failure_specs,
+            )
+            if not decision.allow:
+                logger.warning(
+                    "on_case_failure hook 返回 deny；用例已失败，继续失败处理: %s",
+                    decision.reason,
+                )
+
+        args._executor_hooks["on_case_failure"] = [_notify_case_failure]
+
+    roam_engine_module = getattr(args, "roam_engine_module", None)
+    if roam_engine_module and getattr(args, "roam", False):
+        import importlib.util as _ilu
+        _spec = _ilu.spec_from_file_location("_roam_engine_module", roam_engine_module)
+        if _spec is None or _spec.loader is None:
+            logger.error("--roam-engine: 无法加载模块文件 %s", roam_engine_module)
+            sys.exit(1)
+        _mod = _ilu.module_from_spec(_spec)
+        try:
+            _spec.loader.exec_module(_mod)  # type: ignore[union-attr]
+        except Exception as _exc:
+            logger.error("--roam-engine: 加载模块 %s 失败: %s", roam_engine_module, _exc)
+            sys.exit(1)
+        _factory = getattr(_mod, "create_engine", None)
+        if not callable(_factory):
+            logger.error("--roam-engine: 模块 %s 未导出 create_engine() 工厂函数", roam_engine_module)
+            sys.exit(1)
+        _engine = _factory()
+        args._executor_hooks.setdefault("on_case_pass_roam_ready", []).append(_engine)
+        logger.info("--roam-engine: 已注册引擎 %s", type(_engine).__name__)
 
     if dry_run:
         return _handle_dry_run(case_path, model_path, verbose, plan_path=plan_path, selector_filters=selector_filters)
@@ -552,12 +720,14 @@ def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional
     """实际执行测试用例"""
     try:
         from ..core.ski_executor import SKIExecutor
+        from ..core.diagnosis_engine import DiagnosisEngine
         from ..core.config_manager import ConfigManager
         from ..drivers.playwright_driver import PlaywrightDriver
         from ..core.json_formatter import JSONFormatter
         from ..core.runtime_control import RuntimeCommandQueue
     except ImportError:
         from rodski.core.ski_executor import SKIExecutor
+        from rodski.core.diagnosis_engine import DiagnosisEngine
         from rodski.core.config_manager import ConfigManager
         from rodski.drivers.playwright_driver import PlaywrightDriver
         from rodski.core.json_formatter import JSONFormatter
@@ -579,11 +749,19 @@ def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional
 
     config = _apply_recording_args(ConfigManager(), args)
 
+    # --coverage：每创建一个 web 驱动实例即开启采集，run 结束后统一 stop 并聚合导出
+    enable_coverage = bool(getattr(args, "coverage", False))
+    coverage_drivers: List[Any] = []
+
     def create_driver(driver_type: str = "web", **kwargs):
         if driver_type in ("", "web"):
             if not needs_browser:
                 return None
-            return PlaywrightDriver(headless=headless, browser=browser)
+            web_driver = PlaywrightDriver(headless=headless, browser=browser)
+            if enable_coverage and hasattr(web_driver, "start_js_coverage"):
+                web_driver.start_js_coverage()
+                coverage_drivers.append(web_driver)
+            return web_driver
         try:
             from ..core.driver_factory import DriverFactory
         except ImportError:
@@ -607,7 +785,12 @@ def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional
             module_dir=str(module_dir),
             runtime_control=runtime_control,
             enable_trace=enable_trace,
+            hooks=getattr(args, "_executor_hooks", None),
+            diagnosis_engine=DiagnosisEngine(),
         )
+        executor.roam_enabled = bool(getattr(args, "roam", False))
+        executor.roam_mode = getattr(args, "roam_mode", None) or "batch_just_passed"
+        executor.roam_case_id = getattr(args, "roam_case_id", None)
         # --platform 覆盖：将 CLI 指定的平台注入 global_vars，
         # 使 keyword_engine._resolve_mobile_platform() 返回正确平台。
         # 同时自动合并平台专属 globalvalue 文件（如 globalvalue_ios.xml），
@@ -667,12 +850,49 @@ def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional
         )
         duration = time.time() - start_time
 
+        # v8.2.0 Hooks 机制：on_run_end 外部命令 hook（不影响退出码，仅通知）
+        _hooks_cfg = getattr(args, "_hooks_config", None)
+        if _hooks_cfg and _hooks_cfg.get("on_run_end"):
+            try:
+                from ..core.hooks_runner import run_external_hook
+            except ImportError:
+                from rodski.core.hooks_runner import run_external_hook
+            _total = len(results)
+            _passed = sum(1 for r in results if r.get('status', '').upper() == 'PASS')
+            _failed = sum(1 for r in results if r.get('status', '').upper() == 'FAIL')
+            run_external_hook(
+                "on_run_end",
+                {
+                    **getattr(args, "_hook_context", {}),
+                    "case_path": str(case_path),
+                    "total": _total,
+                    "passed": _passed,
+                    "failed": _failed,
+                    "skipped": sum(
+                        1 for r in results if r.get('status', '').upper() == 'SKIP'
+                    ),
+                    "duration": duration,
+                    "status": "passed" if _failed == 0 else "failed",
+                    "compliance": getattr(
+                        args, "_compliance_audit", _default_compliance_audit()
+                    ),
+                },
+                _hooks_cfg["on_run_end"],
+            )
+
         # observability：导出 trace.json 到本次 run 结果目录
         if enable_trace:
             _export_trace(executor, output_format)
 
+        # --coverage：停止采集并导出 coverage.json 到本次 run 结果目录
+        if enable_coverage:
+            _export_coverage(executor, coverage_drivers, getattr(args, "coverage_output", None), output_format)
+
         if output_format == "json":
             output = JSONFormatter.format_success(results, duration)
+            output["compliance"] = getattr(
+                args, "_compliance_audit", _default_compliance_audit()
+            )
             print(JSONFormatter.to_json(output, pretty=True))
             return output["exit_code"]
 
@@ -717,6 +937,9 @@ def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional
     except Exception as e:
         if output_format == "json":
             error_output = JSONFormatter.format_error(e)
+            error_output["compliance"] = getattr(
+                args, "_compliance_audit", _default_compliance_audit()
+            )
             print(JSONFormatter.to_json(error_output, pretty=True), file=sys.stderr)
             return error_output["exit_code"]
 
@@ -758,6 +981,74 @@ def _export_trace(executor, output_format="text"):
             print(f"trace 已导出: {out_path}")
     except Exception as e:
         print(f"警告: trace 导出失败: {e}", file=sys.stderr)
+
+
+def _export_coverage(executor, coverage_drivers: List[Any], coverage_output: Optional[str], output_format="text"):
+    """停止 JS 覆盖率采集，聚合所有驱动实例的结果并导出到 coverage.json。
+
+    - 逐个驱动调用 stop_js_coverage()，聚合原始 entry 列表
+    - 计算每个文件的覆盖率百分比及整体平均值
+    - 默认写入本次 run 结果目录下的 coverage.json，--coverage-output 可覆盖路径
+
+    导出失败不影响 run 主流程退出码。
+    """
+    try:
+        raw_entries: List[Dict[str, Any]] = []
+        for web_driver in coverage_drivers:
+            stop_fn = getattr(web_driver, "stop_js_coverage", None)
+            if stop_fn is None:
+                continue
+            try:
+                raw_entries.extend(stop_fn() or [])
+            except Exception as e:
+                logger.warning(f"停止覆盖率采集失败: {e}")
+
+        files = []
+        total_pct = 0.0
+        for entry in raw_entries:
+            source = entry.get("source") if entry.get("source") is not None else entry.get("text")
+            if not source:
+                continue
+            total_bytes = len(source)
+            if total_bytes == 0:
+                continue
+            used_bytes = sum(
+                max(0, r.get("end", 0) - r.get("start", 0))
+                for r in entry.get("ranges", []) or []
+            )
+            covered_pct = used_bytes / total_bytes * 100
+            total_pct += covered_pct
+            files.append({
+                "url": entry.get("url", ""),
+                "covered_pct": round(covered_pct, 1),
+                "used_bytes": used_bytes,
+                "total_bytes": total_bytes,
+            })
+
+        report = {
+            "summary": {
+                "total_files": len(files),
+                "average_coverage_pct": round(total_pct / len(files), 1) if files else 0.0,
+            },
+            "files": files,
+        }
+
+        if coverage_output:
+            out_path = Path(coverage_output)
+        else:
+            run_dir = getattr(getattr(executor, "result_writer", None), "current_run_dir", None)
+            if not run_dir:
+                return
+            out_path = Path(run_dir) / "coverage.json"
+
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        import json
+        out_path.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
+
+        if output_format == "text":
+            print(f"覆盖率报告已导出: {out_path} (平均覆盖率: {report['summary']['average_coverage_pct']}%)")
+    except Exception as e:
+        print(f"警告: 覆盖率导出失败: {e}", file=sys.stderr)
 
 
 def _print_load_summary(stats, elapsed: float = 0) -> None:

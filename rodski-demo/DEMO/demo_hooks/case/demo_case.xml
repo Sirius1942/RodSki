@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 演示 v8.2.0 Hooks 机制：场景一（on_run_start 合规检查）覆盖到的用例集合 -->
+<cases tags="smoke">
+  <case execute="是" id="c_db_write" title="DB 写操作（会被 before_keyword 拦截）" component_type="数据库" priority="P0">
+    <test_case>
+      <test_step action="DB" model="DemoDB" data="Q_WRITE"/>
+    </test_case>
+  </case>
+
+  <case execute="是" id="c_db_read" title="DB 只读查询（正常放行）" component_type="数据库" priority="P0">
+    <test_case>
+      <test_step action="DB" model="DemoDB" data="Q_READ"/>
+    </test_case>
+  </case>
+</cases>

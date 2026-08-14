@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<models>
+    <!-- browser_plugin demo 接口测试用例不需要 UI 元素模型 -->
+    <!-- 浏览器截图用例（TC_BP_020~023）访问 rodski-web 首页和 plugin 相关页面 -->
+
+    <model name="RodskiWebHome" type="ui">
+        <!-- rodski-web 首页 http://localhost:5002/ -->
+        <element name="pageTitle" type="ui">
+            <location type="css">h1</location>
+        </element>
+        <element name="navCases" type="ui">
+            <location type="css">a[href='/cases']</location>
+        </element>
+    </model>
+
+    <model name="RodskiWebCases" type="ui">
+        <!-- rodski-web /cases 页面 -->
+        <element name="pageHeading" type="ui">
+            <location type="css">h1, h2, .page-title</location>
+        </element>
+    </model>
+</models>

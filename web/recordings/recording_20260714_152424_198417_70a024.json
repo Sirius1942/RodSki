@@ -1,0 +1,49 @@
+{
+  "rodski_plugin_version": "1.0.0",
+  "recorded_at": "2026-07-13T10:00:00Z",
+  "exported_at": "2026-07-13T10:01:00Z",
+  "base_url": "http://localhost/test",
+  "total_screenshots": 0,
+  "steps": [
+    {
+      "seq": 1,
+      "action": "navigate",
+      "url": "http://localhost/test",
+      "timestamp": "2026-07-13T10:00:01Z"
+    },
+    {
+      "seq": 2,
+      "action": "click",
+      "url": "http://localhost/test",
+      "timestamp": "2026-07-13T10:00:02Z",
+      "target": {
+        "tag": "button",
+        "locators": [
+          {
+            "type": "id",
+            "value": "btn1",
+            "priority": 1
+          }
+        ]
+      }
+    },
+    {
+      "seq": 3,
+      "action": "click",
+      "url": "http://localhost/test",
+      "timestamp": "2026-07-13T10:00:03Z",
+      "target": {
+        "tag": "a",
+        "locators": [
+          {
+            "type": "text",
+            "value": "提交",
+            "priority": 3
+          }
+        ]
+      }
+    }
+  ],
+  "screenshots": [],
+  "final_page_snapshot": null
+}

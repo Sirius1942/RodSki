@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<models>
+    <model name="RoamForm" type="ui" driver_type="web" servicename="Local roaming form">
+        <element name="username" type="web">
+            <type>input</type>
+            <location type="id">username</location>
+            <desc>Text input used by the deterministic DataID roaming demo</desc>
+        </element>
+    </model>
+</models>

@@ -10,7 +10,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rodski"
-version = "8.1.1"
+version = "8.4.0"
 description = "RodSki 关键字驱动自动化测试框架 (DEV-ONLY, see root pyproject.toml)"
 requires-python = ">=3.8"
 
@@ -72,3 +72,38 @@ omit = ["*/tests/*", "*/demo_*/*"]
 [tool.coverage.report]
 fail_under = 80
 precision = 2
+
+[tool.mutmut]
+# 变异测试范围：只挑覆盖率高（>=80%）、无 fallback import / 无网络依赖的
+# 独立小模块，保证变异存活主要反映"断言强度"而非环境噪音。
+# core/keyword_engine.py 等大文件覆盖率低且有 try/except ImportError fallback，
+# 暂不纳入——先把这批模块的变异测试跑稳，再逐步扩大范围。
+# 注：source_paths 必须是整个 core 包（而不是单个文件），否则模块内
+# `from .exceptions import ...` 之类的相对 import 在 mutants/ 沙箱里找不到
+# 同包的其他文件。用 only_mutate 把实际变异范围收窄到下面这 9 个文件。
+source_paths = ["core", "builtin_ops"]
+# global_value_parser 依赖 xml_schema_validator 加载 schemas/*.xsd，
+# mutants 沙箱默认不复制非 source_paths 目录，需显式带上。
+also_copy = ["schemas"]
+only_mutate = [
+    "core/condition_evaluator.py",
+    "core/config_manager.py",
+    "core/data_table_parser.py",
+    "core/global_value_parser.py",
+    "core/json_formatter.py",
+    "core/execution_stats.py",
+    "core/case_metadata.py",
+    "core/data_schema_validator.py",
+    "core/metadata_writer.py",
+]
+pytest_add_cli_args_test_selection = [
+    "tests/unit/test_condition_evaluator.py",
+    "tests/unit/test_config_manager.py",
+    "tests/unit/test_data_table_parser.py",
+    "tests/unit/test_global_value_parser.py",
+    "tests/unit/test_json_formatter.py",
+    "tests/unit/test_execution_stats.py",
+    "tests/unit/test_case_metadata.py",
+    "tests/unit/test_data_schema_validator.py",
+    "tests/unit/test_metadata_writer.py",
+]

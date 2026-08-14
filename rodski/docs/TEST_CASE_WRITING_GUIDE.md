@@ -1,8 +1,8 @@
 # RodSki 用例编写指南
 
-**版本**: v8.0.0  
-**日期**: 2026-06-09  
-**适用框架**: RodSki v8.0.0+
+**版本**: v8.3.0
+**日期**: 2026-08-11
+**适用框架**: RodSki v8.3.0+
 
 ---
 
@@ -79,9 +79,14 @@ product/                           ← 产品根目录（最顶层）
         │   └── *_smoke.xml
         ├── perf/                  ← 压测预编译产物（v8.0，kind=load 计划自动生成）
         │   └── api_load_basic.py
+        ├── knowledge/             ← 漫游测试地图（v8.3，首次写入时自动生成）
+        │   ├── test_map.json
+        │   └── test_map.json.lock
         └── result/                ← 测试结果（框架自动生成）
             └── result_20260321_100000.xml
 ```
+
+标准模块布局使用 `case/`、`model/`、`fun/`、`data/`、`plan/`、`result/` 这 6 个固定目录名，但当前目录合规硬检查只要求 `case/`、`model/`、`data/`。`fun/` 在使用 `run` 工程时需要，`plan/` 在按计划执行时需要，`result/` 由框架生成。`perf/` 与 `knowledge/` 都按功能需要出现；`knowledge/` 不需要手工创建，也不参与 `REQUIRED_MODULE_DIRS` 检查。
 
 ### 2.1 XML 文件与目录映射
 
@@ -95,6 +100,7 @@ product/                           ← 产品根目录（最顶层）
 | plan/*.xml | `plan/` 目录 | 测试计划定义，每个文件一个计划 |
 | result_*.xml | `result/` 目录 | 框架自动生成的测试结果 |
 | model.xml | `model/` 目录 | 元素定位模型 |
+| test_map.json | `knowledge/` 目录 | 漫游测试自动生成的知识地图；应用层校验 `schema_version=1`，无 XSD |
 
 ### 2.2 Schema 约束（与 `rodski/schemas` 对齐）
 
@@ -102,7 +108,7 @@ product/                           ← 产品根目录（最顶层）
 
 | XSD 文件 | 根元素 | 编写方 | 核心约束（摘要） |
 |----------|--------|--------|------------------|
-| `case.xsd` | `<cases>` | 人工 | 每个 `<case>` **必须且仅有 1 个** `<test_case>` 容器，其内 **至少 1 个**执行项；执行项可为裸 `<test_step>`，v6.3.0 起也可为 `<scenario>` 容器。`<pre_process>` / `<post_process>` 各 **0～1 个**容器，内为 **0～n 个** `<test_step>`。`execute` 只能是 `是` \| `否`。`component_type`（可选）只能是 `界面` \| `接口` \| `数据库`。每个 `test_step` 的 `action` 为 `ActionType` 枚举（见 [3.6](#36-action-与-casexsd-枚举一致)）。 |
+| `case.xsd` | `<cases>` | 人工 | 每个 `<case>` **必须且仅有 1 个** `<test_case>` 容器，其内 **至少 1 个**执行项；执行项可为裸 `<test_step>`，v6.3.0 起也可为 `<scenario>` 容器。`<pre_process>` / `<post_process>` 各 **0～1 个**容器，内为 **0～n 个** `<test_step>`。`execute` 与 `roam` 都只能是 `是` \| `否`，`roam` 默认 `否`。`component_type`（可选）只能是 `界面` \| `接口` \| `数据库`；`roam="是"` 仅允许 `component_type` 为空或为 `界面`。每个 `test_step` 的 `action` 为 `ActionType` 枚举（见 [3.6](#36-action-与-casexsd-枚举一致)）。 |
 | `model.xsd` | `<models>` | 人工 | `<model>` 须 `name`；`<element>` 须 `name`。仅支持**完整格式**（子节点 `<type>` / `<location>` / `<desc>`），~~简化格式已移除（v5.4.0）~~。`DriverType` / `LocatorType` 取值见 [4.2](#42-元素属性说明)、[4.3](#43-定位类型)。接口保留元素名：`_method`、`_url`、`_header_*`（与数据字段一一对应）。 |
 | `data.xsd` | `<datatable>` / `<datatables>` | 人工 | 已废弃（v6.0.0）。测试数据统一存储在 `data.sqlite`，验证数据表名为 `{模型名}_verify`，`table_kind='verify'`。 |
 | `globalvalue.xsd` | `<globalvalue>` | 人工 | 每个 `<group>` 须 `name`；**所有 group 的 `name` 全局唯一**。每组内至少一个 `<var>`，每个 `var` 须同时具备 `name` 与 `value`；**同一 group 内** `var@name` **唯一**（XSD `xs:unique`）。引用格式：`GlobalValue.组名.变量名`。 |
@@ -132,7 +138,7 @@ xmllint --noout --schema rodski/schemas/case.xsd product/DEMO/demo_site/case/dem
 <?xml version="1.0" encoding="UTF-8"?>
 <cases tags="smoke,login">
   <case execute="是" id="c001" title="登录测试" description="验证登录"
-        component_type="界面" priority="P0">
+        component_type="界面" priority="P0" roam="是">
     <pre_process>
       <test_step action="navigate" model="" data="GlobalValue.DefaultValue.URL/login"/>
     </pre_process>
@@ -167,6 +173,7 @@ xmllint --noout --schema rodski/schemas/case.xsd product/DEMO/demo_site/case/dem
 | `component_type` | 否 | 测试类别 | `界面` / `接口` / `数据库`（与 `case.xsd` 一致），仅做分类标记 |
 | `priority` | 否 | 优先级 | `P0` / `P1` / `P2` / `P3`，CLI 可按优先级过滤 |
 | `expect_fail` | 否 | 预期失败 | `是` / `否`（默认 `否`），标记为预期失败的用例失败时不计入 FAIL |
+| `roam` | 否 | 是否允许显式漫游 | `是` / `否`（默认 `否`）。仅 UI 用例可设为 `是`：`component_type` 可为空或为 `界面`；非空且不是 `界面` 时抛 `SKI803` |
 
 #### `<metadata>` 可选子元素
 
@@ -193,7 +200,7 @@ xmllint --noout --schema rodski/schemas/case.xsd product/DEMO/demo_site/case/dem
 ### 3.3 三阶段执行顺序与失败语义
 
 ```
-预处理（pre_process 内各 test_step）→ 用例（test_case 内各 test_step）→ 后处理（post_process 内各 test_step）
+预处理（pre_process）→ 用例（test_case）→ 漫游（满足条件时可选）→ 后处理（post_process）
 ```
 
 | 规则 | 说明 |
@@ -201,6 +208,7 @@ xmllint --noout --schema rodski/schemas/case.xsd product/DEMO/demo_site/case/dem
 | 顺序 | 先执行完 `pre_process` 中所有步骤，再执行 `test_case`，最后执行 `post_process` |
 | 预处理失败 | 跳过 **用例阶段**，**仍执行后处理** |
 | **用例阶段失败** | **仍执行后处理**（保证 `close`、DB 清理等能跑） |
+| 用例阶段成功且进入漫游 | 漫游同步执行后再进入后处理；后处理始终只执行一次，漫游 finding/失败不改变基础用例 PASS/FAIL |
 | 后处理失败 | 整条用例记为失败 |
 
 ### 3.4 `scenario` 容器（v6.3.0）
@@ -840,6 +848,14 @@ Case XML 写法（验证写在 `<test_case>` 内，作为一条 `test_step`）�
     <var name="type" value="sqlite"/>
     <var name="database" value="product/DEMO/demo_site/demo.db"/>
   </group>
+  <group name="Roam">
+    <var name="Enabled" value="否"/>
+    <var name="MaxVariantsPerCase" value="5"/>
+    <var name="MaxDurationSeconds" value="120"/>
+    <var name="MinConfidenceToAct" value="0.6"/>
+    <var name="MaxTokenBudget" value="20000"/>
+    <var name="MaxCostUsd" value="0.5"/>
+  </group>
 </globalvalue>
 ```
 
@@ -864,6 +880,12 @@ GlobalValue.DefaultValue.WaitTime     → "2"
 | DefaultValue | BrowserType | 浏览器类型 | chromium / firefox / webkit |
 | DefaultValue | WaitTime | 每步执行后自动等待秒数 | 2 |
 | DefaultValue | Headless | 无头模式 | True / False |
+| Roam | Enabled | 漫游全局开关；只有 `是` 才允许显式漫游 | 是 / 否 |
+| Roam | MaxVariantsPerCase | 单个基础用例最多执行的漫游变体数 | 5 |
+| Roam | MaxDurationSeconds | 单个漫游会话时长上限（秒） | 120 |
+| Roam | MinConfidenceToAct | 自动执行动作的最低置信度 | 0.6 |
+| Roam | MaxTokenBudget | 自定义/后续 LLM 引擎 token 上限；核心默认引擎不使用 LLM | 20000 |
+| Roam | MaxCostUsd | 自定义/后续 LLM 引擎成本上限（美元） | 0.5 |
 
 ### 6.4 WaitTime — 默认步骤等待时间
 
@@ -1616,6 +1638,33 @@ case XML 中 <case execute="否">（最高，硬关闭）
 
 **服务端下发命令时**：若**正在执行某一步**（例如页面操作、接口请求、`run` 脚本还在跑），**默认会等这一步结束**再处理你的暂停/插入/普通终止；只有**强制终止**才会尽量立刻停下（具体行为以《核心设计约束》第 8.7 节为准）。
 
+### 11.6 漫游测试（v8.3.0）
+
+漫游围绕一条已经成功走通的 UI 用例继续做受预算约束的数据变体探索。核心默认引擎是纯规则、零 LLM 实现，无需安装 rodski-agent。
+
+**三个开关必须同时满足**：
+
+1. `data/globalvalue.xml` 中 `Roam.Enabled` 为 `是`
+2. 用例显式声明 `roam="是"`
+3. 本次命令显式要求漫游
+
+```bash
+# 定向执行一条用例并漫游；找不到或不满足条件会明确报 SKI801/SKI802
+rodski roam --case c001 product/DEMO/demo_site
+
+# 正常批量执行，并只对合格且 test_case 通过的用例漫游
+rodski run product/DEMO/demo_site/case/ --roam
+rodski run product/DEMO/demo_site/case/ --tag smoke --roam
+```
+
+`rodski roam --case` 表达对单条用例的明确意图，因此会报告资格错误；`rodski run --roam` 是批量模式，不合格用例只跳过漫游，正常用例执行不受影响。`roam="是"` 只适用于 `component_type="界面"` 或未填写类型的 UI 用例；接口/数据库用例声明漫游会抛 `SKI803`。
+
+执行顺序是 `pre_process → test_case → 漫游 → post_process`。漫游只在 `test_case` 成功后同步发生，`post_process` 仍恰好执行一次。漫游的失败或 finding 不会把基础用例从 PASS 改成 FAIL；不可逆动作或低置信度动作只记录、不执行。
+
+v8.3.0 的 `roam_summary` 出现在结果字典和 JSON 输出中，包含 `base_case_id`、触发方式、变体数、停止原因、findings 和测试地图增量。XML `result.xsd` 与 HTML 报告暂不展示漫游明细，属于后续 v2。
+
+第一次需要写入测试地图时，框架会自动创建 `knowledge/test_map.json` 和锁文件。用户无需预建 `knowledge/`，合规检查也不会把它当作模块必备目录。地图固定为 `schema_version=1`；更高版本会以只读方式保护，避免旧版覆盖。
+
 ---
 
 
@@ -2307,5 +2356,5 @@ Return 引用只应写在**数据表 XML 的 field 值中**，不要直接写在
 
 ---
 
-**文档版本**: v8.0.0
-**最后更新**: 2026-06-09
+**文档版本**: v8.3.0
+**最后更新**: 2026-08-11

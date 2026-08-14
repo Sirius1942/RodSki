@@ -186,3 +186,17 @@ class TestCaseMetadataExtractor:
         extractor = CaseMetadataExtractor()
         result = extractor.extract_batch("/nonexistent/path")
         assert result == {}
+
+    def test_extract_batch_case_without_id_skipped(self, tmp_path):
+        """case 节点缺少 id 属性时应被跳过，不产生空字符串 key 的结果项"""
+        xml_content = """<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+  <case priority="P1"><test_case><test_step action="wait" data="1"/></test_case></case>
+  <case id="c001" priority="P2"><test_case><test_step action="wait" data="1"/></test_case></case>
+</cases>"""
+        (tmp_path / "case1.xml").write_text(xml_content, encoding="utf-8")
+
+        extractor = CaseMetadataExtractor()
+        result = extractor.extract_batch(str(tmp_path))
+        assert "" not in result
+        assert list(result.keys()) == ["c001"]

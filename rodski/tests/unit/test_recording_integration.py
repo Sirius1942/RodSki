@@ -48,6 +48,12 @@ def _build_module(tmp_path: Path) -> Path:
 
 
 def _make_driver() -> Mock:
+    """创建带正确 RuntimeContext 的 Mock 驱动，修复 len() 错误"""
+    try:
+        from rodski.core.runtime_context import RuntimeContext
+    except ImportError:
+        from core.runtime_context import RuntimeContext
+
     driver = Mock()
     driver.headless = True
     driver.wait = Mock(return_value=True)
@@ -57,6 +63,14 @@ def _make_driver() -> Mock:
     driver._is_closed = False
     driver.start_case_recording = Mock(side_effect=lambda output_dir, case_id, target_path, video_size=None: target_path)
     driver.stop_case_recording = Mock(side_effect=lambda case_id, target_path: target_path)
+
+    # 修复：浏览器监控方法返回空列表，而非 Mock 对象（Mock 会导致 len() 错误）
+    driver.set_monitor_step = None
+    driver.collect_monitor_errors = None
+
+    # 修复：Mock 的 spec 需要匹配 BaseDriver，让 isinstance 检查通过
+    driver.__class__.__name__ = 'PlaywrightDriver'
+
     return driver
 
 

@@ -139,6 +139,15 @@ class ReportCollector:
         logger.debug(f"[ReportCollector] 开始用例: {self._current_case.case_id}")
         return self._current_case
 
+    def record_diagnosis(self, diagnosis: Dict[str, Any]) -> None:
+        """记录当前用例的 DiagnosisEngine 诊断结果（v8.2.0 Hooks 机制 on_case_failure 挂载点）。
+
+        必须在 start_case() 之后、end_case() 之前调用；无当前用例时静默忽略。
+        """
+        if self._current_case is None:
+            return
+        self._current_case.case_diagnosis = diagnosis
+
     def end_case(self, status: str) -> Optional[CaseReport]:
         """结束当前用例，记录最终状态和耗时"""
         if self._current_case is None:
@@ -293,6 +302,7 @@ class ReportCollector:
             error=step_info.get("error"),
             diagnosis=step_info.get("diagnosis"),
             retry_history=step_info.get("retry_history", []),
+            browser_monitor=step_info.get("browser_monitor", []),
         )
 
         if self._current_phase is not None:

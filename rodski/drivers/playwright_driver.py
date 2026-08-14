@@ -153,6 +153,17 @@ class PlaywrightDriver(BaseDriver):
         self._recording_saved_path: Optional[str] = None
         # 录像后端标识：供 SKIExecutor._select_recording_backend 区分驱动类型
         self.recording_backend = "playwright"
+        # JS 覆盖率采集状态位：跟踪是否已通过 start_js_coverage 开始过采集
+        self._coverage_started = False
+        # 覆盖率采集用的 CDP session（Python Playwright 无 page.coverage API，
+        # 需直接驱动 CDP Profiler domain，详见 start_js_coverage 的说明）
+        self._coverage_cdp_session = None
+        # close() 关闭浏览器前抓取的覆盖率快照：case 的 post_process 常以 close
+        # 结束用例（浏览器在 CLI 调用 stop_js_coverage 前已关闭，CDP session 失效），
+        # 因此需要在 close() 时提前取一次快照，stop_js_coverage 优先返回该快照
+        self._coverage_cached_entries: Optional[list] = None
+        # 页面异常监控器（v0.1）：懒加载，仅在 inject_monitor() 后生效
+        self._browser_monitor = None
 
     def _ensure_browser(self):
         """懒加载：首次需要浏览器时才启动 Playwright 和浏览器实例"""
@@ -182,6 +193,37 @@ class PlaywrightDriver(BaseDriver):
             self.page = self.browser.new_page(no_viewport=True)
         else:
             self.page = self.browser.new_page()
+        # 浏览器启动后立即注入监控（若已初始化则重注入）
+        self.inject_monitor()
+
+    # ── 页面异常监控（v0.1）────────────────────────────────────────────
+
+    def inject_monitor(self) -> None:
+        """注入浏览器异常监控脚本。在 launch / navigate 后调用一次。
+
+        幂等；浏览器未启动时静默跳过。
+        """
+        try:
+            from ..core.browser_monitor import BrowserMonitor
+        except ImportError:
+            from rodski.core.browser_monitor import BrowserMonitor
+        if self._browser_monitor is None:
+            self._browser_monitor = BrowserMonitor(self)
+        self._browser_monitor.inject()
+
+    def set_monitor_step(self, step_id: str) -> None:
+        """标记当前执行的步骤 ID，后续捕获的异常会附带此标记。"""
+        if self._browser_monitor is not None:
+            self._browser_monitor.set_step(step_id)
+
+    def collect_monitor_errors(self) -> list:
+        """读取并清空页面异常缓冲区，返回本 step 内捕获的异常列表。
+
+        返回格式参见 BrowserMonitor.collect() 的文档。
+        """
+        if self._browser_monitor is None:
+            return []
+        return self._browser_monitor.collect()
 
     def _check_driver_alive(self):
         """检查驱动是否存活"""
@@ -345,6 +387,21 @@ class PlaywrightDriver(BaseDriver):
         path = tempfile.mktemp(suffix='.png', prefix=f'screenshot_{int(time.time())}_')
         self.page.screenshot(path=path)
         return path
+
+    def current_url(self) -> Optional[str]:
+        """返回当前页面真实 URL，采集失败或无效前缀时返回 None。"""
+        if self.page is None:
+            return None
+        try:
+            url = self.page.url
+        except Exception:
+            return None
+        if not isinstance(url, str):
+            return None
+        for prefix in ("about:", "data:", "chrome-error:", "chrome://"):
+            if url.startswith(prefix):
+                return None
+        return url or None
 
     def click_locator(self, locator: str, **kwargs) -> bool:
         """点击元素（通过定位器）
@@ -889,13 +946,186 @@ class PlaywrightDriver(BaseDriver):
         except Exception as e:
             logger.debug(f"清理 Playwright 原始录制文件失败: {e}")
 
+    def start_js_coverage(self) -> bool:
+        """开启 JS 覆盖率采集（基于 Chrome DevTools Protocol 的 Profiler domain）。
+
+        注意：Python 版 Playwright 未提供 JS 版独有的 `page.coverage` 封装
+        （见 https://github.com/microsoft/playwright/issues/10137），因此这里
+        直接通过 `context.new_cdp_session` 驱动底层 CDP 协议
+        （Profiler.enable / Debugger.enable / Profiler.startPreciseCoverage），
+        效果与 JS 版 `page.coverage.startJSCoverage()` 一致。
+
+        仅 Chromium 支持该能力（Firefox/WebKit 无对应 CDP 接口）。若浏览器尚未启动，
+        会先触发 `_ensure_browser` 懒加载启动；若当前浏览器不是 chromium，
+        记录 warning 日志并返回 False，不抛出异常。
+
+        Returns:
+            True 表示已成功开始采集；False 表示不支持或启动失败。
+        """
+        if self.browser_name != "chromium":
+            logger.warning(
+                f"JS 覆盖率采集仅支持 chromium，当前浏览器: {self.browser_name}，已跳过"
+            )
+            return False
+
+        self._ensure_browser()
+        if self.page is None:
+            logger.warning("JS 覆盖率采集启动失败: page 未初始化")
+            return False
+
+        try:
+            cdp = self.page.context.new_cdp_session(self.page)
+            cdp.send("Profiler.enable")
+            cdp.send("Debugger.enable")
+            cdp.send("Profiler.startPreciseCoverage", {"callCount": True, "detailed": True})
+            self._coverage_cdp_session = cdp
+            self._coverage_started = True
+            logger.debug("JS 覆盖率采集已开始 (CDP Profiler)")
+            return True
+        except Exception as e:
+            logger.warning(f"JS 覆盖率采集启动失败: {e}")
+            return False
+
+    @staticmethod
+    def _coverage_ranges_to_disjoint(nested_ranges: list) -> list:
+        """将 V8 嵌套的函数级覆盖 range 转换为字节级不重叠 range 列表。
+
+        复刻 Playwright JS 版 `convertToDisjointRanges` 的扫描线算法：
+        CDP `Profiler.takePreciseCoverage` 返回的 range 按函数嵌套（父函数
+        range 包含子函数 range），需要展平为按 count>0 合并的不重叠区间，
+        才能与 JS 版 `page.coverage.stopJSCoverage()` 的 `ranges` 字段等价。
+
+        Args:
+            nested_ranges: 同一脚本内所有函数的 range 列表，每项含
+                startOffset/endOffset/count
+
+        Returns:
+            list[dict]: 不重叠 range 列表，每项 {"start": int, "end": int}，
+                仅包含 count > 0（即被执行到）的区间
+        """
+        points = []
+        for r in nested_ranges:
+            points.append((r["startOffset"], 0, r))
+            points.append((r["endOffset"], 1, r))
+
+        def sort_key(point):
+            offset, kind, r = point
+            length = r["endOffset"] - r["startOffset"]
+            return (offset, kind, -length if kind == 0 else length)
+
+        points.sort(key=sort_key)
+
+        hit_stack: list = []
+        merged: list = []
+        last_offset = 0
+        for offset, kind, r in points:
+            if hit_stack and last_offset < offset and hit_stack[-1] > 0:
+                if merged and merged[-1]["end"] == last_offset:
+                    merged[-1]["end"] = offset
+                else:
+                    merged.append({"start": last_offset, "end": offset})
+            last_offset = offset
+            if kind == 0:
+                hit_stack.append(r["count"])
+            else:
+                hit_stack.pop()
+
+        return [r for r in merged if r["end"] > r["start"]]
+
+    def _capture_coverage_snapshot(self) -> list:
+        """通过 CDP 取一次覆盖率快照（不改动 `_coverage_started` 状态位）。
+
+        供 `stop_js_coverage()` 和 `close()` 共用：case 的 `post_process` 常以
+        `close` 结束用例，浏览器可能在 CLI 层调用 `stop_js_coverage()` 之前就
+        已经关闭（此时 CDP session 早已失效），因此 `close()` 会在真正关闭浏览器
+        前调用本方法先抓一次快照缓存到 `_coverage_cached_entries`。
+
+        Returns:
+            list[dict]: [{"url": str, "source": str, "ranges": [...]}, ...]；
+                失败或 cdp 不可用时返回 []
+        """
+        cdp = self._coverage_cdp_session
+        if cdp is None:
+            return []
+
+        try:
+            raw = cdp.send("Profiler.takePreciseCoverage")
+            script_coverages = raw.get("result", []) or []
+
+            entries = []
+            for script_cov in script_coverages:
+                url = script_cov.get("url") or ""
+                if not url:
+                    continue
+                script_id = script_cov.get("scriptId")
+                try:
+                    src_result = cdp.send("Debugger.getScriptSource", {"scriptId": script_id})
+                    source = src_result.get("scriptSource", "") or ""
+                except Exception as e:
+                    logger.debug(f"覆盖率: 获取脚本源码失败 (url={url}): {e}")
+                    continue
+
+                nested_ranges = [
+                    rr for fn in script_cov.get("functions", []) or [] for rr in fn.get("ranges", [])
+                ]
+                ranges = self._coverage_ranges_to_disjoint(nested_ranges)
+                entries.append({"url": url, "source": source, "ranges": ranges})
+
+            return entries
+        except Exception as e:
+            logger.warning(f"JS 覆盖率快照采集失败: {e}")
+            return []
+
+    def stop_js_coverage(self) -> list:
+        """停止 JS 覆盖率采集并返回覆盖率数据。
+
+        返回格式与 JS 版 `page.coverage.stopJSCoverage()` 一致：
+
+            [{"url": str, "source": str, "ranges": [{"start": int, "end": int}, ...]}, ...]
+
+        若 `close()` 已先于本方法被调用（浏览器已关闭），直接返回 `close()` 时
+        缓存的快照；否则实时通过 CDP 取快照。
+
+        若未曾调用 start_js_coverage 成功开启过采集、当前浏览器非 chromium，
+        或 page 不可用，均返回空列表，不抛出异常。
+
+        Returns:
+            list[dict]: 覆盖率数据；不支持或未开启时为 []
+        """
+        if not self._coverage_started:
+            return self._coverage_cached_entries or []
+
+        try:
+            if self._coverage_cached_entries is not None:
+                # close() 已抓取过快照（浏览器可能已关闭），直接复用
+                return self._coverage_cached_entries
+
+            if self.browser_name != "chromium" or self.page is None or self._coverage_cdp_session is None:
+                return []
+
+            entries = self._capture_coverage_snapshot()
+            try:
+                self._coverage_cdp_session.send("Profiler.stopPreciseCoverage")
+            except Exception:
+                pass
+            return entries
+        finally:
+            self._coverage_started = False
+            self._coverage_cdp_session = None
+            self._coverage_cached_entries = None
+
     def close(self) -> None:
         """关闭驱动"""
         if self._is_closed:
             return
-            
+
         self._is_closed = True
         self._finalize_case_recording()
+        # 覆盖率采集仍在进行中：case 的 post_process 常以 close 结束用例，
+        # 此时需在浏览器真正关闭前抓一次快照缓存，否则 stop_js_coverage()
+        # 拿到的 CDP session 已随浏览器关闭失效
+        if self._coverage_started and self._coverage_cdp_session is not None:
+            self._coverage_cached_entries = self._capture_coverage_snapshot()
         try:
             if self.context:
                 self.context.close()

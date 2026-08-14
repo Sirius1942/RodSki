@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<globalvalue>
+    <group name="DefaultValue">
+        <var name="URL" value="http://localhost:3001"/>
+        <var name="BrowserType" value="chromium"/>
+        <var name="WaitTime" value="300"/>
+        <var name="Headless" value="True"/>
+    </group>
+    <group name="Website">
+        <var name="BASE_URL" value="http://localhost:3001"/>
+    </group>
+</globalvalue>

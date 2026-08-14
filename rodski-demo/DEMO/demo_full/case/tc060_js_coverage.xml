@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases step_wait="300" tags="coverage">
+    <!-- TC060: JS 代码覆盖率验收
+         验收 coverage CLI 参数与 run 内置函数（start_js_coverage/stop_js_coverage）
+         两条路径，均基于 Playwright page.coverage（Chrome DevTools V8 覆盖率）。
+    -->
+
+    <!-- TC060-001: run 内置函数细粒度控制覆盖率采集 -->
+    <case execute="是" id="TC060-001" title="run内置函数-JS覆盖率采集" component_type="界面">
+        <pre_process>
+            <test_step action="navigate" model="" data="http://localhost:8000"/>
+            <test_step action="run" model="" data="start_js_coverage()"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="LoginForm" data="L001"/>
+            <test_step action="type" model="NavMenu" data="N001"/>
+            <test_step action="run" model="" data="stop_js_coverage(output='result/tc060_coverage.json')"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+</cases>

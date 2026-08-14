@@ -406,6 +406,102 @@ class LoadBrowserModeUnsupportedCaseError(SKIError):
     error_code = "SKI604"
 
 
+class HookDeniedError(ExecutionError):
+    """Hook 拦截了当前操作（before_keyword deny，或外部命令 hook 返回 exit code 2）。"""
+    error_code = "SKI701"
+
+    def __init__(self, event: str, reason: str, **kwargs):
+        self.event = event
+        self.reason = reason
+        details = dict(kwargs.pop("details", {}) or {})
+        details.update({"event": event, "reason": reason})
+        super().__init__(f"Hook 拒绝执行: event={event}, reason={reason}", details=details, **kwargs)
+
+
+class HookTimeoutError(ExecutionError):
+    """外部命令 hook 执行超时。"""
+    error_code = "SKI702"
+    error_level = "WARNING"
+
+    def __init__(self, event: str, timeout: float, **kwargs):
+        self.event = event
+        self.timeout = timeout
+        details = dict(kwargs.pop("details", {}) or {})
+        details.update({"event": event, "timeout": timeout})
+        super().__init__(f"Hook 执行超时: event={event}, timeout={timeout}s", details=details, **kwargs)
+
+
+class ComplianceCheckFailedError(ExecutionError):
+    """on_run_start 内置合规检查未通过（未使用 --force-compliance）。"""
+    error_code = "SKI703"
+
+    def __init__(self, checks_failed: list, **kwargs):
+        self.checks_failed = checks_failed
+        details = dict(kwargs.pop("details", {}) or {})
+        details.update({"checks_failed": checks_failed})
+        names = ", ".join(c.get("check_name", "") for c in checks_failed) if checks_failed else ""
+        super().__init__(f"合规检查未通过: {names}", details=details, **kwargs)
+
+
+ERROR_CODE_MAP.update({
+    "SKI701": HookDeniedError,
+    "SKI702": HookTimeoutError,
+    "SKI703": ComplianceCheckFailedError,
+})
+
+
+class RoamCaseNotFoundError(ExecutionError):
+    """定向漫游指定的用例不存在。"""
+
+    error_code = "SKI801"
+
+    def __init__(self, case_id: str, search_path: str = "", **kwargs):
+        self.case_id = case_id
+        details = dict(kwargs.pop("details", {}) or {})
+        details["case_id"] = case_id
+        if search_path:
+            details["search_path"] = search_path
+        super().__init__(f"未找到漫游用例: {case_id}", details=details, **kwargs)
+
+
+class RoamNotEligibleError(ExecutionError):
+    """定向漫游未满足三层开关。"""
+
+    error_code = "SKI802"
+
+    def __init__(self, case_id: str, reasons: list, **kwargs):
+        self.case_id = case_id
+        self.reasons = list(reasons)
+        details = dict(kwargs.pop("details", {}) or {})
+        details.update({"case_id": case_id, "reasons": self.reasons})
+        reason_text = "; ".join(str(reason) for reason in self.reasons)
+        super().__init__(f"用例不满足漫游条件: {case_id}: {reason_text}", details=details, **kwargs)
+
+
+class RoamUnsupportedCaseError(ExecutionError):
+    """非界面用例声明了 roam=是。"""
+
+    error_code = "SKI803"
+
+    def __init__(self, case_id: str, component_type: str, **kwargs):
+        self.case_id = case_id
+        self.component_type = component_type
+        details = dict(kwargs.pop("details", {}) or {})
+        details.update({"case_id": case_id, "component_type": component_type})
+        super().__init__(
+            f"漫游测试仅支持界面用例: case={case_id}, component_type={component_type}",
+            details=details,
+            **kwargs,
+        )
+
+
+ERROR_CODE_MAP.update({
+    "SKI801": RoamCaseNotFoundError,
+    "SKI802": RoamNotEligibleError,
+    "SKI803": RoamUnsupportedCaseError,
+})
+
+
 def get_error_by_code(code: str) -> Optional[type]:
     """根据错误码获取异常类型"""
     return ERROR_CODE_MAP.get(code)

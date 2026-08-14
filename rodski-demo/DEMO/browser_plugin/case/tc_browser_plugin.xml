@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+    <!-- ============================================================ -->
+    <!-- 原有 9 个用例（TC_BP_001 ~ TC_BP_009）                        -->
+    <!-- ============================================================ -->
+
+    <case execute="是" id="TC_BP_001" title="验证插件文件完整性" component_type="接口">
+        <test_case>
+            <test_step action="run" model="" data="verify_plugin_files.py"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC_BP_002" title="验证 manifest.json 合法性" component_type="接口">
+        <test_case>
+            <test_step action="run" model="" data="verify_manifest.py"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC_BP_003" title="验证 Plugin API 健康检查" component_type="接口">
+        <test_case>
+            <test_step action="run" model="" data="test_api_health.py"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC_BP_004" title="验证 Plugin API 环境列表" component_type="接口">
+        <test_case>
+            <test_step action="run" model="" data="test_api_env_list.py"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC_BP_005" title="验证 Plugin API 环境切换" component_type="接口">
+        <test_case>
+            <test_step action="run" model="" data="test_api_env_switch.py"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC_BP_006" title="验证 Plugin API 失败诊断" component_type="接口">
+        <test_case>
+            <test_step action="run" model="" data="test_api_failure_report.py"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC_BP_007" title="验证 Plugin API 录制上传" component_type="接口">
+        <test_case>
+            <test_step action="run" model="" data="test_api_recording_upload.py"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC_BP_008" title="验证 content script 工具函数" component_type="接口">
+        <test_case>
+            <test_step action="run" model="" data="test_content_utils.py"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC_BP_009" title="Plugin API 端到端冒烟测试" component_type="接口">
+        <test_case>
+            <test_step action="run" model="" data="test_e2e_smoke.py"/>
+        </test_case>
+    </case>
+
+    <!-- ============================================================ -->
+    <!-- 新增 API 边界测试（TC_BP_010 ~ TC_BP_018）                    -->
+    <!-- ============================================================ -->
+
+    <case execute="是" id="TC_BP_010" title="report-failure 空 body 边界处理" component_type="接口">
+        <test_case>
+            <test_step action="run" model="" data="test_api_empty_body.py"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC_BP_011" title="env/switch 任意字符串及特殊字符边界" component_type="接口">
+        <test_case>
+            <test_step action="run" model="" data="test_api_env_boundary.py"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC_BP_012" title="recording/upload 缺少 total_steps fallback 计算" component_type="接口">
+        <test_case>
+            <test_step action="run" model="" data="test_api_upload_fallback.py"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC_BP_013" title="recording/list 超 20 文件截断行为" component_type="接口">
+        <test_case>
+            <test_step action="run" model="" data="test_api_list_truncation.py"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC_BP_014" title="recording 文件名安全 - 多种路径穿越向量" component_type="接口">
+        <test_case>
+            <test_step action="run" model="" data="test_api_security.py"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC_BP_015" title="素材包内部结构深度验证" component_type="接口">
+        <test_case>
+            <test_step action="run" model="" data="test_api_manifest_structure.py"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC_BP_016" title="Plugin API CORS 响应头验证" component_type="接口">
+        <test_case>
+            <test_step action="run" model="" data="test_api_cors.py"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC_BP_017" title="并发上传 5 个录制素材包 - 隔离性验证" component_type="接口">
+        <test_case>
+            <test_step action="run" model="" data="test_api_concurrent_upload.py"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC_BP_018" title="失败记录幂等性与 clear-failure 幂等性" component_type="接口">
+        <test_case>
+            <test_step action="run" model="" data="test_api_idempotency.py"/>
+        </test_case>
+    </case>
+
+    <!-- ============================================================ -->
+    <!-- 截图证据用例（TC_BP_019）                                      -->
+    <!-- ============================================================ -->
+
+    <case execute="是" id="TC_BP_019" title="生成 API 验收汇总截图（Pillow 渲染）" component_type="接口">
+        <test_case>
+            <test_step action="run" model="" data="generate_acceptance_screenshot.py"/>
+        </test_case>
+    </case>
+
+    <!-- ============================================================ -->
+    <!-- 浏览器截图用例（TC_BP_020 ~ TC_BP_023）                        -->
+    <!-- 使用 rodski screenshot 关键字，生成真实浏览器截图作为验收证据    -->
+    <!-- ============================================================ -->
+
+    <case execute="是" id="TC_BP_020" title="浏览器访问 rodski-web 首页截图" component_type="界面">
+        <pre_process>
+            <test_step action="run" model="" data="launch_web.py"/>
+            <test_step action="navigate" model="" data="http://localhost:5002/"/>
+            <test_step action="wait" model="" data="2"/>
+        </pre_process>
+        <test_case>
+            <test_step action="screenshot" model="" data="TC_BP_020_rodski_web_home.png"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="TC_BP_021" title="浏览器访问 rodski-web Plugin API JSON 截图" component_type="界面">
+        <pre_process>
+            <test_step action="navigate" model="" data="http://localhost:5002/api/plugin/env/list"/>
+            <test_step action="wait" model="" data="1"/>
+        </pre_process>
+        <test_case>
+            <test_step action="screenshot" model="" data="TC_BP_021_plugin_env_list_api.png"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="TC_BP_022" title="浏览器访问 last-failure API 截图（上报后）" component_type="界面">
+        <pre_process>
+            <!-- 先上报一个失败记录，再截图 -->
+            <test_step action="run" model="" data="test_api_failure_report.py"/>
+            <test_step action="navigate" model="" data="http://localhost:5002/api/plugin/last-failure"/>
+            <test_step action="wait" model="" data="1"/>
+        </pre_process>
+        <test_case>
+            <test_step action="screenshot" model="" data="TC_BP_022_last_failure_api.png"/>
+        </test_case>
+        <post_process>
+            <test_step action="run" model="" data="test_api_failure_report.py"/>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="TC_BP_023" title="浏览器访问 recording/list API 截图" component_type="界面">
+        <pre_process>
+            <test_step action="navigate" model="" data="http://localhost:5002/api/plugin/recording/list"/>
+            <test_step action="wait" model="" data="1"/>
+        </pre_process>
+        <test_case>
+            <test_step action="screenshot" model="" data="TC_BP_023_recording_list_api.png"/>
+        </test_case>
+        <post_process>
+            <test_step action="run" model="" data="stop_web.py"/>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <!-- ============================================================ -->
+    <!-- Bug 修复验证（TC_BP_024）                                      -->
+    <!-- Bug1: 切换页面后动作丢失；Bug2: 停止录制保存报错                -->
+    <!-- ============================================================ -->
+
+    <case execute="是" id="TC_BP_024" title="跨页面录制两个 bug 修复点验证" component_type="接口">
+        <test_case>
+            <test_step action="run" model="" data="test_cross_page_recording_fix.py"/>
+        </test_case>
+    </case>
+
+</cases>

@@ -99,6 +99,8 @@ for result in root.findall(".//result[@status='FAIL']"):
 | `rodski explain <case.xml>` | 用例自然语言解释 | 文本说明 |
 | `rodski validate <path>` | XML 格式校验 | 校验结果 |
 | `rodski run <path> --headless` | 无头模式执行 | JSON 结果 |
+| `rodski roam --case <case_id> [module_dir] --output-format json` | 定向执行一条合格用例并漫游；资格错误显式返回 | JSON 结构化结果，含 `roam_summary` |
+| `rodski run <path> --roam --output-format json` | 批量执行，并对合格且通过的 UI 用例漫游 | JSON 结构化结果；不合格用例静默跳过漫游 |
 
 ### 唯一输入格式
 
@@ -121,6 +123,66 @@ for result in root.findall(".//result[@status='FAIL']"):
 | 断言失败 | 1 | 检查预期值或页面状态 |
 | XML 格式错误 | 2 | 校验并修复 XML |
 | 配置缺失 | 2 | 检查 config 文件 |
+| `SKI701` Hook 拒绝执行（`before_keyword` deny 或外部命令 hook exit code 2） | 1 | 检查 `hooks.json`/进程内回调的拒绝原因（`reason` 字段），确认是否为预期的高危操作拦截 |
+| `SKI702` Hook 执行超时 | 1 | 检查外部命令 hook 脚本本身是否卡死；必要时调大 `hooks.json` 中的 `timeout` |
+| `SKI703` `on_run_start` 合规检查未通过 | 1 | 查看 `checks_failed` 列表定位具体检查项；目录结构缺失必须先修复，其余检查项可用 `--force-compliance` 显式跳过（会留痕） |
+| `SKI801` 漫游用例未找到 | 1 | 检查 `--case` ID 和模块路径；该错误只用于定向 `rodski roam --case` |
+| `SKI802` 定向漫游资格不满足 | 1 | 确认 `Roam.Enabled=是`、`case.roam="是"` 且本次为显式漫游；批量 `run --roam` 对同类不合格用例静默跳过 |
+| `SKI803` 不支持的漫游用例类型 | 1 | 仅允许 `component_type` 为空或为 `界面` 的用例声明 `roam="是"`；接口/数据库用例应移除该声明 |
+
+### 两级防御：Codex/Claude Code Hooks 与 RodSki 内部 Hooks（v8.2.0）
+
+Agent 上游若使用 Codex/Claude Code 驱动 `rodski` CLI，会存在两层独立的 hook 防御：
+
+1. **上游 Agent 层（Codex/Claude Code Hooks）**：拦截的是"Agent 要不要执行 `rodski run ...` 这条命令"，关注点是命令注入、破坏性操作、密钥泄露等通用编码 agent 风险。
+2. **RodSki 内部层（本节描述的 Hooks 机制）**：拦截的是"这条命令内部，某个关键字/某次运行是否合规"，关注点是 RodSki 特有的风险（测试用例误跑生产环境、`DB` 写操作、目录结构/数据一致性缺陷）。
+
+两层职责不重叠、不需要互相感知：上游 Agent 放行了 `rodski run` 调用，不代表 RodSki 内部的 `before_keyword`/`on_run_start` 就会放行具体的关键字执行；反之，RodSki 内部合规检查全部通过，也不代表这次调用本身对上游 Agent 是安全的。Agent 集成时应把两层都视为需要遵守的约束，而不是"通过其中一层就够了"。
+
+详见 `.pb/specs/rodski-hooks-design.md` §2、§7，事件清单与配置示例见 `rodski/docs/HOOKS_REFERENCE.md`。
+
+### 漫游决策引擎注入（v8.4.0）
+
+v8.4.0 完成架构解耦：`rodski/core/` 不再包含任何具体决策引擎实现，漫游需要 Agent（或 `--roam-engine` 模块）主动注入引擎。
+
+**进程内注入**（API 调用场景）：
+
+```python
+class AgentRoamEngine:
+    def next_action(self, context):
+        return {
+            "next_action": {"action": "type", "model": "Search", "data": "D002"},
+            "confidence": 0.85,
+            "reversible": True,
+            "usage": {"tokens": 320, "cost_usd": 0.002},
+            "stop": False,
+        }
+
+executor = SKIExecutor(
+    case_path="case/",
+    driver=driver,
+    hooks={"on_case_pass_roam_ready": [lambda context: AgentRoamEngine()]},
+)
+```
+
+**CLI 模块注入**（subprocess 场景，v8.4.0 新增）：
+
+```python
+# my_engine.py — 须导出 create_engine()
+def create_engine():
+    return AgentRoamEngine()
+```
+
+```bash
+rodski roam --case tc001 --roam-engine my_engine.py
+rodski run case/ --roam --roam-engine my_engine.py
+```
+
+Handler 可以直接返回带 `next_action(context)` 的引擎、返回该引擎的 factory，或作为 callable 返回首个 decision 字典。自定义 decision 可附带 token/cost usage，由核心预算守卫统计。Handler 缺失、抛错或返回不可用对象时记录 warning 并跳过；所有 Handler 均无效时会话以 `stopped_reason="no_handler"` 正常结束。
+
+漫游在 `test_case` 成功后、`post_process` 前同步运行。动作复用普通 `_run_steps` 步骤入口，不通过运行时控制命令队列。不可逆或低置信度动作只记录；漫游 finding、动作失败和预算耗尽不改变基础用例 PASS/FAIL。
+
+Agent 消费 `--output-format json` 时，应读取每条结果的 `roam_summary`。摘要及其 findings 保留 `base_case_id`（关联回基础用例）和 `triggered_by`（`single_case` 或 `batch_just_passed`）。v8.4.0 起 `CaseReport.roam`（`RoamReport` dataclass）同步写入，可通过报告 API 读取。
 
 ---
 

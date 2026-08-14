@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The selector conflict is intentional: it drives the compliance-force demo. -->
+<test_plan id="demo_plan"
+           title="Hooks 合规与关键字拦截演示"
+           kind="suite"
+           execute="是"
+           default_execute="否">
+  <case id="c_db_write" execute="是"/>
+  <case id="c_db_read" execute="是"/>
+</test_plan>

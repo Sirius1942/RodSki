@@ -4,7 +4,7 @@ import logging
 import subprocess
 import sys
 import time
-from typing import Dict, Any, Optional, List, Tuple, Union
+from typing import Dict, Any, Optional, List, Tuple, Union, Callable
 from pathlib import Path
 try:
     from ..drivers.base_driver import BaseDriver
@@ -22,6 +22,7 @@ from .exceptions import (
     DriverError,
     AssertionFailedError,
     AutoCaptureError,
+    HookDeniedError,
     is_retryable_error,
     is_critical_error,
 )
@@ -95,6 +96,27 @@ def _coerce_value(val: str):
     return val
 
 
+class HookDecision:
+    """before_keyword 回调返回的裁决结果（v8.2.0 Hooks 机制）。"""
+
+    __slots__ = ("allow", "reason")
+
+    def __init__(self, allow: bool, reason: Optional[str] = None):
+        self.allow = allow
+        self.reason = reason
+
+
+class HookResult:
+    """传给 after_keyword 回调的执行结果摘要（v8.2.0 Hooks 机制）。"""
+
+    __slots__ = ("status", "attempts", "elapsed")
+
+    def __init__(self, status: str, attempts: int, elapsed: float):
+        self.status = status
+        self.attempts = attempts
+        self.elapsed = elapsed
+
+
 class KeywordEngine:
     """关键字引擎 - 执行测试关键字并管理驱动操作
     
@@ -158,6 +180,11 @@ class KeywordEngine:
         # 移动端/桌面端 driver 懒加载创建后的回调（由 SKIExecutor 注入）。
         # 用于在真实 driver 就绪后再启动用例录像（移动端 driver 是懒加载的）。
         self.on_mobile_driver_created = None
+
+        # v8.2.0 Hooks 机制：进程内 before_keyword/after_keyword 回调列表（由
+        # SKIExecutor(hooks=...) 注入，默认为空列表，不产生任何行为变化）。
+        self.before_keyword_hooks: List[Callable] = []
+        self.after_keyword_hooks: List[Callable] = []
 
     def set_current_recording_path(self, path: Optional[str]) -> None:
         self._current_recording_path = path
@@ -328,6 +355,18 @@ class KeywordEngine:
             logger.error(f"❌ 未知关键字: '{keyword}'")
             raise UnknownKeywordError(keyword, self.SUPPORTED)
         
+        # v8.2.0 Hooks 机制：before_keyword 回调（deny 时直接拒绝，不进入执行/重试逻辑）
+        for hook in self.before_keyword_hooks:
+            try:
+                decision = hook(keyword, resolved_params)
+            except Exception as e:
+                logger.warning(f"before_keyword 回调异常，忽略并继续: {e}")
+                continue
+            if decision is not None and getattr(decision, "allow", True) is False:
+                reason = getattr(decision, "reason", None) or "before_keyword hook denied"
+                logger.error(f"❌ before_keyword 拦截: keyword={keyword}, reason={reason}")
+                raise HookDeniedError(event="before_keyword", reason=reason)
+
         # 打印关键字执行日志
         self._log_keyword_start(keyword, resolved_params)
         
@@ -445,6 +484,15 @@ class KeywordEngine:
                     f"[SLOW] action={keyword} 耗时 {_elapsed:.1f}s"
                     f"（阈值 {self.slow_step_threshold}s）"
                 )
+
+            # v8.2.0 Hooks 机制：after_keyword 回调（成功/失败/重试三种路径都会调用一次）
+            if self.after_keyword_hooks:
+                hook_result = HookResult(status=_span_status, attempts=attempts, elapsed=_elapsed)
+                for hook in self.after_keyword_hooks:
+                    try:
+                        hook(keyword, resolved_params, hook_result)
+                    except Exception as e:
+                        logger.warning(f"after_keyword 回调异常，忽略: {e}")
 
     def _log_keyword_start(self, keyword: str, params: Dict) -> None:
         param_str = ", ".join(f"{k}={v}" for k, v in params.items() if v)

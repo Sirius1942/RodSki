@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<models>
+    <!-- browser_plugin_baidu demo 全部使用 run 关键字调 CDP 脚本，不需要 UI 元素模型 -->
+</models>

@@ -8,8 +8,12 @@
 import pytest
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
-from drivers.playwright_driver import PlaywrightDriver
-from core.exceptions import DriverError
+try:
+    from rodski.drivers.playwright_driver import PlaywrightDriver
+    from rodski.core.exceptions import DriverError
+except ImportError:
+    from drivers.playwright_driver import PlaywrightDriver
+    from core.exceptions import DriverError
 
 
 class TestPlaywrightDriver:
@@ -331,7 +335,11 @@ class TestPlaywrightDriver:
         assert call_kwargs["record_video_size"] == {"width": 1470, "height": 754}
         assert call_kwargs.get("no_viewport") is True
         assert "viewport" not in call_kwargs
-        initial_page.evaluate.assert_called_once()
+        # evaluate 被调用2次：第1次注入监控脚本，第2次测量窗口尺寸
+        assert initial_page.evaluate.call_count == 2
+        # 检查第2次调用是测量窗口尺寸
+        last_call_args = initial_page.evaluate.call_args_list[-1][0]
+        assert "window.innerWidth" in last_call_args[0]
         initial_page.close.assert_called_once()
 
     @patch('playwright.sync_api.sync_playwright')
@@ -357,7 +365,8 @@ class TestPlaywrightDriver:
         assert call_kwargs["record_video_size"] == {"width": 1920, "height": 1080}
         assert call_kwargs.get("no_viewport") is True
         assert "viewport" not in call_kwargs
-        initial_page.evaluate.assert_not_called()
+        # 用户显式指定分辨率时不测量窗口，但仍会注入监控脚本（1次调用）
+        assert initial_page.evaluate.call_count == 1
 
     @patch('playwright.sync_api.sync_playwright')
     def test_start_case_recording_headless_sets_viewport(self, mock_pw, tmp_path):
@@ -382,10 +391,11 @@ class TestPlaywrightDriver:
         assert call_kwargs["record_video_size"] == {"width": 1280, "height": 720}
         assert call_kwargs["viewport"] == {"width": 1280, "height": 720}
         assert "no_viewport" not in call_kwargs
-        initial_page.evaluate.assert_not_called()
+        # headless 模式下仍会注入监控脚本（1次调用）
+        assert initial_page.evaluate.call_count == 1
 
     @patch('playwright.sync_api.sync_playwright')
-    @patch('drivers.playwright_driver._resolve_video_size')
+    @patch('rodski.drivers.playwright_driver._resolve_video_size')
     def test_start_case_recording_headed_measure_failure_falls_back(self, mock_resolve, mock_pw, tmp_path):
         mock_resolve.return_value = {"width": 1366, "height": 768}
         mock_playwright = MagicMock()

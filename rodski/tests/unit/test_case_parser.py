@@ -5,6 +5,7 @@
 from pathlib import Path
 from unittest.mock import patch
 from core.case_parser import CaseParser
+from core.exceptions import RoamUnsupportedCaseError
 from core.test_runner import assert_raises
 
 
@@ -107,6 +108,35 @@ class TestCaseParserFile:
         assert c001['title'] == '登录测试'
         assert c001['description'] == '验证登录'
         assert c001['component_type'] == '界面'
+        assert c001['roam'] == '否'
+
+    def test_roam_attribute_is_parsed(self, tmp_path):
+        case_xml = _write_xml(tmp_path, '''\
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+  <case execute="是" id="roam001" title="漫游" roam="是">
+    <test_case><test_step action="wait" model="" data="0"/></test_case>
+  </case>
+</cases>''')
+        case = CaseParser(case_xml).parse_cases()[0]
+        assert case['roam'] == '是'
+        assert case['component_type'] == ''
+
+    def test_roam_rejects_non_ui_case(self, tmp_path):
+        case_xml = _write_xml(tmp_path, '''\
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+  <case execute="是" id="roam_api" title="接口漫游" component_type="接口" roam="是">
+    <test_case><test_step action="send" model="Api" data="A001"/></test_case>
+  </case>
+</cases>''')
+        try:
+            CaseParser(case_xml).parse_cases()
+        except RoamUnsupportedCaseError as exc:
+            assert exc.error_code == 'SKI803'
+            assert exc.details['case_id'] == 'roam_api'
+        else:
+            raise AssertionError('非界面用例 roam=是 应抛出 SKI803')
 
 
 class TestCaseParserDirectory:

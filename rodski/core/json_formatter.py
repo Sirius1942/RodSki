@@ -57,7 +57,7 @@ class JSONFormatter:
     @staticmethod
     def _format_step(result: Dict[str, Any], index: int) -> Dict[str, Any]:
         """格式化单个步骤结果"""
-        return {
+        formatted = {
             "index": index,
             "case_id": result.get('case_id', ''),
             "title": result.get('title', ''),
@@ -68,6 +68,11 @@ class JSONFormatter:
             "recording_path": result.get('recording_path') if result.get('recording_path') else None,
             "recordings": result.get('recordings') or []
         }
+        if result.get("roam_summary") is not None:
+            formatted["roam_summary"] = result["roam_summary"]
+        if result.get("case_diagnosis") is not None:
+            formatted["case_diagnosis"] = result["case_diagnosis"]
+        return formatted
 
     @staticmethod
     def to_json(data: Dict[str, Any], pretty: bool = False) -> str:

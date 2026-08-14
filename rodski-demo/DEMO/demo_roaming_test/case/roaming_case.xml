@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases tags="roaming,offline">
+    <case execute="是"
+          id="RT001"
+          title="Offline roaming data variant"
+          description="Type a base row, then roam to another DataID"
+          component_type="界面"
+          roam="是"
+          priority="P0">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Demo.URL"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="RoamForm" data="D001"/>
+        </test_case>
+        <post_process>
+            <test_step action="wait" model="" data="0"/>
+        </post_process>
+    </case>
+</cases>

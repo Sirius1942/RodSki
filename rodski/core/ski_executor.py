@@ -20,9 +20,9 @@ import re
 import time
 import copy
 from collections import deque
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Any, Optional, Callable, List, Deque, Set
+from typing import Dict, Any, Optional, Callable, List, Deque, Set, Mapping, Tuple
 from .model_parser import ModelParser
 from .data_table_parser import DataTableParser
 from .global_value_parser import GlobalValueParser
@@ -40,7 +40,20 @@ except ImportError:
 from .keyword_engine import KeywordEngine
 from .dynamic_executor import DynamicExecutor
 
-from .exceptions import DriverStoppedError, AssertionFailedError, is_critical_error
+from .exceptions import (
+    DriverStoppedError,
+    AssertionFailedError,
+    RoamCaseNotFoundError,
+    RoamNotEligibleError,
+    is_critical_error,
+)
+from .roam import (
+    RoamBudget,
+    RoamSessionGuard,
+    STOP_MANUAL,
+    STOP_NO_HANDLER,
+    TestMapStore,
+)
 from .runtime_control import (
     BaseRuntimeControl,
     GracefulRunTermination,
@@ -89,6 +102,8 @@ class SKIExecutor:
         runtime_control: Optional[BaseRuntimeControl] = None,
         report_collector=None,
         enable_trace: bool = False,
+        hooks: Optional[Dict[str, List[Callable]]] = None,
+        diagnosis_engine: Optional[Any] = None,
     ):
         """初始化 SKI 执行器
 
@@ -99,6 +114,11 @@ class SKIExecutor:
             driver_factory: 驱动工厂函数（可选）
             module_dir: 测试模块目录路径（可选，自动推导）
             runtime_control: 运行时控制队列（暂停/插入/终止）；默认无操作
+            hooks: v8.2.0 Hooks 机制进程内回调，形如
+                {"before_keyword": [...], "after_keyword": [...], "on_case_failure": [...]}；
+                不传则为空字典，行为与现状完全一致
+            diagnosis_engine: DiagnosisEngine 实例（可选）；配置后 case 失败时
+                自动调用 diagnose()，结果写入 report_collector（若存在）
         """
         self.case_path = Path(case_path).expanduser().resolve()
         self.driver = driver
@@ -214,6 +234,19 @@ class SKIExecutor:
         # 注册回调，待真实 driver 就绪后再启动用例录像。
         self.keyword_engine.on_mobile_driver_created = self._on_mobile_driver_created
 
+        # v8.2.0 Hooks 机制：进程内回调接线。hooks=None 时 self._hooks={}，
+        # 各事件列表默认为空，行为与迭代前完全一致。
+        self._hooks: Dict[str, List[Callable]] = hooks or {}
+        self.keyword_engine.before_keyword_hooks = list(self._hooks.get("before_keyword", []))
+        self.keyword_engine.after_keyword_hooks = list(self._hooks.get("after_keyword", []))
+        self._diagnosis_engine = diagnosis_engine
+
+        # 漫游默认关闭。CLI 在构造后设置这三个执行意图；决策器仍通过
+        # on_case_pass_roam_ready hook 注入，不增加平行回调通道。
+        self.roam_enabled = False
+        self.roam_mode = "batch_just_passed"
+        self.roam_case_id: Optional[str] = None
+
     def _on_mobile_driver_created(self, driver_type: str, driver) -> None:
         """移动端/桌面端 driver 就绪回调：补启动用例录像。
 
@@ -258,6 +291,12 @@ class SKIExecutor:
                 )
                 self.data_resolver.return_provider = self.keyword_engine.get_return
                 self.keyword_engine.data_resolver = self.data_resolver
+                self.keyword_engine.before_keyword_hooks = list(
+                    getattr(self, "_hooks", {}).get("before_keyword", [])
+                )
+                self.keyword_engine.after_keyword_hooks = list(
+                    getattr(self, "_hooks", {}).get("after_keyword", [])
+                )
                 self._set_keyword_recording_path(getattr(self, "_current_recording_path", None))
 
                 # observability：重建的关键字引擎需重新注入 tracer / metrics，
@@ -289,6 +328,22 @@ class SKIExecutor:
             exclude_tags: 排除包含指定 tag 的用例
         """
         cases = self.case_parser.parse_cases()
+
+        roam_case_id = getattr(self, 'roam_case_id', None)
+        if roam_case_id:
+            matched_cases = [case for case in cases if case.get('case_id') == roam_case_id]
+            if not matched_cases:
+                raise RoamCaseNotFoundError(
+                    case_id=roam_case_id,
+                    search_path=str(self.case_path),
+                )
+            cases = matched_cases
+
+            if getattr(self, 'roam_mode', '') == 'single_case':
+                reasons = self._roam_eligibility_reasons(cases[0])
+                if reasons:
+                    raise RoamNotEligibleError(case_id=roam_case_id, reasons=reasons)
+
         cases = self._filter_cases(cases, filter_tags, filter_priority, exclude_tags)
         plan_selection = self._compile_plan_selection(cases)
         cases, plan_case_skips = self._apply_plan_selection(cases, plan_selection)
@@ -421,6 +476,350 @@ class SKIExecutor:
         )
         self.plan_selection_result = selection
         return selection
+
+    def _roam_eligibility_reasons(self, case: Mapping[str, Any]) -> List[str]:
+        """返回未满足的三层漫游开关；空列表表示可进入漫游阶段。"""
+        reasons: List[str] = []
+        roam_config = self.global_vars.get('Roam', {}) or {}
+        if str(roam_config.get('Enabled', '否')).strip() != '是':
+            reasons.append('Roam.Enabled != 是')
+        if str(case.get('roam', '否')).strip() != '是':
+            reasons.append('case.roam != 是')
+        if not bool(getattr(self, 'roam_enabled', False)):
+            reasons.append('未通过 --roam 或 rodski roam 显式启用')
+        return reasons
+
+    def _resolve_roam_engine(self, context: Dict[str, Any]):
+        """通过 on_case_pass_roam_ready 获取覆盖实现，否则使用规则型默认引擎。
+
+        handler 可返回带 next_action() 的 engine，也可直接作为 next_action
+        callable 返回 decision dict。后者便于很小的 Python hook，无需定义类。
+        """
+        first_decision = None
+        for handler in getattr(self, '_hooks', {}).get('on_case_pass_roam_ready', []):
+            try:
+                if hasattr(handler, 'next_action'):
+                    return handler, first_decision
+                if not callable(handler):
+                    logger.warning('on_case_pass_roam_ready handler 不可调用，已忽略: %r', handler)
+                    continue
+                candidate = handler(context)
+                if hasattr(candidate, 'next_action'):
+                    return candidate, first_decision
+                if isinstance(candidate, Mapping):
+                    first_decision = dict(candidate)
+                    return handler, first_decision
+            except Exception as exc:
+                logger.warning('on_case_pass_roam_ready handler 异常，已跳过该 handler: %s', exc)
+
+        # 无内置 fallback：core 不含决策逻辑
+        return None, first_decision
+
+    def _run_roam_session(self, case: Dict[str, Any]) -> Dict[str, Any]:
+        """在 test_case 与 post_process 之间同步执行一次漫游会话。"""
+        roam_config = self.global_vars.get('Roam', {}) or {}
+        guard = RoamSessionGuard(RoamBudget.from_mapping(roam_config))
+        triggered_by = getattr(self, 'roam_mode', None) or 'batch_just_passed'
+        findings: List[Dict[str, Any]] = []
+        history: List[Dict[str, Any]] = []
+        map_nodes: List[Dict[str, Any]] = []
+        map_edges: List[Dict[str, Any]] = []
+        map_store = TestMapStore(self.module_dir)
+
+        try:
+            test_map = map_store.load()
+        except Exception as exc:
+            logger.warning('读取测试地图失败，本次会话使用空地图且不覆盖原文件: %s', exc)
+            test_map = map_store.empty_map()
+
+        case_id = case.get('case_id', '')
+
+        # 采集真实页面证据（截图、URL、页面状态）
+        screenshot_path = self._take_roam_screenshot(case_id, 'start') or ''
+        current_url: Optional[str] = None
+        page_title: Optional[str] = None
+        page_ready = False
+
+        _driver = getattr(self, 'driver', None)
+        if _driver and hasattr(_driver, 'current_url'):
+            try:
+                current_url = _driver.current_url()
+            except Exception:
+                pass
+
+        if _driver and getattr(_driver, 'page', None):
+            try:
+                page_title = _driver.page.title()
+            except Exception:
+                pass
+            try:
+                state = _driver.page.evaluate("document.readyState")
+                page_ready = (state == "complete")
+            except Exception:
+                pass
+
+        context: Dict[str, Any] = {
+            'case_id': case_id,
+            'case_title': case.get('title', ''),
+            'case_description': case.get('description', ''),
+            'original_steps': list(case.get('test_case') or []),
+            'model_elements': copy.deepcopy(
+                getattr(self.model_parser, 'models', {}) if self.model_parser else {}
+            ),
+            'screenshot_path': screenshot_path,
+            'current_url': current_url,
+            'page_identity': {
+                'url': current_url,
+                'title': page_title,
+                'ready': page_ready,
+            } if current_url is not None else None,
+            'ax_tree': None,
+            'driver_type': 'web',
+            'history': history,
+            'test_map_excerpt': test_map,
+            'budget': dict(roam_config),
+            'triggered_by': triggered_by,
+        }
+        engine, first_decision = self._resolve_roam_engine(context)
+        if engine is None:
+            guard.finish(STOP_NO_HANDLER)
+            return guard.build_summary(
+                base_case_id=case.get('case_id', ''),
+                triggered_by=triggered_by,
+                findings=findings,
+            )
+
+        while not guard.check_budget():
+            context['history'] = list(history)
+            context['seen_action_hashes'] = guard.seen_action_hashes
+            try:
+                if first_decision is not None:
+                    decision = first_decision
+                    first_decision = None
+                elif hasattr(engine, 'next_action'):
+                    decision = engine.next_action(context)
+                else:
+                    decision = engine(context)
+                if not isinstance(decision, Mapping):
+                    raise TypeError('漫游决策器必须返回 dict')
+                decision = dict(decision)
+            except Exception as exc:
+                logger.warning('漫游决策失败，结束本次会话: %s', exc)
+                findings.append(self._roam_failure_finding(case, exc, 'decision'))
+                guard.finish(STOP_MANUAL)
+                break
+
+            usage = decision.get('usage') or {}
+            if isinstance(usage, Mapping):
+                guard.record_usage(
+                    tokens=usage.get('tokens', usage.get('tokens_used', 0)) or 0,
+                    cost_usd=usage.get('cost_usd', 0) or 0,
+                )
+
+            finding = decision.get('finding')
+            if isinstance(finding, Mapping):
+                normalized_finding = dict(finding)
+                normalized_finding.setdefault('base_case_id', case.get('case_id', ''))
+                normalized_finding.setdefault(
+                    'exploration_tier', decision.get('exploration_tier', 'data')
+                )
+                findings.append(normalized_finding)
+
+            verdict = guard.consider(decision)
+            history.append(dict(decision))
+            if verdict.stopped_reason:
+                break
+            if verdict.record_only:
+                self._append_roam_map_delta(
+                    case, decision, test_map, map_nodes, map_edges, coverage='frontier'
+                )
+                continue
+            if not verdict.execute:
+                # A custom engine that ignores seen_action_hashes must not spin
+                # until the duration budget on a duplicate decision.
+                if verdict.reason == 'duplicate':
+                    guard.finish(STOP_MANUAL)
+                    break
+                continue
+
+            action = decision.get('next_action')
+            try:
+                self._validate_roam_action(action, decision)
+                step = {
+                    'action': str(action.get('action') or '').strip(),
+                    'model': str(action.get('model') or ''),
+                    'data': str(action.get('data') or ''),
+                }
+                # 动态动作可以携带 insert 语义使用的临时模型/数据，但这些
+                # 资源只允许在该动作内存在。始终按动作快照，避免自定义决策器
+                # 或关键字副作用污染后处理及下一条用例。
+                resources_snapshot = self._snapshot_runtime_resources()
+                try:
+                    temp_models, temp_tables = self._roam_temp_resources(decision)
+                    self.apply_insert_resources(temp_models, temp_tables)
+                    self._run_steps([step], '漫游')
+                finally:
+                    self._restore_runtime_resources(resources_snapshot)
+                self._append_roam_map_delta(
+                    case, decision, test_map, map_nodes, map_edges, coverage='roam_only'
+                )
+            except ForceRunTermination:
+                raise
+            except Exception as exc:
+                logger.warning('漫游动作失败，不改变基础用例状态: %s', exc)
+                findings.append(self._roam_failure_finding(case, exc, 'action'))
+                guard.finish(STOP_MANUAL)
+                break
+
+        if not guard.stopped_reason:
+            guard.finish(STOP_MANUAL)
+
+        map_delta = {'nodes': map_nodes, 'edges': map_edges}
+        map_summary: Dict[str, Any] = {
+            'nodes_added': 0,
+            'edges_added': 0,
+            'written': False,
+        }
+        if map_nodes or map_edges:
+            try:
+                merged = map_store.merge(map_delta)
+                map_summary = merged.to_dict()
+            except Exception as exc:
+                logger.warning('测试地图写回失败，不影响漫游结果: %s', exc)
+                map_summary['reason'] = 'write_failed'
+
+        return guard.build_summary(
+            base_case_id=case.get('case_id', ''),
+            triggered_by=triggered_by,
+            findings=findings,
+            test_map_delta=map_summary,
+        )
+
+    def _validate_roam_action(
+        self, action: Any, decision: Mapping[str, Any]
+    ) -> None:
+        """Validate a decision before it reaches the normal keyword engine.
+
+        The decision engine is an extension point, so the executor cannot trust
+        an arbitrary mapping to be a valid ``test_step``. Keeping this check at
+        the execution boundary prevents unknown keywords, non-string payloads,
+        and actions explicitly marked irreversible from affecting the live case.
+        """
+        if not isinstance(action, Mapping):
+            raise ValueError('next_action 必须是 test_step 对象')
+        action_name = str(action.get('action') or '').strip()
+        if not action_name:
+            raise ValueError('next_action.action 不能为空')
+        supported = {str(item).lower() for item in KeywordEngine.SUPPORTED}
+        if action_name.lower() not in supported:
+            raise ValueError(f'漫游动作不支持关键字: {action_name}')
+        for field in ('model', 'data'):
+            value = action.get(field, '')
+            if value is None:
+                continue
+            if not isinstance(value, (str, int, float, bool)):
+                raise ValueError(f'next_action.{field} 必须是标量值')
+        if decision.get('reversible') is False:
+            raise ValueError('不可逆漫游动作不得自动执行')
+
+    @staticmethod
+    def _roam_temp_resources(
+        decision: Mapping[str, Any],
+    ) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
+        """Extract and validate temporary resources attached to one decision."""
+        resources = decision.get('resources')
+        if resources is not None:
+            if not isinstance(resources, Mapping):
+                raise ValueError('漫游 resources 必须是对象')
+            temp_models = resources.get('temp_models')
+            temp_tables = resources.get('temp_tables')
+        else:
+            temp_models = decision.get('temp_models')
+            temp_tables = decision.get('temp_tables')
+
+        def validate(value: Any, label: str) -> Optional[Dict[str, Any]]:
+            if value is None:
+                return None
+            if not isinstance(value, Mapping):
+                raise ValueError(f'{label} 必须是对象')
+            normalized: Dict[str, Any] = {}
+            for name, entries in value.items():
+                if not str(name).strip() or not isinstance(entries, Mapping):
+                    raise ValueError(f'{label} 必须是名称到对象的映射')
+                normalized[str(name)] = dict(entries)
+            return normalized
+
+        return validate(temp_models, 'temp_models'), validate(temp_tables, 'temp_tables')
+
+    @staticmethod
+    def _roam_failure_finding(
+        case: Mapping[str, Any], error: Exception, stage: str
+    ) -> Dict[str, Any]:
+        return {
+            'base_case_id': case.get('case_id', ''),
+            'category': 'UNKNOWN',
+            'confidence': 1.0,
+            'description': f'漫游{stage}失败: {error}',
+            'exploration_tier': 'data',
+            'evidence_path': '',
+        }
+
+    @staticmethod
+    def _append_roam_map_delta(
+        case: Mapping[str, Any],
+        decision: Mapping[str, Any],
+        test_map: Mapping[str, Any],
+        nodes: List[Dict[str, Any]],
+        edges: List[Dict[str, Any]],
+        coverage: str,
+    ) -> None:
+        action = decision.get('next_action')
+        if not isinstance(action, Mapping):
+            return
+        case_id = str(case.get('case_id') or '')
+        model = str(action.get('model') or '')
+        data_id = str(action.get('data') or '')
+        base_node_id = f'case:{case_id}'
+        variant_node_id = f'case:{case_id}:data:{model}:{data_id}'
+        now = datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z')
+
+        prior_visits = 0
+        for node in test_map.get('nodes', []) if isinstance(test_map, Mapping) else []:
+            if isinstance(node, Mapping) and node.get('id') == variant_node_id:
+                try:
+                    prior_visits = int(node.get('roam_visit_count', 0))
+                except (TypeError, ValueError):
+                    prior_visits = 0
+                break
+
+        nodes.extend([
+            {
+                'id': base_node_id,
+                'label': str(case.get('title') or case_id),
+                'business_tags': list(case.get('tags') or []),
+                'covered_by_cases': [case_id],
+                'coverage': 'case_verified',
+                'findings': [],
+                'last_visited': now,
+            },
+            {
+                'id': variant_node_id,
+                'label': f'{model}:{data_id}',
+                'business_tags': list(case.get('tags') or []),
+                'covered_by_cases': [case_id],
+                'roam_visit_count': prior_visits + 1,
+                'coverage': coverage,
+                'findings': [],
+                'last_visited': now,
+            },
+        ])
+        edges.append({
+            'from': base_node_id,
+            'to': variant_node_id,
+            'action': dict(action),
+            'discovered_by': f'case:{case_id}',
+            'confidence': float(decision.get('confidence', 0.0)),
+        })
 
     def _apply_plan_selection(
         self,
@@ -973,6 +1372,8 @@ class SKIExecutor:
         start = time.time()
         screenshot_path = None
         screenshot_attempted = False
+        case_diagnosis = None
+        roam_summary: Optional[Dict[str, Any]] = None
         self._current_case_steps_log = []
         self._current_case_scenario_statuses = []
         resources_snapshot = self._snapshot_runtime_resources()
@@ -999,6 +1400,10 @@ class SKIExecutor:
                 # 附带每步执行明细（含每步截图相对路径），供报告每步内联展示
                 if getattr(self, '_current_case_steps_log', None):
                     result['steps'] = list(self._current_case_steps_log)
+                if case_diagnosis is not None:
+                    result['case_diagnosis'] = case_diagnosis
+                if roam_summary is not None:
+                    result['roam_summary'] = roam_summary
                 final_recording_path = self._stop_case_recording(case['case_id'], recording_path)
                 return self._attach_recording_path(result, final_recording_path)
 
@@ -1049,6 +1454,31 @@ class SKIExecutor:
                     _merge_error(e)
                     _capture_failure_screenshot()
 
+            # 漫游严格插入在 test_case 成功后、post_process 前。批量入口对
+            # 不满足三层开关的用例静默跳过；single_case 已在入口显式校验。
+            if (
+                err is None
+                and not self._runtime_stopped_graceful
+                and case.get('expect_fail', '否').strip() != '是'
+                and getattr(self, 'roam_enabled', False)
+            ):
+                roam_reasons = self._roam_eligibility_reasons(case)
+                if not roam_reasons:
+                    try:
+                        roam_summary = self._run_roam_session(case)
+                    except ForceRunTermination as e:
+                        return _finish(self._case_result_force_terminated(case, start, e))
+                    except Exception as roam_exc:
+                        logger.warning('漫游阶段异常，继续执行后处理: %s', roam_exc)
+                        roam_summary = {
+                            'base_case_id': case.get('case_id', ''),
+                            'triggered_by': getattr(self, 'roam_mode', None) or 'batch_just_passed',
+                            'variants_tried': 0,
+                            'duration_seconds': 0.0,
+                            'stopped_reason': STOP_MANUAL,
+                            'findings': [self._roam_failure_finding(case, roam_exc, 'session')],
+                        }
+
             # 后处理：无论预处理/用例是否失败均执行（除非强制终止已返回）
             try:
                 self._run_steps(post_steps, '后处理')
@@ -1061,6 +1491,31 @@ class SKIExecutor:
 
             if err is not None:
                 _capture_failure_screenshot()
+
+                # v8.2.0 Hooks 机制：on_case_failure 挂载点（进程内回调 + DiagnosisEngine 接入）
+                # getattr 兜底：测试代码中常见 object.__new__(SKIExecutor) 绕过 __init__ 的构造方式
+                for hook in getattr(self, '_hooks', {}).get("on_case_failure", []):
+                    try:
+                        hook(case, err, screenshot_path)
+                    except Exception as hook_exc:  # noqa: BLE001
+                        logger.warning(f"on_case_failure 回调异常，忽略: {hook_exc}")
+                _diag_engine = getattr(self, '_diagnosis_engine', None)
+                if _diag_engine is not None:
+                    try:
+                        diagnosis_report = _diag_engine.diagnose(
+                            error=err,
+                            screenshot_path=screenshot_path,
+                            context={
+                                "case_id": case.get('case_id', ''),
+                                "title": case.get('title', ''),
+                            },
+                        )
+                        case_diagnosis = diagnosis_report.to_dict()
+                        if getattr(self, 'report_collector', None):
+                            self.report_collector.record_diagnosis(case_diagnosis)
+                    except Exception as diag_exc:  # noqa: BLE001
+                        logger.warning(f"DiagnosisEngine 诊断异常，忽略: {diag_exc}")
+
                 if self.result_writer.current_run_dir:
                     write_execution_summary(
                         self.result_writer.current_run_dir,
@@ -1412,6 +1867,26 @@ class SKIExecutor:
             logger.warning(f"自动截图失败: {e}")
             return None
 
+    def _take_roam_screenshot(self, case_id: str, suffix: str) -> Optional[str]:
+        """漫游专用截图（不复用 _take_failure_screenshot，避免语义混淆和后缀污染）。"""
+        try:
+            if not self.result_writer.current_run_dir:
+                self.result_writer._init_run_dir()
+            if not self.result_writer.current_run_dir:
+                return None
+            screenshot_dir = self.result_writer.current_run_dir / "screenshots"
+            screenshot_dir.mkdir(parents=True, exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"{case_id}_roam_{suffix}_{timestamp}.png"
+            screenshot_path = screenshot_dir / filename
+            success = self.driver.screenshot(str(screenshot_path))
+            if success:
+                return f"screenshots/{filename}"
+            return None
+        except Exception as exc:
+            logger.debug("漫游截图失败: %s", exc)
+            return None
+
     def execute_step(self, step: Dict[str, str], step_type: str = ""):
         """执行单个步骤"""
         action = step['action']
@@ -1442,6 +1917,15 @@ class SKIExecutor:
         history_before = len(self.keyword_engine._context.history)
         named_before = dict(self.keyword_engine._context.named)
 
+        # 浏览器监控（v0.1）：标记当前步骤，供后续 collect 关联
+        _step_index_for_monitor = len(self._current_case_steps_log) + 1
+        _monitor_step_id = f"{getattr(self, '_current_case_id', 'unknown')}_step{_step_index_for_monitor:03d}"
+        _monitor = getattr(self.driver, 'set_monitor_step', None)
+        if _monitor is not None and action_key not in ('close',):
+            try:
+                _monitor(_monitor_step_id)
+            except Exception:
+                pass
         # appium 录像必须在 close 关键字 quit 掉 Appium session 之前停止并落盘，
         # 否则 stop_recording_screen 会因 session 已断而失败。Playwright 不受此限
         # （其录像上下文由 stop_case_recording 内部管理），仍按 close 后处理。
@@ -1465,6 +1949,18 @@ class SKIExecutor:
                 named_after = dict(self.keyword_engine._context.named)
                 named_writes = {k: v for k, v in named_after.items() if named_before.get(k) != v}
                 step_index = len(self._current_case_steps_log) + 1
+                # 失败时也收集监控异常（可能是失败原因）
+                _collect_monitor_fail = getattr(self.driver, 'collect_monitor_errors', None)
+                _browser_errors_fail = []
+                if _collect_monitor_fail is not None:
+                    try:
+                        _browser_errors_fail = _collect_monitor_fail() or []
+                    except Exception:
+                        pass
+                if _browser_errors_fail:
+                    logger.warning("[BrowserMonitor] step %s(fail) 捕获 %d 条异常: %s",
+                                   _monitor_step_id, len(_browser_errors_fail),
+                                   "; ".join(e.get('text') or e.get('message', '') for e in _browser_errors_fail[:3]))
                 self._current_case_steps_log.append({
                     'index': step_index,
                     'action': action,
@@ -1475,6 +1971,7 @@ class SKIExecutor:
                     'return_value': last_return,
                     'named_writes': named_writes,
                     'error': str(exc),
+                    'browser_monitor': _browser_errors_fail,
                 })
 
                 if getattr(self, 'report_collector', None):
@@ -1486,6 +1983,7 @@ class SKIExecutor:
                         'status': 'fail',
                         'return_value': last_return,
                         'error': str(exc),
+                        'browser_monitor': _browser_errors_fail,
                     })
                 raise
 
@@ -1504,6 +2002,18 @@ class SKIExecutor:
         else:
             return_source = 'keyword_result'
         step_index = len(self._current_case_steps_log) + 1
+        # 浏览器监控：收集本 step 内捕获的异常
+        _collect_monitor = getattr(self.driver, 'collect_monitor_errors', None)
+        _browser_errors = []
+        if _collect_monitor is not None:
+            try:
+                _browser_errors = _collect_monitor() or []
+            except Exception:
+                pass
+        if _browser_errors:
+            logger.warning("[BrowserMonitor] step %s 捕获 %d 条异常: %s",
+                           _monitor_step_id, len(_browser_errors),
+                           "; ".join(e.get('text') or e.get('message', '') for e in _browser_errors[:3]))
         self._current_case_steps_log.append({
             'index': step_index,
             'action': action,
@@ -1513,6 +2023,7 @@ class SKIExecutor:
             'return_source': return_source,
             'return_value': last_return,
             'named_writes': named_writes,
+            'browser_monitor': _browser_errors,
         })
 
         # 报告收集器：记录步骤
@@ -1524,6 +2035,7 @@ class SKIExecutor:
                 'data': resolved_data,
                 'status': 'ok',
                 'return_value': last_return,
+                'browser_monitor': _browser_errors,
             })
 
         if action_key == 'close':

@@ -1,0 +1,93 @@
+{
+  "rodski_plugin_version": "1.0.0",
+  "recorded_at": "2026-07-13T14:00:00Z",
+  "exported_at": "2026-07-13T14:01:00Z",
+  "base_url": "http://localhost/worker-4",
+  "total_steps": 5,
+  "total_screenshots": 0,
+  "steps": [
+    {
+      "seq": 1,
+      "action": "click",
+      "url": "http://localhost/worker-4",
+      "timestamp": "2026-07-13T14:00:01Z",
+      "target": {
+        "tag": "button",
+        "locators": [
+          {
+            "type": "id",
+            "value": "btn-w4-s0",
+            "priority": 1
+          }
+        ]
+      }
+    },
+    {
+      "seq": 2,
+      "action": "click",
+      "url": "http://localhost/worker-4",
+      "timestamp": "2026-07-13T14:00:02Z",
+      "target": {
+        "tag": "button",
+        "locators": [
+          {
+            "type": "id",
+            "value": "btn-w4-s1",
+            "priority": 1
+          }
+        ]
+      }
+    },
+    {
+      "seq": 3,
+      "action": "click",
+      "url": "http://localhost/worker-4",
+      "timestamp": "2026-07-13T14:00:03Z",
+      "target": {
+        "tag": "button",
+        "locators": [
+          {
+            "type": "id",
+            "value": "btn-w4-s2",
+            "priority": 1
+          }
+        ]
+      }
+    },
+    {
+      "seq": 4,
+      "action": "click",
+      "url": "http://localhost/worker-4",
+      "timestamp": "2026-07-13T14:00:04Z",
+      "target": {
+        "tag": "button",
+        "locators": [
+          {
+            "type": "id",
+            "value": "btn-w4-s3",
+            "priority": 1
+          }
+        ]
+      }
+    },
+    {
+      "seq": 5,
+      "action": "click",
+      "url": "http://localhost/worker-4",
+      "timestamp": "2026-07-13T14:00:05Z",
+      "target": {
+        "tag": "button",
+        "locators": [
+          {
+            "type": "id",
+            "value": "btn-w4-s4",
+            "priority": 1
+          }
+        ]
+      }
+    }
+  ],
+  "screenshots": [],
+  "final_page_snapshot": null,
+  "__worker_id": 4
+}

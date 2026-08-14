@@ -10,13 +10,20 @@
 import time
 import pytest
 from unittest.mock import MagicMock, patch, call
-from core.keyword_engine import KeywordEngine
-from core.exceptions import DriverError
+try:
+    from rodski.core.keyword_engine import KeywordEngine
+    from rodski.core.exceptions import DriverError
+except ImportError:
+    from core.keyword_engine import KeywordEngine
+    from core.exceptions import DriverError
 
 
 def make_engine_with_playwright():
     """创建带 mock PlaywrightDriver 的 KeywordEngine。"""
-    from drivers.playwright_driver import PlaywrightDriver
+    try:
+        from rodski.drivers.playwright_driver import PlaywrightDriver
+    except ImportError:
+        from drivers.playwright_driver import PlaywrightDriver
 
     mock_driver = MagicMock(spec=PlaywrightDriver)
     mock_page = MagicMock()

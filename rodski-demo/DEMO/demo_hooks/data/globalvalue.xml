@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<globalvalue>
+  <group name="DefaultValue">
+    <var name="WaitTime" value="0"/>
+    <var name="URL" value="http://localhost"/>
+  </group>
+  <group name="demo_db">
+    <var name="type" value="sqlite"/>
+    <var name="database" value="data/data.sqlite"/>
+  </group>
+</globalvalue>

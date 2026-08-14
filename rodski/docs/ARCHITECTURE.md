@@ -573,6 +573,63 @@ def _kw_new_keyword(self, params: Dict) -> bool:
     return True
 ```
 
+### 8.3 添加 Hook（v8.2.0）
+
+RodSki 提供两种 Hook 挂载方式，覆盖不同的使用场景。设计详见 `.pb/specs/rodski-hooks-design.md`，事件清单与用法示例见 `rodski/docs/HOOKS_REFERENCE.md`。
+
+**进程内 Python 回调**（`before_keyword`/`after_keyword`/`on_case_failure`）：直接通过 `SKIExecutor(hooks=...)` 构造参数注入，适合 rodski-agent 等以 Python API 方式调用 rodski 的场景。
+
+```python
+from core.ski_executor import SKIExecutor
+from core.keyword_engine import HookDecision
+
+def deny_prod_db_write(keyword, params):
+    if keyword == "DB" and "prod" in (params.get("data") or ""):
+        return HookDecision(allow=False, reason="禁止在生产库上执行 DB 写操作")
+    return HookDecision(allow=True)
+
+executor = SKIExecutor(
+    case_path="case/",
+    driver=driver,
+    hooks={"before_keyword": [deny_prod_db_write]},
+)
+```
+
+**外部命令 Hook**（`on_session_start`/`on_run_start`/`on_case_failure`/`on_run_end`）：通过项目内 `hooks.json`（或全局 `~/.rodski/hooks.json`）配置，上下文以 JSON 经 stdin 传入，退出码 0/2/其他分别对应 allow/deny/warning。适合与外部系统（通知、审批、自定义合规规则）集成，不需要写 Python 代码。
+
+```json
+{
+  "on_run_start": [{"command": ["python3", "scripts/check_env.py"], "timeout": 10}]
+}
+```
+
+`on_run_start` 还内置了目录结构、`@plan_id`/selector 互斥、`data.sqlite` schema 一致性、接口/DB `_verify` 表 `${Return[-1]}` 自引用四类合规检查（`core/compliance_check.py`），检查失败默认阻止执行，可用 `--force-compliance` 显式跳过（目录结构缺失除外），跳过会记录到日志留痕。
+
+`on_case_failure` 挂载点同时用于接入 `DiagnosisEngine`：配置 `SKIExecutor(diagnosis_engine=...)` 后，case 失败时自动生成诊断报告并写入 `report_collector`。
+
+### 8.4 漫游测试架构（v8.3.0）
+
+漫游建立在 v8.2.0 的进程内 Hook 机制上，但不要求 Agent 或自定义 Handler 才能运行。核心 `DataRoamDecisionEngine` 提供纯规则、零 LLM 的默认数据探索；`on_case_pass_roam_ready` 只作为可选覆盖点，可返回实现 `next_action(context)` 的引擎、引擎 factory，或首个 decision。Hook 缺失、回调异常或返回值不可用时回退核心默认引擎。
+
+```text
+pre_process
+    → test_case（成功）
+    → 三层资格检查
+    → on_case_pass_roam_ready（可选覆盖）
+    → _run_roam_session()（同步）
+    → post_process（恰好一次）
+```
+
+三层资格检查是 `Roam.Enabled=是`、`case.roam="是"` 和 CLI 显式使用 `roam --case`/`run --roam`。漫游只支持 `component_type` 为空或 `界面` 的用例。基础用例 PASS/FAIL 由原有 case 流程决定，漫游 finding、动作失败和预算停止都不改写状态。
+
+`_run_roam_session()` 将每个决策动作适配成普通 test-step 字典，直接同步调用 `_run_steps([step], "漫游")`。如果动作需要临时 model/data，执行器先保存资源快照，经 `apply_insert_resources` 应用，执行后在 `finally` 恢复。漫游不是外部控制命令，不通过运行时命令队列的 insert 通道。
+
+`RoamSessionGuard` 统一处理变体数、时长、token、成本、最低置信度、可逆性和 `(action, model, data)` 去重。核心默认引擎不调用 LLM；自定义引擎可以在 decision 中回报 usage。预算耗尽写为正常 `stopped_reason`，不抛异常。
+
+`TestMapStore` 把探索增量写入可选的 `knowledge/test_map.json`：schema 1、5 秒标准库跨平台锁、锁内 read-modify-write、按节点 ID 与 `(from,to,action)` 边去重，并用原子替换落盘；更高 schema 版本只读。目录只在首次写入时自动创建。
+
+v8.3.0 MVP 的 `roam_summary` 仅附加到结果字典并由 JSON formatter 透传。`result.xsd`、报告 dataclass 和 HTML 可视化保持原状，作为 v2 范围。
+
 ---
 
 ## 9. CLI 命令速查

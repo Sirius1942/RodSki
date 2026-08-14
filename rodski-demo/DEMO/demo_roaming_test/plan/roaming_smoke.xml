@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<test_plan id="roaming_smoke"
+           title="Offline roaming smoke"
+           kind="suite"
+           execute="是"
+           default_execute="否">
+    <case id="RT001" execute="是"/>
+</test_plan>

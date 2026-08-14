@@ -123,6 +123,7 @@
     <xs:attribute name="title" type="xs:string" use="required"/>
     <xs:attribute name="description" type="xs:string" use="optional"/>
     <xs:attribute name="component_type" type="ComponentType" use="optional"/>
+    <xs:attribute name="roam" type="ExecuteType" use="optional" default="否"/>
     <xs:attribute name="expect_fail" type="ExecuteType" use="optional" default="否"/>
     <xs:attribute name="priority" type="PriorityType" use="optional"/>
     <xs:attribute name="tags" type="xs:string" use="optional"/>
@@ -188,6 +189,35 @@
       <xs:enumeration value="check"/>
       <xs:enumeration value="screenshot"/>
       <xs:enumeration value="evaluate"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- 漫游测试会话摘要（v8.4.0，用于结果 XML 中的 roam_summary 节点） -->
+  <xs:complexType name="RoamSummaryType">
+    <xs:sequence>
+      <xs:element name="finding" type="RoamFindingType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="stopped_reason" type="xs:string" use="required"/>
+    <xs:attribute name="total_variants" type="xs:nonNegativeInteger" use="optional" default="0"/>
+    <xs:attribute name="duration" type="xs:decimal" use="optional"/>
+    <xs:attribute name="start_screenshot" type="xs:string" use="optional"/>
+  </xs:complexType>
+
+  <xs:complexType name="RoamFindingType">
+    <xs:attribute name="finding_id" type="xs:string" use="optional"/>
+    <xs:attribute name="severity" type="RoamSeverityType" use="optional" default="info"/>
+    <xs:attribute name="category" type="xs:string" use="optional"/>
+    <xs:attribute name="description" type="xs:string" use="optional"/>
+    <xs:attribute name="screenshot_path" type="xs:string" use="optional"/>
+    <xs:attribute name="step_index" type="xs:nonNegativeInteger" use="optional"/>
+    <xs:attribute name="url" type="xs:string" use="optional"/>
+  </xs:complexType>
+
+  <xs:simpleType name="RoamSeverityType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="info"/>
+      <xs:enumeration value="warning"/>
+      <xs:enumeration value="error"/>
     </xs:restriction>
   </xs:simpleType>
 

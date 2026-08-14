@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<models>
+    <model name="WebsiteLanding" type="ui" driver_type="web" servicename="RodSki Website landing">
+        <element name="headline" type="web">
+            <type>text</type>
+            <location type="css">h1</location>
+            <desc>Landing page headline</desc>
+        </element>
+        <element name="docsLink" type="web">
+            <type>link</type>
+            <location type="css">a[href="/v8"]</location>
+            <desc>Landing page docs link</desc>
+        </element>
+        <element name="changelogLink" type="web">
+            <type>link</type>
+            <location type="css">a[href="/v8/changelog"]</location>
+            <desc>Landing page changelog link</desc>
+        </element>
+        <element name="quickstartLink" type="web">
+            <type>link</type>
+            <location type="css">a[href="/v8/getting-started"]</location>
+            <desc>Landing page quickstart CTA</desc>
+        </element>
+    </model>
+
+    <model name="V8DocsHome" type="ui" driver_type="web" servicename="RodSki v8 docs">
+        <element name="title" type="web">
+            <type>text</type>
+            <location type="css">h1</location>
+            <desc>v8 docs home title</desc>
+        </element>
+        <element name="quickstartLink" type="web">
+            <type>link</type>
+            <location type="css">a[href="/v8/getting-started"]</location>
+            <desc>v8 quickstart link</desc>
+        </element>
+        <element name="keywordsLink" type="web">
+            <type>link</type>
+            <location type="css">a[href="/v8/keywords"]</location>
+            <desc>v8 keywords link</desc>
+        </element>
+        <element name="guideLink" type="web">
+            <type>link</type>
+            <location type="css">a[href="/v8/test-case-guide"]</location>
+            <desc>v8 guide link</desc>
+        </element>
+        <element name="changelogLink" type="web">
+            <type>link</type>
+            <location type="css">a[href="/v8/changelog"]</location>
+            <desc>v8 changelog link</desc>
+        </element>
+    </model>
+
+    <model name="DocsPageTitle" type="ui" driver_type="web" servicename="RodSki docs page">
+        <element name="title" type="web">
+            <type>text</type>
+            <location type="css">h1</location>
+            <desc>Current documentation page title</desc>
+        </element>
+    </model>
+
+    <model name="V7DocsHome" type="ui" driver_type="web" servicename="RodSki v7 docs">
+        <element name="title" type="web">
+            <type>text</type>
+            <location type="css">h1</location>
+            <desc>v7 docs home title</desc>
+        </element>
+        <element name="latestLink" type="web">
+            <type>link</type>
+            <location type="css">a[href="/v8/"]</location>
+            <desc>v7 page link to latest v8 docs</desc>
+        </element>
+        <element name="guideLink" type="web">
+            <type>link</type>
+            <location type="css">a[href="/v7/test-case-guide"]</location>
+            <desc>v7 test case guide link</desc>
+        </element>
+    </model>
+
+    <model name="WebsiteRouteState" type="interface" driver_type="interface" servicename="Browser route state">
+        <element name="pathname" type="interface">
+            <location type="field">pathname</location>
+            <desc>Current browser pathname returned by evaluate</desc>
+        </element>
+    </model>
+
+    <model name="WebsiteResourceState" type="interface" driver_type="interface" servicename="Website resource state">
+        <element name="status" type="interface">
+            <location type="field">status</location>
+            <desc>HTTP status returned by browser fetch</desc>
+        </element>
+        <element name="contains" type="interface">
+            <location type="field">contains</location>
+            <desc>Whether response text contains the expected marker</desc>
+        </element>
+    </model>
+</models>

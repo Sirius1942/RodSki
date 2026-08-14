@@ -67,9 +67,77 @@ class TestGlobalValueParser:
         f.write_text(content, encoding="utf-8")
         parser = GlobalValueParser(str(f))
         result = parser.parse()
-        assert "" not in result
-        assert "Valid" in result
+        # 空 group_name 应被整体跳过：结果里只能有 "Valid" 这一个 key，
+        # 不能因为 (get('name') or 占位符) 的兜底逻辑写错而多出别的 key。
+        assert list(result.keys()) == ["Valid"]
 
     def test_close_is_noop(self, globalvalue_xml):
         parser = GlobalValueParser(globalvalue_xml)
         parser.close()
+
+    def test_group_with_whitespace_only_name_skipped(self, tmp_path):
+        """group name 属性为纯空白（strip 后为空）时也应被跳过，不产生占位 key
+
+        （name 属性在 XSD 中是必填的，但允许取值为空/空白字符串，
+        对应 `(group_node.get('name') or '').strip()` 这条 or-兜底逻辑。）
+        """
+        content = '''<?xml version="1.0" encoding="UTF-8"?>
+<globalvalue>
+  <group name="   ">
+    <var name="x" value="y"/>
+  </group>
+  <group name="Valid">
+    <var name="k" value="v"/>
+  </group>
+</globalvalue>'''
+        f = tmp_path / "gv.xml"
+        f.write_text(content, encoding="utf-8")
+        result = GlobalValueParser(str(f)).parse()
+        assert list(result.keys()) == ["Valid"]
+
+    def test_var_with_whitespace_only_name_skipped(self, tmp_path):
+        """var name 属性为纯空白时应被跳过，不产生占位 key"""
+        content = '''<?xml version="1.0" encoding="UTF-8"?>
+<globalvalue>
+  <group name="G1">
+    <var name="   " value="orphan_value"/>
+    <var name="k" value="v"/>
+  </group>
+</globalvalue>'''
+        f = tmp_path / "gv.xml"
+        f.write_text(content, encoding="utf-8")
+        result = GlobalValueParser(str(f)).parse()
+        assert result["G1"] == {"k": "v"}
+
+    def test_var_with_empty_string_name_skipped_not_placeholder(self, tmp_path):
+        """var name 属性为空字符串（而非纯空白）时应被跳过
+
+        与上面纯空白的用例不同：空字符串本身是 falsy，会触发
+        `(var_node.get('name') or 占位符).strip()` 里的 or 分支。
+        用这个用例专门区分 or 右侧是 '' 还是被误改成非空占位符
+        （占位符本身非空，strip 后仍非空，if var_name 会误判为真）。
+        """
+        content = '''<?xml version="1.0" encoding="UTF-8"?>
+<globalvalue>
+  <group name="G1">
+    <var name="" value="orphan_value"/>
+    <var name="k" value="v"/>
+  </group>
+</globalvalue>'''
+        f = tmp_path / "gv.xml"
+        f.write_text(content, encoding="utf-8")
+        result = GlobalValueParser(str(f)).parse()
+        assert result["G1"] == {"k": "v"}
+
+    def test_var_with_empty_value_attribute_is_empty_string(self, tmp_path):
+        """var value 属性为空字符串时，变量值应保持为空字符串（而非占位字符串）"""
+        content = '''<?xml version="1.0" encoding="UTF-8"?>
+<globalvalue>
+  <group name="G1">
+    <var name="empty_val" value=""/>
+  </group>
+</globalvalue>'''
+        f = tmp_path / "gv.xml"
+        f.write_text(content, encoding="utf-8")
+        result = GlobalValueParser(str(f)).parse()
+        assert result["G1"]["empty_val"] == ""

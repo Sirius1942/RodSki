@@ -1,0 +1,45 @@
+{
+  "rodski_plugin_version": "1.0.0",
+  "recorded_at": "2026-07-13T11:00:00Z",
+  "exported_at": "2026-07-13T11:01:00Z",
+  "base_url": "http://localhost/worker-1",
+  "total_steps": 2,
+  "total_screenshots": 0,
+  "steps": [
+    {
+      "seq": 1,
+      "action": "click",
+      "url": "http://localhost/worker-1",
+      "timestamp": "2026-07-13T11:00:01Z",
+      "target": {
+        "tag": "button",
+        "locators": [
+          {
+            "type": "id",
+            "value": "btn-w1-s0",
+            "priority": 1
+          }
+        ]
+      }
+    },
+    {
+      "seq": 2,
+      "action": "click",
+      "url": "http://localhost/worker-1",
+      "timestamp": "2026-07-13T11:00:02Z",
+      "target": {
+        "tag": "button",
+        "locators": [
+          {
+            "type": "id",
+            "value": "btn-w1-s1",
+            "priority": 1
+          }
+        ]
+      }
+    }
+  ],
+  "screenshots": [],
+  "final_page_snapshot": null,
+  "__worker_id": 1
+}

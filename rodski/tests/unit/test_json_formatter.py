@@ -84,6 +84,68 @@ class TestFormatSuccess:
         output = JSONFormatter.format_success(results, duration=0)
         assert output["steps"][0]["error"] is None
 
+    def test_step_with_error_value_is_passed_through(self):
+        """步骤有错误时，error 字段应为原始错误内容（而不是 None 或错误的 key）"""
+        results = [{"case_id": "c001", "status": "FAIL", "execution_time": 0,
+                     "error": "断言失败：期望 200 实际 500"}]
+        output = JSONFormatter.format_success(results, duration=0)
+        assert output["steps"][0]["error"] == "断言失败：期望 200 实际 500"
+
+    def test_step_missing_case_id_defaults_to_empty_string(self):
+        """result 缺少 case_id 键时，step 的 case_id 应为空字符串而非 None"""
+        results = [{"status": "PASS", "execution_time": 0}]
+        output = JSONFormatter.format_success(results, duration=0)
+        assert output["steps"][0]["case_id"] == ""
+
+    def test_step_missing_title_defaults_to_empty_string(self):
+        """result 缺少 title 键时，step 的 title 应为空字符串而非 None"""
+        results = [{"case_id": "c001", "status": "PASS", "execution_time": 0}]
+        output = JSONFormatter.format_success(results, duration=0)
+        assert output["steps"][0]["title"] == ""
+
+    def test_step_missing_status_defaults_to_empty_string(self):
+        """result 缺少 status 键时，step 的 status 经 lower() 后应为空字符串"""
+        results = [{"case_id": "c001", "execution_time": 0}]
+        output = JSONFormatter.format_success(results, duration=0)
+        assert output["steps"][0]["status"] == ""
+
+    def test_step_missing_execution_time_defaults_to_zero(self):
+        """result 缺少 execution_time 键时，duration 应基于默认值 0 计算为 '0.00s'"""
+        results = [{"case_id": "c001", "status": "PASS"}]
+        output = JSONFormatter.format_success(results, duration=0)
+        assert output["steps"][0]["duration"] == "0.00s"
+
+    def test_missing_status_key_not_counted(self):
+        """result 缺少 status 键时不应崩溃，也不应计入任何分类"""
+        results = [{"case_id": "c001", "execution_time": 1.0}]
+        output = JSONFormatter.format_success(results, duration=1.0)
+        assert output["summary"]["passed"] == 0
+        assert output["summary"]["failed"] == 0
+        assert output["summary"]["skipped"] == 0
+
+    def test_variables_key_present(self):
+        """输出应包含 variables 字段（当前始终为空字典）"""
+        output = JSONFormatter.format_success([], duration=0.0)
+        assert "variables" in output
+        assert output["variables"] == {}
+
+    def test_case_diagnosis_is_passed_through(self):
+        diagnosis = {
+            "failure_reason": "步骤超时",
+            "recovery_action": {"action": "refresh", "data": ""},
+        }
+        output = JSONFormatter.format_success(
+            [{
+                "case_id": "c001",
+                "status": "FAIL",
+                "execution_time": 0,
+                "case_diagnosis": diagnosis,
+            }],
+            duration=0,
+        )
+
+        assert output["steps"][0]["case_diagnosis"] == diagnosis
+
 
 class TestFormatError:
     """format_error —— 错误信息格式化"""
@@ -120,6 +182,24 @@ class TestFormatError:
         output = JSONFormatter.format_error(Exception("err"))
         assert "failed_step" not in output
 
+    def test_error_with_case_id_only(self):
+        """只指定 case_id（不指定 step_index）时也应包含 failed_step
+
+        用于区分 `case_id or step_index is not None` 与误写成 `and` 的情况：
+        只有 case_id 为真时，or 条件仍成立，and 条件则不成立。
+        """
+        output = JSONFormatter.format_error(Exception("err"), case_id="c001")
+        assert "failed_step" in output
+        assert output["failed_step"]["case_id"] == "c001"
+        assert "index" not in output["failed_step"]
+
+    def test_error_with_step_index_only(self):
+        """只指定 step_index（不指定 case_id）时也应包含 failed_step"""
+        output = JSONFormatter.format_error(Exception("err"), step_index=0)
+        assert "failed_step" in output
+        assert output["failed_step"]["index"] == 0
+        assert "case_id" not in output["failed_step"]
+
 
 class TestToJson:
     """to_json —— 字典转 JSON 字符串"""
@@ -139,6 +219,21 @@ class TestToJson:
         result = JSONFormatter.to_json(data, pretty=True)
         assert "\n" in result  # pretty 模式有换行
         assert json.loads(result) == data
+
+    def test_default_pretty_is_false(self):
+        """不传 pretty 参数时，默认应为紧凑模式（无换行）"""
+        data = {"status": "success", "count": 1}
+        result = JSONFormatter.to_json(data)
+        assert "\n" not in result
+
+    def test_pretty_indent_is_two_spaces(self):
+        """pretty 模式的缩进应为 2 个空格"""
+        data = {"a": {"b": 1}}
+        result = JSONFormatter.to_json(data, pretty=True)
+        lines = result.split("\n")
+        # 嵌套一层的行应以恰好 2 个空格开头
+        indented = [l for l in lines if l.startswith("  ") and not l.startswith("   ")]
+        assert indented, f"未找到 2 空格缩进行: {lines}"
 
     def test_chinese_characters(self):
         """JSON 应正确处理中文（ensure_ascii=False）"""

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<globalvalue>
+    <group name="DefaultValue">
+        <var name="WaitTime" value="0"/>
+    </group>
+    <group name="Demo">
+        <var name="URL" value="http://127.0.0.1:0/index.html"/>
+    </group>
+    <group name="Roam">
+        <var name="Enabled" value="是"/>
+        <var name="MaxVariantsPerCase" value="1"/>
+        <var name="MaxDurationSeconds" value="30"/>
+        <var name="MinConfidenceToAct" value="0.6"/>
+        <var name="MaxTokenBudget" value="20000"/>
+        <var name="MaxCostUsd" value="0.5"/>
+    </group>
+</globalvalue>

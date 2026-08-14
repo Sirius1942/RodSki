@@ -13,7 +13,7 @@ import json
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 
 @dataclass
@@ -57,6 +57,7 @@ class StepReport:
     error: Optional[str] = None
     diagnosis: Optional[dict] = None  # Agent 诊断信息
     retry_history: list = field(default_factory=list)
+    browser_monitor: list = field(default_factory=list)  # 浏览器异常捕获（v0.1）
 
 
 @dataclass
@@ -105,6 +106,32 @@ class CaseReport:
     scenarios: list = field(default_factory=list)  # list[ScenarioReport]
     recording_path: Optional[str] = None
     recordings: list = field(default_factory=list)  # list[dict]
+    case_diagnosis: Optional[dict] = None  # DiagnosisEngine 生成的诊断报告（v8.2.0 Hooks 机制）
+    roam: Optional["RoamReport"] = None  # 漫游测试会话报告（v8.4.0）
+
+
+@dataclass
+class RoamFindingReport:
+    """漫游测试单条发现（v8.4.0）"""
+
+    finding_id: str = ""
+    severity: str = "info"  # info / warning / error
+    category: str = ""
+    description: str = ""
+    screenshot_path: Optional[str] = None
+    step_index: int = 0
+    url: Optional[str] = None
+
+
+@dataclass
+class RoamReport:
+    """漫游测试会话报告，附属于 CaseReport（v8.4.0）"""
+
+    stopped_reason: str = ""  # no_handler / budget_variants / budget_duration / budget_token / low_confidence / manual
+    total_variants: int = 0
+    duration: float = 0.0
+    start_screenshot: Optional[str] = None
+    findings: List[RoamFindingReport] = field(default_factory=list)
 
 
 def _serialize(obj: Any) -> Any:

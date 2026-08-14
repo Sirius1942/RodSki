@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+RodSki 浏览器插件 - 百度真实场景验收用例
+
+背景：验证插件在真实系统浏览器（非 rodski 内置的托管浏览器）上，
+加载后能否对真实公开网站（百度）正常工作，模拟"用户装了插件后手动
+打开百度搜索"的完整使用场景。
+
+技术方案：用 run 关键字调用桌面/CDP 操作脚本
+（RodSki 的 run 关键字支持调用桌面自动化脚本），启动 Playwright
+托管的 Chromium（无品牌限制，加载扩展参数可正常生效；Google Chrome
+品牌版 Stable 渠道已从命令行硬性禁止该参数），加载插件后通过
+Chrome DevTools Protocol 驱动真实操作、验证、截图。
+
+所有用例串行执行（依赖同一个浏览器进程 + 同一个百度标签页）。
+-->
+<cases>
+
+    <case execute="是" id="TC_BAIDU_001" title="启动真实浏览器并加载 RodSki 插件打开百度" component_type="接口">
+        <test_case>
+            <test_step action="run" model="" data="launch_chrome_with_plugin.py"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC_BAIDU_002" title="验证插件 content script 已真实注入百度页面" component_type="接口">
+        <test_case>
+            <test_step action="run" model="" data="verify_content_script_injected.py"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC_BAIDU_003" title="真实搜索操作 + 插件定位器采集能力验证" component_type="接口">
+        <test_case>
+            <test_step action="run" model="" data="perform_baidu_search.py"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC_BAIDU_004" title="截图存证：百度搜索结果页（插件已加载）" component_type="接口">
+        <test_case>
+            <test_step action="run" model="" data="capture_evidence_screenshot.py search_result"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC_BAIDU_005" title="清理：关闭浏览器进程并清理临时 profile" component_type="接口">
+        <test_case>
+            <test_step action="run" model="" data="cleanup_chrome.py"/>
+        </test_case>
+    </case>
+
+</cases>

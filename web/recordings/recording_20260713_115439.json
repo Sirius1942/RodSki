@@ -1,0 +1,33 @@
+{
+  "rodski_plugin_version": "1.0.0",
+  "recorded_at": "2026-07-13T00:00:00Z",
+  "exported_at": "2026-07-13T00:01:00Z",
+  "base_url": "http://localhost/smoke",
+  "total_steps": 2,
+  "total_screenshots": 0,
+  "steps": [
+    {
+      "seq": 1,
+      "action": "navigate",
+      "url": "http://localhost/smoke",
+      "timestamp": "2026-07-13T00:00:01Z"
+    },
+    {
+      "seq": 2,
+      "action": "click",
+      "url": "http://localhost/smoke",
+      "target": {
+        "tag": "button",
+        "locators": [
+          {
+            "type": "id",
+            "value": "smokeTestBtn",
+            "priority": 1
+          }
+        ]
+      }
+    }
+  ],
+  "screenshots": [],
+  "final_page_snapshot": null
+}

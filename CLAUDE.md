@@ -1,6 +1,6 @@
 # RodSki 项目 - Claude 协作指南
 
-> RodSki 是面向 AI Agent 的跨平台确定性测试执行引擎。当前版本：v8.1.0
+> RodSki 是面向 AI Agent 的跨平台确定性测试执行引擎。当前版本：v8.4.0
 
 ## 核心文档（每次开发前必读）
 
@@ -159,9 +159,11 @@ RodSki/                     ← 主仓库（父仓库，git remote: github / ori
 
 ---
 
-## 独立子项目（独立代码库 + 独立发布）
+## 独立子项目（独立代码库，版本号与主仓库同步）
 
-以下两个目录是**独立 Git 仓库**，物理上位于主仓库目录下，但不由主仓库 git 跟踪（已加入根 `.gitignore`）。它们拥有各自的 `.git/`、版本号和发布周期，与主仓库完全解耦。
+以下目录是**独立 Git 仓库**，物理上位于主仓库目录下，但不由主仓库 git 跟踪（已加入根 `.gitignore`）。它们拥有各自的 `.git/` 和发布节奏，但 **`rodski-agent` 和 `rodski-browser-plugin` 的版本号与主仓库保持同步**（v8.4.0 起）。`rodski-web` 独立演进，版本号不同步。
+
+详见 `.pb/conventions/VERSIONING.md` §9。
 
 ### rodski-web
 
@@ -192,10 +194,10 @@ cd rodski-web && python3 src/app.py
 |------|------|
 | **路径** | `rodski-agent/` |
 | **定位** | RodSki AI Agent 层（LangGraph + Anthropic/OpenAI）|
-| **版本文件** | `rodski-agent/pyproject.toml`（`[project] version`，当前 `2.3.0`）|
-| **版本格式** | `MAJOR.MINOR.PATCH`，规则同主仓库 |
+| **版本文件** | `rodski-agent/pyproject.toml`（`[project] version`，当前 `8.4.0`）|
+| **版本格式** | 与主仓库同步，tag 格式：`agent-vX.Y.Z` |
 | **git 仓库** | `rodski-agent/.git/`（独立本地仓库，需自行绑定 remote）|
-| **发布方式** | 独立 tag，与主仓库版本号无关；可单独 `pip install` |
+| **发布方式** | 与主仓库同批打 tag，可单独 `pip install` |
 
 **版本号同步文件**（rodski-agent 内部）：
 - `rodski-agent/pyproject.toml` → `[project] version`
@@ -211,13 +213,26 @@ pytest tests/ -q
 
 ---
 
+### rodski-browser-plugin
+
+| 项目 | 说明 |
+|------|------|
+| **路径** | `rodski-browser-plugin/` |
+| **定位** | RodSki 浏览器诊断/辅助插件（Chrome Extension）|
+| **版本文件** | `rodski-browser-plugin/manifest.json` → `"version"`（当前 `8.4.0`）|
+| **版本格式** | 与主仓库同步，tag 格式：`plugin-vX.Y.Z` |
+| **git 仓库** | `rodski-browser-plugin/.git/`（独立本地仓库）|
+| **发布方式** | 与主仓库同批打 tag |
+
+---
+
 ### 主仓库与独立子项目的协作规则
 
-1. **版本独立**：三者版本号完全独立，`rodski@8.1.0` 与 `rodski-agent@2.3.0`、`rodski-web@1.0.0` 没有绑定关系
-2. **git 独立**：`rodski-web/` 和 `rodski-agent/` 各自 `git init`，主仓库通过 `.gitignore` 忽略这两个目录
-3. **发布独立**：各自打 tag、走各自的发布脚本，不共用主仓库的 `release.sh`
+1. **版本同步**：`rodski-agent` 和 `rodski-browser-plugin` 版本号与主仓库同步；`rodski-web` 版本独立演进
+2. **git 独立**：各子项目各自 `git init`，主仓库通过 `.gitignore` 忽略
+3. **发布同批**：主仓库发版时，同批更新 agent 和 plugin 版本文件并打对应 tag
 4. **依赖关系**：`rodski-agent` 依赖已安装的 `rodski` 包（通过 `pip install rodski`），但代码仓库独立
-5. **AI Agent 操作范围**：在主仓库会话中，不得修改 `rodski-web/` 和 `rodski-agent/` 的版本文件和 git 操作；如需操作需单独开启对应目录的会话
+5. **AI Agent 操作范围**：主仓库会话中可更新 `rodski-agent` 和 `rodski-browser-plugin` 的版本文件，但不得执行这两个仓库的 git 操作
 
 ---
 

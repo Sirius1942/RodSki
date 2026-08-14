@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RodSki 测试助手</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      width: 320px;
+      min-height: 380px;
+      background: #0f0f1e;
+      color: #e0e0e0;
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 13px;
+    }
+
+    /* ---- 头部 ---- */
+    .header {
+      background: #1a1a2e;
+      border-bottom: 1px solid #2a2a4e;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .header-logo { display: flex; align-items: center; gap: 8px; }
+    .logo-icon {
+      width: 22px; height: 22px;
+      background: linear-gradient(135deg, #4a90d9, #7b68ee);
+      border-radius: 5px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: bold; color: #fff;
+    }
+    .logo-text { font-size: 14px; font-weight: bold; color: #4a90d9; }
+    .web-status { display: flex; align-items: center; gap: 5px; font-size: 10px; color: #555; }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #333; }
+    .status-dot.online { background: #27ae60; }
+    .status-dot.offline { background: #555; }
+
+    /* ---- 环境栏 ---- */
+    .env-bar {
+      background: #151525;
+      border-bottom: 1px solid #1e1e38;
+      padding: 6px 14px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .env-label { color: #555; font-size: 10px; }
+    .env-select {
+      flex: 1; background: #1a1a2e; border: 1px solid #2a2a4e;
+      color: #7ec8a4; padding: 3px 6px; border-radius: 4px;
+      font-size: 11px; font-family: inherit; cursor: pointer;
+    }
+    .env-select:focus { outline: none; border-color: #4a90d9; }
+    .btn-env-switch {
+      background: #1a2a3e; border: 1px solid #4a90d9; color: #4a90d9;
+      padding: 3px 8px; border-radius: 4px; font-size: 11px; cursor: pointer;
+    }
+    .btn-env-switch:hover { background: #1e3a5e; }
+
+    /* ---- 区块 ---- */
+    .section { padding: 10px 14px; border-bottom: 1px solid #131323; }
+    .section-title {
+      font-size: 10px; color: #444; text-transform: uppercase;
+      letter-spacing: 1px; margin-bottom: 8px;
+    }
+
+    /* ---- 按钮 ---- */
+    .btn {
+      display: flex; align-items: center; gap: 6px;
+      width: 100%; padding: 7px 12px;
+      border-radius: 6px; border: 1px solid #252540;
+      background: #181830; color: #e0e0e0;
+      font-size: 12px; font-family: inherit; cursor: pointer;
+      transition: all 0.15s; margin-bottom: 5px;
+    }
+    .btn:last-child { margin-bottom: 0; }
+    .btn:hover { border-color: #4a90d9; background: #1a2040; }
+    .btn.active { border-color: #e74c3c; background: #2a1820; color: #e74c3c; }
+    .btn.primary { border-color: #4a90d9; background: #1a2e4e; color: #4a90d9; }
+    .btn.primary:hover { background: #1e3a60; }
+    .btn.success { border-color: #27ae60; background: #18281e; color: #27ae60; }
+    .btn:disabled { opacity: 0.35; cursor: default; pointer-events: none; }
+    .btn-icon { font-size: 14px; }
+    .btn-badge {
+      margin-left: auto; background: #252540; color: #888;
+      padding: 1px 7px; border-radius: 10px; font-size: 10px;
+    }
+    .btn-badge.live { background: #2a1010; color: #e74c3c; }
+
+    /* ---- 录制脉冲 ---- */
+    .rec-dot {
+      width: 8px; height: 8px; background: #555;
+      border-radius: 50%; flex-shrink: 0;
+    }
+    .rec-dot.pulsing { background: #e74c3c; animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+    /* ---- Toggle 开关 ---- */
+    .toggle-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 6px 0;
+    }
+    .toggle-label { font-size: 12px; color: #c0c0d0; display: flex; align-items: center; gap: 6px; }
+    .toggle-sublabel { font-size: 10px; color: #555; margin-top: 2px; }
+    .toggle {
+      position: relative; width: 36px; height: 20px; flex-shrink: 0;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; inset: 0; background: #252540;
+      border-radius: 20px; cursor: pointer; transition: background .2s;
+    }
+    .slider:before {
+      content: ''; position: absolute;
+      width: 14px; height: 14px; left: 3px; top: 3px;
+      background: #555; border-radius: 50%; transition: all .2s;
+    }
+    input:checked + .slider { background: #1a4a2e; }
+    input:checked + .slider:before { transform: translateX(16px); background: #27ae60; }
+
+    /* ---- 截图缩略图 ---- */
+    .screenshots-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 3px; margin-top: 6px;
+    }
+    .screenshot-thumb {
+      aspect-ratio: 16/9; background: #1a1a2e;
+      border: 1px solid #252540; border-radius: 3px;
+      overflow: hidden; cursor: pointer; position: relative;
+    }
+    .screenshot-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .screenshot-thumb .thumb-seq {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: rgba(0,0,0,.6); color: #aaa;
+      font-size: 8px; padding: 1px 2px; text-align: center;
+    }
+
+    /* ---- 保存结果提示 ---- */
+    .save-result {
+      background: #0d1a10; border: 1px solid #1e4a28;
+      border-radius: 6px; padding: 7px 10px; margin-top: 6px;
+      font-size: 11px; display: none;
+    }
+    .save-result.visible { display: block; }
+    .save-result .save-dir { color: #7ec8a4; word-break: break-all; }
+    .save-result .save-stats { color: #555; margin-top: 3px; }
+
+    /* ---- Toast ---- */
+    #toast {
+      position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%);
+      background: #1e7e34; color: #fff; padding: 5px 14px;
+      border-radius: 6px; font-size: 11px; display: none;
+      white-space: nowrap; z-index: 999; pointer-events: none;
+    }
+    #toast.error  { background: #c0392b; }
+    #toast.info   { background: #1a4a7e; }
+    #toast.saving { background: #6a3a00; }
+  </style>
+</head>
+<body>
+
+<!-- 头部 -->
+<div class="header">
+  <div class="header-logo">
+    <div class="logo-icon">R</div>
+    <span class="logo-text">RodSki</span>
+  </div>
+  <div class="web-status">
+    <div class="status-dot" id="webStatusDot"></div>
+    <span id="webStatusText">—</span>
+  </div>
+</div>
+
+<!-- 环境栏 -->
+<div class="env-bar">
+  <span class="env-label">ENV</span>
+  <select class="env-select" id="envSelect">
+    <option value="">-- 选择 --</option>
+  </select>
+  <button class="btn-env-switch" id="btnEnvSwitch">切换</button>
+</div>
+
+<!-- 素材录制 -->
+<div class="section">
+  <div class="section-title">📹 素材录制</div>
+
+  <!-- 自动截图开关 -->
+  <div class="toggle-row">
+    <div>
+      <div class="toggle-label">📷 每步自动截图</div>
+      <div class="toggle-sublabel">开启后每个操作步骤自动截图作为证明</div>
+    </div>
+    <label class="toggle">
+      <input type="checkbox" id="autoShotToggle">
+      <span class="slider"></span>
+    </label>
+  </div>
+
+  <!-- 录制按钮 -->
+  <button class="btn" id="btnRecordToggle" style="margin-top:6px">
+    <div class="rec-dot" id="recDot"></div>
+    <span id="recBtnText">开始录制</span>
+    <span class="btn-badge" id="recBadge">0 步</span>
+  </button>
+
+  <!-- 手动截图（录制中可用） -->
+  <button class="btn" id="btnScreenshot" disabled>
+    <span class="btn-icon">📷</span>
+    <span>手动截图</span>
+    <span class="btn-badge" id="shotBadge">0 张</span>
+  </button>
+
+  <!-- 截图缩略图预览 -->
+  <div class="screenshots-grid" id="screenshotsGrid"></div>
+
+  <!-- 保存结果 -->
+  <div class="save-result" id="saveResult">
+    <div>✅ 已保存到 Downloads：</div>
+    <div class="save-dir" id="saveDir"></div>
+    <div class="save-stats" id="saveStats"></div>
+  </div>
+
+  <!-- 导出按钮 -->
+  <button class="btn primary" id="btnSave" style="margin-top:6px" disabled>
+    <span class="btn-icon">💾</span>
+    <span>保存到本地（JSON + XML + 截图）</span>
+  </button>
+</div>
+
+<!-- 定位器采集 -->
+<div class="section">
+  <div class="section-title">📍 定位器采集</div>
+  <button class="btn" id="btnPickerToggle">
+    <span class="btn-icon">🔍</span>
+    <span id="pickerBtnText">启动定位器 Picker</span>
+  </button>
+  <button class="btn" id="btnPageSnapshot">
+    <span class="btn-icon">🗂️</span>
+    <span>复制页面元素快照</span>
+  </button>
+</div>
+
+<!-- 失败诊断 -->
+<div class="section">
+  <div class="section-title">🔴 失败诊断</div>
+  <button class="btn" id="btnFetchFailure">
+    <span class="btn-icon">🔍</span>
+    <span>拉取最近失败（需 rodski-web）</span>
+  </button>
+  <button class="btn" id="btnClearHighlights">
+    <span class="btn-icon">🧹</span>
+    <span>清除页面高亮</span>
+  </button>
+</div>
+
+<div id="toast"></div>
+<script src="popup.js"></script>
+</body>
+</html>

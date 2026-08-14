@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases step_wait="300" tags="website,acceptance,smoke">
+    <case execute="是" id="UI_WEB_001" title="网站根路径可响应并重定向到 landing" description="访问根路径后验证 landing 页面核心文案、导航链接和最终路径" component_type="界面" priority="P0">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Website.BASE_URL"/>
+        </pre_process>
+        <test_case>
+            <test_step action="verify" model="WebsiteLanding" data="V001"/>
+            <test_step action="evaluate" model="" data="() => ({ pathname: window.location.pathname })"/>
+            <test_step action="verify" model="WebsiteRouteState" data="V_LANDING"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="UI_WEB_002" title="v8 文档首页可响应且内部链接正确" description="验证 v8 文档首页标题和所有关键内部链接均指向当前站点真实路由" component_type="界面" priority="P0">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Website.BASE_URL/v8"/>
+        </pre_process>
+        <test_case>
+            <test_step action="verify" model="V8DocsHome" data="V001"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="UI_WEB_003" title="v8 核心文档页面均可响应" description="逐个打开 v8 快速开始、关键字、用例指南、API、架构和更新日志页面并验证标题" component_type="界面" priority="P0">
+        <test_case>
+            <scenario id="S_QUICKSTART" title="快速开始页面响应" group="v8" tag="docs,quickstart">
+                <test_step action="navigate" model="" data="GlobalValue.Website.BASE_URL/v8/getting-started"/>
+                <test_step action="verify" model="DocsPageTitle" data="V_QUICKSTART"/>
+            </scenario>
+            <scenario id="S_KEYWORDS" title="关键字手册页面响应" group="v8" tag="docs,keywords">
+                <test_step action="navigate" model="" data="GlobalValue.Website.BASE_URL/v8/keywords"/>
+                <test_step action="verify" model="DocsPageTitle" data="V_KEYWORDS"/>
+            </scenario>
+            <scenario id="S_GUIDE" title="用例编写指南页面响应" group="v8" tag="docs,guide">
+                <test_step action="navigate" model="" data="GlobalValue.Website.BASE_URL/v8/test-case-guide"/>
+                <test_step action="verify" model="DocsPageTitle" data="V_GUIDE"/>
+            </scenario>
+            <scenario id="S_API" title="API 参考页面响应" group="v8" tag="docs,api">
+                <test_step action="navigate" model="" data="GlobalValue.Website.BASE_URL/v8/api-reference"/>
+                <test_step action="verify" model="DocsPageTitle" data="V_API"/>
+            </scenario>
+            <scenario id="S_ARCH" title="架构说明页面响应" group="v8" tag="docs,architecture">
+                <test_step action="navigate" model="" data="GlobalValue.Website.BASE_URL/v8/architecture"/>
+                <test_step action="verify" model="DocsPageTitle" data="V_ARCH"/>
+            </scenario>
+            <scenario id="S_CHANGELOG" title="更新日志页面响应" group="v8" tag="docs,changelog">
+                <test_step action="navigate" model="" data="GlobalValue.Website.BASE_URL/v8/changelog"/>
+                <test_step action="verify" model="DocsPageTitle" data="V_CHANGELOG"/>
+            </scenario>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="UI_WEB_004" title="v7 历史文档可响应且迁移链接正确" description="验证 v7 首页和 v7 用例指南页面，并确认指向 v8 的链接使用真实路由" component_type="界面" priority="P1">
+        <test_case>
+            <scenario id="S_V7_HOME" title="v7 首页响应" group="v7" tag="docs,v7">
+                <test_step action="navigate" model="" data="GlobalValue.Website.BASE_URL/v7"/>
+                <test_step action="verify" model="V7DocsHome" data="V001"/>
+            </scenario>
+            <scenario id="S_V7_GUIDE" title="v7 用例指南响应" group="v7" tag="docs,v7,guide">
+                <test_step action="navigate" model="" data="GlobalValue.Website.BASE_URL/v7/test-case-guide"/>
+                <test_step action="verify" model="DocsPageTitle" data="V_V7_GUIDE"/>
+            </scenario>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="UI_WEB_005" title="AI 工具文档文本路由可响应" description="通过浏览器 fetch 验证 /llms/v8/getting-started.md 返回 200 且包含快速开始文档内容" component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Website.BASE_URL/landing"/>
+        </pre_process>
+        <test_case>
+            <test_step action="evaluate" model="" data="async () => { const res = await fetch('/llms/v8/getting-started.md'); const text = await res.text(); return { status: res.status, contains: String(text.includes('# 快速开始')) }; }"/>
+            <test_step action="verify" model="WebsiteResourceState" data="V_LLMS"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="UI_WEB_006" title="不存在的文档页面返回 404" description="通过浏览器 fetch 验证不存在的文档路由返回 404，防止错误页面假响应为 200" component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Website.BASE_URL/landing"/>
+        </pre_process>
+        <test_case>
+            <test_step action="evaluate" model="" data="async () => { const res = await fetch('/v8/not-a-real-page'); const text = await res.text(); return { status: res.status, contains: String(text.includes('404') || text.includes('not found') || text.includes('This page could not be found')) }; }"/>
+            <test_step action="verify" model="WebsiteResourceState" data="V_404"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+</cases>

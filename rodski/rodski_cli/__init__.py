@@ -3,7 +3,7 @@ import sys
 import argparse
 import ast
 from pathlib import Path
-from . import run, model, config, log, report, docs, data, init, plan, capabilities
+from . import run, roam, model, config, log, report, docs, data, init, plan, capabilities
 
 from importlib.metadata import PackageNotFoundError, version
 
@@ -58,6 +58,7 @@ def main():
     subparsers = parser.add_subparsers(dest="command", help="子命令")
 
     run.setup_parser(subparsers)
+    roam.setup_parser(subparsers)
     model.setup_parser(subparsers)
     config.setup_parser(subparsers)
     log.setup_parser(subparsers)
@@ -76,6 +77,7 @@ def main():
 
     handlers = {
         "run": run.handle,
+        "roam": roam.handle,
         "model": model.handle,
         "config": config.handle,
         "log": log.handle,

@@ -4,19 +4,10 @@
 定位器类型、驱动类型等约束信息，实现版本协商和动态约束校验。
 """
 import json
-import sys
 
 
-def setup_parser(subparsers):
-    parser = subparsers.add_parser(
-        "capabilities",
-        help="输出 rodski 框架能力清单（JSON 格式）",
-    )
-    parser.set_defaults(func=handle)
-
-
-def handle(args):
-    """输出 JSON 格式的 rodski 能力清单。"""
+def get_capabilities():
+    """返回与 ``rodski capabilities`` 完全相同的实时能力清单。"""
     import ast
     from importlib.metadata import PackageNotFoundError, version
     from pathlib import Path
@@ -57,7 +48,7 @@ def handle(args):
         except PackageNotFoundError:
             framework_version = "dev"
 
-    capabilities = {
+    return {
         "version": framework_version,
         "supported_keywords": list(KeywordEngine.SUPPORTED),
         "compat_keywords": ["check"],
@@ -72,5 +63,16 @@ def handle(args):
         "execute_values": ["是", "否"],
     }
 
-    print(json.dumps(capabilities, ensure_ascii=False, indent=2))
+
+def setup_parser(subparsers):
+    parser = subparsers.add_parser(
+        "capabilities",
+        help="输出 rodski 框架能力清单（JSON 格式）",
+    )
+    parser.set_defaults(func=handle)
+
+
+def handle(args):
+    """输出 JSON 格式的 rodski 能力清单。"""
+    print(json.dumps(get_capabilities(), ensure_ascii=False, indent=2))
     return 0

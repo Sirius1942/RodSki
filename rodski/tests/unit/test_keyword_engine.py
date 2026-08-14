@@ -10,14 +10,25 @@
 """
 import pytest
 from unittest.mock import MagicMock, patch
-from core.keyword_engine import KeywordEngine
-from core.exceptions import (
-    UnknownKeywordError,
-    InvalidParameterError,
-    RetryExhaustedError,
-    AssertionFailedError,
-)
-from core.model_parser import MODEL_TYPE_UI, MODEL_TYPE_INTERFACE
+
+try:
+    from rodski.core.keyword_engine import KeywordEngine
+    from rodski.core.exceptions import (
+        UnknownKeywordError,
+        InvalidParameterError,
+        RetryExhaustedError,
+        AssertionFailedError,
+    )
+    from rodski.core.model_parser import MODEL_TYPE_UI, MODEL_TYPE_INTERFACE
+except ImportError:
+    from core.keyword_engine import KeywordEngine
+    from core.exceptions import (
+        UnknownKeywordError,
+        InvalidParameterError,
+        RetryExhaustedError,
+        AssertionFailedError,
+    )
+    from core.model_parser import MODEL_TYPE_UI, MODEL_TYPE_INTERFACE
 
 
 def make_mock_driver():
@@ -84,7 +95,7 @@ class TestKeywordEngine:
         mock_data_manager.get_data.assert_called_once_with("Page_verify", "E001")
 
     def test_wait(self, engine, mock_driver):
-        with patch('core.keyword_engine.time.sleep') as mock_sleep:
+        with patch('rodski.core.keyword_engine.time.sleep') as mock_sleep:
             result = engine.execute("wait", {"seconds": 2})
         assert result is True
         mock_sleep.assert_called_once_with(2.0)
@@ -108,7 +119,7 @@ class TestKeywordEngine:
             engine.execute("unknown", {})
 
     def test_case_insensitive(self, engine, mock_driver):
-        with patch('core.keyword_engine.time.sleep') as mock_sleep:
+        with patch('rodski.core.keyword_engine.time.sleep') as mock_sleep:
             engine.execute("WAIT", {"seconds": "2"})
         mock_sleep.assert_called_once_with(2.0)
 
@@ -138,7 +149,7 @@ class TestKeywordEngine:
         assert "assert_status" not in keywords
 
     def test_wait_default_seconds(self, engine, mock_driver):
-        with patch('core.keyword_engine.time.sleep') as mock_sleep:
+        with patch('rodski.core.keyword_engine.time.sleep') as mock_sleep:
             engine.execute("wait", {})
         mock_sleep.assert_called_once_with(1.0)
 
@@ -179,7 +190,10 @@ class TestUIKeywords:
         assert result is True
 
     def test_upload_file_failure(self, engine, mock_driver):
-        from core.exceptions import DriverError, RetryExhaustedError
+        try:
+            from rodski.core.exceptions import DriverError, RetryExhaustedError
+        except ImportError:
+            from core.exceptions import DriverError, RetryExhaustedError
         mock_driver.upload_file.return_value = False
         with pytest.raises((DriverError, RetryExhaustedError)):
             engine.execute(
@@ -285,7 +299,10 @@ class TestAdvancedKeywords:
 
     def test_db_missing_model_parser(self, mock_driver):
         """DB 关键字: 没有 model_parser 时报错"""
-        from core.exceptions import DriverError, RetryExhaustedError
+        try:
+            from rodski.core.exceptions import DriverError, RetryExhaustedError
+        except ImportError:
+            from core.exceptions import DriverError, RetryExhaustedError
         engine = KeywordEngine(mock_driver)
         with pytest.raises((DriverError, RetryExhaustedError)):
             engine.execute("DB", {"model": "QuerySQL", "data": "Q001"})
@@ -523,7 +540,10 @@ class TestRunKeyword:
 
     def test_run_script_error(self, mock_driver, tmp_path):
         """脚本执行出错时抛出异常"""
-        from core.exceptions import DriverError, RetryExhaustedError
+        try:
+            from rodski.core.exceptions import DriverError, RetryExhaustedError
+        except ImportError:
+            from core.exceptions import DriverError, RetryExhaustedError
         case_dir = tmp_path / "case"
         fun_dir = tmp_path / "fun" / "err"
         case_dir.mkdir(parents=True)
@@ -588,7 +608,7 @@ class TestSendKeyword:
         mock_response.status_code = 200
         mock_response.json.return_value = {"token": "abc123", "role": "admin"}
 
-        with um.patch('api.rest_helper.RestHelper.send_request', return_value=mock_response) as mock_send:
+        with um.patch('rodski.api.rest_helper.RestHelper.send_request', return_value=mock_response) as mock_send:
             result = engine.execute("send", {"model": "LoginAPI", "data": "D001"})
             assert result is True
             mock_send.assert_called_once()
@@ -626,7 +646,7 @@ class TestSendKeyword:
         mock_response.status_code = 200
         mock_response.json.return_value = {"users": []}
 
-        with um.patch('api.rest_helper.RestHelper.send_request', return_value=mock_response) as mock_send:
+        with um.patch('rodski.api.rest_helper.RestHelper.send_request', return_value=mock_response) as mock_send:
             result = engine.execute("send", {"model": "UserAPI", "data": "D001"})
             assert result is True
             call_kwargs = mock_send.call_args
@@ -685,7 +705,7 @@ class TestSendKeyword:
         mock_response.status_code = 201
         mock_response.json.return_value = {"id": 42, "username": "admin"}
 
-        with um.patch('api.rest_helper.RestHelper.send_request', return_value=mock_response):
+        with um.patch('rodski.api.rest_helper.RestHelper.send_request', return_value=mock_response):
             engine.execute("send", {"model": "LoginAPI", "data": "D001"})
 
         ret = engine.get_return(-1)
@@ -698,7 +718,10 @@ class TestVerifyKeyword:
     """verify 关键字测试 — 只支持批量模式 (model + data)"""
 
     def test_verify_requires_model_and_data(self, engine, mock_driver):
-        from core.exceptions import InvalidParameterError
+        try:
+            from rodski.core.exceptions import InvalidParameterError
+        except ImportError:
+            from core.exceptions import InvalidParameterError
         with pytest.raises(InvalidParameterError, match="model/data"):
             engine.execute("verify", {})
         with pytest.raises(InvalidParameterError, match="model/data"):
@@ -794,7 +817,10 @@ class TestVerifyKeyword:
 
     def test_batch_verify_with_return_in_data_table(self, mock_driver):
         """数据表字段中使用 Return[-1]"""
-        from data.data_resolver import DataResolver
+        try:
+            from rodski.data.data_resolver import DataResolver
+        except ImportError:
+            from data.data_resolver import DataResolver
 
         mock_model_parser = MagicMock()
         mock_model_parser.get_model.return_value = {
@@ -936,7 +962,10 @@ class TestVerifyKeyword:
 
     def test_data_resolver_resolve_with_return(self):
         """resolve_with_return 解析数据表字段中的 Return 引用"""
-        from data.data_resolver import DataResolver
+        try:
+            from rodski.data.data_resolver import DataResolver
+        except ImportError:
+            from data.data_resolver import DataResolver
 
         values = ["order-001", "user-42", "token-xyz"]
         def mock_provider(index):
@@ -953,7 +982,10 @@ class TestVerifyKeyword:
 
     def test_data_resolver_resolve_does_not_touch_return(self):
         """resolve (Case Sheet 层) 不解析 Return"""
-        from data.data_resolver import DataResolver
+        try:
+            from rodski.data.data_resolver import DataResolver
+        except ImportError:
+            from data.data_resolver import DataResolver
         values = ["some-value"]
         resolver = DataResolver(return_provider=lambda i: values[i])
         assert resolver.resolve("Return[-1]") == "Return[-1]"

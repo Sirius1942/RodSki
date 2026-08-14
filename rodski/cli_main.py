@@ -8,17 +8,21 @@ from pathlib import Path
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from rodski_cli import run, model, config, log, report, profile, docs, capabilities, data, init, plan
-from importlib.metadata import PackageNotFoundError, version
-
-try:
-    VERSION = version("rodski")
-except PackageNotFoundError:
-    try:
-        import __init__ as _pkg
-        VERSION = _pkg.__version__
-    except (ImportError, AttributeError):
-        VERSION = "dev"
+from rodski_cli import (
+    VERSION,
+    run,
+    roam,
+    model,
+    config,
+    log,
+    report,
+    profile,
+    docs,
+    capabilities,
+    data,
+    init,
+    plan,
+)
 
 
 def format_error(e, verbose=False):
@@ -69,6 +73,9 @@ def main():
     # run 子命令
     run.setup_parser(subparsers)
 
+    # roam 子命令
+    roam.setup_parser(subparsers)
+
     # model 子命令
     model.setup_parser(subparsers)
 
@@ -108,6 +115,7 @@ def main():
     # 执行对应子命令
     handlers = {
         "run": run.handle,
+        "roam": roam.handle,
         "model": model.handle,
         "config": config.handle,
         "log": log.handle,

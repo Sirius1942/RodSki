@@ -1,0 +1,58 @@
+{
+  "manifest_version": 3,
+  "name": "RodSki 测试助手",
+  "version": "8.4.0",
+  "description": "RodSki 浏览器插件：素材录制、定位器采集、失败诊断、环境快切",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "tabs",
+    "downloads",
+    "webNavigation"
+  ],
+  "host_permissions": [
+    "http://localhost/*",
+    "https://localhost/*",
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "src/background/service_worker.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_title": "RodSki 测试助手",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": [
+        "src/content/utils.js",
+        "src/content/locator_picker.js",
+        "src/content/recorder.js",
+        "src/content/highlighter.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["src/content/*.css"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

@@ -148,6 +148,14 @@ class BaseDriver(ABC):
         """
         pass
 
+    def current_url(self) -> Optional[str]:
+        """返回当前页面 URL（仅 Web 驱动有意义）。
+
+        默认实现返回 None，PlaywrightDriver 覆盖此方法。
+        其他驱动（Appium、Desktop、Load）继承默认实现即可。
+        """
+        return None
+
     @abstractmethod
     def double_click(self, x: int, y: int) -> None:
         """双击指定坐标

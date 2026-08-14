@@ -38,6 +38,14 @@ def get_builtin(name: str) -> Optional[Callable]:
 
     延迟导入：只在实际调用时导入模块，避免启动时加载不必要的依赖。
 
+    模块路径兼容两种运行模式：
+    1. legacy 模式：`rodski/` 目录本身在 sys.path 上（如 `cd rodski && python3 ski_run.py`），
+       此时 "builtin_ops.xxx" 是顶层绝对导入路径，可直接解析
+    2. 标准安装模式：通过 pip / 可编辑安装的 `rodski` 包（真实 `rodski` CLI 命令走此路径），
+       此时顶层包名为 `rodski`，"builtin_ops.xxx" 需要改写为 "rodski.builtin_ops.xxx" 才能解析
+
+    先尝试原始路径（兼容 legacy），失败后再尝试加 "rodski." 前缀。
+
     Args:
         name: 函数名称
 
@@ -48,16 +56,26 @@ def get_builtin(name: str) -> Optional[Callable]:
         return None
 
     module_path, func_name = BUILTIN_REGISTRY[name]
-    try:
-        module = importlib.import_module(module_path)
-        func = getattr(module, func_name, None)
-        if func is None:
-            logger.warning(f"内置函数模块 {module_path} 中未找到 {func_name}")
-            return None
-        return func
-    except ImportError as e:
-        logger.warning(f"内置函数模块导入失败: {module_path} - {e}")
+    module = None
+    last_error: Optional[Exception] = None
+
+    for candidate in (module_path, f"rodski.{module_path}"):
+        try:
+            module = importlib.import_module(candidate)
+            break
+        except ImportError as e:
+            last_error = e
+            continue
+
+    if module is None:
+        logger.warning(f"内置函数模块导入失败: {module_path} - {last_error}")
         return None
+
+    func = getattr(module, func_name, None)
+    if func is None:
+        logger.warning(f"内置函数模块 {module.__name__} 中未找到 {func_name}")
+        return None
+    return func
 
 
 def list_builtins() -> list[str]:
@@ -73,3 +91,7 @@ def list_builtins() -> list[str]:
 register_builtin("mock_route", "builtin_ops.network_ops", "mock_route")
 register_builtin("wait_for_response", "builtin_ops.network_ops", "wait_for_response")
 register_builtin("clear_routes", "builtin_ops.network_ops", "clear_routes")
+
+# ── 自动注册 coverage_ops 中的函数 ─────────────────────────────
+register_builtin("start_js_coverage", "builtin_ops.coverage_ops", "start_js_coverage")
+register_builtin("stop_js_coverage", "builtin_ops.coverage_ops", "stop_js_coverage")

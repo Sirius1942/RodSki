@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<test_plan id="website_smoke"
+           title="RodSki Website 验收冒烟"
+           kind="suite"
+           execute="是"
+           default_execute="否">
+    <case id="UI_WEB_001" execute="是"/>
+    <case id="UI_WEB_002" execute="是"/>
+    <case id="UI_WEB_003" execute="是"/>
+    <case id="UI_WEB_004" execute="是"/>
+    <case id="UI_WEB_005" execute="是"/>
+    <case id="UI_WEB_006" execute="是"/>
+</test_plan>

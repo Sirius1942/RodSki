@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Self-contained database model used by the Hooks demo. -->
+<models>
+  <model name="DemoDB" type="database" connection="demo_db" servicename="Hooks demo database">
+    <query name="write_audit" remark="尝试写入审计表">
+      <sql>INSERT INTO audit_log (message) VALUES (:message)</sql>
+    </query>
+    <query name="read_audit" remark="读取审计行数">
+      <sql>SELECT COUNT(*) AS total FROM audit_log</sql>
+    </query>
+  </model>
+</models>

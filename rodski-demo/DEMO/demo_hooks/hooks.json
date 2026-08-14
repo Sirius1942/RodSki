@@ -1,0 +1,8 @@
+{
+  "on_run_start": [
+    {
+      "command": ["python3", "fun/hooks/on_run_start.py"],
+      "timeout": 5
+    }
+  ]
+}
