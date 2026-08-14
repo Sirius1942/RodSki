@@ -93,9 +93,43 @@ class BrowserMonitor:
         errors = monitor.collect()  # 每个 test_step 执行后；清空缓冲区并返回
     """
 
+    # 错误分类规则（v9.2.3+）
+    ERROR_CATEGORIES = {
+        'js_error': ['ReferenceError', 'TypeError', 'SyntaxError', 'RangeError'],
+        'network_error': ['Failed to fetch', 'NetworkError', 'net::ERR_', 'ECONNREFUSED'],
+        'resource_error': ['404', '403', '500', '502', '503', 'Failed to load resource'],
+        'security_error': ['CORS', 'Mixed Content', 'CSP', 'blocked by CORS'],
+    }
+
     def __init__(self, driver: "PlaywrightDriver"):
         self._driver = driver
         self._injected = False
+
+    def classify_error(self, error_message: str, error_type: str = "") -> str:
+        """将浏览器错误分类（v9.2.3+）
+
+        Args:
+            error_message: 错误消息
+            error_type: 错误类型（monitor 内部的 type 字段）
+
+        Returns:
+            错误类别：js_error, network_error, resource_error, security_error, unknown
+        """
+        # 先根据 monitor 类型快速分类
+        if error_type in ['js_error', 'promise_rejection']:
+            return 'js_error'
+        elif error_type == 'console_error':
+            # console.error 需要进一步分析消息内容
+            pass
+        elif error_type == 'dom_alert':
+            return 'ui_error'
+
+        # 基于消息内容分类
+        for category, patterns in self.ERROR_CATEGORIES.items():
+            if any(pattern in error_message for pattern in patterns):
+                return category
+
+        return 'unknown'
 
     # ------------------------------------------------------------------
     # 注入
@@ -145,6 +179,7 @@ class BrowserMonitor:
 
             {
                 "type":    "dom_alert" | "js_error" | "console_error" | "promise_rejection",
+                "category": "js_error" | "network_error" | "resource_error" | "security_error" | "unknown",  # v9.2.3+
                 "step":    "<case_id>_<step_index>",   # set_step 时注入
                 "ts":      1723507200123,               # 毫秒时间戳
                 "text":    "...",                       # dom_alert 专属
@@ -163,7 +198,13 @@ class BrowserMonitor:
                 "() => { var e = window.__rodski_errors || []; "
                 "window.__rodski_errors = []; return e; }"
             )
+            # v9.2.3+: 为每个错误添加分类
             if errors:
+                for error in errors:
+                    error['category'] = self.classify_error(
+                        error.get('message') or error.get('text', ''),
+                        error.get('type', '')
+                    )
                 logger.debug("[BrowserMonitor] 本 step 捕获 %d 条异常", len(errors))
             return errors or []
         except Exception as e:

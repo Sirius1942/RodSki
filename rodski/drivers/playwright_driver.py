@@ -16,7 +16,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union, Dict, Any
 try:
     from .base_driver import BaseDriver
     from ..core.exceptions import (
@@ -137,15 +137,52 @@ class PlaywrightDriver(BaseDriver):
     # 默认超时时间（毫秒）
     DEFAULT_TIMEOUT = 10000
 
-    def __init__(self, headless: bool = False, browser: str = "chromium"):
-        self.headless = headless
-        self.browser_name = browser
+    def __init__(self, config: Union['ConfigManager', Dict[str, Any], None] = None,
+                 headless: bool = False, browser: str = "chromium"):
+        """初始化 PlaywrightDriver
+
+        Args:
+            config: 配置对象或字典。支持三种方式：
+                1. ConfigManager 对象（传统方式，向后兼容）
+                2. 配置字典（探索测试场景，避免序列化问题）
+                3. None（使用 headless/browser 参数）
+            headless: 无头模式（当 config=None 时生效）
+            browser: 浏览器类型（当 config=None 时生效）
+        """
+        # 解析配置
+        if config is None:
+            # 方式3：使用参数
+            self._config_dict = {
+                'headless': headless,
+                'browser': browser,
+                'timeout': self.DEFAULT_TIMEOUT,
+            }
+        elif isinstance(config, dict):
+            # 方式2：字典配置（探索测试场景）
+            self._config_dict = config
+        else:
+            # 方式1：ConfigManager 对象（传统场景，向后兼容）
+            try:
+                self._config_dict = config.to_dict()
+            except AttributeError:
+                # 旧版 ConfigManager 没有 to_dict()，回退到直接访问
+                self._config_dict = {
+                    'headless': getattr(config, 'headless', headless),
+                    'browser': getattr(config, 'browser', browser),
+                    'timeout': getattr(config, 'timeout', self.DEFAULT_TIMEOUT),
+                }
+
+        # 从配置字典提取参数
+        self.headless = self._config_dict.get('headless', headless)
+        self.browser_name = self._config_dict.get('browser', browser)
+        self._timeout = self._config_dict.get('timeout', self.DEFAULT_TIMEOUT)
+
+        # 初始化内部状态
         self._pw = None
         self.browser = None
         self.context = None
         self.page = None
         self._is_closed = False
-        self._timeout = self.DEFAULT_TIMEOUT
         self._vision_locator = None
         self._recording_context = None
         self._recording_video = None
@@ -257,7 +294,7 @@ class PlaywrightDriver(BaseDriver):
     def _handle_error(self, operation: str, locator: str, error: Exception) -> None:
         """统一错误处理"""
         error_msg = str(error)
-        
+
         # 严重错误：驱动已停止
         if is_critical_error(error):
             self._is_closed = True
@@ -265,9 +302,130 @@ class PlaywrightDriver(BaseDriver):
                 f"{operation} 操作失败: {error_msg}",
                 driver_type="Playwright"
             )
-        
+
         # 记录日志
         logger.error(f"{operation} 失败: {locator}, 错误: {error_msg}")
+
+    def _collect_failure_evidence(self, error: Exception, context: dict) -> dict:
+        """失败时采集完整证据（v9.2.3+）
+
+        Args:
+            error: 异常对象
+            context: 操作上下文（包含 operation, locator 等信息）
+
+        Returns:
+            证据字典，包含 screenshot, url, browser_errors, dom_snapshot 等
+        """
+        evidence = {
+            'error_type': type(error).__name__,
+            'error_message': str(error),
+            'timestamp': time.time(),
+            'context': context,
+        }
+
+        try:
+            if self.page:
+                # 截图（安全执行，失败不抛异常）
+                screenshot_b64 = self._safe_screenshot()
+                if screenshot_b64:
+                    evidence['screenshot'] = screenshot_b64
+
+                # 当前 URL
+                try:
+                    evidence['url'] = self.page.url
+                except Exception:
+                    pass
+
+                # 页面标题
+                try:
+                    evidence['title'] = self.page.title()
+                except Exception:
+                    pass
+
+                # Console errors（从 BrowserMonitor）
+                try:
+                    browser_errors = self.collect_monitor_errors()
+                    if browser_errors:
+                        evidence['browser_errors'] = browser_errors
+                except Exception:
+                    pass
+
+                # DOM 快照（失败元素附近）
+                if 'locator' in context:
+                    try:
+                        dom_snapshot = self._capture_dom_snapshot(context['locator'])
+                        if dom_snapshot:
+                            evidence['dom_snapshot'] = dom_snapshot
+                    except Exception:
+                        pass
+
+        except Exception as e:
+            evidence['evidence_collection_error'] = str(e)
+
+        return evidence
+
+    def _safe_screenshot(self) -> Optional[str]:
+        """安全截图：即使失败也不抛异常
+
+        Returns:
+            Base64 编码的截图，失败返回 None
+        """
+        try:
+            if not self.page:
+                return None
+            screenshot_bytes = self.page.screenshot()
+            import base64
+            return base64.b64encode(screenshot_bytes).decode()
+        except Exception as e:
+            logger.debug(f"截图失败: {e}")
+            return None
+
+    def _capture_dom_snapshot(self, locator: str) -> dict:
+        """捕获失败定位器附近的 DOM 快照
+
+        Args:
+            locator: 失败的定位器
+
+        Returns:
+            DOM 快照字典
+        """
+        try:
+            script = """
+            (locator) => {
+                // 尝试多种定位方式
+                let elem = null;
+                if (locator.startsWith('#')) {
+                    elem = document.getElementById(locator.slice(1));
+                } else if (locator.startsWith('.')) {
+                    elem = document.querySelector(locator);
+                } else {
+                    elem = document.querySelector(locator);
+                }
+
+                if (!elem) {
+                    return {
+                        found: false,
+                        locator: locator,
+                        possible_matches: document.querySelectorAll('*').length
+                    };
+                }
+
+                return {
+                    found: true,
+                    tag: elem.tagName,
+                    id: elem.id,
+                    classes: elem.className,
+                    text: elem.textContent?.slice(0, 100),
+                    parent_tag: elem.parentElement?.tagName,
+                    parent_html: elem.parentElement?.outerHTML.slice(0, 500),
+                    siblings_count: elem.parentElement?.children.length
+                };
+            }
+            """
+            return self.page.evaluate(script, locator) or {}
+        except Exception as e:
+            logger.debug(f"DOM 快照捕获失败: {e}")
+            return {}
 
     def _wait_for_element_visible(self, locator: str, timeout: int = None) -> bool:
         """等待元素可见

@@ -95,6 +95,33 @@ class ConfigManager:
     def list_all(self) -> Dict[str, Any]:
         return dict(self.config)
 
+    def to_dict(self) -> Dict[str, Any]:
+        """导出为可序列化的字典配置
+
+        用于跨进程/线程传递配置，避免对象序列化问题。
+        典型场景：ExploreExecutor 传递配置给 PlaywrightDriver。
+
+        Returns:
+            完整配置字典，可 JSON 序列化
+        """
+        return dict(self.config)
+
+    @classmethod
+    def from_dict(cls, config_dict: Dict[str, Any]) -> 'ConfigManager':
+        """从字典恢复 ConfigManager 实例
+
+        Args:
+            config_dict: 配置字典（通常来自 to_dict()）
+
+        Returns:
+            ConfigManager 实例
+        """
+        instance = cls.__new__(cls)
+        instance.config_path = Path("config/config.json")  # 默认路径
+        instance.config = dict(DEFAULTS)
+        instance.config.update(config_dict)
+        return instance
+
     def validate(self, key: Optional[str] = None) -> bool:
         if key:
             if key in VALID_KEYS:

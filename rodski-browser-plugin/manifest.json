@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "RodSki 测试助手",
-  "version": "8.4.0",
+  "version": "9.2.3",
   "description": "RodSki 浏览器插件：素材录制、定位器采集、失败诊断、环境快切",
   "permissions": [
     "activeTab",
