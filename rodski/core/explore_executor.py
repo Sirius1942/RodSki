@@ -209,9 +209,21 @@ class ExploreExecutor:
         Returns:
             是否已激活
         """
-        # TODO: 实现插件激活检测逻辑
-        # 可以通过检查 localStorage 或页面特定标记来判断
-        return False
+        driver = self.keyword_engine.driver
+
+        if not hasattr(driver, "page") or not driver.page:
+            return False
+
+        try:
+            # 检查页面是否有插件注入的标记
+            is_active = driver.page.evaluate("""
+                () => {
+                    return typeof window.__rodski_explorer__ !== 'undefined';
+                }
+            """)
+            return bool(is_active)
+        except Exception:
+            return False
 
     def _collect_explorer_evidence(self, step_id: str) -> list:
         """收集 rodski-explorer 插件证据
