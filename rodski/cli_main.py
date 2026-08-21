@@ -22,6 +22,7 @@ from rodski_cli import (
     data,
     init,
     plan,
+    explore,
 )
 
 
