@@ -22,6 +22,7 @@ from rodski_cli import (
     data,
     init,
     plan,
+    explore,
 )
 
 
@@ -105,6 +106,9 @@ def main():
 
     # plan 子命令
     plan.setup_parser(subparsers)
+
+    # explore 子命令
+    explore.setup_parser(subparsers)
 
     args = parser.parse_args()
 
