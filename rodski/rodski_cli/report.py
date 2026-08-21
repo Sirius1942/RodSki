@@ -15,6 +15,14 @@ from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 
+# 导入图片处理工具
+try:
+    from rodski.utils.image_utils import convert_img_to_base64
+except ImportError:
+    # 如果模块不存在，定义一个空函数
+    def convert_img_to_base64(html: str, base_dir: Optional[str] = None) -> str:
+        return html
+
 
 def _normalise_recordings(recording_path: str = "", recordings: Optional[List[Dict[str, Any]]] = None) -> List[Dict[str, Any]]:
     items: List[Dict[str, Any]] = []
@@ -761,6 +769,12 @@ def _generate_html(
     </script>
 </body>
 </html>'''
+
+    # 如果是单文件模式，将所有图片转换为 base64
+    if single_file and base_dir:
+        html = convert_img_to_base64(html, base_dir)
+
+    return html
 
 
 # ---------------------------------------------------------------------------
