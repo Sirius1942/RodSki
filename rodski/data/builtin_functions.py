@@ -84,6 +84,131 @@ def _builtin_date(type_: str, *args: str) -> str:
     raise ValueError(f"date 不支持类型: {type_}")
 
 
+
+@_register("urlencode")
+def _builtin_urlencode(value: str) -> str:
+    """encodeURIComponent-equivalent: percent-encode all reserved chars except A-Za-z0-9-_.!~*'()"""
+    from urllib.parse import quote
+    return quote(str(value), safe="A-Za-z0-9-_.!~*'()")
+
+
+@_register("encodeURI")
+def _builtin_encodeuri(value: str) -> str:
+    """encodeURIComponent alias."""
+    return _builtin_urlencode(value)
+
+
+@_register("encodeURIComponent")
+def _builtin_encodeuricomponent(value: str) -> str:
+    """encodeURIComponent alias (JS-compatible)."""
+    return _builtin_urlencode(value)
+
+
+@_register("upper")
+def _builtin_upper(value: str) -> str:
+    return str(value).upper()
+
+
+@_register("lower")
+def _builtin_lower(value: str) -> str:
+    return str(value).lower()
+
+
+@_register("timestamp")
+def _builtin_timestamp() -> str:
+    return str(int(_time.time()))
+
+
+@_register("timestamp_ms")
+def _builtin_timestamp_ms() -> str:
+    return str(int(_time.time() * 1000))
+
+
+@_register("timestamp36")
+def _builtin_timestamp36() -> str:
+    """JS Date.now().toString(36).toUpperCase() equivalent."""
+    n = int(_time.time() * 1000)
+    # base36 of a Python int
+    chars = "0123456789abcdefghijklmnopqrstuvwxyz"
+    out = ""
+    if n == 0:
+        return "0"
+    while n:
+        n, r = divmod(n, 36)
+        out = chars[r] + out
+    return out.upper()
+
+
+@_register("concat")
+def _builtin_concat(*args: str) -> str:
+    return "".join(str(a) for a in args)
+
+
+# ============ v11.0.0 新增函数（规范命名） ============
+
+@_register("toUpperCase")
+def _builtin_toUpperCase(value: str) -> str:
+    """v11.0.0 规范命名：转大写"""
+    return str(value).upper()
+
+
+@_register("toLowerCase")
+def _builtin_toLowerCase(value: str) -> str:
+    """v11.0.0 规范命名：转小写"""
+    return str(value).lower()
+
+
+@_register("toString36")
+def _builtin_toString36(number: str) -> str:
+    """v11.0.0 规范命名：转 36 进制（大写）
+
+    Args:
+        number: 数字字符串或整数
+
+    Returns:
+        36 进制字符串（大写）
+
+    Example:
+        toString36(1234567890) → "KF12OI"
+    """
+    try:
+        n = int(number)
+    except (ValueError, TypeError):
+        raise ValueError(f"toString36 需要整数参数，得到: {number}")
+
+    if n == 0:
+        return "0"
+
+    chars = "0123456789abcdefghijklmnopqrstuvwxyz"
+    out = ""
+    negative = n < 0
+    n = abs(n)
+
+    while n:
+        n, r = divmod(n, 36)
+        out = chars[r] + out
+
+    result = out.upper()
+    return f"-{result}" if negative else result
+
+
+@_register("decodeURI")
+def _builtin_decodeURI(value: str) -> str:
+    """v11.0.0 新增：URL 解码（percent-decode）
+
+    Args:
+        value: URL 编码的字符串
+
+    Returns:
+        解码后的字符串
+
+    Example:
+        decodeURI("hello%20world") → "hello world"
+    """
+    from urllib.parse import unquote
+    return unquote(str(value))
+
+
 def call_function(name: str, args: list[str]) -> str:
     if name not in _FUNC_REGISTRY:
         raise ValueError(f"未知内置函数: {name}")

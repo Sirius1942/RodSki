@@ -568,18 +568,29 @@ Return 做跨源比对，这是合法的断言。
 - verify 模型的 `__model_type__` 为 `interface` 或 `database` → 禁止 `${Return[-1]}`
 - verify 模型的 `__model_type__` 为 `ui` → 允许（实际值来源不同）
 
-### 4.4 内置函数（v6.7.0）
+### 4.4 内置函数（v11.0.0）
 
-数据表字段值中支持 `${函数名(type, 参数...)}` 格式的内置函数调用，运行时动态求值。
+数据表字段值中支持 `${函数名(参数...)}` 格式的内置函数调用，运行时动态求值。
 
-**仅允许以下两个内置函数，不得新增**：
+**v11.0.0 新增 5 个文本处理函数，当前共 8 个函数**：
 
-| 函数 | 用途 | 语法 |
-|------|------|------|
-| `random` | 生成随机数据 | `${random(type, ...)}` |
-| `date` | 获取时间数据 | `${date(type, ...)}` |
+#### 4.4.1 支持的内置函数清单
 
-#### 4.4.1 `random(type, ...)` 可用 type
+**数据生成**（v1.0）：
+- `random(type, ...)` - 生成随机数据
+- `date(type, ...)` - 获取时间数据
+
+**文本处理**（v11.0.0 新增）：
+- `encodeURI(value)` - URL 编码（等同 encodeURIComponent）
+- `decodeURI(value)` - URL 解码
+- `toUpperCase(text)` - 转大写
+- `toLowerCase(text)` - 转小写
+- `toString36(number)` - 转 36 进制（大写）
+
+**工具函数**（向后兼容）：
+- `concat(str1, str2, ...)` - 字符串拼接（推荐用模板语法代替）
+
+#### 4.4.2 `random(type, ...)` 可用 type
 
 | type | 参数 | 说明 |
 |------|------|------|
@@ -592,7 +603,7 @@ Return 做跨源比对，这是合法的断言。
 | `choice` | 候选值列表 | 随机选取一个 |
 | `uuid` | 无 | UUID v4 |
 
-#### 4.4.2 `date(type, ...)` 可用 type
+#### 4.4.3 `date(type, ...)` 可用 type
 
 | type | 参数 | 说明 |
 |------|------|------|
@@ -603,7 +614,27 @@ Return 做跨源比对，这是合法的断言。
 | `timestamp_ms` | 无 | Unix 时间戳（毫秒） |
 | `offset` | 偏移值, format（可选） | 日期偏移（数字=天，数字+h=小时） |
 
-#### 4.4.3 字符串拼接
+#### 4.4.4 v11.0.0 新增函数使用示例
+
+```xml
+<!-- 1. URL 编码（高频场景） -->
+<field name="_url">/api/list?store=${encodeURI(${storeId})}&amp;limit=50</field>
+
+<!-- 2. 唯一编号生成（组合使用） -->
+<test_step action="set" model="" data="timestamp=${date(timestamp)}"/>
+<test_step action="set" model="" data="base36=${toString36(${timestamp})}"/>
+<test_step action="set" model="" data="uniqueId=${toUpperCase(${base36})}"/>
+<!-- 输出示例：uniqueId=Z1B2C3D -->
+
+<!-- 3. 字符串拼接（现有能力） -->
+<field name="orderId">ORD_${date(today, %Y%m%d)}_${random(digits, 4)}</field>
+<!-- 输出示例：ORD_20260831_3847 -->
+
+<!-- 4. URL 解码 -->
+<field name="decodedUrl">${decodeURI(${encodedUrl})}</field>
+```
+
+#### 4.4.5 字符串拼接
 
 `${...}` 可出现在字段值任意位置，前后可拼接静态文本，多个函数可串联：
 
@@ -611,17 +642,215 @@ Return 做跨源比对，这是合法的断言。
 user_${random(int, 4)}                    → user_3847
 ORD_${date(today, %Y%m%d)}_${random(digits, 4)}  → ORD_20260512_3847
 test_${random(str, 6)}@example.com        → test_aB3kP9@example.com
+/api/search?q=${encodeURI(${keyword})}    → /api/search?q=hello%20world
 ```
 
-#### 4.4.4 约束
+#### 4.4.6 约束
 
-1. **函数清单封闭** — 仅 `random` 和 `date` 两个函数，不允许新增内置函数。如需扩展数据生成能力，通过 `run` 关键字调用 `fun/` 脚本实现
-2. **纯函数无副作用** — 内置函数只生成值，不修改任何状态
-3. **运行时求值** — 每次执行时重新计算，不缓存
-4. **不支持嵌套** — `${random(int, ${date(...)})}` 非法
-5. **不在 Case XML 中使用** — 内置函数只在数据表字段值中生效，不写在 case 的 data 属性中（与 Return 引用规则一致）
+1. **函数清单受控** — 当前 8 个函数（2 个数据生成 + 5 个文本处理 + 1 个工具），新增需架构评审
+2. **不支持嵌套**（v11.0.0 强化） — `${encodeURI(${toUpperCase(x)})}` 不允许，使用分步 `set` 代替：
+   ```xml
+   <!-- 错误：嵌套函数 -->
+   <!-- <field name="value">${encodeURI(${toUpperCase(${storeId})})}</field> -->
+   
+   <!-- 正确：分步替代 -->
+   <test_step action="set" model="" data="upperStoreId=${toUpperCase(${storeId})}"/>
+   <test_step action="set" model="" data="encodedStoreId=${encodeURI(${upperStoreId})}"/>
+   ```
+3. **纯函数无副作用** — 内置函数只生成值，不修改任何状态
+4. **运行时求值** — 每次执行时重新计算，不缓存结果
+5. **仅在数据表字段值中使用** — 内置函数只在数据表字段值中生效，不能在 Case XML 的 `data` 属性中使用（与 Return 引用规则一致）
 6. **解析优先级** — `${Return[N]}` 优先于内置函数，内置函数优先于 `${var}` 变量引用
 7. **转义** — 需要字面量 `${` 时使用 `$${` 转义
+
+### 4.5 数组路径访问（v11.0.0）
+
+`${Return[-1]}` 引用支持数组访问语法，用于从接口返回值中提取数组元素。
+
+#### 4.5.1 支持的语法
+
+| 语法 | 说明 | 示例 |
+|------|------|------|
+| `[n]` | 数组下标（0-based，支持负索引） | `${Return[-1].data[0].name}` |
+| `.first()` | 取第一个元素（等价 `[0]`） | `${Return[-1].data.first().id}` |
+| `.last()` | 取最后一个元素（等价 `[-1]`） | `${Return[-1].items.last().price}` |
+| `.length` | 数组长度（返回整数） | `${Return[-1].data.length}` |
+
+#### 4.5.2 使用示例
+
+```xml
+<!-- 场景 1：查列表取第一个元素 -->
+<test_step action="send" model="ListBrands" data="D001"/>
+<test_step action="set" model="" data="brandId=${Return[-1].data.data[0].id}"/>
+<!-- 或使用 .first() 简写 -->
+<test_step action="set" model="" data="brandId=${Return[-1].data.data.first().id}"/>
+
+<!-- 场景 2：数组长度判断（结合断言操作符） -->
+<test_step action="send" model="ListBrands" data="D001"/>
+<test_step action="verify" model="ListBrands_verify" data="V001"/>
+<!-- _verify 表中：data.data.length 字段值为 {"$gt": 0} -->
+
+<!-- 场景 3：多级嵌套 -->
+<test_step action="send" model="GetOrders" data="D001"/>
+<test_step action="set" model="" data="firstProductId=${Return[-1].orders[0].items.first().productId}"/>
+
+<!-- 场景 4：取最后一个元素 -->
+<test_step action="send" model="GetHistory" data="D001"/>
+<test_step action="set" model="" data="latestTimestamp=${Return[-1].records.last().timestamp}"/>
+```
+
+#### 4.5.3 错误处理
+
+- **索引越界**：返回 `None`（不抛异常），后续引用该值时可能导致空值错误
+- **对非数组使用数组操作**：返回 `None`
+- **空数组**：`.first()` 和 `.last()` 返回 `None`，`.length` 返回 `0`
+
+```xml
+<!-- 数组只有 2 个元素，访问 [5] -->
+<test_step action="set" model="" data="value=${Return[-1].data[5]}"/>
+<!-- value = None，后续使用会报错 -->
+
+<!-- 正确做法：先判断长度 -->
+<test_step action="verify" model="Response_verify" data="V001"/>
+<!-- V001: data.length 字段值为 {"$gte": 6} -->
+<test_step action="set" model="" data="value=${Return[-1].data[5]}"/>
+```
+
+### 4.6 断言操作符（v11.0.0）
+
+`verify` 关键字支持断言操作符，用于非等值比较（数值比较、包含检查）。
+
+#### 4.6.1 支持的操作符（5 个）
+
+**数值比较**（4 个）：
+- `$gt` - 大于 (greater than)
+- `$gte` - 大于等于 (greater than or equal)
+- `$lt` - 小于 (less than)
+- `$lte` - 小于等于 (less than or equal)
+
+**包含检查**（1 个）：
+- `$contains` - 字符串包含或数组包含元素
+
+#### 4.6.2 使用方式
+
+操作符写在 `_verify` 数据表的字段值中，格式为 JSON 对象（单键字典）：
+
+```sql
+-- data.sqlite: ListBrands_verify 表
+INSERT INTO rs_field (row_id, field_name, field_value) VALUES
+  (1, 'data.data.length', '{"$gt": 0}'),        -- 数组长度 > 0
+  (2, 'count', '{"$gte": 10}'),                 -- 计数 >= 10
+  (3, 'price', '{"$lte": 1000}'),               -- 价格 <= 1000
+  (4, 'names', '{"$contains": "TestBrand"}');   -- 数组包含指定元素
+```
+
+#### 4.6.3 使用示例
+
+```xml
+<!-- 场景 1：接口返回数组非空判断 -->
+<test_step action="send" model="ListBrands" data="D001"/>
+<test_step action="verify" model="ListBrands_verify" data="V001"/>
+<!-- V001: data.data.length = {"$gt": 0} -->
+
+<!-- 场景 2：数值范围检查 -->
+<test_step action="send" model="GetProduct" data="D001"/>
+<test_step action="verify" model="GetProduct_verify" data="V001"/>
+<!-- V001: data.price = {"$gte": 100}, data.stock = {"$lte": 1000} -->
+
+<!-- 场景 3：字符串包含 -->
+<test_step action="send" model="GetNames" data="D001"/>
+<test_step action="verify" model="GetNames_verify" data="V001"/>
+<!-- V001: names = {"$contains": "TestBrand"} -->
+
+<!-- 场景 4：数组包含元素 -->
+<test_step action="send" model="GetIds" data="D001"/>
+<test_step action="verify" model="GetIds_verify" data="V001"/>
+<!-- V001: ids = {"$contains": 123} -->
+```
+
+#### 4.6.4 约束
+
+1. **单操作符限制** — 每个字段值只能包含一个操作符，不支持 `$and` / `$or` / `$not` 组合
+2. **类型要求** — 数值操作符要求可转数值类型，`$contains` 要求字符串或数组
+3. **不支持嵌套** — 操作符值必须是字面量，不支持嵌套操作符
+4. **字面量期望值** — 操作符右侧必须是具体值，不支持 `${Return[-1]}` 等引用（避免自引用）
+
+```xml
+<!-- 正确：操作符 + 字面量 -->
+<field name="count">{"$gt": 0}</field>
+
+<!-- 错误：操作符组合 -->
+<!-- <field name="count">{"$gte": 10, "$lte": 100}</field> -->
+
+<!-- 错误：嵌套操作符 -->
+<!-- <field name="count">{"$gt": {"$add": 5}}</field> -->
+
+<!-- 正确替代：多个字段分别验证 -->
+<field name="count_gte">{"$gte": 10}</field>
+<field name="count_lte">{"$lte": 100}</field>
+```
+
+### 4.7 部分字段匹配（v11.0.0）
+
+`verify` 步骤支持 `match_mode` 属性，控制字段匹配策略。
+
+#### 4.7.1 match_mode 属性
+
+- `match_mode="strict"`（默认）— 严格模式，`_verify` 表必须包含模型的所有字段
+- `match_mode="subset"` — 子集模式，只校验 `_verify` 表中声明的字段，忽略其他字段
+
+#### 4.7.2 使用场景
+
+**严格模式**（默认）：适用于响应结构稳定、需要全字段校验的场景。
+
+```xml
+<!-- 严格模式（默认）：必须验证所有模型字段 -->
+<test_step action="verify" model="Login" data="V001"/>
+
+<!-- Login_verify 表必须包含 Login 模型的所有字段 -->
+<!-- 否则报错：字段 'xxx' 在验证数据行 'V001' 中缺失 -->
+```
+
+**子集模式**：适用于只关心部分字段、响应包含大量冗余字段的场景。
+
+```xml
+<!-- 子集模式：只验证部分字段 -->
+<test_step action="verify" model="Login" data="V001" match_mode="subset"/>
+```
+
+```sql
+-- Login_verify 表（子集模式）
+-- 只声明关心的字段，响应中的其他字段会被忽略
+INSERT INTO rs_field (row_id, field_name, field_value) VALUES
+  (1, 'data.token', 'dummy_token'),       -- 只验证 token 存在
+  (1, 'data.userId', 'dummy_user');       -- 只验证 userId 存在
+  -- 响应中的 roles、timestamp、permissions 等字段会被忽略
+```
+
+#### 4.7.3 使用示例
+
+```xml
+<!-- 场景 1：登录响应包含大量字段，只关心 token 和 userId -->
+<test_step action="send" model="Login" data="D001"/>
+<test_step action="verify" model="Login" data="V001" match_mode="subset"/>
+<!-- V001 只声明 data.token 和 data.userId -->
+
+<!-- 场景 2：结合断言操作符使用 -->
+<test_step action="send" model="ListBrands" data="D001"/>
+<test_step action="verify" model="ListBrands_verify" data="V001" match_mode="subset"/>
+<!-- V001 只声明 data.data.length = {"$gt": 0}，不验证具体元素内容 -->
+
+<!-- 场景 3：严格模式（默认）保持向后兼容 -->
+<test_step action="verify" model="GetProduct" data="V001"/>
+<!-- V001 必须包含 GetProduct 模型的所有字段 -->
+```
+
+#### 4.7.4 约束
+
+1. **默认向后兼容** — 不指定 `match_mode` 时默认 `strict`，保持 v10 行为
+2. **仅适用于 verify** — `match_mode` 属性只对 `verify` 关键字有效，其他关键字忽略
+3. **字段存在性检查** — `subset` 模式下，`_verify` 表中声明的字段必须在模型中存在（否则跳过该字段）
+4. **不改变比较逻辑** — 两种模式使用相同的比较逻辑（等值或断言操作符），只影响迭代策略
 
 ---
 

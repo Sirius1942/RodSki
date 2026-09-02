@@ -28,6 +28,8 @@ from .exceptions import (
 )
 from .assertion.image_matcher import ImageMatcher
 from .assertion.video_analyzer import VideoAnalyzer
+from .assertion_engine import AssertionEngine
+from .assertion_engine import AssertionError as AssertOpError
 from .model_parser import (
     ModelParser,
     MODEL_TYPE_UI,
@@ -39,6 +41,61 @@ from .model_parser import (
 from .runtime_context import RuntimeContext
 
 logger = logging.getLogger("rodski")
+
+
+import re as _re_path
+
+# v11.0.0: 与 data_resolver 同步，支持 .first()/.last()/.length
+_PATH_TOKEN_KE = _re_path.compile(r'(?:(?:\.([A-Za-z0-9_$]+)(?:\(\))?)|(?:\[(-?\d+)\]))')
+
+
+def _nav_path_value(value, path):
+    """Navigate `value` along path supporting .key, [idx], and array helpers.
+
+    v11.0.0 新增数组辅助方法:
+    - .first() - 取第一个元素
+    - .last() - 取最后一个元素
+    - .length - 数组长度
+
+    与 DataResolver._nav_path 保持一致。
+    """
+    if value is None or not isinstance(path, str):
+        return value
+    # tolerate bare paths (no leading dot), e.g. 'data.data[0].name'
+    if path and path[0] not in ('.', '['):
+        path = '.' + path
+    pos = 0
+    cur = value
+    while pos < len(path):
+        m = _PATH_TOKEN_KE.match(path, pos)
+        if not m:
+            return None
+        if m.group(1) is not None:  # .key or .method()
+            key = m.group(1)
+            # v11.0.0: 数组辅助方法
+            if key == 'first' and isinstance(cur, (list, tuple)):
+                cur = cur[0] if len(cur) > 0 else None
+            elif key == 'last' and isinstance(cur, (list, tuple)):
+                cur = cur[-1] if len(cur) > 0 else None
+            elif key == 'length' and isinstance(cur, (list, tuple)):
+                return len(cur)
+            elif isinstance(cur, dict):
+                cur = cur.get(key)
+            else:
+                return None
+        else:  # [idx]
+            idx = int(m.group(2))
+            if isinstance(cur, (list, tuple)):
+                try:
+                    cur = cur[idx]
+                except IndexError:
+                    return None
+            else:
+                return None
+        if cur is None:
+            return None
+        pos = m.end()
+    return cur
 
 
 def _add_parsed_arg(token: str, args: list, kwargs: dict) -> None:
@@ -578,6 +635,9 @@ class KeywordEngine:
             data: Return 值（通常为 dict）
             path: 字段路径，如 "data.inquiryId" 或 "code"
         """
+        # support array indices: data.data[0].name
+        if isinstance(path, str) and ('[' in path or '.' in path):
+            return _nav_path_value(data, path)
         if not isinstance(data, dict):
             return data
         # 先尝试直接 key
@@ -2077,13 +2137,18 @@ class KeywordEngine:
 
     def _kw_verify(self, params: Dict) -> bool:
         """验证 - 与 type 对称的批量验证关键字
-        
-        公式: verify ModelName DataID
+
+        公式: verify ModelName DataID [match_mode=strict|subset]
         自动在 ModelName_verify 数据表中查找 DataID 行，
         遍历模型元素，从界面/接口读取实际值并与期望值比较。
+
+        v11.0.0 新增:
+        - match_mode="strict" (默认): 严格模式，_verify 表必须包含所有模型字段
+        - match_mode="subset": 子集模式，只校验 _verify 表中声明的字段
         """
         model_name = params.get("model", "")
         data_ref = params.get("data", "")
+        match_mode = params.get("match_mode", "strict")  # v11.0.0
 
         if not model_name or not data_ref:
             raise InvalidParameterError(
@@ -2091,20 +2156,34 @@ class KeywordEngine:
                 param_name="model/data",
                 reason="verify 必须指定模型和 DataID (verify ModelName DataID)"
             )
+
+        # v11.0.0: 验证 match_mode 参数
+        if match_mode not in ("strict", "subset"):
+            raise InvalidParameterError(
+                keyword="verify",
+                param_name="match_mode",
+                reason=f"match_mode 必须是 'strict' 或 'subset'，得到: '{match_mode}'"
+            )
+
         if not self.model_parser or not self.data_manager:
             raise InvalidParameterError(
                 keyword="verify",
                 param_name="context",
                 reason="verify 需要 model_parser 和 data_manager（请通过 SKIExecutor 执行）"
             )
-        return self._batch_verify(model_name, data_ref)
+        return self._batch_verify(model_name, data_ref, match_mode)
 
-    def _batch_verify(self, model_name: str, data_ref: str) -> bool:
+    def _batch_verify(self, model_name: str, data_ref: str, match_mode: str = "strict") -> bool:
         """批量验证：遍历模型元素，读取界面/接口实际值，与期望值比较
 
         数据引用格式: verify ModelName DataID
         - 数据表名 = ModelName_verify（自动拼接，若已含 _verify 则不重复拼接）
         - data_ref 直接就是 DataID
+
+        v11.0.0 新增:
+        - match_mode="strict": 迭代 model.items()，要求所有字段都在 data_row 中
+        - match_mode="subset": 迭代 data_row.items()，只验证声明的字段
+        - 支持断言操作符: {"$gt": 100}, {"$contains": "text"}
         """
         table_name = f"{model_name}_verify" if not model_name.endswith("_verify") else model_name
         data_id = data_ref
@@ -2156,10 +2235,29 @@ class KeywordEngine:
         if model_type == MODEL_TYPE_DATABASE:
             return self._batch_verify_db(data_row, model_name)
 
-        for element_name, element_info in model.items():
+        # v11.0.0: 根据 match_mode 选择迭代策略
+        if match_mode == "subset":
+            # 子集模式：迭代 data_row 中的字段，只验证声明的字段
+            fields_to_verify = [(name, model.get(name)) for name in data_row.keys()
+                               if not name.startswith('__') and name in model]
+            logger.debug(f"match_mode=subset: 验证 {len(fields_to_verify)} 个声明字段")
+        else:
+            # 严格模式（默认）：迭代 model 中的字段，要求全部在 data_row 中
+            fields_to_verify = [(name, info) for name, info in model.items()
+                               if not name.startswith('__')]
+            logger.debug(f"match_mode=strict: 验证 {len(fields_to_verify)} 个模型字段")
+
+        for element_name, element_info in fields_to_verify:
             if element_name.startswith('__'):
                 continue
-            if element_name not in data_row:
+
+            # subset 模式：element_info 可能为 None（字段不在 model 中）
+            if match_mode == "subset" and element_info is None:
+                logger.debug(f"{element_name}: 不在模型中，跳过（subset 模式）")
+                continue
+
+            # strict 模式：要求字段在 data_row 中
+            if match_mode == "strict" and element_name not in data_row:
                 raise InvalidParameterError(
                     keyword="verify",
                     param_name="data",
@@ -2275,15 +2373,65 @@ class KeywordEngine:
                     actual_str = str(last_return) if last_return is not None else ""
 
             results[element_name] = actual_str
-            matched = actual_str == expected
-            logger.debug(f"{element_name}: 实际='{actual_str}', 期望='{expected}' → {'OK' if matched else 'FAIL'}")
 
-            if not matched:
-                mismatches.append({
-                    'element': element_name,
-                    'expected': expected,
-                    'actual': actual_str,
-                })
+            # v11.0.0: 检查是否为断言操作符
+            expected_for_comparison = expected
+            is_operator = False
+
+            # 尝试解析 JSON 操作符字典
+            if isinstance(expected, str) and expected.strip().startswith('{'):
+                try:
+                    expected_dict = json.loads(expected)
+                    if AssertionEngine.is_operator_dict(expected_dict):
+                        is_operator = True
+                        expected_for_comparison = expected_dict
+                except json.JSONDecodeError:
+                    pass  # 不是 JSON，当普通字符串处理
+            elif isinstance(expected, dict) and AssertionEngine.is_operator_dict(expected):
+                is_operator = True
+                expected_for_comparison = expected
+
+            # 执行比较
+            if is_operator:
+                # v11.0.0: 使用断言操作符
+                try:
+                    # 获取实际值（非字符串形式）
+                    if model_type == MODEL_TYPE_UI:
+                        actual_val = actual_str
+                    else:
+                        last_return = self.get_return(-1)
+                        if isinstance(last_return, dict):
+                            actual_val = self._get_nested_return(last_return, locator_value or element_name)
+                        else:
+                            actual_val = last_return
+
+                    AssertionEngine.evaluate(actual_val, expected_for_comparison)
+                    matched = True
+                    logger.debug(
+                        f"{element_name}: 实际={actual_val}, 操作符={expected_for_comparison} → OK"
+                    )
+                except AssertOpError as ae:
+                    matched = False
+                    logger.debug(f"{element_name}: 断言操作符失败 - {ae}")
+                    mismatches.append({
+                        'element': element_name,
+                        'expected': str(expected_for_comparison),
+                        'actual': actual_str,
+                        'reason': str(ae),
+                    })
+            else:
+                # 传统字符串相等比较
+                matched = actual_str == expected
+                logger.debug(
+                    f"{element_name}: 实际='{actual_str}', 期望='{expected}' → {'OK' if matched else 'FAIL'}"
+                )
+
+                if not matched:
+                    mismatches.append({
+                        'element': element_name,
+                        'expected': expected,
+                        'actual': actual_str,
+                    })
 
         if mismatches:
             failure_payload = dict(results)
@@ -2618,7 +2766,14 @@ class KeywordEngine:
             value = self.data_resolver.resolve_with_return(value)
         logger.info(f"set: {key} = '{value}'")
         self._context.named[key] = value
-        self.store_return(value)
+        # Also write into data_resolver.data_source so `${key}` resolves in
+        # subsequent send/verify steps (not only via get/named access).
+        if self.data_resolver:
+            self.data_resolver.set_var(key, value)
+        # 注意：不调用 store_return(value)。set 的语义是“命名变量 + 模板解析源”，
+        # 而不是产生一个新的 Return 历史项。若此处 store_return，会污染紧随其后的
+        # ${Return[-1]}（例如 send -> set auth_token=${Return[-1].token} -> verify
+        # 本应读取 send 响应，却会读到 set 的 auth_token 值）。
         return True
 
     def _kw_run(self, params: Dict) -> bool:

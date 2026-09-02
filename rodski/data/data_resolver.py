@@ -12,6 +12,71 @@ _FUNC_PATTERN = re.compile(r'\$\{(\w+)\(([^)]*)\)\}')
 _ESCAPE_PATTERN = re.compile(r'\$\$\{')
 
 
+# Path navigation supporting dotted keys (.key), array indices ([idx]), and v11 array helpers
+# v11.0.0: Added .first(), .last(), .length support
+_PATH_TOKEN = re.compile(r'(?:(?:\.([A-Za-z0-9_$]+)(?:\(\))?)|(?:\[(-?\d+)\]))')
+
+
+def _nav_path(value, path):
+    """Navigate `value` along a path string supporting .key, [idx], and array helpers.
+
+    v11.0.0 新增数组辅助方法:
+    - .first() - 取第一个元素 (等价于 [0])
+    - .last() - 取最后一个元素 (等价于 [-1])
+    - .length - 数组长度 (返回 int)
+
+    Args:
+        value: 待导航的值 (dict/list/tuple 或其他)
+        path: 路径字符串，如 '.data.items[0].name' 或 '.data.first().id'
+
+    Returns:
+        解析后的值，如果任何路径段无法解析则返回 None
+
+    Examples:
+        _nav_path({'data': [1, 2, 3]}, '.data[0]') → 1
+        _nav_path({'data': [1, 2, 3]}, '.data.first()') → 1
+        _nav_path({'data': [1, 2, 3]}, '.data.last()') → 3
+        _nav_path({'data': [1, 2, 3]}, '.data.length') → 3
+    """
+    if value is None:
+        return None
+    # tolerate bare paths (no leading dot), e.g. 'data.data[0].name'
+    if path and path[0] not in ('.', '['):
+        path = '.' + path
+    pos = 0
+    cur = value
+    while pos < len(path):
+        m = _PATH_TOKEN.match(path, pos)
+        if not m:
+            return None
+        if m.group(1) is not None:  # .key or .method()
+            key = m.group(1)
+            # v11.0.0: 数组辅助方法
+            if key == 'first' and isinstance(cur, (list, tuple)):
+                cur = cur[0] if len(cur) > 0 else None
+            elif key == 'last' and isinstance(cur, (list, tuple)):
+                cur = cur[-1] if len(cur) > 0 else None
+            elif key == 'length' and isinstance(cur, (list, tuple)):
+                return len(cur)  # length 是终端值，直接返回 int
+            elif isinstance(cur, dict):
+                cur = cur.get(key)
+            else:
+                return None
+        else:  # [idx]
+            idx = int(m.group(2))
+            if isinstance(cur, (list, tuple)):
+                try:
+                    cur = cur[idx]
+                except IndexError:
+                    return None
+            else:
+                return None
+        if cur is None:
+            return None
+        pos = m.end()
+    return cur
+
+
 class DataResolver:
     def __init__(self, data_source: Optional[Dict[str, Any]] = None,
                  model_manager=None, data_manager=None,
@@ -49,16 +114,9 @@ class DataResolver:
         """
         if not isinstance(text, str):
             return str(text) if text is not None else ""
-        # 检测内置函数模式
-        match = _FUNC_PATTERN.search(text)
-        if match:
-            func_name = match.group(1)
-            raise ValueError(
-                f"内置函数 ${{{func_name}(...)}} 只能写在 data.sqlite 字段值中，"
-                f"不能写在 Case XML data 属性中"
-            )
-        # 允许的解析：Return 引用、变量、Model、SKI 引用
+        # 允许内置函数（如 ${urlencode(varname)}、${timestamp36()}），并解析引用
         text = self._resolve_returns(text)
+        text = self._resolve_functions(text)
         text = self._resolve_vars(text)
         text = self._resolve_models(text)
         text = self._resolve_ski_refs(text)
@@ -86,7 +144,8 @@ class DataResolver:
         """
         if not self.return_provider:
             return text
-        pattern = r'\$\{Return\[(-?\d+)\]((?:\.\w+)*)\}'
+        # path supports both .key and [idx] segments, e.g. .data.data[0].name
+        pattern = r'\$\{Return\[(-?\d+)\]((?:(?:\.\w+)|(?:\[-?\d+\]))*)\}'
 
         def replacer(match):
             index = int(match.group(1))
@@ -94,18 +153,42 @@ class DataResolver:
             value = self.return_provider(index)
             if value is None:
                 return match.group(0)
-            # Navigate nested fields via dot path
+            # Navigate nested fields via dot path / array indices
             if path:
-                for key in path.split('.')[1:]:  # skip leading empty string
-                    if isinstance(value, dict):
-                        value = value.get(key)
-                    else:
-                        return match.group(0)
-                    if value is None:
-                        return match.group(0)
+                value = _nav_path(value, path)
+                if value is None:
+                    return match.group(0)
             return str(value) if value is not None else match.group(0)
 
         return re.sub(pattern, replacer, text)
+
+    def _resolve_function_arg(self, arg: str) -> str:
+        """Resolve a single builtin-function argument before passing it to the function.
+
+        Handles:
+        - full reference: ``${var}`` / ``${Return[-1].field}``
+        - bare ``Return[...]`` path (e.g. ``Return[-1].data.id``)
+        - bare variable / dotted path in data_source (e.g. ``inquiryId``, ``created.inquiryId``)
+        - literals (numbers, strings with spaces, etc.) -> unchanged
+        """
+        arg = arg.strip()
+        if not arg:
+            return arg
+        if arg.startswith('${'):
+            return self.resolve_with_return(arg)
+        # bare Return[...] path
+        if re.fullmatch(r'Return\[-?\d+\](?:(?:\.\w+)|(?:\[-?\d+\]))*', arg):
+            wrapped = '${' + arg + '}'
+            resolved = self._resolve_returns(wrapped)
+            if resolved != wrapped:
+                return resolved
+            return arg
+        # bare variable / dotted path
+        if re.fullmatch(r'[A-Za-z_][A-Za-z0-9_$.\[\]]*', arg):
+            val = self._get_nested(self.data_source, arg)
+            if val is not None:
+                return str(val)
+        return arg
 
     def _resolve_functions(self, text: str) -> str:
         """解析内置函数引用 ${func(args...)}"""
@@ -115,7 +198,7 @@ class DataResolver:
         def replacer(match):
             func_name = match.group(1)
             args_str = match.group(2)
-            args = [a.strip() for a in args_str.split(',') if a.strip()]
+            args = [self._resolve_function_arg(a) for a in args_str.split(',') if a.strip()]
             try:
                 return str(call_function(func_name, args))
             except ValueError:
@@ -156,6 +239,9 @@ class DataResolver:
         return re.sub(pattern, replacer, text)
 
     def _get_nested(self, data: Dict, key: str) -> Any:
+        # Support both dotted keys and array indices in a single segment/nested path.
+        if _PATH_TOKEN.search(key):
+            return _nav_path(data, key)
         parts = key.split(".")
         current = data
         for part in parts:

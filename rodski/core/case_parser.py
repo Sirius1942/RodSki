@@ -210,10 +210,15 @@ class CaseParser:
 
     @staticmethod
     def _parse_step_element(el: ET.Element) -> Dict[str, str]:
+        """解析 test_step 元素属性
+
+        v11.0.0: 新增 match_mode 属性支持
+        """
         return {
             'action': str(el.get('action', '') or '').strip(),
             'model': str(el.get('model', '') or '').strip(),
             'data': str(el.get('data', '') or '').strip(),
+            'match_mode': str(el.get('match_mode', 'strict') or 'strict').strip(),  # v11.0.0
         }
 
     @staticmethod

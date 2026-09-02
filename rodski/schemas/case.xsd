@@ -139,10 +139,19 @@
     <xs:attribute name="last_run" type="xs:string" use="optional"/>
   </xs:complexType>
 
+  <!-- v11.0.0: match_mode 枚举类型 -->
+  <xs:simpleType name="MatchModeType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="strict"/>
+      <xs:enumeration value="subset"/>
+    </xs:restriction>
+  </xs:simpleType>
+
   <xs:complexType name="StepType">
     <xs:attribute name="action" type="ActionType" use="required"/>
     <xs:attribute name="model" type="xs:string" use="optional" default=""/>
     <xs:attribute name="data" type="xs:string" use="optional" default=""/>
+    <xs:attribute name="match_mode" type="MatchModeType" use="optional" default="strict"/>
   </xs:complexType>
 
   <xs:simpleType name="ExecuteType">
