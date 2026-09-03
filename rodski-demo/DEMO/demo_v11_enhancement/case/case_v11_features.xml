@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+  <case execute="是" id="test_builtin_functions" title="v11：内置函数测试">
+    <test_case>
+      <!-- 测试 encodeURI/decodeURI/toUpperCase/toLowerCase/toString36 -->
+      <test_step action="set" model="" data="url_raw=https://example.com/search?q=测试"/>
+      <test_step action="set" model="" data="url_enc=${encodeURI(${url_raw})}"/>
+      <test_step action="set" model="" data="url_dec=${decodeURI(${url_enc})}"/>
+      <test_step action="set" model="" data="text=Hello"/>
+      <test_step action="set" model="" data="text_up=${toUpperCase(${text})}"/>
+      <test_step action="set" model="" data="text_low=${toLowerCase(${text})}"/>
+      <test_step action="set" model="" data="ts=1609459200"/>
+      <test_step action="set" model="" data="ts36=${toString36(${ts})}"/>
+      <test_step action="evaluate" model="" data="() => ({ url_enc: '${url_enc}', url_dec: '${url_dec}', text_up: '${text_up}', text_low: '${text_low}', ts36: '${ts36}' })"/>
+      <test_step action="verify" model="V11Functions" data="V001"/>
+    </test_case>
+  </case>
+
+  <case execute="是" id="test_array_access" title="v11：数组访问测试">
+    <test_case>
+      <!-- 测试 .first() .last() .length -->
+      <test_step action="evaluate" model="" data='() => ({ items: ["a", "b", "c"] })'/>
+      <test_step action="set" model="" data="first=${Return[-1].items.first()}"/>
+      <test_step action="set" model="" data="last=${Return[-1].items.last()}"/>
+      <test_step action="set" model="" data="len=${Return[-1].items.length}"/>
+      <test_step action="evaluate" model="" data='() => ({ first: "${first}", last: "${last}", len: ${len} })'/>
+      <test_step action="verify" model="V11ArrayAccess" data="V001"/>
+    </test_case>
+  </case>
+
+  <case execute="是" id="test_assertion_operators" title="v11：断言操作符测试">
+    <test_case>
+      <!-- 测试 $gt $gte $lt $lte $contains -->
+      <test_step action="evaluate" model="" data='() => ({ score: 85, text: "hello world", tags: ["a", "b"] })'/>
+      <test_step action="verify" model="V11Assertions" data="V001"/>
+    </test_case>
+  </case>
+
+  <case execute="是" id="test_match_mode" title="v11：match_mode测试">
+    <test_case>
+      <!-- 测试 match_mode="subset" -->
+      <test_step action="evaluate" model="" data='() => ({ id: 1, name: "test", extra: "data" })'/>
+      <test_step action="verify" model="V11MatchMode" data="V001" match_mode="subset"/>
+    </test_case>
+  </case>
+</cases>

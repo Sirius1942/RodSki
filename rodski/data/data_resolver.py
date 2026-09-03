@@ -145,7 +145,8 @@ class DataResolver:
         if not self.return_provider:
             return text
         # path supports both .key and [idx] segments, e.g. .data.data[0].name
-        pattern = r'\$\{Return\[(-?\d+)\]((?:(?:\.\w+)|(?:\[-?\d+\]))*)\}'
+        # v11.0.0: also supports array helpers .first(), .last(), .length
+        pattern = r'\$\{Return\[(-?\d+)\]((?:(?:\.\w+(?:\(\))?)|(?:\[-?\d+\]))*)\}'
 
         def replacer(match):
             index = int(match.group(1))

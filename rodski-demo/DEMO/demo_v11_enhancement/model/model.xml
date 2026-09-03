@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<models>
+  <model name="V11Functions" type="interface" servicename="">
+    <element name="url_enc" type="field">
+      <location type="field">url_enc</location>
+    </element>
+    <element name="url_dec" type="field">
+      <location type="field">url_dec</location>
+    </element>
+    <element name="text_up" type="field">
+      <location type="field">text_up</location>
+    </element>
+    <element name="text_low" type="field">
+      <location type="field">text_low</location>
+    </element>
+    <element name="ts36" type="field">
+      <location type="field">ts36</location>
+    </element>
+  </model>
+
+  <model name="V11ArrayAccess" type="interface" servicename="">
+    <element name="first" type="field">
+      <location type="field">first</location>
+    </element>
+    <element name="last" type="field">
+      <location type="field">last</location>
+    </element>
+    <element name="len" type="field">
+      <location type="field">len</location>
+    </element>
+  </model>
+
+  <model name="V11Assertions" type="interface" servicename="">
+    <element name="score" type="field">
+      <location type="field">score</location>
+    </element>
+    <element name="text" type="field">
+      <location type="field">text</location>
+    </element>
+    <element name="tags" type="field">
+      <location type="field">tags</location>
+    </element>
+  </model>
+
+  <model name="V11MatchMode" type="interface" servicename="">
+    <element name="id" type="field">
+      <location type="field">id</location>
+    </element>
+    <element name="name" type="field">
+      <location type="field">name</location>
+    </element>
+  </model>
+</models>
