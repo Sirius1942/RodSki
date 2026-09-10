@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases step_wait="200">
+  <!-- part1：跑完「进入被测站 + 登录」即停（不加 close，浏览器保留登录态）。
+
+       本用例必须通过「附加到共享浏览器」方式执行（CLI: rodski run case/part1_login.xml
+       加 cdp 参数 :9333，或 demo 用 PlaywrightDriver(cdp_endpoint=...) 编排），结束时
+       driver 仅断连、不关闭浏览器。登录后的页面状态留在远端 context，供 Agent / part2 复用。 -->
+  <case execute="是" id="TK_P1" title="暂停接管-第1段:登录进入dashboard" component_type="界面">
+    <test_case>
+      <test_step action="navigate" model="" data="http://localhost:8000"/>
+      <!-- type LoginForm L001 批量：填 admin/123456 并点 #loginBtn（纯 client JS → dashboard） -->
+      <test_step action="type" model="LoginForm" data="L001"/>
+    </test_case>
+  </case>
+</cases>

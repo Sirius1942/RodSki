@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases step_wait="200">
+  <!-- part2：Agent 接管并操作页面之后，attach 同一共享浏览器继续验证。
+
+       验证点（证明「接管真的作用于共享会话」）：
+       1. verify TakeoverForm V001（match_mode=subset，只验 formResult）。期望值就是
+          Agent 刚才在页面上点 #submitBtn 后写进 #formResult 的文本；
+          全新浏览器必然看不到（未登录/未操作），只有 attach 同一浏览器才成立。
+       2. verify Dashboard V001。登录态仍在同一 context（#currentUser 已登录），
+          dashboard 卡片值 totalOrders=3 / completedOrders=2 由 JS loadDashboard() 渲染。
+       两条缺一不可：只验 1 无法排除「part2 自己重新登录并操作表单」，只验 2 无法证明
+       Agent 的接管操作被延续。 -->
+  <case execute="是" id="TK_P2" title="暂停接管-第2段:验证Agent操作延续" component_type="界面">
+    <test_case>
+      <test_step action="verify" model="TakeoverForm" data="V001" match_mode="subset"/>
+      <test_step action="verify" model="Dashboard" data="V001"/>
+    </test_case>
+  </case>
+</cases>

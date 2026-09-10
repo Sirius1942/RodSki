@@ -15,6 +15,30 @@ _BROWSER_ACTIONS = frozenset({
 })
 
 
+def _normalize_cdp_endpoint(value: Optional[str]) -> str:
+    """把 --cdp 值归一为可 connect_over_cdp 的端点 URL。
+
+    - ``:9222`` / ``localhost:9222`` → ``http://127.0.0.1:9222``
+    - 已带 scheme（http/https）原样返回
+    - 空值原样返回（由调用方按无 --cdp 处理）
+    """
+    value = (value or "").strip()
+    if not value or "://" in value:
+        return value
+    host_port = value
+    if host_port.startswith(":"):
+        host_port = f"127.0.0.1{host_port}"
+    else:
+        host, _, port = host_port.rpartition(":")
+        if not port.isdigit():
+            # 只有主机名没有端口，补默认调试端口不适用，交给 connect 失败提示
+            return f"http://{host_port}"
+        if not host or host == "localhost":
+            host = "127.0.0.1"
+        host_port = f"{host}:{port}"
+    return f"http://{host_port}"
+
+
 def _model_driver_types(model_path: Optional[Path]) -> Dict[str, str]:
     if not model_path or not model_path.exists():
         return {}
@@ -125,6 +149,10 @@ def setup_parser(subparsers):
                         help="覆盖率报告输出路径（默认: 本次运行结果目录下的 coverage.json）")
     parser.add_argument("--insert-step", action="append", dest="insert_steps",
                         help="插入动态步骤 (格式: action,model,data)")
+    parser.add_argument("--cdp", type=str, default=None, dest="cdp_endpoint",
+                        help="附加到已启动的远程调试浏览器（如 --cdp :9222 或 http://127.0.0.1:9222），"
+                             "复用其页面与登录态；适用于「暂停→Agent 接管→继续」工作流。"
+                             "仅对 Web 用例生效，附加模式下 --headless/--browser 不生效")
     parser.add_argument("--tag", "--tags", type=str, default=None, action="append", dest="tags",
                         help="按标签过滤用例 (逗号分隔，OR 匹配；--tag 为推荐别名)")
     parser.add_argument("--group", type=str, default=None, dest="filter_group",
@@ -749,6 +777,8 @@ def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional
 
     config = _apply_recording_args(ConfigManager(), args)
 
+    cdp_endpoint = getattr(args, "cdp_endpoint", None)
+
     # --coverage：每创建一个 web 驱动实例即开启采集，run 结束后统一 stop 并聚合导出
     enable_coverage = bool(getattr(args, "coverage", False))
     coverage_drivers: List[Any] = []
@@ -757,7 +787,14 @@ def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional
         if driver_type in ("", "web"):
             if not needs_browser:
                 return None
-            web_driver = PlaywrightDriver(headless=headless, browser=browser)
+            if cdp_endpoint:
+                # CDP 附加模式：headless/browser 由远端浏览器决定，此处不生效
+                endpoint = _normalize_cdp_endpoint(cdp_endpoint)
+                print(f"附加模式: 连接远程调试浏览器 {endpoint}"
+                      f"（headless={headless}, browser={browser} 不生效）")
+                web_driver = PlaywrightDriver(cdp_endpoint=endpoint)
+            else:
+                web_driver = PlaywrightDriver(headless=headless, browser=browser)
             if enable_coverage and hasattr(web_driver, "start_js_coverage"):
                 web_driver.start_js_coverage()
                 coverage_drivers.append(web_driver)

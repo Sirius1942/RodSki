@@ -525,6 +525,96 @@ class TestPlaywrightDriver:
         assert target.exists()
         assert not original.exists()
 
+    @patch('playwright.sync_api.sync_playwright')
+    def test_cdp_attach_uses_default_context(self, mock_pw):
+        """CDP 附加模式：_ensure_browser 走 connect_over_cdp，复用远端默认 context 首页。"""
+        mock_playwright = MagicMock()
+        mock_pw.return_value.start.return_value = mock_playwright
+        mock_browser = Mock()
+        mock_playwright.chromium.connect_over_cdp.return_value = mock_browser
+        existing_page = Mock()
+        mock_context = Mock()
+        mock_context.pages = [existing_page]
+        mock_browser.contexts = [mock_context]
+
+        driver = PlaywrightDriver(cdp_endpoint="http://127.0.0.1:9222")
+
+        # 懒加载：__init__ 不连接
+        assert driver.browser is None
+        assert driver.page is None
+        assert driver.attached is True
+
+        driver._ensure_browser()
+        mock_playwright.chromium.connect_over_cdp.assert_called_once_with(
+            "http://127.0.0.1:9222"
+        )
+        # 不 launch
+        mock_playwright.chromium.launch.assert_not_called()
+        # context/page 取自远端默认 context
+        assert driver.context == mock_context
+        assert driver.page == existing_page
+        # 有已有页面时不 new_page
+        mock_context.new_page.assert_not_called()
+
+    @patch('playwright.sync_api.sync_playwright')
+    def test_cdp_attach_context_without_page_creates_new_page(self, mock_pw):
+        """CDP 附加模式：远端默认 context 无页面（浏览器重启）时 new_page 兜底。"""
+        mock_playwright = MagicMock()
+        mock_pw.return_value.start.return_value = mock_playwright
+        mock_browser = Mock()
+        mock_playwright.chromium.connect_over_cdp.return_value = mock_browser
+        new_page = Mock()
+        mock_context = Mock()
+        mock_context.pages = []
+        mock_context.new_page.return_value = new_page
+        mock_browser.contexts = [mock_context]
+
+        driver = PlaywrightDriver(cdp_endpoint=":9222")
+        driver._ensure_browser()
+
+        assert driver.context == mock_context
+        assert driver.page == new_page
+        mock_context.new_page.assert_called_once()
+
+    @patch('playwright.sync_api.sync_playwright')
+    def test_cdp_attach_close_only_disconnects(self, mock_pw):
+        """attached close() 只断连：browser.close() + _pw.stop()，绝不 context.close()。"""
+        mock_playwright = MagicMock()
+        mock_pw.return_value.start.return_value = mock_playwright
+        mock_browser = Mock()
+        mock_playwright.chromium.connect_over_cdp.return_value = mock_browser
+        mock_context = Mock()
+        mock_context.pages = [Mock()]
+        mock_browser.contexts = [mock_context]
+
+        driver = PlaywrightDriver(cdp_endpoint="http://127.0.0.1:9222")
+        driver._ensure_browser()
+        driver.browser.close = Mock()
+        driver.context.close = Mock()
+        driver._pw.stop = Mock()
+
+        driver.close()
+
+        # 断连 + 停 playwright，不关远端 context/页面
+        driver.browser.close.assert_called_once()
+        driver._pw.stop.assert_called_once()
+        driver.context.close.assert_not_called()
+
+    @patch('playwright.sync_api.sync_playwright')
+    def test_owning_close_still_closes_context(self, mock_pw):
+        """回归：owning 模式 close() 行为不变 —— 关 context + 关 browser + 停 playwright。"""
+        driver = self._create_driver(mock_pw)
+        driver.context = Mock()  # owning 模式 context 由 start_case_recording 等创建后持有
+        driver.browser.close = Mock()
+        driver.context.close = Mock()
+        driver._pw.stop = Mock()
+
+        driver.close()
+
+        driver.context.close.assert_called_once()
+        driver.browser.close.assert_called_once()
+        driver._pw.stop.assert_called_once()
+
     def _create_driver(self, mock_pw):
         mock_playwright = MagicMock()
         mock_pw.return_value.start.return_value = mock_playwright

@@ -138,7 +138,8 @@ class PlaywrightDriver(BaseDriver):
     DEFAULT_TIMEOUT = 10000
 
     def __init__(self, config: Union['ConfigManager', Dict[str, Any], None] = None,
-                 headless: bool = False, browser: str = "chromium"):
+                 headless: bool = False, browser: str = "chromium",
+                 cdp_endpoint: Optional[str] = None):
         """初始化 PlaywrightDriver
 
         Args:
@@ -148,6 +149,13 @@ class PlaywrightDriver(BaseDriver):
                 3. None（使用 headless/browser 参数）
             headless: 无头模式（当 config=None 时生效）
             browser: 浏览器类型（当 config=None 时生效）
+            cdp_endpoint: CDP 附加模式（v11.1.0）。给定时不自行 launch 浏览器，
+                而是 connect_over_cdp 到已启动的远程调试浏览器（如
+                http://127.0.0.1:9222），复用其默认 context 与页面状态。
+                适用于「暂停→Agent 接管→继续」工作流：多个 driver / Agent 顺序
+                附加同一个浏览器会话，彼此能看到对方的操作结果。
+                attached 模式下 headless/browser 参数不生效，close() 只断连、
+                不关闭用户浏览器或其 context。
         """
         # 解析配置
         if config is None:
@@ -157,6 +165,8 @@ class PlaywrightDriver(BaseDriver):
                 'browser': browser,
                 'timeout': self.DEFAULT_TIMEOUT,
             }
+            if cdp_endpoint:
+                self._config_dict['cdp_endpoint'] = cdp_endpoint
         elif isinstance(config, dict):
             # 方式2：字典配置（探索测试场景）
             self._config_dict = config
@@ -176,6 +186,9 @@ class PlaywrightDriver(BaseDriver):
         self.headless = self._config_dict.get('headless', headless)
         self.browser_name = self._config_dict.get('browser', browser)
         self._timeout = self._config_dict.get('timeout', self.DEFAULT_TIMEOUT)
+        # CDP 附加模式：driver 不拥有浏览器，只断连不关闭（close() 语义见下）
+        self.attached = bool(self._config_dict.get('cdp_endpoint'))
+        self._cdp_endpoint = self._config_dict.get('cdp_endpoint') or ""
 
         # 初始化内部状态
         self._pw = None
@@ -206,6 +219,9 @@ class PlaywrightDriver(BaseDriver):
         """懒加载：首次需要浏览器时才启动 Playwright 和浏览器实例"""
         if self.browser is not None:
             return
+        if self.attached:
+            self._attach_cdp_browser()
+            return
         from playwright.sync_api import sync_playwright
         self._pw = sync_playwright().start()
         browser_type = getattr(self._pw, self.browser_name, self._pw.chromium)
@@ -231,6 +247,34 @@ class PlaywrightDriver(BaseDriver):
         else:
             self.page = self.browser.new_page()
         # 浏览器启动后立即注入监控（若已初始化则重注入）
+        self.inject_monitor()
+
+    def _attach_cdp_browser(self):
+        """CDP 附加模式：连接到已启动的远程调试浏览器，复用其默认 context 与页面。
+
+        适用于「暂停→Agent 接管→继续」：外部（Agent / 另一个 rodski run）已用
+        --remote-debugging-port 启动浏览器并保留了登录态等页面状态；本 driver 顺序
+        附加到同一浏览器，即可读到、操作、验证对方的操作结果。
+
+        与 launch 模式的关键差异：
+        - 不 launch，connect_over_cdp 返回的对象“拥有”浏览器但 close() 仅断连；
+        - context 取自远端默认 context（browser.contexts[0]），**不得 close**，
+          否则会把用户/上一个 run 保留的页面状态关掉；
+        - page 复用该 context 首个已有页面；context 无页时新建（浏览器重启场景）。
+        """
+        from playwright.sync_api import sync_playwright
+        endpoint = self._cdp_endpoint
+        logger.info("Playwright 附加 CDP 浏览器: %s", endpoint)
+        self._pw = sync_playwright().start()
+        self.browser = self._pw.chromium.connect_over_cdp(endpoint)
+        contexts = self.browser.contexts
+        if contexts:
+            self.context = contexts[0]
+            self.page = self.context.pages[0] if self.context.pages else self.context.new_page()
+        else:
+            self.context = self.browser.new_context()
+            self.page = self.context.new_page()
+        # 附加模式下不存在 launch 注入的录制 context；有页面即重注入监控（幂等）
         self.inject_monitor()
 
     # ── 页面异常监控（v0.1）────────────────────────────────────────────
@@ -1284,6 +1328,21 @@ class PlaywrightDriver(BaseDriver):
         # 拿到的 CDP session 已随浏览器关闭失效
         if self._coverage_started and self._coverage_cdp_session is not None:
             self._coverage_cached_entries = self._capture_coverage_snapshot()
+        if self.attached:
+            # CDP 附加模式：本 driver 不拥有浏览器。browser.close() 在
+            # connect_over_cdp 语义下仅是断连；绝不关闭远端 context/页面，
+            # 否则会毁掉上一个 run / Agent 保留的状态（见 _attach_cdp_browser）。
+            try:
+                if self.browser:
+                    self.browser.close()
+            except Exception as e:
+                logger.debug(f"断开 CDP 浏览器时出错: {e}")
+            try:
+                if self._pw:
+                    self._pw.stop()
+            except Exception as e:
+                logger.debug(f"停止 Playwright 时出错: {e}")
+            return
         try:
             if self.context:
                 self.context.close()

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<models>
+  <!-- demo_pause_takeover：最小自包含 UI 模型，定位 demosite（demo_full/demosite）元素。
+       登录 / dashboard / 功能测试表单三组，与 demo_full/model/model.xml 一致 -->
+  <model name="LoginForm" type="ui" servicename="">
+    <element name="username" type="input">
+      <location type="id">loginUsername</location>
+    </element>
+    <element name="password" type="input">
+      <location type="id">loginPassword</location>
+    </element>
+    <element name="loginBtn" type="button">
+      <location type="id">loginBtn</location>
+    </element>
+  </model>
+
+  <model name="Dashboard" type="ui" servicename="">
+    <element name="totalOrders" type="text">
+      <location type="id">totalOrders</location>
+    </element>
+    <element name="completedOrders" type="text">
+      <location type="id">completedOrders</location>
+    </element>
+    <element name="pendingOrders" type="text">
+      <location type="id">pendingOrders</location>
+    </element>
+  </model>
+
+  <!-- 功能测试页表单：Agent 接管操作的目标模型（part2 verify 用 subset 只验 formResult） -->
+  <model name="TakeoverForm" type="ui" servicename="">
+    <element name="username" type="input">
+      <location type="id">username</location>
+    </element>
+    <element name="role" type="select">
+      <location type="id">role</location>
+    </element>
+    <element name="submitBtn" type="button">
+      <location type="id">submitBtn</location>
+    </element>
+    <element name="formResult" type="text">
+      <location type="id">formResult</location>
+    </element>
+  </model>
+</models>

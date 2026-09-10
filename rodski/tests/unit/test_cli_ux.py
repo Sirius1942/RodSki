@@ -200,3 +200,19 @@ class TestCLIBackwardCompatibility:
         assert "--verbose" in r.stdout
         assert "--model" in r.stdout
         assert "--browser" in r.stdout
+
+    def test_run_help_shows_cdp_option(self):
+        """run --help 应显示 --cdp（暂停接管 / CDP 附加能力，v11.1.0+）"""
+        r = run_cli("run", "--help")
+        assert r.returncode == 0
+        assert "--cdp" in r.stdout
+
+    def test_run_cdp_parse_and_normalize(self):
+        """--cdp 值归一化：:9222 → http://127.0.0.1:9222；带 scheme 原样透传。"""
+        from rodski_cli.run import _normalize_cdp_endpoint
+        assert _normalize_cdp_endpoint(":9222") == "http://127.0.0.1:9222"
+        assert _normalize_cdp_endpoint("localhost:9222") == "http://127.0.0.1:9222"
+        assert (_normalize_cdp_endpoint("http://127.0.0.1:9222")
+                == "http://127.0.0.1:9222")
+        assert (_normalize_cdp_endpoint("https://example.com:9222")
+                == "https://example.com:9222")
