@@ -24,6 +24,7 @@ rodski-skills/
 ├── rodski-skill--switch-rodski-env/      # RodSki 用例换环境 Skill
 ├── rodski-skill--submit-testcases-gitlab/# 测试资产提交 GitLab Skill
 ├── rodski-skill--diagnose/               # 疑难 bug / 性能回归诊断 Skill
+├── rodski-skill--pause-takeover/         # 「暂停 → Agent 接管页面 → 继续」交接 Skill (RodSki v11.1.0+)
 └── scripts/                              # 维护脚本（不进入发行包）
     ├── sync_test_guide.sh
     └── package_release.sh
@@ -41,6 +42,7 @@ rodski-skills/
 | `rodski-skill--switch-rodski-env` | SkillHub `20260605.035123` | beta/ci/stage/prod 等环境迁移；补齐缺失用例资产；只替换 URL 和数据库地址 |
 | `rodski-skill--submit-testcases-gitlab` | SkillHub `20260605.035047` | 将提交者自己的 RodSki 测试资产提交到共享 GitLab 仓库个人分支和 owner directory |
 | `rodski-skill--diagnose` | SkillHub `20260605.034904` | 疑难 bug 和性能回归诊断循环：反馈循环 → 复现 → 假设 → 插桩 → 修复 → 回归 |
+| `rodski-skill--pause-takeover` | **RodSki ≥ v11.1.0**（需 CLI `--cdp` + driver CDP attach） | 用例「暂停 → Agent 接管页面 → 继续」工作流：固定用例跑到目标页后由外部 Agent 用 playwright 判断页面并操作 1-2 个按钮，RodSki 再在同一 CDP 共享浏览器会话继续 verify；框架无关，任何能加载 Markdown skill 的 Agent 可自行编导 |
 
 > `rodski-test-guide` 的源文档版本与 sha256 由 `sync_test_guide.sh` 在每次同步时自动更新到 `rodski-test-guide/source.sha256` 和本 README 表格。
 
@@ -54,6 +56,7 @@ rodski-skills/
 | 修改 RodSki 框架源码、关键字实现、XSD、CLI、驱动层或 demo 验收 | `rodski-skill--rodski` |
 | 排查框架 bug、疑难失败、性能回归 | `rodski-skill--diagnose`，必要时结合 `rodski-skill--rodski` |
 | 将旧环境用例迁移到新环境，只切 URL/DB 地址 | `rodski-skill--switch-rodski-env` |
+| 让固定用例跑到目标页后暂停、由外部 AI Agent 接管页面操作、再继续验证 | `rodski-skill--pause-takeover`（CDP 共享浏览器、双 run 交接；Agent 自编导） |
 | 提交测试资产到共享 GitLab | `rodski-skill--submit-testcases-gitlab` |
 | 发布 RodSki 正式版本 | `.claude/skills/rodski-release`（后续建议纳入本目录和 registry） |
 

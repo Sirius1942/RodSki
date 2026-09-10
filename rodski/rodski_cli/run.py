@@ -8,10 +8,15 @@ from typing import Any, Dict, List, Optional
 logger = logging.getLogger("rodski")
 
 # 需要浏览器驱动的 action 集合
+#
+# verify 必须在内：UI 模型的 verify 要读界面文本（driver.get_text），
+# 漏掉会让「只有 verify 步骤的用例」被判为不需要浏览器 → driver 为 None
+# → verify 报 "'NoneType' object has no attribute 'get_text'"。
+# 接口 / 数据库 / 移动端的 verify 由 _needs_browser 内的 driver_type 判定跳过。
 _BROWSER_ACTIONS = frozenset({
     'navigate', 'click', 'type', 'evaluate', 'hover', 'screenshot',
     'get', 'select', 'upload', 'launch', 'double_click', 'right_click',
-    'upload_file', 'clear', 'get_text', 'assert',
+    'upload_file', 'clear', 'get_text', 'assert', 'verify',
 })
 
 

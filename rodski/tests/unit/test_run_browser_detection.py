@@ -98,3 +98,77 @@ def test_web_url_navigate_needs_browser(tmp_path):
     )
 
     assert _needs_browser(case_path, model_path) is True
+
+
+def test_ui_verify_only_case_needs_browser(tmp_path):
+    """只有 verify 步骤的 UI 用例仍需要浏览器。
+
+    回归：verify 曾缺席 _BROWSER_ACTIONS，导致纯 verify 用例被判为不需要
+    浏览器、driver 为 None，verify 抛
+    ``'NoneType' object has no attribute 'get_text'``；
+    demo_pause_takeover 的 part2_continue.xml 就是这种形态。
+    """
+    case_path, model_path = _write_module_case(
+        tmp_path,
+        """
+<case>
+  <test_step action="verify" model="Dashboard" data="V001" />
+</case>
+""",
+        """
+<models>
+  <model name="Dashboard" type="ui">
+    <element name="totalOrders">
+      <location type="id">totalOrders</location>
+    </element>
+  </model>
+</models>
+""",
+    )
+
+    assert _needs_browser(case_path, model_path) is True
+
+
+def test_interface_verify_only_case_does_not_need_browser(tmp_path):
+    """接口模型的 verify 不走浏览器（driver_type 判定优先于 verify 入集）。"""
+    case_path, model_path = _write_module_case(
+        tmp_path,
+        """
+<case>
+  <test_step action="verify" model="UserApi" data="V001" />
+</case>
+""",
+        """
+<models>
+  <model name="UserApi" type="interface">
+    <element name="code">
+      <location type="jsonpath">$.code</location>
+    </element>
+  </model>
+</models>
+""",
+    )
+
+    assert _needs_browser(case_path, model_path) is False
+
+
+def test_database_verify_only_case_does_not_need_browser(tmp_path):
+    case_path, model_path = _write_module_case(
+        tmp_path,
+        """
+<case>
+  <test_step action="verify" model="UserTable" data="V001" />
+</case>
+""",
+        """
+<models>
+  <model name="UserTable" type="database">
+    <element name="name">
+      <location type="sql">select name from t</location>
+    </element>
+  </model>
+</models>
+""",
+    )
+
+    assert _needs_browser(case_path, model_path) is False
