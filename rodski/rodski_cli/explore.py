@@ -39,6 +39,12 @@ def setup_parser(subparsers):
     p.add_argument("--budget-tokens", type=int, help="最大 token 数（可选）")
     p.add_argument("--budget-cost", type=float, help="最大成本（USD，可选）")
 
+    # 附加到已启动的浏览器（暂停接管场景：在共享会话上做探索步骤）
+    p.add_argument("--cdp", type=str, default=None, dest="cdp_endpoint",
+                   help="附加到已启动的远程调试浏览器（如 --cdp :9222），"
+                        "在「暂停接管」保留的同一浏览器会话上执行探索步骤；"
+                        "不指定则新开浏览器")
+
     # 其他选项
     p.add_argument("--update-test-map", action="store_true",
                    help="更新测试地图（可选，v10.1 实现）")
@@ -103,14 +109,15 @@ def handle(args):
 
     # 4. 初始化 executor（复用 run.py 的逻辑）
     try:
-        keyword_engine = _init_keyword_engine(module_path)
+        keyword_engine = _init_keyword_engine(module_path, args.cdp_endpoint)
     except Exception as e:
         _output_error(args, f"初始化执行引擎失败: {e}")
         return 1
 
     # 5. 调用 ExploreExecutor
     explore_executor = ExploreExecutor(keyword_engine, module_path)
-    explore_executor.start_session(args.session)
+    # 跨进程续接：本会话已跑过 N 步，则本次从第 N+1 步编号，避免截图互相覆盖
+    explore_executor.start_session(args.session, step_offset=len(session.history))
 
     try:
         result = explore_executor.execute_command(command)
@@ -141,28 +148,70 @@ def handle(args):
     return 0 if result["success"] else 1
 
 
-def _init_keyword_engine(module_path: Path):
-    """初始化关键字引擎（复用 run.py 逻辑）"""
-    from rodski.core.keyword_engine import KeywordEngine
-    from rodski.core.config_manager import ConfigManager
-    from rodski.drivers.playwright_driver import PlaywrightDriver
+def _init_keyword_engine(module_path: Path, cdp_endpoint: Optional[str] = None):
+    """初始化关键字引擎（按 SKIExecutor 的装配方式，供单步探索复用）
+
+    探索命令可以是 `type ModelName DataID` 这类批量关键字，必须要有
+    model_parser + data_manager + data_resolver 才算装配完整，否则批量关键字会
+    退化成单字段模式并报参数错误。本函数把这三者按模块目录装配好。
+
+    cdp_endpoint 给定时附加到已启动的远程调试浏览器（暂停接管场景）：在上一段
+    用例 / Agent 保留的同一浏览器会话上继续探索，浏览器由调用方保活。
+    """
+    try:
+        from ..core.keyword_engine import KeywordEngine
+        from ..core.config_manager import ConfigManager
+        from ..core.model_parser import ModelParser
+        from ..core.data_table_parser import DataTableParser
+        from ..core.global_value_parser import GlobalValueParser
+        from ..drivers.playwright_driver import PlaywrightDriver
+        from ..data.data_resolver import DataResolver
+    except ImportError:
+        from core.keyword_engine import KeywordEngine
+        from core.config_manager import ConfigManager
+        from core.model_parser import ModelParser
+        from core.data_table_parser import DataTableParser
+        from core.global_value_parser import GlobalValueParser
+        from drivers.playwright_driver import PlaywrightDriver
+        from rodski.data.data_resolver import DataResolver
 
     # 加载配置
-    config = ConfigManager.load(str(module_path))
+    config = ConfigManager()
 
-    # 初始化驱动（简化版，只支持 Web）
+    model_file = module_path / "model" / "model.xml"
+    data_dir = module_path / "data"
+    globalvalue_file = data_dir / "globalvalue.xml"
+
+    model_parser = ModelParser(str(model_file)) if model_file.exists() else None
+    data_manager = DataTableParser(str(data_dir))
+    data_manager.parse_all_tables()
+    global_vars = GlobalValueParser(str(globalvalue_file)).parse()
+
+    # 初始化驱动：--cdp 时附加共享浏览器（不自行 launch），否则首个关键字触发懒启动
+    if cdp_endpoint:
+        try:
+            from .run import _normalize_cdp_endpoint
+        except ImportError:
+            from rodski_cli.run import _normalize_cdp_endpoint
+        cdp_endpoint = _normalize_cdp_endpoint(cdp_endpoint)
     driver = PlaywrightDriver(
-        browser_type="chromium",
-        headless=config.get("headless", False),
-        record_video=False,
+        headless=bool(config.get("headless", False)),
+        cdp_endpoint=cdp_endpoint or None,
     )
-    driver.launch()
 
     # 初始化引擎
     engine = KeywordEngine(
-        driver=driver,
+        driver,
+        data_dir,
+        model_parser=model_parser,
+        data_manager=data_manager,
+        global_vars=global_vars,
         module_dir=str(module_path),
-        config=config,
+    )
+    engine.data_resolver = DataResolver(
+        data_manager=data_manager,
+        global_vars=global_vars,
+        return_provider=engine.get_return,
     )
 
     return engine

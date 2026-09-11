@@ -837,3 +837,98 @@ CI 集成建议：首次构建允许 3 分钟超时；正常执行超时设 60 �
 
 
 这批任务完成后，RodSki 才能把移动端 App 模式从设计稿提升为可执行协议。
+
+---
+
+## 18. 多设备并发：`--udid` 与 `rodski queue`（v11.2.0）
+
+### 18.1 目标
+
+一台电脑**同时跑多个 app 自动化任务**，同时保证 **一个 plan 只在一台设备上执行**。
+调度的并行单元是**计划**，隔离单元是**操作系统进程**，领取方式是**动态的**。
+
+### 18.2 `--udid`：单设备选择
+
+```bash
+# 指定目标模拟器（覆盖 globalvalue 里的 Mobile.UDID）
+rodski run @ios_app_smoke --platform ios --udid 015EA67B-C996-48DE-A5F3-576B2BED409B
+```
+
+> ⚠️ **`--udid` 的生效顺序是硬约束**：它必须**晚于** `--platform` 的平台 globalvalue 合并。
+> `globalvalue_ios.xml` 自带 `Mobile.UDID`；写早了会被静默改回文件里的设备——
+> **不报错，只是打错机器**。
+
+### 18.3 `rodski queue`：多设备计划队列
+
+```bash
+rodski queue [--module <模块目录>] [--plans @a,@b] [--devices UDID,...]
+             [--platform ios|android] [--max-parallel N] [--list-devices]
+             [--retry-failed-plans N] [--no-requeue-on-device-loss]
+             [--allow-cross-platform-plan] [--dry-run]
+             [转发给子进程：--report --trace --verbose --coverage]
+```
+
+| 参数 | 说明 |
+|------|------|
+| `--plans` | 计划引用（`@plan_id`，逗号分隔或多次传）；缺省取 `plan/*.xml` 中 `execute="是"` 的全部（按文件名排序） |
+| `--devices` | 显式 UDID 列表；**给定时跳过自动发现**（信任调用方）。此时 `--platform` 必须提供 |
+| `--list-devices` | 枚举可用设备后退出 |
+| `--max-parallel` | 最大并行 worker 数（默认 = 设备数） |
+| `--retry-failed-plans` | 计划失败后的重试次数；**默认 0，不重试**（断言失败是产品信号，重试会掩盖 flakiness） |
+| `--no-requeue-on-device-loss` | 关闭「设备掉线时把未完成的计划重新入队一次」 |
+| `--dry-run` | 只打印队列与设备预检，不执行 |
+
+**设备发现**：
+
+| 平台 | 命令 | 过滤 |
+|------|------|------|
+| Android | `adb devices -l` | 只保留 `state == device`（丢 `unauthorized` / `offline`） |
+| iOS | `xcrun simctl list devices available --json` | 保留 `isAvailable == true` |
+
+**发现 0 台设备 → 硬报错**并给出排查提示，**绝不**回落到「没 udid 也照跑」（那正是本功能要消灭的 `devices[0]` 抢占）。
+
+**执行排班示例**（三个长度不等的计划 / 两台设备）：
+
+```text
+设备 A：[ queue_short_a ]→[ queue_short_c ]     ← 先跑完，回去再领一个
+设备 B：[ ............ queue_long_b ............ ]  ← 长计划独占一台，全程不被拆分
+```
+
+### 18.4 队列产物
+
+- 队列级：`<module>/result/rodski_<ts>_queue/summary.json`
+  含 `platform / max_parallel / peak_parallel / duration / devices[] / plans[] / summary / exit_code`。
+  每计划的 `started_at` / `finished_at` **由父进程记录**——这是「区间重叠」也就是真并行的唯一诚实证据。
+- 每计划：`<module>/result/rodski_<ts>_<plan_id>_<udid[:8]>/`（子进程的完整 run 目录）
+
+**退出码**：全 PASS 且无计划被落下 → `0`；任一失败/出错/未能调度 → `1`；`KeyboardInterrupt` → `130`。
+
+### 18.5 并发端口（必须）
+
+XCUITest 的 `wdaLocalPort` / `mjpegServerPort` 与 UiAutomator2 的 `systemPort`
+**默认值与设备无关**（8100 / 9100 / 8200）。同机两个并发会话会**复用第一台设备的
+WebDriverAgent**，表现为随机的元素定位失败（`SKI302 所有定位器均失败`）。
+
+故**显式指定 UDID 时**按 UDID 哈希分槽自动注入端口（基址 + 10×槽位）：
+
+| 端口 | 基址 |
+|------|------|
+| `wdaLocalPort` | 8100 |
+| `systemPort` | 8200 |
+| `mjpegServerPort` | 9100 |
+
+未指定 UDID 时**不注入**，单设备路径继续沿用 Appium 默认端口。
+
+### 18.6 双设备验收
+
+```bash
+bash rodski-demo/DEMO/mobile_app/scripts/run_dual_device_demo.sh
+```
+
+脚本解析并启动两台模拟器 → 安装预编译 App → 跑并行（Run A）+ 单设备串行（Run B，负对照）
+→ 用 7 条断言核对 `summary.json`（含**区间重叠 > 5s** 的真并行证据、**计划不拆分**、
+**动态领取**、以及**子进程真的走了既有 run 链路**）。详见该模块 README。
+
+完整设计（含决策依据、备选对比、风险与待决策项）见
+`.pb/specs/v11.2.0-multi-device-plan-queue-design.md`。
+

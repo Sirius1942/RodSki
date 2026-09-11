@@ -28,6 +28,11 @@ class AndroidDriver(AppiumDriver):
                 options.app_activity = app_activity
             if kwargs.get("udid"):
                 options.udid = kwargs["udid"]
+            # 并发端口：systemPort 默认按驱动程序随机，显式指定避免多设备互撞
+            if kwargs.get("system_port"):
+                options.system_port = kwargs["system_port"]
+            if kwargs.get("mjpeg_server_port"):
+                options.mjpeg_server_port = kwargs["mjpeg_server_port"]
             if kwargs.get("no_reset"):
                 options.no_reset = True
             super().__init__(options=options, server_url=server_url)

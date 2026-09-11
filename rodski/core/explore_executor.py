@@ -41,15 +41,19 @@ class ExploreExecutor:
         self._session_id: Optional[str] = None
         self._step_counter = 0
 
-    def start_session(self, session_id: str) -> None:
+    def start_session(self, session_id: str, step_offset: int = 0) -> None:
         """开始探索会话
 
         Args:
             session_id: 探索会话 ID
+            step_offset: 本会话已完成的步数。CLI 每次调用都是一个新进程、新
+                ExploreExecutor，若计数器总从 0 起，落盘截图会一直是
+                `{session}_step_1.png`，把前面步骤的证据覆盖掉。跨进程续接时
+                由调用方传入既有 history 长度，保证 step_id 单调、截图不互相覆盖。
         """
         self._session_id = session_id
-        self._step_counter = 0
-        logger.info(f"[ExploreExecutor] Start session: {session_id}")
+        self._step_counter = step_offset
+        logger.info(f"[ExploreExecutor] Start session: {session_id} (offset={step_offset})")
 
     def execute_command(self, command: Dict[str, Any]) -> Dict[str, Any]:
         """执行单个探索命令
@@ -175,10 +179,14 @@ class ExploreExecutor:
             if driver and hasattr(driver, "current_url"):
                 evidence["url"] = driver.current_url()
 
-            # 3. 采集返回值（从 RuntimeContext）
-            context = self.keyword_engine._context
-            if context and hasattr(context, "get_return"):
-                evidence["return_value"] = context.get_return(-1)
+            # 3. 采集返回值（KeywordEngine 的历史栈末项，即刚执行完的关键字返回值）
+            #
+            # 注意：返回值存在 KeywordEngine._context.history 里，读取通道是
+            # KeywordEngine.get_return()。直接在 _context 上找 get_return 会永远
+            # 取不到（RuntimeContext 只有 get_history），evidence.return_value 恒为
+            # None——探索的价值大半在这一项上，故走引擎的公开取值接口。
+            if self.keyword_engine is not None:
+                evidence["return_value"] = self.keyword_engine.get_return(-1)
 
             # 4. 采集浏览器错误（如果 rodski-explorer 插件已激活）
             if self._is_explorer_active():

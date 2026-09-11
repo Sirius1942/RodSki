@@ -184,6 +184,9 @@ def setup_parser(subparsers):
                         help="压测模式：启动 Locust Web UI")
     parser.add_argument("--platform", choices=["android", "ios"], default=None,
                         help="移动端平台（android/ios），覆盖 globalvalue.xml Mobile.Platform")
+    parser.add_argument("--udid", type=str, default=None,
+                        help="目标设备 UDID，覆盖 globalvalue 中的 Mobile.UDID；"
+                             "多设备并发调度请用 `rodski queue`")
     parser.add_argument("--load-ui-port", type=int, default=8089, dest="load_ui_port",
                         help="压测 Web UI 端口 (默认: 8089)")
     parser.add_argument("--force-compliance", action="store_true", dest="force_compliance",
@@ -328,6 +331,52 @@ def _resolve_module_dir(case_path: Path) -> Path:
     elif case_path.is_dir() and case_path.name == 'case':
         return case_path.parent
     return case_path
+
+
+def _apply_mobile_cli_overrides(executor, module_dir: Path, args) -> None:
+    """把 CLI 的移动端覆盖项写进 executor.global_vars。
+
+    --platform：注入 Mobile.Platform，使 keyword_engine._resolve_mobile_platform()
+    返回正确平台；并合并平台专属 globalvalue 文件（如 globalvalue_ios.xml），
+    覆盖 AppTarget / BundleId 等平台特有变量。
+
+    --udid：覆盖 Mobile.UDID，最终经 KeywordEngine.mobile_caps 传给驱动
+    （UiAutomator2 / XCUITest 的 appium:udid），避免 Appium 回落到 devices[0]。
+
+    **顺序是硬约束**：globalvalue_ios.xml 自身带 Mobile.UDID，--udid 若写在平台
+    合并之前会被静默改回文件里的那台设备——不报错但打错机器。故 --udid 必须在
+    平台合并之后写入。同时把 DeviceName 对齐到同一台设备，消除 XCUITest
+    「udid 与 deviceName+platformVersion 二选一」的歧义。
+    """
+    cli_platform = getattr(args, "platform", None)
+    if cli_platform:
+        executor.global_vars.setdefault("Mobile", {})["Platform"] = cli_platform
+        # 尝试加载平台专属 globalvalue 文件（优先级高于默认 globalvalue.xml）
+        platform_gv_path = module_dir / "data" / f"globalvalue_{cli_platform}.xml"
+        if platform_gv_path.exists():
+            try:
+                from ..core.global_value_parser import GlobalValueParser as _GVP
+            except ImportError:
+                from core.global_value_parser import GlobalValueParser as _GVP
+            platform_vars = _GVP(str(platform_gv_path)).parse()
+            # 深度合并：平台 globalvalue 的 group/var 覆盖默认值
+            for group, vars_ in platform_vars.items():
+                executor.global_vars.setdefault(group, {}).update(vars_)
+            logger.info(f"--platform 覆盖：加载 {platform_gv_path.name}，"
+                        f"Mobile.AppTarget={executor.global_vars.get('Mobile',{}).get('AppTarget','')}")
+        else:
+            logger.info(f"--platform 覆盖：Mobile.Platform = {cli_platform}"
+                        f"（未找到 {platform_gv_path.name}，仅覆盖 Platform 字段）")
+
+    # --udid 必须晚于平台合并（见上方 docstring）
+    cli_udid = getattr(args, "udid", None)
+    if cli_udid:
+        mobile_group = executor.global_vars.setdefault("Mobile", {})
+        mobile_group["UDID"] = cli_udid
+        device_name = getattr(args, "_resolved_device_name", None)
+        if device_name:
+            mobile_group["DeviceName"] = device_name
+        logger.info(f"--udid 覆盖：Mobile.UDID = {cli_udid}")
 
 
 def handle(args):
@@ -833,29 +882,7 @@ def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional
         executor.roam_enabled = bool(getattr(args, "roam", False))
         executor.roam_mode = getattr(args, "roam_mode", None) or "batch_just_passed"
         executor.roam_case_id = getattr(args, "roam_case_id", None)
-        # --platform 覆盖：将 CLI 指定的平台注入 global_vars，
-        # 使 keyword_engine._resolve_mobile_platform() 返回正确平台。
-        # 同时自动合并平台专属 globalvalue 文件（如 globalvalue_ios.xml），
-        # 覆盖 AppTarget / BundleId 等平台特有变量。
-        cli_platform = getattr(args, "platform", None)
-        if cli_platform:
-            executor.global_vars.setdefault("Mobile", {})["Platform"] = cli_platform
-            # 尝试加载平台专属 globalvalue 文件（优先级高于默认 globalvalue.xml）
-            platform_gv_path = module_dir / "data" / f"globalvalue_{cli_platform}.xml"
-            if platform_gv_path.exists():
-                try:
-                    from ..core.global_value_parser import GlobalValueParser as _GVP
-                except ImportError:
-                    from core.global_value_parser import GlobalValueParser as _GVP
-                platform_vars = _GVP(str(platform_gv_path)).parse()
-                # 深度合并：平台 globalvalue 的 group/var 覆盖默认值
-                for group, vars_ in platform_vars.items():
-                    executor.global_vars.setdefault(group, {}).update(vars_)
-                logger.info(f"--platform 覆盖：加载 {platform_gv_path.name}，"
-                            f"Mobile.AppTarget={executor.global_vars.get('Mobile',{}).get('AppTarget','')}")
-            else:
-                logger.info(f"--platform 覆盖：Mobile.Platform = {cli_platform}"
-                            f"（未找到 {platform_gv_path.name}，仅覆盖 Platform 字段）")
+        _apply_mobile_cli_overrides(executor, module_dir, args)
         executor.selector_filters = {
             "filter_tags": filter_tags,
             "filter_group": filter_group,

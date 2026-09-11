@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  多设备计划队列 demo —— 长计划 B（登录到订单详情全链路，8 步）。
+
+  本计划是「计划不被拆分」的证据：它比另外两个计划长得多，若调度器按
+  case 粒度切分，它会被两台设备瓜分；按计划粒度调度则必须整体落在一台设备上。
+  详见 queue_short_a.xml 的排班图与 README.md「双设备并行验收」。
+-->
+<test_plan id="queue_long_b"
+           title="队列 demo —— 长计划 B（订单全链路）"
+           kind="suite"
+           execute="是"
+           default_execute="否">
+  <case id="APP003" execute="是"/>
+</test_plan>

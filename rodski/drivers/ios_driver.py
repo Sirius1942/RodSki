@@ -42,6 +42,11 @@ class IOSDriver(AppiumDriver):
                 options.bundle_id = bundle_id
             if kwargs.get("udid"):
                 options.udid = kwargs["udid"]
+            # 并发端口：不设置时同机第二个会话会复用第一台设备的 WDA（默认 8100）
+            if kwargs.get("wda_local_port"):
+                options.wda_local_port = kwargs["wda_local_port"]
+            if kwargs.get("mjpeg_server_port"):
+                options.mjpeg_server_port = kwargs["mjpeg_server_port"]
             super().__init__(options=options, server_url=server_url)
         else:
             # 回退：旧格式（Appium 1.x 兼容）

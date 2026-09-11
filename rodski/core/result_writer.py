@@ -3,6 +3,7 @@
 XML 格式参见 schemas/result.xsd。
 """
 import logging
+import os
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
 from datetime import datetime
@@ -97,7 +98,12 @@ class ResultWriter:
         if self.current_run_dir:
             return
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        run_dir_name = f"rodski_{timestamp}"
+        # RODSKI_RUN_DIR_SUFFIX 由 `rodski queue` 的调度器按「计划+设备」注入：
+        # 时间戳只到秒，两个子进程同秒启动会落到同一目录，后者的日志 FileHandler
+        # 会把前者的 execution.log 摘掉、screenshots/<case_id>.png 也会互相覆盖。
+        # 未设置该环境变量时目录名与既有行为完全一致。
+        suffix = os.environ.get("RODSKI_RUN_DIR_SUFFIX", "").strip()
+        run_dir_name = f"rodski_{timestamp}" + (f"_{suffix}" if suffix else "")
         self.current_run_dir = self.result_dir / run_dir_name
         self.current_run_dir.mkdir(parents=True, exist_ok=True)
         screenshots_dir = self.current_run_dir / "screenshots"

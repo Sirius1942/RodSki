@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  多设备计划队列 demo —— 短计划 A（登录失败提示，3 步）。
+
+  三个 queue_* 计划专供 `rodski queue` 双设备验收，长度刻意不等：
+    queue_short_a（APP002，最短）→ 先跑完的设备**必须**回头再领一个
+    queue_long_b （APP003，最长）→ 独占一台设备，且全过程不被拆分
+    queue_short_c（APP001，最短）→ 「第二班」计划，证明动态领取
+
+  预期排班（两台设备）：
+    设备1：[ queue_short_a ]→[ queue_short_c ]
+    设备2：[ ............ queue_long_b ............ ]
+
+  前置与 ios_app_smoke 相同：模拟器已 boot、com.rodski.demo 已安装、Appium 已启动。
+  执行入口见 scripts/run_dual_device_demo.sh（rodski queue 子命令，
+  三个 queue_* 计划一起入队、两台模拟器各领其一）。
+  详见 README.md「双设备并行验收」。
+-->
+<test_plan id="queue_short_a"
+           title="队列 demo —— 短计划 A（登录失败）"
+           kind="suite"
+           execute="是"
+           default_execute="否">
+  <case id="APP002" execute="是"/>
+</test_plan>

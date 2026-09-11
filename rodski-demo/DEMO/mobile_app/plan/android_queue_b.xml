@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Android 多设备队列验收预留计划（WI-J）—— 长计划：登录到订单详情全链路。
+
+  **execute="否"：本机无 Android 设备，未做动态验收。** 说明见 android_queue_a.xml。
+  本计划比 android_queue_a 长（8 步 vs 3 步），用来看「计划不被拆分」：
+  它必须整体落在同一台设备上，而不是被两台设备瓜分。
+-->
+<test_plan id="android_queue_b"
+           title="队列 demo（Android 预留）—— 长计划：订单全链路"
+           kind="suite"
+           execute="否"
+           default_execute="否">
+  <case id="APP003" execute="是"/>
+</test_plan>

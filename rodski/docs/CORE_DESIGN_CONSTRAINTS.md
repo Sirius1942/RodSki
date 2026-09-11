@@ -13,6 +13,7 @@
 
 | 版本 | 日期 | 主要变更 |
 |------|------|---------|
+| v11.2.0 | 2026-09-10 | 移动端多设备并发约束（§11.5）：计划不可拆分、动态领取、`--udid` 覆盖顺序、并发端口分槽 |
 | v9.2.3 | 2026-08-14 | 探索式测试架构约束、ConfigManager 序列化规范、Playwright 驱动初始化规范 |
 | v7.1.1 | 2026-05-29 | 移动端测试能力、录像架构 |
 | v6.0.0 | 2026-03-15 | data.sqlite 统一数据源 |
@@ -1614,6 +1615,31 @@ rodski run @ios_app_smoke --platform ios
 **约束**：
 - 桌面驱动仅支持视觉定位器（vision/ocr/vision_bbox）
 - 传统定位器（id/css/xpath）在桌面端不可用
+
+### 11.5 移动端多设备并发约束（v11.2.0）
+
+**核心约束（不可违反）**：
+
+1. **默认单设备执行**：不传 `--udid`、不进 `rodski queue` 时，移动端行为与 v11.1.0 **逐字节相同**。
+2. **一个 plan 只用一个 app 设备**：计划是调度的最小单元，**不得**把一条计划的 case/step 拆到多台设备上执行。该约束由 `PlanQueue` 的粒度**结构性保证**（队列只装 `PlanTask`，无任何 case 级发放 API），不是运行时校验。
+3. **多 plan 动态领取**：多设备并行时，每台设备从队列领取**整个计划**，先跑完的设备回头领下一个。**不得**采用静态均分（预先给每台设备分配固定数量的计划）。
+4. **跨平台计划不得入队**：一条计划同时需要 `android` 与 `ios` 模型时拒绝入队（`--allow-cross-platform-plan` 可显式放行）。`driver_type="mobile"` 视为**平台无关**，两种队列平台均兼容。
+5. **`kind=load` 计划不得混入设备队列**：设备×计划 与 VU×时长 是两个正交的执行模型，串在一起会产生无意义的压测数据。
+
+**`Mobile.UDID` 覆盖顺序（硬约束）**：
+
+`--udid` 的写入**必须晚于** `--platform` 的平台 globalvalue 合并。`globalvalue_ios.xml` 自身带 `Mobile.UDID`，写早了会被静默改回文件里的设备——**不报错，只是打错机器**。实现集中在 `rodski/rodski_cli/run.py` 的 `_apply_mobile_cli_overrides()`。
+
+**并发端口（v11.2.0）**：
+
+`wdaLocalPort`（iOS）/ `systemPort`（Android）/ `mjpegServerPort` 的 Appium 默认值**与设备无关**（8100/8200/9100）。同机两个并发会话会**复用第一台设备的 WebDriverAgent**，表现为随机的元素定位失败。故**显式指定 UDID 时**必须按 UDID 分槽注入端口（`mobile_port_slot()`，基址 + 10×槽位）；**未指定 UDID 时不得注入**（保持单设备路径不变）。
+
+**设备选择**：
+
+- 设备发现不得回落到 `devices[0]`。发现 0 台设备 → **硬报错并给出排查提示**，非 0 退出。
+- 显式给 `--devices` 却给不出 `--platform` → **报错**，不得探测猜测（Android UDID 给 iOS 用不会报错，只会打错机器）。
+
+详见 `.pb/specs/v11.2.0-multi-device-plan-queue-design.md`。
 
 ---
 

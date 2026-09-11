@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Android 多设备队列验收预留计划（WI-J）。
+
+  **execute="否"：本机无 Android 真机/模拟器，未做动态验收。**
+  保留本文件是为了让 Android 侧的双设备验收有现成的落点：
+  在有 Android 设备的环境里把 execute 改为「是」，然后用 rodski queue 把本计划与
+  android_queue_b 一起入队（设备列表给两台 Android 的 UDID、平台给 android），
+  即可复现与 iOS 完全相同的调度语义（见 README.md「双设备并行验收」）。
+  两个计划长度不等，因此同样可以观察到「先跑完的设备回头再领一个」。
+  前置：两台 Android 设备 adb devices 可见且状态为 device，
+  com.rodski.demo 已安装（见 README「构建并安装 APK」），mock_server 已启动。
+-->
+<test_plan id="android_queue_a"
+           title="队列 demo（Android 预留）—— 短计划：登录失败"
+           kind="suite"
+           execute="否"
+           default_execute="否">
+  <case id="APP002" execute="是"/>
+</test_plan>

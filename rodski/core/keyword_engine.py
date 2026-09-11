@@ -48,6 +48,28 @@ import re as _re_path
 # v11.0.0: 与 data_resolver 同步，支持 .first()/.last()/.length
 _PATH_TOKEN_KE = _re_path.compile(r'(?:(?:\.([A-Za-z0-9_$]+)(?:\(\))?)|(?:\[(-?\d+)\]))')
 
+# 多设备并发时的端口基址与步长（v11.2.0）
+_WDA_PORT_BASE = 8100
+_MJPEG_PORT_BASE = 9100
+_SYSTEM_PORT_BASE = 8200
+_PORT_STEP = 10
+_PORT_SLOTS = 100        # 基址 +10*slot，最多支持 100 个并发槽位
+
+
+def mobile_port_slot(udid) -> int:
+    """由 UDID 推导并发槽位号（0-99），保证同一台设备在不同进程里得到同一组端口。
+
+    不能按「队列里的下标」分配：`rodski queue` 与 `rodski run` 是两个独立进程，
+    单个 run 不知道自己在队列中的位置。按 UDID 哈希取模则：
+      - 同一台设备在任何进程、任何顺序下都是同一组端口（可复现）；
+      - 不同设备大概率不同槽位。
+    哈希碰撞（两台设备落同一槽位）由调度器侧的数量上限兜底 —— 见
+    `rodski/core/device_scheduler.py` 的并发上限说明。
+    """
+    import hashlib as _hashlib
+    digest = _hashlib.sha1(str(udid).encode("utf-8")).hexdigest()
+    return int(digest, 16) % _PORT_SLOTS
+
 
 def _nav_path_value(value, path):
     """Navigate `value` along path supporting .key, [idx], and array helpers.
@@ -282,7 +304,12 @@ class KeywordEngine:
                 "app_activity": mobile_group.get("AppActivity"),
                 "bundle_id": mobile_group.get("BundleId"),
                 "no_reset": str(no_reset_val).lower() == "true",
+                # 目标设备：UiAutomator2/XCUITest 的 appium:udid。缺失时 Appium 会
+                # 回落到 devices[0]，多设备同跑必然抢同一台手机（deviceName 在
+                # Android 侧只是输出，不参与选设备），故这里必须透传。
+                "udid": mobile_group.get("UDID"),
             }
+            mobile_caps.update(self._mobile_port_caps(mobile_group))
 
             if self._driver_factory:
                 try:
@@ -354,6 +381,31 @@ class KeywordEngine:
         if driver_type == "mobile":
             return self._resolve_mobile_platform()
         return None
+
+    def _mobile_port_caps(self, mobile_group: Dict[str, Any]) -> Dict[str, Any]:
+        """按设备推导并发端口（v11.2.0 多设备并发）。
+
+        为什么需要：XCUITest 的 `wdaLocalPort` 与 `mjpegServerPort` **默认 8100/9100**，
+        与设备无关。同一个 Appium server 上跑两个并发会话时，第二个会话会
+        「reuse previously cached WDA instance at 127.0.0.1:8100」——即复用了**第一台设备**
+        的 WebDriverAgent，于是两个 run 实际都操作同一台模拟器，表现为随机的
+        `invalid session id` / 元素定位失败。UiAutomator2 的 `systemPort` 同理。
+
+        步长 10 与 Appium 自身约定一致（WDA 用 8100/9100，UiAutomator2 用 8200/8201）。
+
+        只在**显式指定了 UDID** 时注入：单设备路径（无 UDID）行为逐字节不变，
+        继续沿用 Appium 默认端口，不引入任何兼容性风险。
+        """
+        udid = mobile_group.get("UDID")
+        if not udid:
+            return {}
+        slot = mobile_port_slot(udid)
+        offset = slot * _PORT_STEP
+        return {
+            "wda_local_port": _WDA_PORT_BASE + offset,
+            "mjpeg_server_port": _MJPEG_PORT_BASE + offset,
+            "system_port": _SYSTEM_PORT_BASE + offset,
+        }
 
     def _resolve_mobile_platform(self) -> str:
         """将平台无关的 'mobile' driver_type 解析为具体平台。
@@ -2710,6 +2762,15 @@ class KeywordEngine:
             from rodski.drivers.playwright_driver import PlaywrightDriver
         if not isinstance(self.driver, PlaywrightDriver):
             raise DriverError("evaluate 仅支持 Web 浏览器驱动（PlaywrightDriver）")
+
+        # evaluate 绕过 driver 的公开动作方法、直接操作 page，因此必须自己把
+        # （懒启动的）浏览器拉起来：否则 page 为 None，报
+        # "'NoneType' object has no attribute 'on'"。探索场景尤其容易命中——
+        # `rodski explore-step --action evaluate` 常是本进程的第一个关键字。
+        self._ensure_driver()
+        ensure_browser = getattr(self.driver, "_ensure_browser", None)
+        if callable(ensure_browser):
+            ensure_browser()
 
         # ── 注册 console 事件监听，捕获 warn/error 级别消息 ──
         page = self.driver.page

@@ -152,3 +152,19 @@ class TestExploreExecutor:
         command = {"action": "type", "model": "LoginPage"}
         executor.execute_command(command)
         assert executor._step_counter == 1
+
+    def test_start_session_with_offset_continues_step_numbering(self, mock_keyword_engine):
+        """CLI 每次调用都是新进程，续接时要接着既有步数编号
+
+        否则截图恒为 `{session}_step_1.png`，后一步覆盖前一步的证据。
+        """
+        module_dir = Path("/tmp/test_module")
+        executor = ExploreExecutor(mock_keyword_engine, module_dir)
+
+        executor.start_session("session_001", step_offset=2)
+        executor.execute_command({"action": "type", "model": "LoginPage"})
+
+        assert executor._step_counter == 3
+        mock_keyword_engine.driver.screenshot.assert_called_once_with(
+            "/tmp/test_module/result/explore/session_001_step_3.png"
+        )
