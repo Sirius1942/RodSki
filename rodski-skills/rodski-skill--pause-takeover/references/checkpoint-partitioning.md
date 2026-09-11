@@ -1,7 +1,8 @@
 # Checkpoint 切分与 verify 写法
 
-把一条完整流程切成「① 跑到目标页 → ② Agent 接管 → ③ RodSki 继续 verify」，两个 XML case
-各守一边。核心纪律：**part1 到 checkpoint 即停，part2 只做断言**。
+把一条完整流程切成「① 跑到目标页 → ② Agent 接管 → ③ RodSki 继续 verify（→ ④ 后置收尾）」，
+各段 XML case 各守一边。核心纪律：**前置段到 checkpoint 即停，验证段只做断言，后置段固化产物
+并收尾**。
 
 ## part1：跑到 checkpoint 即停
 
@@ -28,6 +29,26 @@
 <test_step action="verify" model="Dashboard" data="V001"/>
 ```
 
+## part3：后置段——固化探索产物 + close 收尾
+
+接管期间 Agent 通常还会做**探索**（边界输入、探测未知界面）。探索动作本身随过程变化，
+不进 case XML；但**探索留下的页面状态**要在后置段固化成断言，否则探索等于没测。
+
+```xml
+<!-- TakeoverForm_verify V002：期望值 = 探索段「空用户名 + 角色=user 提交」后的 formResult -->
+<test_step action="verify" model="TakeoverForm" data="V002" match_mode="subset"/>
+<!-- 会话态仍然成立（探索期间没把登录态弄丢） -->
+<test_step action="verify" model="Dashboard" data="V001"/>
+<!-- 收尾：--cdp 下 close 只断连，浏览器/会话仍存活，由启动方最终关闭 -->
+<test_step action="close" model="" data=""/>
+```
+
+- 这里可以用 `close`：attached driver 的 `close()` 是**断连**语义（见
+  `cdp-attach-and-driver-lifecycle.md`），不会毁掉共享会话。
+- 期望值从哪来：先跑探索段，把 CLI 返回的 `evidence.return_value` 里的实际文本原样写进
+  `<Model>_verify` 表。demosite 上「空用户名提交」的实际值是
+  `提交成功！用户名: 角色: user`（`text_content` 不含 `<br>`）。
+
 ## 互补断言：防「空洞通过」
 
 单验 Agent 写入值还不够——part2 可能**自己重做一遍 Agent 动作**来造假；单验登录态也不够——
@@ -38,7 +59,8 @@ part2 可能**自己登录后**再操作。所以要两条互补：
 | 验 Agent 写入的字段（`#formResult`） | 排除「part2 另起炉灶、完全没看到 Agent 操作」 |
 | 验登录/会话态（dashboard 卡片） | 排除「part2 重新登录后自己操作表单」 |
 
-两者都 PASS，才证明「接管真的作用于共享会话」。
+两者都 PASS，才证明「接管真的作用于共享会话」。part3 同理：验的必须是**探索段产生的**状态
+（如 V002 的空用户名文本），只验 V001（接管段的值）就退化成重复验证。
 
 ## 数据表最小自包含示例（model + data 行）
 

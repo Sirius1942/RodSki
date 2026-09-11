@@ -1,6 +1,6 @@
 ---
 name: pause-takeover
-description: RodSki 用例「暂停 → Agent 接管页面 → 继续」工作流。当 Agent 需要让 RodSki 固定步骤跑到测试站点页面后暂停/停在 checkpoint，由 AI 用 playwright 判断页面内容并输出、操作 1-2 个按钮，再继续后续验证步骤时使用。触发词：「暂停接管」「pause takeover」「人工接管」「checkpoint」「Agent 操作页面后继续」。框架无关，支持任何能加载 Markdown skill 的 Agent。
+description: RodSki 用例「暂停 → Agent 接管页面（含探索步骤）→ 后置用例收尾」工作流。当 Agent 需要让 RodSki 固定步骤跑到测试站点页面后暂停/停在 checkpoint，由 AI 用 playwright 判断页面内容并输出、操作按钮、执行探索类测试步骤（rodski explore-step --cdp），再继续用自动化用例验证并由 close 收尾时使用。触发词：「暂停接管」「pause takeover」「人工接管」「checkpoint」「接管后探索」「Agent 操作页面后继续」。框架无关，支持任何能加载 Markdown skill 的 Agent。
 ---
 
 # RodSki Pause-Takeover（暂停接管）
@@ -21,17 +21,23 @@ description: RodSki 用例「暂停 → Agent 接管页面 → 继续」工作�
 - 需要框架**内**暂停/插入（步骤边界注入步骤）→ `demo_runtime_control` / `RuntimeCommandQueue`。
 - 目标是让框架自己多轮对话 → RodSki core 不做策略编排（`AGENT_INTEGRATION.md` 边界）。
 
-## 编排协议（CDP 共享浏览器、双 run 交接）
+## 编排协议（CDP 共享浏览器、多 run 交接）
 
 RodSki 运行时控制（§8.6–8.7）的 pause 只在**步骤边界**生效、命令来自框架内 controller，
-**没有**「从用例步内同步阻塞等 Agent」的原语。所以本协议用「自然 checkpoint + 双 run」：
+**没有**「从用例步内同步阻塞等 Agent」的原语。所以本协议用「自然 checkpoint + 多 run」：
 
 ```
 ① 启动共享浏览器（带 --remote-debugging-port，留窗口）
 ② rodski run <part1/case/> --cdp :9222      → 跑「进入目标页 + 前置登录」；run 结束浏览器保活
 ③ Agent: connect_over_cdp → 读页面判断 → 输出 → 点 1-2 按钮     （自行决定）
 ④ rodski run <part2/case/> --cdp :9222      → 同一浏览器继续 verify 跨 Agent 操作
+⑤ Agent: rodski explore-step ... --cdp :9222 → 探索类步骤：逐条发起、逐条留证（可选）
+⑥ rodski run <part3/case/> --cdp :9222      → 后置用例段：验证探索产物 + close 收尾
 ```
+
+③ 与 ⑤ 的区别：③ 是**你自己**（Agent）用 playwright 直接操作页面；⑤ 是**复用框架的关键字
+引擎**做探索步骤——批量定位、动作语法、证据采集（截图/URL/返回值）都由 RodSki 出，你只发命令。
+两者可交替使用；需要「探索动作也进框架日志/证据链」时走 ⑤。
 
 前置：RodSki ≥ v11.1.0（含 driver CDP attach + CLI `--cdp`）；本机已装 playwright；被测站可达。
 
@@ -93,11 +99,51 @@ rodski run product/你的模块/case/part2_continue.xml --cdp :9222
 part2 用**全新进程 + CDP 附加**验证 ③ 的操作结果与 ① 保留的会话态；参考
 `demo_pause_takeover/case/part2_continue.xml`（两条互补断言见下）。
 
+### ⑤ 探索类步骤：把探索动作也交给框架执行（可选）
+
+当接管期要做**探索**（边界输入、探测未知界面、采集页面实际值）而不只是「看一眼点一下」时，
+用 `explore-step` 单步命令代替手写 playwright——定位/动作语法/证据采集由框架出，你只发命令：
+
+```bash
+# 边界探测：用户名留空 + 选角色后提交（数据行 E001）
+rodski explore-step --module product/你的模块 --session take1 --cdp :9222 \
+  --action type --model TakeoverForm --data E001 --output json
+
+# 采集证据：读回表单各元素当前文本（结构化 return_value）
+rodski explore-step --module product/你的模块 --session take1 --cdp :9222 \
+  --action get --model TakeoverForm --data E001 --output json
+
+# 模型盲区：evaluate 读模型未覆盖的页面内部状态
+rodski explore-step --module product/你的模块 --session take1 --cdp :9222 \
+  --action evaluate --model "" --data "document.getElementById('resultId').textContent"
+```
+
+- 每条命令返回 `{success, evidence:{screenshot,url,return_value,browser_errors}, session_state, budget_status}`；
+  截图落在 `{module}/result/explore/{session}_step_N.png`。
+- **同一条命令在同一 session 内只执行一次**（`BudgetGuard` 去重）：重复 `action+model+data`
+  会被拒（`success=false, 重复命令`）。要重跑换个 session 名，或删掉
+  `{module}/result/explore/session_<id>.json`。
+- `action` 取值就是关键字表（`type/verify/get/evaluate/navigate/…`）；`--model ""` 表示无模型。
+- 预算默认 50 步 / 300 秒，可用 `--budget-steps` / `--budget-duration` 调。
+- 探索动作**不写进 case XML**（它随探索过程变化）；由 ⑥ 的后置用例把**探索产物**固化成断言。
+
+### ⑥ run-3：后置用例段（验证探索产物 + close 收尾）
+
+```bash
+rodski run product/你的模块/case/part3_post.xml --cdp :9222
+```
+
+后置段做两件事：把 ③/⑤ 在页面上留下的状态固化成 `verify`，然后 `close` 收尾。
+**`--cdp` 下 `close` 只断连、不关浏览器**（attached 语义），所以收尾不会毁掉会话——
+但收尾断言要验的是**探索产物**（如 ⑤ 边界提交后的实际文本），而不是接管前的状态。
+
 ## 可执行参考
 
 - **全自动闭环 demo**：`rodski-demo/DEMO/demo_pause_takeover/run_demo.py`
-  （真实 CDP 三段：run-1 登录 → agent 接管 → run-2 verify），仓库根目录直接跑。
-- 用例对：`part1_login.xml`（进站登录）+ `part2_continue.xml`（verify agent 写入值 + 登录态）。
+  （真实 CDP 五段：run-1 登录 → agent 接管 → run-2 verify → explore 探索步骤 → run-3 后置 + close），
+  仓库根目录直接跑。
+- 用例三段：`part1_login.xml`（进站登录）+ `part2_continue.xml`（verify agent 写入值 + 登录态）
+  + `part3_post.xml`（verify 探索产物 + close）。
 
 ## 把用例切成 checkpoint 的写法
 
@@ -120,7 +166,11 @@ part2 用**全新进程 + CDP 附加**验证 ③ 的操作结果与 ① 保留�
 
 | 坑 | 对策 |
 |----|------|
-| `--cdp` 下用例以 close 结尾 | attached driver close=断连，页面保留；但别在用例里显式 close 关 context（会被忽略/影响复用）。直接不加 close 步骤 |
+| `--cdp` 下用例以 close 结尾 | attached driver close = 断连，浏览器与会话都保留 → 后置收尾段**可以**用 close；真正的浏览器由启动它的那一方关闭 |
+| 探索命令报 `重复命令` | 同一 session 内 `action+model+data` 去重；换 session 名或删 `result/explore/session_<id>.json` |
+| 探索截图互相覆盖（都是 `..._step_1.png`） | step 编号按 session 历史续接（`start_session(step_offset=len(history))`），已修复；若在更早版本上遇到，每次换 session 名即可 |
+| `explore-step` 报 `'NoneType' object has no attribute 'on'` | `evaluate` 作为本进程第一个关键字时的历史缺陷（engine 未先确保浏览器就绪），已在 `explore-step` 装配修复中一并处理；若在更早的版本上遇到，先跑一条会拉起浏览器的动作（如 `--action navigate`） |
+| `connect_over_cdp` 报 `Unexpected status 400 / not a DevTools server` | 端点缺 scheme（`:9333` 不能被 connect）；用 `--cdp http://127.0.0.1:9333` 或确认 CLI 已做归一化 |
 | 端口占用 / `user-data-dir` 被锁 | 换端口、换临时目录；`curl .../json/version` 探活 |
 | 同一进程内两次 `sync_playwright()` | 报 asyncio 冲突；子进程/复用实例 |
 | 录制/截图默认开 | run 用 `--record-mode off` 或 ConfigManager 关 `recording.enabled/auto_screenshot_*` |
