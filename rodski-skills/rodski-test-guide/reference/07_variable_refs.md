@@ -74,6 +74,19 @@ Return 引用**只应出现在数据表 XML 的 field 值中**，不要写在 Ca
 | DB | query → 结果集列表；execute → 受影响行数 |
 | run | 脚本 stdout 输出（自动尝试 JSON 解析） |
 
+> **`set` 不在上表** —— `set` 只命名变量，**不产生 Return 值**，也不改变 `${Return[-N]}`
+> 的指向。所以下面这种写法是安全的：`set` 之后 `${Return[-1]}` 仍指 `send` 的响应。
+>
+> ```xml
+> <test_step action="send" model="LoginAPI" data="L001"/>
+> <test_step action="set" model="" data="auth_token=${Return[-1].token}"/>
+> <test_step action="verify" model="LoginAPI_verify" data="V001"/>
+> <!-- V001 里的 ${Return[-1]} 读到的是 send 的响应，不是 auth_token -->
+> ```
+>
+> 反过来说：**不要**用 `${Return[-1]}` 去读刚才 `set` 的值 —— 用 `${auth_token}` 或
+> `get | | auth_token`。
+
 ### 7.6 推荐：使用 set/get 命名变量
 
 推荐使用 `set`/`get` 命名变量作为步骤间数据传递的首选方式：
@@ -108,11 +121,53 @@ Return 索引适合步骤紧邻且无歧义的场景：
 
 > **注意**：Return 索引仍然完全支持，不会被废弃。set/get 是推荐的首选方式，Return 索引是合法的进阶用法。
 
-### 7.7 内置函数：random() 和 date()（v6.7.0）
+#### 7.6.1 `set` 的三种读法
 
-数据表字段值中可使用内置函数生成动态数据，语法为 `${函数名(type, 参数...)}`。
+`set | | key=value` 写入的变量可以从三个地方读到：
 
-**仅支持两个函数**：
+| 读法 | 写法 | 适用场景 |
+|------|------|---------|
+| 模板引用 | 数据表字段值里写 `${key}` | 最常用，推荐 |
+| `get` 关键字 | `<test_step action="get" model="" data="key"/>` | 需要把值放进 Return 链时 |
+| `get` 的 model 模式 | `<test_step action="get" model="M" data="D001"/>` | 读 UI 模型各元素文本（返回 dict） |
+
+`get` 的返回值**会**进入 Return 历史（见 7.5 节表格）；`set` 不会。
+
+#### 7.6.2 `set` 的表达式能力
+
+`set` 的 `data` 属性支持纯函数类内置函数，可直接做分步表达式：
+
+```xml
+<test_step action="set" model="" data="raw=Hello"/>
+<test_step action="set" model="" data="up=${toUpperCase(${raw})}"/>
+<test_step action="set" model="" data="enc=${encodeURI(${up})}"/>
+```
+
+**数据生成类函数（`random` / `date` / `timestamp*`）不能写在 `set` 里** —— 会导致用例
+不可复现（重跑、`loop` 迭代都会重新求值）。这类数据请放在 `data.sqlite` 字段值中：
+
+```sql
+-- ✅ 数据表字段值中允许
+username: user_${random(int, 4)}
+```
+
+```xml
+<!-- ❌ 会报错：Case XML data 属性中不允许数据生成类函数 -->
+<!-- <test_step action="set" model="" data="u=user_${random(int, 4)}"/> -->
+```
+
+详见《核心设计约束》§4.4.6 规则 5，以及本文 7.7 节。
+
+### 7.7 内置函数
+
+内置函数语法为 `${函数名(参数...)}`，**能写在哪儿取决于它是否可复现**：
+
+| 类别 | 函数 | 数据表字段值 | Case XML `data` 属性 |
+|------|------|:---:|:---:|
+| **数据生成** | `random` `date` `timestamp` `timestamp_ms` `timestamp36` | ✅ | ❌ **报错** |
+| **纯函数** | `encodeURI` `encodeURIComponent` `urlencode` `decodeURI` `toUpperCase` `toLowerCase` `upper` `lower` `toString36` `concat` | ✅ | ✅ |
+
+本节余下部分讲**数据生成类**（它们占绝大多数用法）；纯函数类的用例层写法见 7.6.2。
 
 #### `${random(type, ...)}` — 随机数据
 

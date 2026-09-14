@@ -36,7 +36,7 @@ rodski-skills/
 
 | Skill | 来源 / 版本 | 说明 |
 |-------|-------------|------|
-| `rodski-test-guide` | **v7.1.1** (sha256: `e5547626850c`)；源文档 `rodski/docs/TEST_CASE_WRITING_GUIDE.md` | RodSki 用例 / 模型 / 数据 / 关键字编写权威指南，章节切片位于 `reference/*.md` |
+| `rodski-test-guide` | **v8.3.0** (sha256: `6c40a17d4c51`)；源文档 `rodski/docs/TEST_CASE_WRITING_GUIDE.md` | RodSki 用例 / 模型 / 数据 / 关键字编写权威指南，章节切片位于 `reference/*.md` |
 | `rodski-skill--rodski` | SkillHub `20260605.034754` | RodSki 框架源码、XML 活文档协议、关键字实现、XSD schema、CLI、视觉/Desktop/API/DB 能力和 demo 验收链路 |
 | `rodski-skill--rodski-case-writer` | SkillHub `20260605.034337` | 在任意 RodSki 用例仓库中编写、修改、调试或审查 `case/model/data/plan` 资产 |
 | `rodski-skill--switch-rodski-env` | SkillHub `20260605.035123` | beta/ci/stage/prod 等环境迁移；补齐缺失用例资产；只替换 URL 和数据库地址 |

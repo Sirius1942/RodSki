@@ -16,7 +16,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <cases tags="smoke,login">
   <case execute="是" id="c001" title="登录测试" description="验证登录"
-        component_type="界面" priority="P0">
+        component_type="界面" priority="P0" roam="是">
     <pre_process>
       <test_step action="navigate" model="" data="GlobalValue.DefaultValue.URL/login"/>
     </pre_process>
@@ -51,6 +51,7 @@
 | `component_type` | 否 | 测试类别 | `界面` / `接口` / `数据库`（与 `case.xsd` 一致），仅做分类标记 |
 | `priority` | 否 | 优先级 | `P0` / `P1` / `P2` / `P3`，CLI 可按优先级过滤 |
 | `expect_fail` | 否 | 预期失败 | `是` / `否`（默认 `否`），标记为预期失败的用例失败时不计入 FAIL |
+| `roam` | 否 | 是否允许显式漫游 | `是` / `否`（默认 `否`）。仅 UI 用例可设为 `是`：`component_type` 可为空或为 `界面`；非空且不是 `界面` 时抛 `SKI803` |
 
 #### `<metadata>` 可选子元素
 
@@ -77,7 +78,7 @@
 ### 3.3 三阶段执行顺序与失败语义
 
 ```
-预处理（pre_process 内各 test_step）→ 用例（test_case 内各 test_step）→ 后处理（post_process 内各 test_step）
+预处理（pre_process）→ 用例（test_case）→ 漫游（满足条件时可选）→ 后处理（post_process）
 ```
 
 | 规则 | 说明 |
@@ -85,6 +86,7 @@
 | 顺序 | 先执行完 `pre_process` 中所有步骤，再执行 `test_case`，最后执行 `post_process` |
 | 预处理失败 | 跳过 **用例阶段**，**仍执行后处理** |
 | **用例阶段失败** | **仍执行后处理**（保证 `close`、DB 清理等能跑） |
+| 用例阶段成功且进入漫游 | 漫游同步执行后再进入后处理；后处理始终只执行一次，漫游 finding/失败不改变基础用例 PASS/FAIL |
 | 后处理失败 | 整条用例记为失败 |
 
 ### 3.4 `scenario` 容器（v6.3.0）

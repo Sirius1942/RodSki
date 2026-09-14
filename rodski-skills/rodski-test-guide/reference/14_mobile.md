@@ -144,3 +144,5 @@ vision 定位请求
 - ✅ 视觉定位器（vision/ocr/vision_bbox）在移动端完全支持
 - ❌ 移动端不支持 `evaluate`（无 JavaScript 执行环境）
 - ❌ 不新增 `swipe`、`long_press` 等独立关键字，通过数据表动作值或 `run` 脚本实现
+
+---

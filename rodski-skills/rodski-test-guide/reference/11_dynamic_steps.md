@@ -39,6 +39,33 @@
 
 **服务端下发命令时**：若**正在执行某一步**（例如页面操作、接口请求、`run` 脚本还在跑），**默认会等这一步结束**再处理你的暂停/插入/普通终止；只有**强制终止**才会尽量立刻停下（具体行为以《核心设计约束》第 8.7 节为准）。
 
+### 11.6 漫游测试（v8.3.0）
+
+漫游围绕一条已经成功走通的 UI 用例继续做受预算约束的数据变体探索。核心默认引擎是纯规则、零 LLM 实现，无需安装 rodski-agent。
+
+**三个开关必须同时满足**：
+
+1. `data/globalvalue.xml` 中 `Roam.Enabled` 为 `是`
+2. 用例显式声明 `roam="是"`
+3. 本次命令显式要求漫游
+
+```bash
+# 定向执行一条用例并漫游；找不到或不满足条件会明确报 SKI801/SKI802
+rodski roam --case c001 product/DEMO/demo_site
+
+# 正常批量执行，并只对合格且 test_case 通过的用例漫游
+rodski run product/DEMO/demo_site/case/ --roam
+rodski run product/DEMO/demo_site/case/ --tag smoke --roam
+```
+
+`rodski roam --case` 表达对单条用例的明确意图，因此会报告资格错误；`rodski run --roam` 是批量模式，不合格用例只跳过漫游，正常用例执行不受影响。`roam="是"` 只适用于 `component_type="界面"` 或未填写类型的 UI 用例；接口/数据库用例声明漫游会抛 `SKI803`。
+
+执行顺序是 `pre_process → test_case → 漫游 → post_process`。漫游只在 `test_case` 成功后同步发生，`post_process` 仍恰好执行一次。漫游的失败或 finding 不会把基础用例从 PASS 改成 FAIL；不可逆动作或低置信度动作只记录、不执行。
+
+v8.3.0 的 `roam_summary` 出现在结果字典和 JSON 输出中，包含 `base_case_id`、触发方式、变体数、停止原因、findings 和测试地图增量。XML `result.xsd` 与 HTML 报告暂不展示漫游明细，属于后续 v2。
+
+第一次需要写入测试地图时，框架会自动创建 `knowledge/test_map.json` 和锁文件。用户无需预建 `knowledge/`，合规检查也不会把它当作模块必备目录。地图固定为 `schema_version=1`；更高版本会以只读方式保护，避免旧版覆盖。
+
 ---
 
 
