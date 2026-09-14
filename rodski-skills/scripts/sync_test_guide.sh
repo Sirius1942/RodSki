@@ -32,8 +32,10 @@ fi
 echo "[INFO] 测试指南有变更，重新切片..."
 
 mkdir -p "$REF_DIR"
-# 清空旧 reference（只删 *.md，保留可能存在的其他文件）
-find "$REF_DIR" -maxdepth 1 -name '*.md' -delete
+
+# 注意：旧 reference/*.md 的删除**不在这里**做，而是由下面的 Python 在
+# 章节齐备性校验通过之后自己删。之前把删除放在这里，一旦切片失败（章节
+# 漂移），旧文件已经删光、新文件又没写全，reference/ 就残缺了。
 
 python3 - "$SRC" "$REF_DIR" <<'PY'
 import sys
@@ -44,6 +46,14 @@ src_path = Path(sys.argv[1])
 out_dir = Path(sys.argv[2])
 
 # 章节标题正则 → 输出文件名
+#
+# 这份映射必须与 TEST_CASE_WRITING_GUIDE.md 的章节结构保持同步。两个已知的
+# 漂移来源：
+#   1. 指南新增章节但这里没加 → 新章节被静默并进上一节的文件（例如 15/16 节
+#      曾整段落在 14_mobile.md 里）
+#   2. 指南删掉某节但这里没删 → 这里会因切不满 17 个而 FAIL，但**旧文件已
+#      在切之前被删掉**，失败会留下残缺的 reference/
+# 因此切片前先按下面的清单核对一次章节齐备性，缺任何一节就直接退出，不做删除。
 MAPPING = [
     (r"^## 1\. ",                "01_concepts.md"),
     (r"^## 2\. ",                "02_directory.md"),
@@ -59,7 +69,8 @@ MAPPING = [
     (r"^## 12\. ",               "12_vision_locator.md"),
     (r"^## 13\. ",               "13_desktop.md"),
     (r"^## 14\. ",               "14_mobile.md"),
-    (r"^## 附录：常见问题",      "90_faq.md"),
+    (r"^## 15\. ",               "15_ios.md"),
+    (r"^## 16\. ",               "16_load_testing.md"),
     (r"^## 附录：关键字速查",    "91_keyword_cheatsheet.md"),
     (r"^## 附录：测试结果 XML",  "92_result_xml.md"),
 ]
@@ -78,7 +89,32 @@ if not section_starts:
     print("[FAIL] 未找到任何匹配章节", file=sys.stderr)
     sys.exit(1)
 
+# 先核对章节齐备性再动手删旧文件。否则「切不满」的失败会留下一个残缺的
+# reference/ —— 旧文件已经删了，新文件没全写出来。
+expected = len(MAPPING)
+if len(section_starts) != expected:
+    missing = [fname for _, fname in MAPPING
+               if fname not in {f for _, f in section_starts}]
+    print(f"[FAIL] 期望 {expected} 个章节，实际匹配到 {len(section_starts)} 个。\n"
+          f"       未匹配: {', '.join(missing)}\n"
+          f"       指南章节结构与 sync_test_guide.sh 的 MAPPING 已漂移，"
+          f"请先对齐 MAPPING 再重跑。reference/ 未做任何改动。",
+          file=sys.stderr)
+    sys.exit(1)
+
 banner = "<!-- 自动生成 from rodski/docs/TEST_CASE_WRITING_GUIDE.md  请勿手工编辑 -->\n\n"
+
+# 校验已过，现在安全：先清旧文件再逐个写出。
+# 判据是文件首行的自动生成 banner —— 只动本脚本自己的产物，reference/ 里
+# 若有手工维护的其它文件保持不动。这样指南删掉某节时，对应的旧切片
+# （如已移除的 90_faq.md）会随之消失，而不是变成孤儿。
+for stale in out_dir.glob("*.md"):
+    try:
+        head = stale.read_text(encoding="utf-8", errors="replace").splitlines()[:1]
+    except OSError:
+        continue
+    if head and head[0].startswith("<!-- 自动生成 from"):
+        stale.unlink()
 
 written = 0
 for idx, (start, fname, heading) in enumerate(section_starts):
@@ -90,12 +126,6 @@ for idx, (start, fname, heading) in enumerate(section_starts):
     written += 1
 
 print(f"[OK] 共生成 {written} 个 reference 文件")
-
-# 校验：必须 17 个
-expected = len(MAPPING)
-if written != expected:
-    print(f"[FAIL] 期望 {expected} 个章节，实际只切出 {written} 个", file=sys.stderr)
-    sys.exit(1)
 PY
 
 echo "$CURRENT_SHA  $(basename "$SRC")" > "$SHA_FILE"
