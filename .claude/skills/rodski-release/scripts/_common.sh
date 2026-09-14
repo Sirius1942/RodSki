@@ -38,13 +38,16 @@ read_state() {
 }
 
 require_stage() {
-    local required="$1" version="$2"
+    # requested 必须与 $version 分开存：read_state 会 source 状态文件，
+    # 而状态文件里的 `version=` 正好会覆盖同名局部变量。旧写法把请求版本
+    # 也存进 $version，source 之后两者恒等，那道版本校验永远不可能触发。
+    local required="$1" requested="$2"
     if ! read_state; then
         fail "未找到发布状态文件 (.release_state)。请从 stage1 开始执行。"
     fi
     # shellcheck disable=SC2154
     [[ "$stage" == "$required" ]] || fail "当前状态 stage=${stage}，需要先完成 $required 才能继续。"
-    [[ "$version" == "$version" ]] || fail "版本号不匹配：状态文件 ${version}，当前 $version"
+    [[ "$version" == "$requested" ]] || fail "版本号不匹配：状态文件 v${version}，当前 v${requested}"
 }
 
 # ── 版本号同步（所有需要写版本号的文件）────────────────────────────────────────
@@ -65,18 +68,34 @@ bump_all_versions() {
     ok "  rodski/__init__.py → $v"
 
     # 4. CLAUDE.md（项目版本标注行）
-    sed -i '' "s/当前版本：v[0-9.]\+/当前版本：v${v}/" "$PROJECT_ROOT/CLAUDE.md"
+    #    用 \{1,\} 而不是 \+ —— BSD sed（macOS）的 ERE 转义不适用于 BRE，
+    #    `[0-9.]\+` 在 BSD sed 里匹配不到任何东西，整条替换静默变成空操作。
+    sed -i '' "s/当前版本：v[0-9.]\{1,\}/当前版本：v${v}/" "$PROJECT_ROOT/CLAUDE.md"
     ok "  CLAUDE.md → $v"
 
-    # 5. 核心文档版本行（版本: vX.Y.Z 格式）
+    # 5. 核心文档版本行（`**版本**: vX.Y.Z` 格式）
+    #    这些文档里「版本」二字只出现在第 3 行的标题块，用 ^ 锚死；
+    #    旧写法 `s/版本.*v[0-9.]\+/.../` 是贪婪匹配，既会命中正文里带
+    #    「版本」的任意一行，又同样被 \+ 的空操作静默吃掉。
+    #
+    #    只认**三段式** `vX.Y.Z`。API_REFERENCE.md 里那句 `**版本**: v5.0+`
+    #    属于文件内部内嵌的「DB 关键字 API 文档」子文档，标的是该模块自己的
+    #    版本，不是 RodSki 发布版本 —— 用 `[0-9]\{1,\}\.[0-9]\{1,\}\.[0-9]\{1,\}`
+    #    把它排除在外，免得把子文档标成框架版本。
     for doc in \
         "$RODSKI_DIR/docs/TEST_CASE_WRITING_GUIDE.md" \
         "$RODSKI_DIR/docs/CORE_DESIGN_CONSTRAINTS.md" \
         "$RODSKI_DIR/docs/ARCHITECTURE.md" \
         "$RODSKI_DIR/docs/API_REFERENCE.md"; do
         [[ -f "$doc" ]] || continue
-        sed -i '' "s/版本.*v[0-9.]\+/版本: v${v}/" "$doc"
-        ok "  $(basename "$doc") → $v"
+        # ARCHITECTURE.md 等没有版本行，不命中是正常的，不当失败
+        pattern='^\*\*版本\*\*: v[0-9]\{1,\}\.[0-9]\{1,\}\.[0-9]\{1,\}'
+        if grep -q "$pattern" "$doc"; then
+            sed -i '' "s/${pattern}/**版本**: v${v}/" "$doc"
+            ok "  $(basename "$doc") → $v"
+        else
+            info "  $(basename "$doc")：无 RodSki 版本行，跳过"
+        fi
     done
 
     # 6. rodski-skills/ 版本号（与发布版本对齐）

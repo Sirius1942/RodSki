@@ -100,3 +100,6 @@ rodski-agent/
 # 发布包目录（仅推送到 GitLab，不推送到 GitHub）
 # 通过 scripts/git_push.sh 自动处理双 remote 推送策略
 releases/
+
+# 发布流程状态文件（rodski-release skill 的 stage 间传递用，本地瞬时状态）
+/.release_state
