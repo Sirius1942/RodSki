@@ -148,7 +148,7 @@ echo "=== [3/4] 构建并安装 $BUNDLE_ID ==="
 # 检查是否已安装
 ALREADY_INSTALLED=$(xcrun simctl listapps booted 2>/dev/null | grep -i "$BUNDLE_ID" || true)
 if [[ -n "$ALREADY_INSTALLED" ]]; then
-  ok "App $BUNDLE_ID 已安装，跳过构建（如需重新安装，请先运行：xcrun simctl uninstall booted $BUNDLE_ID）"
+  ok "App $BUNDLE_ID 已安装，跳过构建（如需重新安装，请先运行：xcrun simctl uninstall booted ${BUNDLE_ID}）"
 else
   info "App 未安装，开始构建..."
 
@@ -173,7 +173,7 @@ else
 
   APP_PATH="$DERIVED/Build/Products/Debug-iphonesimulator/RodskiDemo.app"
   if [[ ! -d "$APP_PATH" ]]; then
-    fail "编译失败，未找到 $APP_PATH。请检查上方 xcodebuild 输出。"
+    fail "编译失败，未找到 ${APP_PATH}。请检查上方 xcodebuild 输出。"
   fi
   ok "编译完成：$APP_PATH"
 
@@ -213,5 +213,7 @@ echo ""
 echo "运行 iOS 冒烟测试："
 echo "  cd $MODULE_DIR"
 echo "  # 确保 data/globalvalue.xml 的 Mobile.Platform=ios（或使用 globalvalue_ios.xml）"
-echo "  rodski run @ios_app_smoke"
+echo "  # globalvalue_ios.xml 配了 DeviceCount=2，故 @plan 会转 rodski queue 跑两台设备；"
+echo "  # 只想跑一台时加 --no-queue（或 --udid 点名一台）"
+echo "  rodski run @ios_app_smoke --no-queue"
 echo ""

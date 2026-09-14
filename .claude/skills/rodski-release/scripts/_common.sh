@@ -43,8 +43,8 @@ require_stage() {
         fail "未找到发布状态文件 (.release_state)。请从 stage1 开始执行。"
     fi
     # shellcheck disable=SC2154
-    [[ "$stage" == "$required" ]] || fail "当前状态 stage=$stage，需要先完成 $required 才能继续。"
-    [[ "$version" == "$version" ]] || fail "版本号不匹配：状态文件 $version，当前 $version"
+    [[ "$stage" == "$required" ]] || fail "当前状态 stage=${stage}，需要先完成 $required 才能继续。"
+    [[ "$version" == "$version" ]] || fail "版本号不匹配：状态文件 ${version}，当前 $version"
 }
 
 # ── 版本号同步（所有需要写版本号的文件）────────────────────────────────────────

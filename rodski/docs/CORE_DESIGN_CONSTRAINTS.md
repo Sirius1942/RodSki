@@ -13,6 +13,7 @@
 
 | 版本 | 日期 | 主要变更 |
 |------|------|---------|
+| v11.3.0 | 2026-09-14 | iOS 真机纳入设备发现（devicectl）、真机+模拟器混跑约束（§11.5 追加）、移动端导航两条硬约束（§11.5 追加） |
 | v11.2.0 | 2026-09-10 | 移动端多设备并发约束（§11.5）：计划不可拆分、动态领取、`--udid` 覆盖顺序、并发端口分槽 |
 | v9.2.3 | 2026-08-14 | 探索式测试架构约束、ConfigManager 序列化规范、Playwright 驱动初始化规范 |
 | v7.1.1 | 2026-05-29 | 移动端测试能力、录像架构 |
@@ -571,24 +572,26 @@ Return 做跨源比对，这是合法的断言。
 
 ### 4.4 内置函数（v11.0.0）
 
-数据表字段值中支持 `${函数名(参数...)}` 格式的内置函数调用，运行时动态求值。
+支持 `${函数名(参数...)}` 格式的内置函数调用，运行时动态求值。
 
-**v11.0.0 新增 5 个文本处理函数，当前共 8 个函数**：
+**v11.0.0 新增 5 个文本处理函数，当前共 15 个函数**（清单以 `rodski/data/builtin_functions.py` 的注册表为准）。
 
 #### 4.4.1 支持的内置函数清单
 
-**数据生成**（v1.0）：
+**数据生成**（每次求值都不同 → 不可写在 Case XML `data` 属性，见规则 5）：
 - `random(type, ...)` - 生成随机数据
 - `date(type, ...)` - 获取时间数据
+- `timestamp()` - Unix 时间戳（秒）
+- `timestamp_ms()` - Unix 时间戳（毫秒）
+- `timestamp36()` - 毫秒时间戳的 36 进制大写
 
-**文本处理**（v11.0.0 新增）：
-- `encodeURI(value)` - URL 编码（等同 encodeURIComponent）
+**文本处理**（纯函数 → 可写在 Case XML `data` 属性）：
+- `encodeURI(value)` / `encodeURIComponent(value)` - URL 编码
 - `decodeURI(value)` - URL 解码
-- `toUpperCase(text)` - 转大写
-- `toLowerCase(text)` - 转小写
+- `toUpperCase(text)` / `upper(text)` - 转大写（`upper` 为旧名，保留兼容）
+- `toLowerCase(text)` / `lower(text)` - 转小写（`lower` 为旧名，保留兼容）
 - `toString36(number)` - 转 36 进制（大写）
-
-**工具函数**（向后兼容）：
+- `urlencode(value)` - `encodeURI` 的旧名，保留兼容
 - `concat(str1, str2, ...)` - 字符串拼接（推荐用模板语法代替）
 
 #### 4.4.2 `random(type, ...)` 可用 type
@@ -615,17 +618,18 @@ Return 做跨源比对，这是合法的断言。
 | `timestamp_ms` | 无 | Unix 时间戳（毫秒） |
 | `offset` | 偏移值, format（可选） | 日期偏移（数字=天，数字+h=小时） |
 
-#### 4.4.4 v11.0.0 新增函数使用示例
+#### 4.4.4 新增函数使用示例
 
 ```xml
 <!-- 1. URL 编码（高频场景） -->
 <field name="_url">/api/list?store=${encodeURI(${storeId})}&amp;limit=50</field>
 
-<!-- 2. 唯一编号生成（组合使用） -->
-<test_step action="set" model="" data="timestamp=${date(timestamp)}"/>
-<test_step action="set" model="" data="base36=${toString36(${timestamp})}"/>
+<!-- 2. 唯一编号生成（分步）—— 时间戳取自数据表，纯函数部分写在用例里 -->
+<!--    data.sqlite 字段值： -->
+<!--    orderId: ORD_${date(timestamp, %Y%m%d)}_${random(digits, 4)} -->
+<!--    用例里再做纯函数加工： -->
+<test_step action="set" model="" data="base36=${toString36(${Return[-1].orderId})}"/>
 <test_step action="set" model="" data="uniqueId=${toUpperCase(${base36})}"/>
-<!-- 输出示例：uniqueId=Z1B2C3D -->
 
 <!-- 3. 字符串拼接（现有能力） -->
 <field name="orderId">ORD_${date(today, %Y%m%d)}_${random(digits, 4)}</field>
@@ -634,6 +638,9 @@ Return 做跨源比对，这是合法的断言。
 <!-- 4. URL 解码 -->
 <field name="decodedUrl">${decodeURI(${encodedUrl})}</field>
 ```
+
+> 注意示例 2：`${date(...)}` / `${random(...)}` 是**数据生成类**，不能写在 Case XML 的
+> `data` 属性里（规则 5），所以它们留在数据表字段值中；`set` 只做纯函数加工。
 
 #### 4.4.5 字符串拼接
 
@@ -648,7 +655,7 @@ test_${random(str, 6)}@example.com        → test_aB3kP9@example.com
 
 #### 4.4.6 约束
 
-1. **函数清单受控** — 当前 8 个函数（2 个数据生成 + 5 个文本处理 + 1 个工具），新增需架构评审
+1. **函数清单受控** — 当前 15 个函数（数据生成 5 + 文本处理 10），新增需架构评审
 2. **不支持嵌套**（v11.0.0 强化） — `${encodeURI(${toUpperCase(x)})}` 不允许，使用分步 `set` 代替：
    ```xml
    <!-- 错误：嵌套函数 -->
@@ -660,9 +667,20 @@ test_${random(str, 6)}@example.com        → test_aB3kP9@example.com
    ```
 3. **纯函数无副作用** — 内置函数只生成值，不修改任何状态
 4. **运行时求值** — 每次执行时重新计算，不缓存结果
-5. **仅在数据表字段值中使用** — 内置函数只在数据表字段值中生效，不能在 Case XML 的 `data` 属性中使用（与 Return 引用规则一致）
+5. **按确定性分域使用**（v11.3.0 明确） — 内置函数分两类，**能写在哪儿取决于它是否可复现**：
+
+   | 类别 | 函数 | 性质 | 数据表字段值 | Case XML `data` 属性 |
+   |------|------|------|:---:|:---:|
+   | **数据生成** | `random` `date` `timestamp` `timestamp_ms` `timestamp36` | 每次求值都不同 | ✅ | ❌ **报错** |
+   | **纯函数** | `encodeURI` `decodeURI` `toUpperCase` `toLowerCase` `toString36` `upper` `lower` `concat` | 同输入同输出 | ✅ | ✅ |
+
+   **数据生成类为什么不能在 Case XML**：用例会不可复现。`loop` 每轮重新解析、失败重跑重新解析，同一用例两次跑出不同的值；而 `result.xml` 的步骤记录里 `data` 是空的（不落解析后的值），事后无从对账。它们应写在 data.sqlite 字段值中 —— 数据行本就是「执行时现取」的语义。
+
+   **纯函数类为什么必须能在 Case XML**：`set` 的表达式只能来自 Case XML 的 `data` 属性（§4.4.4 示例 2/3、§4.4.6 规则 2 的分步写法都依赖它）。禁掉等于砍掉 v11.0.0 的表达式能力。
+
+   对未注册的函数名（如 `${randomm(...)}`）本层不报错 —— 那是普通文本，见 §6.7.6_OLD_CASE_FAILURE_GUIDE 的说明。
 6. **解析优先级** — `${Return[N]}` 优先于内置函数，内置函数优先于 `${var}` 变量引用
-7. **转义** — 需要字面量 `${` 时使用 `$${` 转义
+7. **转义** — 需要字面量 `${` 时使用 `$${` 转义（`$${random(int, 1, 9)}` 不会被当作调用，也不会因规则 5 报错）
 
 ### 4.5 数组路径访问（v11.0.0）
 
@@ -1620,7 +1638,10 @@ rodski run @ios_app_smoke --platform ios
 
 **核心约束（不可违反）**：
 
-1. **默认单设备执行**：不传 `--udid`、不进 `rodski queue` 时，移动端行为与 v11.1.0 **逐字节相同**。
+1. **默认单设备执行**：模块未配置任何 `Device*` 变量（或显式 `DeviceCount=1`）时，
+   移动端行为与 v11.1.0 **逐字节相同** —— 不自动转队列、不注入并发端口。
+   （v11.3.0 起，配置要求多设备时 `rodski run @plan` 会**自动转 `rodski queue`**；
+   见下方「设备选择」。）
 2. **一个 plan 只用一个 app 设备**：计划是调度的最小单元，**不得**把一条计划的 case/step 拆到多台设备上执行。该约束由 `PlanQueue` 的粒度**结构性保证**（队列只装 `PlanTask`，无任何 case 级发放 API），不是运行时校验。
 3. **多 plan 动态领取**：多设备并行时，每台设备从队列领取**整个计划**，先跑完的设备回头领下一个。**不得**采用静态均分（预先给每台设备分配固定数量的计划）。
 4. **跨平台计划不得入队**：一条计划同时需要 `android` 与 `ios` 模型时拒绝入队（`--allow-cross-platform-plan` 可显式放行）。`driver_type="mobile"` 视为**平台无关**，两种队列平台均兼容。
@@ -1634,12 +1655,126 @@ rodski run @ios_app_smoke --platform ios
 
 `wdaLocalPort`（iOS）/ `systemPort`（Android）/ `mjpegServerPort` 的 Appium 默认值**与设备无关**（8100/8200/9100）。同机两个并发会话会**复用第一台设备的 WebDriverAgent**，表现为随机的元素定位失败。故**显式指定 UDID 时**必须按 UDID 分槽注入端口（`mobile_port_slot()`，基址 + 10×槽位）；**未指定 UDID 时不得注入**（保持单设备路径不变）。
 
-**设备选择**：
+**设备选择（v11.2.0 起，v11.3.0 扩展为执行层配置）**：
 
 - 设备发现不得回落到 `devices[0]`。发现 0 台设备 → **硬报错并给出排查提示**，非 0 退出。
 - 显式给 `--devices` 却给不出 `--platform` → **报错**，不得探测猜测（Android UDID 给 iOS 用不会报错，只会打错机器）。
+- 「用几台、什么类别的设备」是**用例执行层配置**，写在模块 `data/globalvalue.xml`
+  （或平台专属 `globalvalue_<platform>.xml`）的 `Mobile` 组里，随用例/计划一起版本化：
+
+  | 变量 | 取值 | 语义 |
+  |---|---|---|
+  | `DeviceCount` | 正整数 | 期望设备数。**不写 = 用上全部发现的设备**（与 v11.2.0 逐字节相同） |
+  | `DeviceMix` | `real,simulator` | 组合偏好，逗号分隔、**顺序即优先级**。是偏好不是门槛 |
+  | `DeviceScope` | `all`\|`real`\|`simulator` | 只在某个设备类别里挑 |
+  | `DeviceList` | UDID 或设备名列表 | 显式设备池，给定时跳过自动发现 |
+
+  设备条目可以是 **UDID 或设备名**（设备名在同一个 target 上稳定，UDID 换台机器就失效）。
+  Android 侧的类别由 adb serial 前缀判定（见下方「Android 设备发现」）。
+
+- **零设备是唯一的硬失败**：发现结果为空才报错。数量不足、组合凑不齐、
+  `DeviceScope` 过滤后为空 —— 一律**降级并打印 `[WARN]`**，交回过滤前的设备池继续执行。
+  用户要求原话：「至少有一个模拟器或真机可以执行情况下就可以自动执行」。
+  **不得**为凑组合而拒绝执行，也**不得**静默降级。
+- `rodski run @plan` 检测到 `Mobile` 组里有非默认设备配置（`DeviceCount>=2`、
+  `DeviceMix`、`DeviceScope`、`DeviceList` 任一）时，**自动转 `rodski queue`** 调度
+  （复用同一条 handle，不复制调度逻辑）。`--udid` 或 `--no-queue` 显式退出该转换
+  —— 点名一台设备就是不要并行。写死 `DeviceCount=1` 等同不写，**不得**触发转换。
+- 显式设备池优先于自动发现；`--devices` CLI 覆盖优先于 `DeviceList` 配置。
+- **未写 `DeviceMix` 时真机优先**（v11.3.0）：真机是更稀缺、更接近真实用户的资源，
+  插上就该用上。若按发现顺序截断，本机 20+ 台模拟器会把真机挤出前 N 台 ——
+  配置里明明有真机可用，实际一台都没用上。故无 `mix` 时排序键为
+  （真机在前，同类内已就绪的在前）。`DeviceScope=simulator` 是显式排除真机，
+  该优先级**不得**越过 scope。
+- 模拟器排序必须**优先取已就绪的**（`Booted` 优先于 `Shutdown`）：本机常有 30+ 台
+  Shutdown 模拟器，按枚举序截断会挑到需要现 boot 的那几台。
+
+**iOS 设备发现必须覆盖真机（v11.3.0）**：
+
+`discover_devices("ios")` 必须**同时**枚举模拟器（`simctl`）与真机（`devicectl`）。
+只用 `simctl` 会把 USB 真机完全排除在自动发现之外，而「真机 + 模拟器同机混跑」
+是常规场景 —— 真机不该被迫由调用方手动喂 UDID。
+
+- `devicectl` 的输出必须读 `--json-output` 写出的 **JSON 文件**。stdout 面向人眼、
+  Apple 不保证跨版本稳定，**不得**解析 stdout。
+- 真机过滤条件：`platform == iOS` + `reality == physical` +
+  `transportType == wired` + `pairingState == paired`。
+- **`tunnelState` 不得作为可用性判据**：开发者模式刚打开、CoreDevice 隧道尚未建立
+  时它是 `disconnected`；开发者模式**关闭**时它同样是 `disconnected` —— 两者无法
+  靠 tunnelState 区分，用它过滤会把正常设备误杀。
+- `devicectl` 不可用（未装 / 无真机）时必须**静默降级**为「只有模拟器」，
+  不得报错 —— 只跑模拟器的既有环境不受影响。
+- `simctl` 枚举必须**只保留 iOS 运行时**：同一份输出里还有 watchOS / tvOS 模拟器
+  （本机有十几台 Apple Watch），它们装不了 iOS 应用，混进设备池会让
+  `DeviceMix=simulator` 选中一台注定建不起会话的设备。
+
+**Android 设备发现（v11.3.0）**：
+
+`adb` 对实体设备与 AVD 用的是同一套通道，但两者在混跑里是**不同类别**，
+`DeviceMix=real,simulator` 依赖这个区分才有意义。
+
+- 判定**必须**按 adb serial 前缀：`emulator-`（如 `emulator-5554`）是 AVD，
+  其余（`JTK5T19929003495`、`192.168.1.9:5555`）是实体设备。
+- **不得**用 `model:` / `product:` 限定符或设备名当判据 —— 那些由设备端上报，
+  换镜像或改名就没了；serial 的形式由 adb 保证。
+- **不得**把所有 adb 设备一律标成真机：那会让 AVD 在 `--list-devices` 里显示成
+  `[真机]`，混跑配置永远凑不出「一台真机 + 一台模拟器」。
+
+**异构设备混跑（v11.3.0）**：
+
+真机与模拟器**平台相同但设备类别不同**，走 Appium 内部两条不同的 XCUITest 路径
+（真机需签名并部署 WebDriverAgent）。混跑是比双模拟器更强的验收，且必须验证：
+
+- 两台设备都被实际调度到（不得出现「给两台但只用一台」）；
+- 跨设备计划的时间区间**重叠 > 5s**（串行不可能产生重叠，这是并行唯一诚实的证据）；
+- 真机与模拟器拿到**不同的并发端口槽**（iOS 同槽会复用对方的 WDA，Android 同槽会
+  复用对方的 UiAutomator2 会话端口，均表现为偶发的建会话/定位失败）；
+- 真机至少完整执行 1 个计划（真机链路真实生效，不是空跑）。
+
+真机首次跑 XCUITest 需现编译并部署 WDA（数分钟），验收脚本必须把这次预热放在
+**计时窗口之外**，否则测到的是「首次部署」而不是「调度」。
+
+Android 侧另有一条易误判的失败：被测 App 的 `API_BASE_URL` 是**编译期常量**
+`http://127.0.0.1:8000`，设备上的 `127.0.0.1` 不是宿主机，必须对**每一台**设备
+各做一次 `adb reverse`。漏掉任何一台，那台上的用例会在登录页超时失败，而错误
+信息看起来像「应用 bug」。设备侧端口固定 8000（改不了），宿主机侧端口可变 ——
+脚本据此与占用 8000 的其它服务共存。
 
 详见 `.pb/specs/v11.2.0-multi-device-plan-queue-design.md`。
+
+**移动端导航的两条硬约束（v11.3.0，混跑实地暴露）**：
+
+1. **`navigate app://android/...` 内部的 adb 调用必须带 `-s <serial>`**。
+   `AppiumDriver.start_app` 走 `adb shell am start` —— 这是**独立于 Appium session
+   的第二条通道**，adb 不知道当前 session 绑定的是哪台设备。多设备同时在线时，
+   不带 `-s` 会被 adb 直接拒绝：
+
+   ```
+   $ adb shell am start -n com.rodski.demo/.LoginActivity
+   adb: more than one device/emulator          # exit=1
+   ```
+
+   症状极具误导性：Appium 会话**建得好好的**，只有这一个跳转失效，后续表现为
+   元素找不到。故 `AppiumDriver` 必须持有 `self.udid`（各平台驱动从 `kwargs["udid"]`
+   写入）；无 udid 时不写 `-s`，单设备路径逐字节不变。
+
+2. **`am start` 的退出码不可靠，且 `start_app` 失败不得被吞**。
+   Activity 不存在时 `am start` 照样 `exit=0`，只在 stderr 打印 `Error type 3` ——
+   判据必须是「退出码非 0 **或** stderr 命中失败标记（`Error type` /
+   `does not exist` / `Permission Denial` / `SecurityException`）」。
+   **不得**退化成裸的 `"Error" in stderr`：目标 Activity 已在最前时 `am start` 会打
+   `Warning: ...` 且 `exit=0`，那是正常情况，宽判据会把成功的重复导航误判成失败。
+   同时 `_kw_navigate` 在 `start_app` 返回假值时必须抛 `DriverError`：
+   历史上它写的是 `result = start_app(...); store_return(True); return result`，
+   于是日志里出现「`adb am start 失败`」与「`navigate 成功 status=OK`」相邻，
+   真正的起因（没跳转）藏在几百行之前，人看到的是「元素定位失败」。
+
+   **放大器是 `NoReset=true`**：UiAutomator2 建会话时会先查 `adb.processExists`，
+   进程还在就跳过启动。于是同一台设备上的第二个计划（App 停在上一轮的页面上）
+   完全依赖 `am start` 把它带回登录页 —— 这条链路一断，只有第二个计划失败，
+   第一个因停在正确页面而侥幸通过。
+
+详见 `.pb/specs/v11.3.0-real-device-mixed-demo-design.md` §9.5。
 
 ---
 

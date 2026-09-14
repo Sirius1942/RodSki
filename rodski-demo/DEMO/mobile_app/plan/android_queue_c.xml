@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Android 多设备队列验收 —— 短计划 C（登录成功，3 步）。
+
+  「第二班」计划：它排在队列最末，只有当先跑完短计划 A 的那台设备**回来再领一个**
+  时才会被执行。若调度器是静态分配（每台设备固定领 N/设备数 个），本计划会落在
+  长计划 B 的设备上或根本不被执行 —— 两种都能被验收断言捕获。
+
+  与 iOS 的 mixed_short_c 同构。详见 android_queue_a.xml
+  与 README.md「Android 混跑验收」。执行入口：scripts/run_android_mixed_demo.sh
+-->
+<test_plan id="android_queue_c"
+           title="队列 demo（Android）—— 短计划：登录成功"
+           kind="suite"
+           execute="是"
+           default_execute="否">
+  <case id="APP001" execute="是"/>
+</test_plan>

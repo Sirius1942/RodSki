@@ -1,4 +1,5 @@
 """run 子命令 - 通过 SKIExecutor 执行测试用例（XML 版本）"""
+import argparse
 import sys
 import logging
 import xml.etree.ElementTree as ET
@@ -186,7 +187,9 @@ def setup_parser(subparsers):
                         help="移动端平台（android/ios），覆盖 globalvalue.xml Mobile.Platform")
     parser.add_argument("--udid", type=str, default=None,
                         help="目标设备 UDID，覆盖 globalvalue 中的 Mobile.UDID；"
-                             "多设备并发调度请用 `rodski queue`")
+                             "给定时始终单设备执行（不转队列）")
+    parser.add_argument("--no-queue", action="store_true", dest="no_queue",
+                        help="即使模块配置要求多设备，也强制单设备执行（不自动转 queue）")
     parser.add_argument("--load-ui-port", type=int, default=8089, dest="load_ui_port",
                         help="压测 Web UI 端口 (默认: 8089)")
     parser.add_argument("--force-compliance", action="store_true", dest="force_compliance",
@@ -379,6 +382,98 @@ def _apply_mobile_cli_overrides(executor, module_dir: Path, args) -> None:
         logger.info(f"--udid 覆盖：Mobile.UDID = {cli_udid}")
 
 
+def _maybe_dispatch_to_queue(args, module_dir: Path) -> Optional[int]:
+    """配置要求多设备时，把 `rodski run` 自动转成 `rodski queue`。
+
+    触发条件（全部满足才转）：执行的是**计划**（`@plan_id` 或默认计划）、没有显式
+    `--udid`（用户点名单台设备就是不想并行）、且模块 globalvalue 的 Mobile 组里
+    写了 DeviceCount/DeviceMix/DeviceScope/DeviceList。
+
+    语义与 `rodski queue` 完全一致 —— 复用同一条 handle()，不复制任何调度逻辑。
+    返回 None 表示「不转，按原单设备路径继续」。
+    """
+    if getattr(args, "udid", None):
+        return None
+    if getattr(args, "no_queue", False):
+        return None
+
+    try:
+        from ..core.device_scheduler import (
+            is_multi_device_configured, load_mobile_group,
+        )
+    except ImportError:
+        from rodski.core.device_scheduler import (
+            is_multi_device_configured, load_mobile_group,
+        )
+
+    raw_case = getattr(args, "case", None)
+    platform = getattr(args, "platform", None)
+    if raw_case is None:
+        plan_id = None
+    elif _is_plan_ref(raw_case):
+        plan_id = str(raw_case)[1:]
+    else:
+        return None                      # 直接给 case 路径 → 单设备语义，不转
+
+    if plan_id is None:
+        try:
+            plan_path = _resolve_default_plan(module_dir)
+        except ValueError:
+            return None
+        if plan_path is None:
+            return None
+        plan_id = plan_path.stem
+
+    try:
+        mobile_group = load_mobile_group(module_dir, platform or _module_platform(module_dir))
+    except Exception:                     # noqa: BLE001 - 配置读不出就按单设备继续
+        return None
+    if not is_multi_device_configured(mobile_group):
+        return None
+
+    print(f"配置检测: Mobile 组要求多设备执行（{_describe_device_config(mobile_group)}）"
+          f"，转 `rodski queue` 调度（单设备执行请加 --no-queue）")
+
+    try:
+        from . import queue as queue_cli
+    except ImportError:                   # pragma: no cover
+        from rodski_cli import queue as queue_cli
+
+    ns = argparse.Namespace(
+        module=str(module_dir),
+        plans=[f"@{plan_id}"],
+        devices=None,
+        platform=platform,
+        max_parallel=None,
+        list_devices=False,
+        retry_failed_plans=0,
+        no_requeue_on_device_loss=False,
+        allow_cross_platform_plan=False,
+        dry_run=False,
+        report=getattr(args, "report", None),
+        trace=getattr(args, "trace", False),
+        verbose=getattr(args, "verbose", False),
+        coverage=getattr(args, "coverage", False),
+    )
+    return queue_cli.handle(ns)
+
+
+def _module_platform(module_dir: Path) -> Optional[str]:
+    """从模块 globalvalue 的 Mobile.Platform 推平台（纯配置读取，不探测设备）。"""
+    try:
+        from ..core.device_scheduler import load_mobile_group
+    except ImportError:
+        from rodski.core.device_scheduler import load_mobile_group
+    return str((load_mobile_group(module_dir) or {}).get("Platform") or "").strip().lower() or None
+
+
+def _describe_device_config(mobile_group: Dict[str, Any]) -> str:
+    parts = [f"{key}={mobile_group[key]}"
+             for key in ("DeviceCount", "DeviceMix", "DeviceScope", "DeviceList")
+             if mobile_group.get(key)]
+    return ", ".join(parts) or "默认"
+
+
 def handle(args):
     verbose = getattr(args, "verbose", False)
     dry_run = getattr(args, "dry_run", False)
@@ -413,6 +508,14 @@ def handle(args):
 
         case_path = _resolve_case_path(raw_path)
         module_dir = _resolve_module_dir(case_path)
+
+    # 执行层设备配置要求多设备时，自动转 `rodski queue`（复用同一条调度链路）。
+    # 放在这里：module_dir 已定、任何执行副作用之前。`--udid` 一给即视为用户
+    # 点名跑单台，`--dry-run` 则是「只想看这次会选什么用例」，两者都不转。
+    if not dry_run:
+        queue_exit = _maybe_dispatch_to_queue(args, module_dir)
+        if queue_exit is not None:
+            return queue_exit
 
     if args.model:
         model_path = Path(args.model)

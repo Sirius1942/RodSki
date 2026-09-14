@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  真机 + 模拟器混跑 demo —— 短计划 C（登录成功，3 步）。
+
+  「第二班」计划：它排在队列最末，只有当先跑完短计划 A 的那台设备**回来再领一个**
+  时才会被执行。若调度器是静态分配（每台设备固定领 N/设备数 个），本计划会落在
+  长计划 B 的设备上或根本不被执行 —— 两种都能被 demo 断言捕获。
+  详见 mixed_short_a.xml 的说明与 README.md「真机 + 模拟器混跑验收」。
+-->
+<test_plan id="mixed_short_c"
+           title="混跑 demo —— 短计划 C（登录成功）"
+           kind="suite"
+           execute="是"
+           default_execute="否">
+  <case id="APP001" execute="是"/>
+</test_plan>

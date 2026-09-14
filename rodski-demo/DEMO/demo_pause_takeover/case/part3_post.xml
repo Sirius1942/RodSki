@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases step_wait="200">
+  <!-- part3（后置）：探索步骤结束后，自动化用例收回控制权，验证「探索的产物」并以
+       close 收尾。这是「暂停接管」流程的最后一段——接管期间产生的页面状态，必须由
+       后置用例显式断言并经 close 显式释放。
+
+       验证点：
+       1. verify TakeoverForm V002（subset，只验 formResult）——期望值 = 探索段最后一步
+          「空用户名 + 选角色=user 后提交」写进 #formResult 的文本。只有 attach 到同一
+          共享浏览器才看得到（全新浏览器既未登录、也没执行过探索动作）。
+       2. verify Dashboard V001——登录态与看板卡片值在整个接管/探索期间未丢失。
+       3. close——后置收尾。注意：在「CDP 附加」模式下 close 只断开本 driver 的连接，
+          **不会**关闭共享浏览器（浏览器由启动它的那一方——本 demo 的 run_demo.py——最终
+          关闭）。这正是「接管期间浏览器不被框架顺手关掉」的保证。 -->
+  <case execute="是" id="TK_P3" title="暂停接管-第3段:后置验证与close收尾" component_type="界面">
+    <test_case>
+      <test_step action="verify" model="TakeoverForm" data="V002" match_mode="subset"/>
+      <test_step action="verify" model="Dashboard" data="V001"/>
+      <test_step action="close" model="" data=""/>
+    </test_case>
+  </case>
+</cases>

@@ -6,6 +6,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 from core.runtime_context import RuntimeContext
 from core.exceptions import DriverError, InvalidParameterError
+from data.data_resolver import DataResolver
 
 
 def make_engine():
@@ -74,11 +75,28 @@ class TestIteration10_Evaluate(unittest.TestCase):
 
 class TestIteration11_GetSet(unittest.TestCase):
 
-    def test_set_writes_named_and_history(self):
+    def test_set_writes_named_variable(self):
         eng = make_engine()
         eng._kw_set({"data": "mykey=hello"})
         self.assertEqual(eng._context.named["mykey"], "hello")
-        self.assertEqual(eng.get_return(-1), "hello")
+
+    def test_set_does_not_append_return_history(self):
+        """`set` 只命名变量，不产生 Return 历史项（v11.0.0 起）。
+
+        若 set 也入栈，`send -> set auth_token=${Return[-1].token} -> verify`
+        里的 verify 会读到 set 的 auth_token，而不是 send 的响应 —— 断言对着
+        错的值比，且报错信息里看不出与 set 有任何关联。
+        """
+        eng = make_engine()
+        eng._context.append_history({"status": 200, "token": "TK_abc"})
+        # make_engine 默认不装 resolver；这里装上，才能验 ${Return[-1].token} 展开
+        eng.data_resolver = DataResolver(return_provider=eng._context.get_history)
+        eng._kw_set({"data": "auth_token=${Return[-1].token}"})
+
+        self.assertEqual(eng._context.named["auth_token"], "TK_abc")
+        # Return[-1] 仍是 send 的响应，未被 set 顶掉
+        self.assertEqual(eng.get_return(-1), {"status": 200, "token": "TK_abc"})
+        self.assertEqual(len(eng._context.history), 1)
 
     def test_get_named_mode(self):
         eng = make_engine()

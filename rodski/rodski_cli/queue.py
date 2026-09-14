@@ -20,27 +20,41 @@ try:
     from ..core.device_scheduler import (
         Device,
         DeviceScheduler,
+        DeviceSelection,
+        DeviceSelectionError,
         DeviceUnavailableError,
         MixedPlanKindError,
         PlanTask,
         CrossPlatformPlanError,
         build_tasks,
         discover_devices,
+        format_device_selection,
+        load_mobile_group,
+        parse_device_selection,
         platform_hint,
+        resolve_explicit_devices,
         resolve_platform,
+        select_devices,
     )
 except ImportError:                                      # pragma: no cover
     from core.device_scheduler import (                   # type: ignore[no-redef]
         Device,
         DeviceScheduler,
+        DeviceSelection,
+        DeviceSelectionError,
         DeviceUnavailableError,
         MixedPlanKindError,
         PlanTask,
         CrossPlatformPlanError,
         build_tasks,
         discover_devices,
+        format_device_selection,
+        load_mobile_group,
+        parse_device_selection,
         platform_hint,
+        resolve_explicit_devices,
         resolve_platform,
+        select_devices,
     )
 
 
@@ -56,7 +70,8 @@ def setup_parser(subparsers):
                    help="计划引用列表（@plan_id，逗号分隔或多次传入）；"
                         "缺省取 plan/ 下所有 execute=是 的计划")
     p.add_argument("--devices", action="append", dest="devices", default=None,
-                   help="设备 UDID 列表（逗号分隔或多次传入）；给定时跳过自动发现")
+                   help="显式设备池（UDID 或设备名，逗号分隔或多次传入）；"
+                        "给定时跳过自动发现与 globalvalue 里的 Device* 配置")
     p.add_argument("--platform", choices=["android", "ios"], default=None,
                    help="设备平台（android/ios），缺省读 globalvalue.xml 的 Mobile.Platform")
     p.add_argument("--max-parallel", type=int, default=None, dest="max_parallel",
@@ -120,13 +135,22 @@ def handle(args) -> int:
     if getattr(args, "list_devices", False):
         return _list_devices(module_dir, platform)
 
-    devices = _resolve_devices(platform, explicit_devices)
-    if devices is None:
-        return 1
-    if not devices:
+    # 设备选择：执行配置（globalvalue 的 Mobile 组）为主，--devices 为 CLI 覆盖。
+    # 优先级：--devices > DeviceList > 自动发现 + DeviceCount/DeviceMix/DeviceScope
+    selection = parse_device_selection(load_mobile_group(module_dir, platform))
+    if explicit_devices:
+        selection.explicit = explicit_devices
+        selection.count = len(explicit_devices)
+
+    # 零设备是唯一的硬失败；数量/类别不足一律降级并告警（「至少一台能跑就自动执行」）
+    try:
+        devices, selection_warnings = _resolve_devices(platform, selection)
+    except DeviceSelectionError:
         print(f"错误: 未发现任何可用 {platform} 设备", file=sys.stderr)
         print(platform_hint(platform), file=sys.stderr)
         return 1
+    for line in format_device_selection(devices, selection, selection_warnings):
+        print(line)
 
     plans = _resolve_plans(module_dir, _split(getattr(args, "plans", None)))
     if plans is None:
@@ -149,8 +173,6 @@ def handle(args) -> int:
         return 1
 
     print(f"设备队列: {len(device_tasks)} 个计划 / {len(devices)} 台设备 ({platform})")
-    for d in devices:
-        print(f"  - {d.udid}  {d.name}  [{d.state or 'unknown'}]")
     for t in device_tasks:
         print(f"  计划: @{t.plan_id}")
 
@@ -185,18 +207,29 @@ def _list_devices(module_dir: Path, platform: Optional[str]) -> int:
         print(f"未发现可用 {discovered} 设备", file=sys.stderr)
         print(platform_hint(discovered), file=sys.stderr)
         return 1
+    labels = {"real": "真机", "simulator": "模拟器"}
     print(f"可用 {discovered} 设备 ({len(devices)}):")
     for d in devices:
-        print(f"  {d.udid}  {d.name or '-'}  [{d.state or 'unknown'}]")
+        tag = labels.get(d.kind, "未知")
+        print(f"  [{tag}] {d.udid}  {d.name or '-'}  [{d.state or 'unknown'}]")
     return 0
 
 
-def _resolve_devices(platform: str, explicit: Optional[List[str]]) -> Optional[List[Device]]:
-    """显式 --devices 时按给定 UDID 构造（信任调用方，跳过发现）；否则自动发现。"""
-    if explicit:
-        return [Device(udid=udid, platform=platform, name="", state="explicit")
-                for udid in explicit]
-    return discover_devices(platform)
+def _resolve_devices(platform: str, selection: DeviceSelection) -> Tuple[List[Device], List[str]]:
+    """按执行层配置选出设备。
+
+    - `DeviceList` / `--devices` 非空 → 直接采用给定设备池（条目可为 UDID 或设备名）
+    - 否则自动发现后用 DeviceCount/DeviceMix/DeviceScope 排序与截断
+
+    只有「一台都没有」才抛 `DeviceSelectionError`；不足一律降级并返回告警。
+    """
+    discovered = discover_devices(platform)
+    if selection.explicit:
+        selected, warnings = resolve_explicit_devices(platform, selection.explicit, discovered)
+        if not selected:
+            raise DeviceSelectionError("未发现任何可用设备")
+        return selected, warnings
+    return select_devices(discovered, selection)
 
 
 def _resolve_plans(module_dir: Path, refs: Optional[List[str]]) -> Optional[List[Path]]:

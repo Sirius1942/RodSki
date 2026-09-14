@@ -1895,6 +1895,11 @@ class KeywordEngine:
             activity = parts[1] if len(parts) > 1 else None
             mobile_driver = self._get_mobile_driver("android")
             result = mobile_driver.start_app(package, activity)
+            # 启动失败必须抛出去：start_app 返回 False 时若照常返回，步骤会记成
+            # status=OK，而 App 其实停在别的页面 —— 后续元素定位失败的报错会指向
+            # 「找不到元素」，真正的起因（没跳转成功）在几百行前，极难定位。
+            if not result:
+                raise DriverError(f"启动 App 失败: {url}")
             self.store_return(True)
             return result
 
@@ -1902,6 +1907,8 @@ class KeywordEngine:
             bundle_id = url[len("app://ios/"):]
             mobile_driver = self._get_mobile_driver("ios")
             result = mobile_driver.start_app(bundle_id)
+            if not result:
+                raise DriverError(f"启动 App 失败: {url}")
             self.store_return(True)
             return result
 
@@ -2811,10 +2818,13 @@ class KeywordEngine:
     # ── 高级关键字 ─────────────────────────────────────────────────
 
     def _kw_set(self, params: Dict) -> bool:
-        """写入命名变量到 context.named，并写入 history
+        """写入命名变量到 context.named —— **不进 Return 历史**
 
         格式: set | key=value_expr
         value_expr 支持 ${Return[-1].field} 等已解析模板（由 data_resolver 在上游处理）
+
+        变量可从三处读到：`${key}` 模板、`get | | key`、context.named。
+        产物**不**追加到 Return 历史，故 set 不改变 `${Return[-N]}` 的语义。
         """
         data = params.get("data", "") or params.get("value", "")
         if not data or "=" not in data:

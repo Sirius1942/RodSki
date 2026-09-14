@@ -9,6 +9,27 @@ from datetime import timedelta as _timedelta
 
 _FUNC_REGISTRY: dict[str, callable] = {}
 
+# 函数分类 —— 决定它能否出现在 Case XML 的 `data` 属性中。
+#
+# **数据生成类**：每次求值结果都不同（随机、当前时间）。放进 Case XML 会破坏
+# 用例可复现性 —— loop 每轮重新解析、失败重跑重新解析，同一个用例两次跑出的
+# 值不一样，而 result.xml 又不记录解析后的值，事后无从对账。只允许写在
+# data.sqlite 字段值里（数据行本就是"每次执行现取"的语义）。
+#
+# **纯函数类**：同输入同输出（编码、大小写、进制转换、拼接）。用例层必须能用
+# —— v11.0.0 起 `set` 靠它做分步表达式（`set data="enc=${encodeURI(${raw})}"`），
+# 而 `set` 只能从 Case XML 的 data 属性取值。
+#
+# 见 CORE_DESIGN_CONSTRAINTS.md §4.4.6 规则 5。
+NONDETERMINISTIC_FUNCTIONS = frozenset({
+    "random", "date", "timestamp", "timestamp_ms", "timestamp36",
+})
+
+
+def is_nondeterministic(name: str) -> bool:
+    """该内置函数是否每次求值结果都不同（→ 禁止写在 Case XML data 属性中）。"""
+    return name in NONDETERMINISTIC_FUNCTIONS
+
 
 def _register(name: str):
     def decorator(fn):

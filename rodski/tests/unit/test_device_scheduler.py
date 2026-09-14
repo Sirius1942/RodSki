@@ -274,6 +274,31 @@ class TestSummaryAndExitCodes:
         assert path.exists()
         assert json.loads(path.read_text(encoding="utf-8"))["summary"]["passed"] == 1
 
+    def test_queue_level_timestamps_bracket_the_run(self, tmp_path):
+        """队列级 started_at/finished_at 必须真的框住执行窗口。
+
+        回归锁：曾漏了 started_at，靠 _write_summary 兜底填成「写完的瞬间」，
+        于是两个时间戳相等 —— 看起来像「队列耗时 0 秒」，而 duration 是对的。
+        demo 断言只读 per-plan 时间戳，所以这个缺陷躲过了验收。
+        """
+        import json
+        runner = RecordingRunner()
+        scheduler, summary = run_scheduler(tmp_path, make_tasks("p1"), [DEV_A], runner)
+
+        assert summary["started_at"] <= summary["finished_at"]
+
+        on_disk = json.loads((scheduler.queue_dir / "summary.json").read_text(encoding="utf-8"))
+        assert on_disk["started_at"] <= on_disk["finished_at"]
+
+    def test_plan_windows_nest_inside_queue_window(self, tmp_path):
+        """每个计划的窗口必须落在队列窗口内 —— 否则队列时间戳是编的。"""
+        runner = RecordingRunner()
+        _, summary = run_scheduler(tmp_path, make_tasks("p1", "p2"), [DEV_A, DEV_B], runner)
+
+        for plan in summary["plans"]:
+            assert summary["started_at"] <= plan["started_at"]
+            assert plan["finished_at"] <= summary["finished_at"]
+
     def test_scheduler_never_reports_success_with_unclaimed_plans(self, tmp_path):
         """所有设备掉线导致计划被落下 → 必须退出 1，不能静默通过。"""
         def runner(device, task, argv, env):

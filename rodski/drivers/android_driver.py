@@ -35,7 +35,8 @@ class AndroidDriver(AppiumDriver):
                 options.mjpeg_server_port = kwargs["mjpeg_server_port"]
             if kwargs.get("no_reset"):
                 options.no_reset = True
-            super().__init__(options=options, server_url=server_url)
+            # udid 同时留在驱动上：Appium 用它选设备，start_app 里的 adb 直调也要用
+            super().__init__(options=options, server_url=server_url, udid=kwargs.get("udid"))
         else:
             # 回退：旧格式（Appium 1.x 兼容）
             capabilities = {

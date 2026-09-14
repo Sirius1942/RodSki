@@ -12,6 +12,17 @@ logger = logging.getLogger("rodski")
 
 _VISION_TYPES = {"vision", "ocr", "vision_bbox"}
 
+# `am start` 失败时 stderr 里的标记。用它而不是裸的 "Error" 子串：`am start` 在
+# 「目标 Activity 已在最前」时会打 `Warning: Activity not started, ...` 且 exit=0，
+# 那是正常情况，宽判据会把成功的启动误判成失败。
+_AM_START_FAILURE_MARKERS = (
+    "Error type",              # Error type 3 / Error type 1（Activity/包不存在）
+    "does not exist",
+    "Permission Denial",
+    "SecurityException",
+    "Exception occurred while executing",
+)
+
 # 定位器类型到 AppiumBy 的映射
 _LOCATOR_MAP = {
     "id":    AppiumBy.ID,
@@ -33,13 +44,17 @@ _ANDROID_KEYCODES = {
 class AppiumDriver(BaseDriver):
     """Appium 驱动基类，支持 Android 和 iOS"""
 
-    def __init__(self, capabilities: dict = None, server_url: str = "http://localhost:4723", options=None):
+    def __init__(self, capabilities: dict = None, server_url: str = "http://localhost:4723", options=None,
+                 udid: str = None):
         logger.info(f"初始化 Appium 驱动: server={server_url}")
         if options is not None:
             self.driver = webdriver.Remote(server_url, options=options)
         else:
             self.driver = webdriver.Remote(server_url, capabilities)
         self.wait = WebDriverWait(self.driver, 10)
+        # 目标设备标识（Android = adb serial，iOS = UDID）。Appium 自己用它选设备，
+        # 但驱动内的 adb 直调（start_app）必须自己带上，否则多设备时 adb 直接拒绝执行。
+        self.udid = udid
         # 录像后端标识：供 SKIExecutor._select_recording_backend 区分驱动类型
         self.recording_backend = "appium"
         # 录像状态
@@ -290,21 +305,37 @@ class AppiumDriver(BaseDriver):
 
         Android: adb am start 强制跳转到指定 Activity（noReset 场景下也生效）
         iOS:     activate_app(bundle_id)
+
+        并发约束：本类持有 Appium session，但 adb 是**独立于 session 的第二条通道**，
+        它不知道 session 绑定的是哪台设备。多设备（真机 + 模拟器）同时在线时，
+        不带 -s 的 adb 会直接报 `more than one device/emulator` 而拒绝执行 ——
+        于是 Appium 那边会话建得好好的，只有这一个跳转静默失效。
+        故必须用驱动自己的 udid 显式指定设备（self.udid 由各平台驱动写入）。
         """
         try:
             if activity:
                 import subprocess
                 import shutil
-                adb = shutil.which("adb") or "/Users/sirius.chen/bin/adb"
+                adb = shutil.which("adb") or "adb"
                 short = activity if activity.startswith(".") else f".{activity.split('.')[-1]}"
-                result = subprocess.run(
-                    [adb, "shell", "am", "start", "-n", f"{package_or_bundle}/{short}"],
-                    capture_output=True, text=True, timeout=10
+                cmd = [adb]
+                if self.udid:
+                    cmd += ["-s", self.udid]
+                cmd += ["shell", "am", "start", "-n", f"{package_or_bundle}/{short}"]
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+                # am start 的退出码不可靠：Activity 不存在时它照样返回 0，只在 stderr
+                # 打印 `Error type 3`。故两条都查。判据取具体标记而非裸的 "Error"
+                # ——「已在最前的 Activity 再 start」会打 `Warning: ...` 且 exit=0，
+                # 那是正常情况，不能因此判失败。
+                stderr = (result.stderr or "").strip()
+                failed = result.returncode != 0 or any(
+                    marker in stderr for marker in _AM_START_FAILURE_MARKERS
                 )
-                if result.returncode != 0:
-                    logger.error(f"adb am start 失败: {result.stderr}")
+                if failed:
+                    logger.error(f"adb am start 失败: {stderr or result.returncode}")
                     return False
-                logger.info(f"adb am start 成功: {package_or_bundle}/{short}")
+                logger.info(f"adb am start 成功: {package_or_bundle}/{short}"
+                            + (f" (device={self.udid})" if self.udid else ""))
                 return True
             else:
                 self.driver.activate_app(package_or_bundle)

@@ -871,21 +871,27 @@ rodski queue [--module <模块目录>] [--plans @a,@b] [--devices UDID,...]
 | 参数 | 说明 |
 |------|------|
 | `--plans` | 计划引用（`@plan_id`，逗号分隔或多次传）；缺省取 `plan/*.xml` 中 `execute="是"` 的全部（按文件名排序） |
-| `--devices` | 显式 UDID 列表；**给定时跳过自动发现**（信任调用方）。此时 `--platform` 必须提供 |
+| `--devices` | 显式设备池（**UDID 或设备名**）；**给定时跳过自动发现**（信任调用方）。此时 `--platform` 必须提供 |
 | `--list-devices` | 枚举可用设备后退出 |
 | `--max-parallel` | 最大并行 worker 数（默认 = 设备数） |
 | `--retry-failed-plans` | 计划失败后的重试次数；**默认 0，不重试**（断言失败是产品信号，重试会掩盖 flakiness） |
 | `--no-requeue-on-device-loss` | 关闭「设备掉线时把未完成的计划重新入队一次」 |
 | `--dry-run` | 只打印队列与设备预检，不执行 |
 
+**不给 `--devices` 时用几台设备由执行层配置决定**（v11.3.0，见 §19.2.1）：
+模块 `data/globalvalue*.xml` 的 `Mobile` 组里写 `DeviceCount` / `DeviceMix` /
+`DeviceScope` / `DeviceList`。优先级：`--devices` > `DeviceList` > 自动发现 + 截断排序。
+
 **设备发现**：
 
 | 平台 | 命令 | 过滤 |
 |------|------|------|
 | Android | `adb devices -l` | 只保留 `state == device`（丢 `unauthorized` / `offline`） |
-| iOS | `xcrun simctl list devices available --json` | 保留 `isAvailable == true` |
+| iOS 模拟器 | `xcrun simctl list devices available --json` | 保留 `isAvailable == true`，且**只取 iOS 运行时**（watchOS/tvOS 会被滤掉） |
+| iOS 真机 | `xcrun devicectl list devices --json-output <file>` | `platform=iOS` + `reality=physical` + `transportType=wired` + `pairingState=paired`（v11.3.0，见 §19.2） |
 
 **发现 0 台设备 → 硬报错**并给出排查提示，**绝不**回落到「没 udid 也照跑」（那正是本功能要消灭的 `devices[0]` 抢占）。
+数量不足或组合凑不齐则**降级并告警**，继续执行（详见 §19.2.1）。
 
 **执行排班示例**（三个长度不等的计划 / 两台设备）：
 
@@ -931,4 +937,136 @@ bash rodski-demo/DEMO/mobile_app/scripts/run_dual_device_demo.sh
 
 完整设计（含决策依据、备选对比、风险与待决策项）见
 `.pb/specs/v11.2.0-multi-device-plan-queue-design.md`。
+
+---
+
+## 19. 真机与模拟器混跑（v11.3.0）
+
+### 19.1 目标
+
+一台电脑上**一台 iOS 真机 + 一台 iOS 模拟器同时跑 app 测试**。
+
+这比双模拟器（§18.5）更强的信号在于：两台设备**平台相同但设备类别不同**。真机走
+XCUITest 的真实设备路径（要签名并把 WebDriverAgent 部署到手机上），模拟器走模拟器
+路径 —— 这两条路径在 Appium 内部差异很大。混跑能验证调度、计划粒度、并发端口隔离
+在异构设备上同样成立。
+
+### 19.2 真机纳入设备发现
+
+`discover_devices("ios")` 在 v11.3.0 起**同时**枚举两条来源：
+
+| 来源 | 命令 | 过滤 |
+|------|------|------|
+| 模拟器 | `xcrun simctl list devices available --json` | `isAvailable == true` |
+| 真机 | `xcrun devicectl list devices --json-output <file>` | `platform=iOS` + `reality=physical` + `transportType=wired` + `pairingState=paired` |
+
+三条**必须遵守**的实现约束：
+
+1. **读 `--json-output` 写出的 JSON 文件，不解析 stdout。** Apple 明确说明 stdout
+   面向人眼、不保证跨版本稳定，JSON 输出到文件才是脚本接口。
+2. **不得用 `tunnelState` 过滤设备。** 开发者模式刚打开、CoreDevice 隧道尚未建立时
+   它是 `disconnected`；开发者模式**关闭**时它同样是 `disconnected`。两者无法靠
+   tunnelState 区分，用它过滤会把正常设备误杀。
+3. **`devicectl` 不可用时静默降级**为「只有模拟器」。未装 Xcode 工具链或无真机的
+   环境行为不变，不得报错。
+
+```bash
+# 真机与模拟器现在都出现在自动发现结果里
+rodski queue --list-devices --platform ios
+```
+
+### 19.2.1 用几台设备是**执行层配置**，不是命令行参数
+
+设备发现解决「有什么设备」，但「这次要用几台、什么类别」属于**用例执行配置** ——
+它随用例/计划一起版本化，不该由调用方每次手敲 UDID 列表（UDID 换台机器就失效）。
+配置写在模块 `data/globalvalue.xml`（或平台专属 `globalvalue_<platform>.xml`）的
+`Mobile` 组里：
+
+```xml
+<group name="Mobile">
+  <var name="Platform"    value="ios"/>
+  <!-- 设备选择（v11.3.0） -->
+  <var name="DeviceCount" value="2"/>
+  <var name="DeviceMix"   value="real,simulator"/>
+</group>
+```
+
+| 变量 | 取值 | 语义 |
+|------|------|------|
+| `DeviceCount` | 正整数 | 期望设备数。**不写 = 用上全部发现的设备**（与 v11.2.0 逐字节相同） |
+| `DeviceMix` | `real,simulator` | 组合偏好，逗号分隔、**顺序即优先级**。是偏好不是门槛 |
+| `DeviceScope` | `all`\|`real`\|`simulator` | 只在某个设备类别里挑 |
+| `DeviceList` | UDID **或设备名**列表 | 显式设备池，给定时跳过自动发现 |
+
+**未写 `DeviceMix` 时真机优先**：真机更稀缺、更接近真实用户，插上就该用上。若按发现
+顺序截断，本机 20+ 台模拟器会把真机挤出前 N 台 —— 配置里明明有真机可用，实际一台都
+没用上。故无 `mix` 时排序为「真机在前，同类内已就绪的在前」；`DeviceScope=simulator`
+是显式排除真机，该优先级不越过 scope。
+
+**零设备是唯一的硬失败。** 数量不足、组合凑不齐（要真机但只有模拟器）、`DeviceScope`
+过滤后为空 —— 一律**降级并打印 `[WARN]`**，用实际可用的设备继续执行：
+
+```
+设备选择（执行配置）：DeviceCount=2, DeviceMix=real+simulator
+实际选用 2 台设备（1 台真机、1 台模拟器）：
+  - [真机] 00008130-001979EE3CF3803A  Tars2
+  - [模拟器] 015EA67B-C996-48DE-A5F3-576B2BED409B  iPhone 16 Pro
+```
+
+`rodski run @plan` 检测到该组非默认（`DeviceCount>=2` / `DeviceMix` / `DeviceScope` /
+`DeviceList`）时**自动转 `rodski queue`**，复用同一条调度链路：
+
+```
+配置检测: Mobile 组要求多设备执行（DeviceCount=2, DeviceMix=real,simulator），转 `rodski queue` 调度
+```
+
+`--udid`（点名一台设备）或 `--no-queue` 显式退出该转换；写死 `DeviceCount=1` 等同不写。
+
+> 混跑验收脚本因此**不再传 `--devices`** —— 设备由上面的配置决定。脚本只做一次
+> `--dry-run` 预检，确认配置选中的正是它 boot 的那两台；不一致时给出可执行的处置
+> （关掉多余模拟器 / 指定 `SIMULATOR_NAME` / 用 `DeviceList` 钉住设备池）而不是在断言阶段才发现。
+
+### 19.3 真机 app 必须单独签名构建
+
+模拟器那份产物是 `CODE_SIGNING_ALLOWED=NO` 编出来的，**装不上真机**。真机需要：
+
+```bash
+# 自动探测唯一一台 wired+paired 真机；多台时用 DEVICE_UDID 指定
+bash rodski-demo/DEMO/mobile_app/demo_ios_app/build_ios_device_app.sh install
+```
+
+| 前置 | 怎么确认 | 不满足的后果 |
+|------|---------|-------------|
+| **开发者模式已开** | 手机：设置 > 隐私与安全性 > 开发者模式 | WDA 无法部署，错误埋在 Appium 日志深处 |
+| **有效的开发证书** | `security find-identity -v -p codesigning` 有输出 | 编译签名失败 |
+| **手机已信任本机** | 首次连接时手机上点「信任」 | `devicectl device install` 失败 |
+
+> 证书被吊销时 `find-identity -v` **不列出**该身份，但 `find-identity -p codesigning`
+> 会带 `CSSMERR_TP_CERT_REVOKED` 列出 —— 诊断时要两个都查，只看前者会误判成「没证书」。
+
+### 19.4 预热必须放在计时窗口之外
+
+真机首次跑 XCUITest 要**现编译并部署 WebDriverAgent 到手机上**（数分钟）。若把它放进
+队列的计时区间，测到的是「首次部署」而不是「调度」—— 区间重叠、墙钟对比都会失真。
+脚本用 `WARMUP=1`（默认）在队列前先跑一个短计划预热；`WARMUP=0` 可跳过（WDA 已建好时）。
+
+### 19.5 验收
+
+```bash
+bash rodski-demo/DEMO/mobile_app/scripts/run_mixed_device_demo.sh
+```
+
+真机 UDID 走 `devicectl`，模拟器 UDID 走 `simctl`，两者都动态解析、不硬编码。
+8 条断言中，有 4 条是混跑**特有**的：
+
+| # | 断言 | 为什么这条只在混跑里才有意义 |
+|---|------|---------------------------|
+| 1 | 真机与模拟器**都被实际调度到** | 防「给两台设备但只用了一台」 |
+| 6 | 两者的 **WDA 端口槽不同** | 同槽会复用对方的 WebDriverAgent，表现为随机的元素定位失败 |
+| 8 | **真机至少完整执行 1 个计划** | 真机链路真实生效，不是空跑 |
+
+其余 5 条（区间重叠 > 5s、计划不拆分、动态领取、全通过、子进程证据）与双模拟器验收同源。
+
+混跑专属计划 `plan/mixed_{short_a,long_b,short_c}.xml` 与 `queue_*` **内容相同、id 不同**：
+两套验收互不干扰，且在 `result/` 里能区分是哪套验收的产物。
 

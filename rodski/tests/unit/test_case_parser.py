@@ -263,8 +263,12 @@ class TestCaseParserScenario:
         s1 = cases[0]['scenarios'][0]
 
         assert len(s1['steps']) == 2
-        assert s1['steps'][0] == {'action': 'type', 'model': 'Login', 'data': 'L001'}
-        assert s1['steps'][1] == {'action': 'click', 'model': 'Login', 'data': 'submit'}
+        # match_mode 自 v11.0.0 起由 _parse_step_element 恒注入（未写时默认 strict），
+        # 故裸三键的精确比较已过时 —— 不是解析多了个键，是默认值补全。
+        assert s1['steps'][0] == {'action': 'type', 'model': 'Login', 'data': 'L001',
+                                  'match_mode': 'strict'}
+        assert s1['steps'][1] == {'action': 'click', 'model': 'Login', 'data': 'submit',
+                                  'match_mode': 'strict'}
 
         s2 = cases[0]['scenarios'][1]
         assert len(s2['steps']) == 1
@@ -296,11 +300,13 @@ class TestCaseParserScenario:
         # test_case 阶段有 3 个元素：bare step, scenario, bare step
         tc = case['test_case']
         assert len(tc) == 3
-        assert tc[0] == {'action': 'navigate', 'model': '', 'data': 'http://localhost'}
+        assert tc[0] == {'action': 'navigate', 'model': '', 'data': 'http://localhost',
+                         'match_mode': 'strict'}
         assert tc[1]['type'] == 'scenario'
         assert tc[1]['id'] == 's_mix'
         assert tc[1]['tag'] == ['regression']
-        assert tc[2] == {'action': 'close', 'model': '', 'data': ''}
+        assert tc[2] == {'action': 'close', 'model': '', 'data': '',
+                         'match_mode': 'strict'}
 
         # scenarios 列表只包含 scenario 类型
         assert len(case['scenarios']) == 1

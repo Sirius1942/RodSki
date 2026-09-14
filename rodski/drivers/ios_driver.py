@@ -47,7 +47,7 @@ class IOSDriver(AppiumDriver):
                 options.wda_local_port = kwargs["wda_local_port"]
             if kwargs.get("mjpeg_server_port"):
                 options.mjpeg_server_port = kwargs["mjpeg_server_port"]
-            super().__init__(options=options, server_url=server_url)
+            super().__init__(options=options, server_url=server_url, udid=kwargs.get("udid"))
         else:
             # 回退：旧格式（Appium 1.x 兼容）
             capabilities = {

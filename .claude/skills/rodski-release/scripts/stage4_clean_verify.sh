@@ -43,7 +43,7 @@ ok "  wheel + playwright 安装完成"
 info "[3/5] 验证 CLI 版本号..."
 INSTALLED_VER=$("$VENV_RODSKI" --version 2>&1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
 if [[ "$INSTALLED_VER" != "$VERSION" ]]; then
-    fail "CLI 版本不匹配: 期望 $VERSION，实际 $INSTALLED_VER"
+    fail "CLI 版本不匹配: 期望 ${VERSION}，实际 $INSTALLED_VER"
 fi
 ok "  CLI 版本: $INSTALLED_VER ✓"
 

@@ -24,6 +24,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import xml.etree.ElementTree as ET
@@ -75,15 +76,26 @@ class DeviceLostError(Exception):
 
 @dataclass(frozen=True)
 class Device:
-    """一台可用设备。"""
+    """一台可用设备。
+
+    ``kind`` 区分模拟器与真机。平台相同、Appium 路径不同（真机走真实设备
+    XCUITest，需要签名并部署 WDA），故「要几台什么设备」必须在选择阶段就能表达，
+    不能等到建会话才失败。
+    """
 
     udid: str
     platform: str          # "android" | "ios"
     name: str = ""
     state: str = ""
+    kind: str = "simulator"    # "simulator" | "real" | "unknown"
+
+    @property
+    def is_real(self) -> bool:
+        return self.kind == "real"
 
     def __str__(self) -> str:
-        return f"{self.name or self.udid}({self.platform})"
+        label = {"real": "真机", "simulator": "模拟器"}.get(self.kind, "")
+        return f"{self.name or self.udid}({self.platform}{'/' + label if label else ''})"
 
 
 @dataclass
@@ -188,12 +200,34 @@ class PlanQueue:
 
 # ── 设备发现 ─────────────────────────────────────────────────────────────────
 
+def _is_adb_emulator(serial: str, fields: Sequence[str]) -> bool:
+    """adb 里的这台是不是模拟器。
+
+    判据用 serial 前缀 ``emulator-``：这是 adb 自己为 AVD 分配的固定形式
+    （``emulator-5554``），也是 ``adb devices`` 唯一稳定可依赖的区分方式。
+    限定符里的 ``device:emu`` / ``product:sdk`` 只是**附加**佐证，不作为主判据 ——
+    它们由设备端上报，改名或换镜像就没了，而 serial 由 adb 生成。
+    """
+    if (serial or "").startswith("emulator-"):
+        return True
+    for token in fields:
+        if token in ("device:emu", "product:sdk"):
+            return True
+    return False
+
+
 def _parse_adb_devices(stdout: str) -> List[Device]:
     """解析 ``adb devices -l`` 输出。
 
     只保留 state == ``device`` 的行；``unauthorized`` / ``offline`` /
     ``no permissions`` 都会让 Appium 建会话失败，必须提前滤掉。
     友好名取 ``model:`` 限定符（没有则留空）。
+
+    **模拟器与真机必须分开标注**：``adb`` 对两者用的是同一套通道，早期实现把
+    每一台都标成 ``kind="real"`` —— 于是 AVD 在 ``--list-devices`` 里显示成
+    ``[真机]``，``DeviceMix=real,simulator`` 也失去意义（两台都算 real，
+    混跑配置永远凑不出「一台真机一台模拟器」）。Android 混跑能力正是建立在这
+    个区分上，故按 serial 前缀判定。
     """
     devices: List[Device] = []
     for line in (stdout or "").splitlines():
@@ -210,7 +244,9 @@ def _parse_adb_devices(stdout: str) -> List[Device]:
             if token.startswith("model:"):
                 name = token.split(":", 1)[1]
                 break
-        devices.append(Device(udid=fields[0], platform="android", name=name, state="device"))
+        devices.append(Device(
+            udid=fields[0], platform="android", name=name, state="device",
+            kind="simulator" if _is_adb_emulator(fields[0], fields) else "real"))
     return devices
 
 
@@ -219,13 +255,19 @@ def _parse_simctl_devices(stdout_json: str) -> List[Device]:
 
     用 ``available`` 而非 ``booted``：未启动的模拟器也应枚举出来（调用方决定
     是否 boot）。``isAvailable == false`` 的条目（运行时不匹配等）会被滤掉。
+
+    **只保留 iOS 运行时**：同一份 ``simctl list`` 里还有 watchOS / tvOS 模拟器
+    （本机就有十几台 Apple Watch），它们装不了 iOS 应用，混进设备池只会让
+    「DeviceMix=simulator」选中一台注定建不起会话的设备。
     """
     try:
         payload = json.loads(stdout_json or "{}")
     except (ValueError, TypeError):
         return []
     devices: List[Device] = []
-    for runtime_devices in (payload.get("devices") or {}).values():
+    for runtime, runtime_devices in (payload.get("devices") or {}).items():
+        if "SimRuntime.iOS-" not in str(runtime):
+            continue
         if not isinstance(runtime_devices, list):
             continue
         for entry in runtime_devices:
@@ -241,6 +283,7 @@ def _parse_simctl_devices(stdout_json: str) -> List[Device]:
                 platform="ios",
                 name=(entry.get("name") or "").strip(),
                 state=(entry.get("state") or "").strip(),
+                kind="simulator",
             ))
     return devices
 
@@ -275,14 +318,94 @@ def _default_simctl_runner() -> str:
     return result.stdout or ""
 
 
+def _parse_devicectl_devices(stdout_json: str) -> List[Device]:
+    """解析 ``xcrun devicectl list devices --json-output <file>`` 的 JSON。
+
+    只保留**已连接的真机**：``platform == iOS`` + ``reality == physical`` +
+    ``transportType == wired`` + ``pairingState == paired``。
+
+    刻意**不**用 ``tunnelState`` 作为可用性判据：开发者模式刚打开、CoreDevice
+    隧道尚未建立时它是 ``disconnected``，拿它过滤会把一台完全正常的设备误杀。
+    （开发者模式**关闭**时隧道同样是 disconnected —— 两者无法靠 tunnelState 区分。）
+    ``watchOS`` / 未连接的设备（``transportType`` 为 null）都会被滤掉。
+    """
+    try:
+        payload = json.loads(stdout_json or "{}")
+    except (ValueError, TypeError):
+        return []
+    devices: List[Device] = []
+    for entry in (payload.get("result") or {}).get("devices") or []:
+        if not isinstance(entry, dict):
+            continue
+        hardware = entry.get("hardwareProperties") or {}
+        props = entry.get("deviceProperties") or {}
+        conn = entry.get("connectionProperties") or {}
+        if (hardware.get("platform") or "").lower() != "ios":
+            continue
+        if (hardware.get("reality") or "").lower() != "physical":
+            continue
+        if conn.get("transportType") != "wired" or conn.get("pairingState") != "paired":
+            continue
+        udid = (hardware.get("udid") or "").strip()
+        if not udid:
+            continue
+        devices.append(Device(
+            udid=udid,
+            platform="ios",
+            name=(props.get("name") or "").strip(),
+            state="connected",
+            kind="real",
+        ))
+    return devices
+
+
+def _default_devicectl_runner() -> str:
+    """执行 ``xcrun devicectl list devices``，返回 **JSON 文件内容**。
+
+    必须用 ``--json-output`` 而不是 stdout：Apple 明确说明 stdout 面向人眼、
+    不保证跨版本稳定，JSON 输出到文件才是脚本接口。
+    """
+    xcrun = shutil.which("xcrun")
+    if not xcrun:
+        logger.warning("未找到 xcrun，跳过 iOS 真机枚举")
+        return ""
+    handle = tempfile.NamedTemporaryFile(suffix=".json", delete=False)
+    out_path = handle.name
+    handle.close()
+    try:
+        subprocess.run([xcrun, "devicectl", "list", "devices", "--json-output", out_path],
+                       capture_output=True, text=True, timeout=30)
+        try:
+            return Path(out_path).read_text(encoding="utf-8")
+        except OSError:
+            return ""
+    except (OSError, subprocess.SubprocessError) as e:
+        logger.warning(f"xcrun devicectl 执行失败: {e}")
+        return ""
+    finally:
+        try:
+            os.unlink(out_path)
+        except OSError:
+            pass
+
+
 def discover_devices(platform: str, *,
                      adb_runner: Optional[Callable[[], str]] = None,
-                     simctl_runner: Optional[Callable[[], str]] = None) -> List[Device]:
-    """按平台枚举可用设备。runner 可注入，便于单测不依赖真机。"""
+                     simctl_runner: Optional[Callable[[], str]] = None,
+                     devicectl_runner: Optional[Callable[[], str]] = None) -> List[Device]:
+    """按平台枚举可用设备。runner 可注入，便于单测不依赖真机。
+
+    iOS 会同时枚举**模拟器**（simctl）与**真机**（devicectl）：一台电脑上
+    真机与模拟器混跑是常规用法，只列模拟器会让真机必须由调用方手动给 UDID。
+    devicectl 不可用（未装 / 无真机）时静默降级为「只有模拟器」，不影响既有行为。
+    """
     if platform == "android":
         return _parse_adb_devices((adb_runner or _default_adb_runner)())
     if platform == "ios":
-        return _parse_simctl_devices((simctl_runner or _default_simctl_runner)())
+        simulators = _parse_simctl_devices((simctl_runner or _default_simctl_runner)())
+        real_devices = _parse_devicectl_devices(
+            (devicectl_runner or _default_devicectl_runner)())
+        return simulators + real_devices
     raise ValueError(f"不支持的平台: {platform!r}（可选 android / ios）")
 
 
@@ -322,6 +445,293 @@ def resolve_platform(module_dir: Path, cli_platform: Optional[str], *,
 
 def platform_hint(platform: str) -> str:
     return ADB_HINT if platform == "android" else SIMCTL_HINT
+
+
+# ── 设备选择（用例执行层配置）────────────────────────────────────────────────
+#
+# 「用几台、什么类别的设备」是**执行配置**，不是调用方每次手敲的 UDID 列表。
+# 配置写在 data/globalvalue.xml（或平台专属 globalvalue_<platform>.xml）的
+# Mobile 组里，随用例/计划一起版本化：
+#
+#   <var name="DeviceCount" value="2"/>           期望设备数（不写 = 用上全部发现的设备）
+#   <var name="DeviceMix"   value="real,simulator"/>  组合偏好（默认不限制）
+#   <var name="DeviceScope" value="all"/>         all | real | simulator
+#   <var name="DeviceList"  value="UDID-A,UDID-B"/> 可选，显式设备池（跳过发现）
+#
+# 三条语义约束（与 §11.5 一致）：
+#   1. **零设备即失败**：任何情况下发现 0 台设备都必须硬报错，不得回落到
+#      「没 udid 也照跑」—— 那正是 devices[0] 抢占的来源。
+#   2. **不足则降级，降级必告警**：要 2 台只找到 1 台、或凑不出 real，
+#      按实际可用设备继续执行（用户明确要求「至少有一个可以执行就自动执行」），
+#      但必须打印告警说明少用了什么。绝不静默降级。
+#   3. **不得为凑组合而拒绝执行**：DeviceMix 是偏好不是门槛；只有当发现结果
+#      为空时才报错。
+
+VALID_DEVICE_SCOPES = ("all", "real", "simulator")
+
+
+@dataclass
+class DeviceSelection:
+    """设备选择配置（来自 globalvalue 的 Mobile 组）。"""
+
+    count: Optional[int] = None                       # None = 不限制（全部发现设备）
+    mix: List[str] = field(default_factory=list)     # 组合偏好，保序去重
+    scope: str = "all"                                # all | real | simulator
+    explicit: List[str] = field(default_factory=list)  # DeviceList
+
+    @property
+    def is_default(self) -> bool:
+        """是否等同「不限制」——用于判断是否需要打印配置来源、是否转队列。"""
+        return (self.count is None and not self.mix
+                and self.scope == "all" and not self.explicit)
+
+
+def _split_csv(raw) -> List[str]:
+    """逗号分隔 → 去重保序列表（空串与空白项丢弃）。"""
+    result: List[str] = []
+    for part in str(raw or "").split(","):
+        part = part.strip()
+        if part and part not in result:
+            result.append(part)
+    return result
+
+
+def parse_device_selection(mobile_group: Optional[Dict[str, Any]]) -> DeviceSelection:
+    """从 globalvalue 的 Mobile 组读设备选择配置。
+
+    缺省值刻意是「不限制」：不写任何 Device* 变量时行为与 v11.2.0 逐字节相同
+    （用上全部发现的设备，队列动态领取）。
+    """
+    group = mobile_group or {}
+
+    raw_count = str(group.get("DeviceCount") or "").strip()
+    count: Optional[int] = None
+    if raw_count:
+        try:
+            count = int(raw_count)
+        except ValueError:
+            logger.warning(f"DeviceCount 不是整数: {raw_count!r}，按「不限制」处理")
+            count = None
+        if count is not None and count < 1:
+            logger.warning(f"DeviceCount={count} 小于 1，按 1 处理")
+            count = 1
+
+    scope = str(group.get("DeviceScope") or "all").strip().lower()
+    if scope not in VALID_DEVICE_SCOPES:
+        logger.warning(f"DeviceScope={scope!r} 不是 {VALID_DEVICE_SCOPES} 之一，按 all 处理")
+        scope = "all"
+
+    return DeviceSelection(
+        count=count,
+        mix=_split_csv(group.get("DeviceMix")),
+        scope=scope,
+        explicit=_split_csv(group.get("DeviceList")),
+    )
+
+
+class DeviceSelectionError(Exception):
+    """设备数量/类别与用例执行层配置不符，且无法降级。"""
+
+
+def _device_readiness_rank(device: Device) -> int:
+    """同类设备里的「就绪度」排序键：已启动/已连接排在未启动前面。
+
+    自动发现在本机常常能看到 30+ 台 Shutdown 的模拟器。若按枚举顺序取前 N 台，
+    会优先选中需要先 boot 才能用的设备，而把已经跑着的晾在一边 —— 既慢又反直觉。
+    """
+    state = (device.state or "").strip().lower()
+    if device.is_real:
+        return 0 if state in ("connected", "available", "paired") else 1
+    return 0 if state in ("booted", "connected") else 1
+
+
+def _apply_mix_preference(devices: List[Device], mix: List[str], scope: str) -> List[Device]:
+    """按 scope + mix 重排设备，让「最想用」的排在前面（不改成员、不报错）。
+
+    选择阶段只做**排序与截断**，不做拒绝：数量不足由调用方降级并告警。
+    mix 点名的类别优先取，同类内已就绪的优先。
+    """
+    if scope == "real":
+        devices = [d for d in devices if d.is_real]
+    elif scope == "simulator":
+        devices = [d for d in devices if not d.is_real]
+
+    if not mix:
+        # 没写 DeviceMix 时**真机优先**：真机是更稀缺、更接近真实用户的资源，
+        # 插上就该用上。若按发现顺序取前 N 台，本机 20+ 台模拟器会把真机挤到
+        # 队尾 —— 配置里明明有一台真机可用，实际却一台都没用上（用户实测到）。
+        # 同类内仍按就绪度排（已 Booted 的模拟器优先于要现 boot 的）。
+        return sorted(devices, key=lambda d: (0 if d.is_real else 1,
+                                              _device_readiness_rank(d)))
+
+    remaining = list(devices)
+    ordered: List[Device] = []
+    for wanted in mix:
+        if wanted == "real":
+            pick = [d for d in remaining if d.is_real]
+        elif wanted == "simulator":
+            pick = [d for d in remaining if not d.is_real]
+        else:
+            logger.warning(f"DeviceMix 含未知取值 {wanted!r}（可选 real / simulator），已忽略")
+            continue
+        pick.sort(key=_device_readiness_rank)          # 稳定排序：同类内已就绪的在前
+        for d in pick:
+            if d not in ordered:
+                ordered.append(d)
+        remaining = [d for d in remaining if d not in ordered]
+    ordered.extend(remaining)      # 未在 mix 里点名的设备排在后面，仍可被用上
+    return ordered
+
+
+def resolve_explicit_devices(platform: str, entries: Sequence[str],
+                             discovered: Sequence[Device]) -> Tuple[List[Device], List[str]]:
+    """把显式设备条目解析成 :class:`Device`（条目可以是 UDID，也可以是设备名）。
+
+    支持设备名是为了让配置/命令行不必写死 UDID —— UDID 换台机器就失效，设备名
+    在同一个 target 上稳定（``--devices Tars2,iPhone 16`` 比一串十六进制可读得多）。
+
+    能匹配到发现结果时沿用其 ``kind``/``state``（真机/模拟器标注才准确）；
+    匹配不到则按原样当 UDID 采用 —— 用户可能刻意给一台当前发现不到的设备
+    （刚 boot 还没被枚举到，或不在自动发现范围内）。
+    """
+    by_udid = {d.udid: d for d in discovered}
+    by_name = {(d.name or "").strip().casefold(): d for d in discovered if (d.name or "").strip()}
+
+    resolved: List[Device] = []
+    warnings: List[str] = []
+    for entry in entries:
+        hit = by_udid.get(entry) or by_name.get(entry.strip().casefold())
+        if hit is not None:
+            resolved.append(hit)
+        else:
+            warnings.append(f"设备 {entry!r} 不在当前发现结果里，按显式 UDID 直接采用")
+            resolved.append(Device(udid=entry, platform=platform, name="",
+                                   state="explicit", kind="unknown"))
+    return resolved, warnings
+
+
+def select_devices(devices: Sequence[Device], selection: DeviceSelection) -> Tuple[List[Device], List[str]]:
+    """按配置从已发现设备里挑出实际要用的那些。
+
+    Returns:
+        (selected, warnings) —— warnings 是要打印给用户的降级说明，绝不静默。
+
+    Raises:
+        DeviceSelectionError: 发现结果为空（零设备是唯一的硬失败）。
+    """
+    if not devices:
+        raise DeviceSelectionError("未发现任何可用设备")
+
+    warnings: List[str] = []
+    pool = _apply_mix_preference(list(devices), selection.mix, selection.scope)
+    if selection.scope != "all" and len(pool) < len(devices):
+        warnings.append(
+            f"DeviceScope={selection.scope} 过滤掉 {len(devices) - len(pool)} 台设备"
+            f"（可用 {len(devices)} → {len(pool)}）")
+    if not pool:
+        # scope 过滤把设备清空了：这是配置与现状矛盾，按 scope 无法执行。
+        # 但「至少有一台能跑就自动执行」优先 —— 退回过滤前的设备池并告警。
+        warnings.append(
+            f"DeviceScope={selection.scope} 下没有任何设备，已忽略该过滤条件继续执行")
+        pool = list(devices)
+
+    # 组合偏好：mix 点名的类别若一台都没有，明确告警（不拒绝执行）
+    if selection.mix:
+        available_kinds = {("real" if d.is_real else "simulator") for d in pool}
+        for wanted in selection.mix:
+            if wanted in ("real", "simulator") and wanted not in available_kinds:
+                warnings.append(f"DeviceMix 要求 {wanted}，但当前没有可用的 {wanted} 设备")
+
+    # count 是期望值：不足要降级告警（用户可据此判断「真机没插上」这类现场问题），
+    # 富余则按配置截断 —— 那是用户点名要的，不必打扰。
+    if selection.count is None:
+        selected = pool
+    elif len(pool) < selection.count:
+        warnings.append(
+            f"DeviceCount={selection.count}，实际可用 {len(pool)} 台，降级为 {len(pool)} 台执行")
+        selected = pool
+    else:
+        selected = pool[:selection.count]
+
+    return selected, warnings
+
+
+def format_device_selection(selected: Sequence[Device], selection: DeviceSelection,
+                            warnings: Sequence[str]) -> List[str]:
+    """把选择结果渲染成可直接打印的几行（调用方决定往 stdout 还是 logger）。"""
+    lines: List[str] = []
+    if not selection.is_default:
+        desc = []
+        if selection.count is not None:
+            desc.append(f"DeviceCount={selection.count}")
+        if selection.mix:
+            desc.append(f"DeviceMix={'+'.join(selection.mix)}")
+        if selection.scope != "all":
+            desc.append(f"DeviceScope={selection.scope}")
+        if selection.explicit:
+            desc.append(f"DeviceList={len(selection.explicit)} 台")
+        lines.append(f"设备选择（执行配置）：{', '.join(desc)}")
+
+    kinds: Dict[str, int] = {}
+    for d in selected:
+        key = {"real": "真机", "simulator": "模拟器"}.get(d.kind, "未知类别")
+        kinds[key] = kinds.get(key, 0) + 1
+    summary = "、".join(f"{v} 台{k}" for k, v in kinds.items())
+    lines.append(f"实际选用 {len(selected)} 台设备（{summary}）：")
+    for d in selected:
+        tag = {"real": "真机", "simulator": "模拟器"}.get(d.kind, "未知")
+        lines.append(f"  - [{tag}] {d.udid}  {d.name or '-'}")
+
+    for w in warnings:
+        lines.append(f"  [WARN] {w}")
+    return lines
+
+
+def load_mobile_group(module_dir: Path, platform: Optional[str] = None) -> Dict[str, Any]:
+    """读模块 globalvalue 里的 **Mobile 组**（含平台专属文件的深合并）。
+
+    与 `rodski run --platform` 的合并语义一致：`globalvalue_<platform>.xml` 的
+    group/var 覆盖 `globalvalue.xml`。设备选择配置就读这里，故配置与用例、
+    计划放在一起版本化。
+
+    返回的是 Mobile 组本身（``{var_name: value}``），不是整个 group 映射 ——
+    调用方拿到的就是能直接喂给 :func:`parse_device_selection` 的那层。
+    """
+    try:
+        from .global_value_parser import GlobalValueParser
+    except ImportError:                                   # pragma: no cover
+        from rodski.core.global_value_parser import GlobalValueParser
+
+    merged: Dict[str, Any] = {}
+    data_dir = Path(module_dir) / "data"
+    candidates = [data_dir / "globalvalue.xml"]
+    if platform:
+        candidates.append(data_dir / f"globalvalue_{platform}.xml")
+
+    for path in candidates:
+        if not path.exists():
+            continue
+        try:
+            for group, vars_ in GlobalValueParser(str(path)).parse().items():
+                if group != "Mobile":
+                    continue
+                merged.update(vars_)
+        except Exception as e:                            # noqa: BLE001 - 配置读不出不该让调度崩
+            logger.warning(f"读取 {path.name} 失败，跳过: {e}")
+    return merged
+
+
+def is_multi_device_configured(mobile_group: Optional[Dict[str, Any]]) -> bool:
+    """模块配置是否要求**多设备/特定组合**（`rodski run` 据此决定是否转队列）。
+
+    只有真正表达「不止一台」或「限定类别」的配置才算数：
+    `DeviceCount>=2`、`DeviceMix`、`DeviceScope`、`DeviceList`。
+    显式写 `DeviceCount=1` 是「就要一台」，与不写等价 —— 不得因此转队列。
+    """
+    selection = parse_device_selection(mobile_group)
+    if selection.mix or selection.explicit or selection.scope != "all":
+        return True
+    return selection.count is not None and selection.count > 1
 
 
 # ── 计划预检 ─────────────────────────────────────────────────────────────────
@@ -480,11 +890,13 @@ class DeviceScheduler:
             for d in self.devices
         }
         self.queue_dir: Optional[Path] = None
+        self._started_at: str = ""
 
     # -- 生命周期 ---------------------------------------------------------
 
     def run(self) -> Dict[str, Any]:
         started = time.monotonic()
+        self._started_at = _now_iso()
         self._create_queue_dir()
         self._log(f"[queue] 队列目录: {self.queue_dir}")
         self._log(f"[queue] 计划 {self.queue.outstanding()} 个 / 设备 {len(self.devices)} 台"
@@ -732,6 +1144,11 @@ class DeviceScheduler:
             "max_parallel": min(self.max_parallel, len(self.devices)) if self.devices else 0,
             "peak_parallel": self._peak_live,
             "duration": round(time.monotonic() - started, 3),
+            # 队列级起止时刻由父进程记录（与 per-plan 时间戳同源）。缺了它
+            # summary.json 里 started_at 得靠 _write_summary 兜底填成「写完的瞬间」，
+            # 于是与 finished_at 相等 —— 看起来像「队列耗时 0 秒」。
+            "started_at": self._started_at or _now_iso(),
+            "finished_at": _now_iso(),
             "devices": devices,
             "plans": [o.to_dict() for o in self.outcomes],
             "summary": {

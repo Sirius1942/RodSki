@@ -17,5 +17,17 @@
     <var name="AppTarget" value="app://ios/com.rodski.demo"/>
     <var name="NoReset" value="true"/>
     <var name="NewCommandTimeout" value="120"/>
+
+    <!-- 设备选择（用例执行层配置，v11.3.0）
+         这些变量不属于被测应用，而属于「这次执行用几台什么设备」：
+           DeviceCount  期望设备数（默认 1）
+           DeviceMix    组合偏好，逗号分隔，可选 real / simulator（顺序即优先级）
+           DeviceScope  只在某个类别里挑：all | real | simulator
+           DeviceList   显式设备池（UDID 列表），给定时跳过自动发现
+         零设备是唯一硬失败；数量/类别不足会降级并打印 [WARN]，不会拒绝执行。
+         `rodski run @plan` 检测到本组非默认即自动转 `rodski queue`；
+         想强制单设备执行（含显式 UDID 时）加 no-queue 选项。 -->
+    <var name="DeviceCount" value="2"/>
+    <var name="DeviceMix" value="real,simulator"/>
   </group>
 </globalvalue>

@@ -60,8 +60,27 @@ CassMall_examples.zip
 .claude/settings.local.json
 .claude/commands/
 .claude/worktrees/
+.claude/plans/
+.claude/scratchpad/
 .cursor/
 .pb/
+
+# 调试残留（根目录散落，不纳入版本控制）
+/.schema rs_field
+/result/
+/test_explore_*.py
+/test_summary.txt
+
+# Xcode 构建产物（真机/模拟器 demo，体积大且可重建）
+rodski-demo/DEMO/mobile_app/demo_ios_app/build_device/
+
+# clawhub 安装遗留的自引用符号链接（`X/X -> X`，会让 zip -r 无限递归撑大发行包）
+# 打包脚本已排除它们，这里再从版本控制里挡一道
+rodski-skills/rodski-skill--diagnose/rodski-skill--diagnose
+rodski-skills/rodski-skill--explore/rodski-skill--explore
+rodski-skills/rodski-skill--rodski/rodski-skill--rodski
+rodski-skills/rodski-skill--rodski-case-writer/rodski-skill--rodski-case-writer
+rodski-skills/rodski-test-guide/rodski-test-guide
 
 # RodSki demo 运行产物（不纳入版本控制）
 rodski-demo/**/result/

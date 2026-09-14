@@ -8,12 +8,12 @@ import pytest
 
 try:
     from rodski.core.device_scheduler import (
-        Device, _parse_adb_devices, _parse_simctl_devices,
+        Device, _parse_adb_devices, _parse_devicectl_devices, _parse_simctl_devices,
         discover_devices, resolve_platform,
     )
 except ImportError:
     from core.device_scheduler import (
-        Device, _parse_adb_devices, _parse_simctl_devices,
+        Device, _parse_adb_devices, _parse_devicectl_devices, _parse_simctl_devices,
         discover_devices, resolve_platform,
     )
 
@@ -34,6 +34,69 @@ SIMCTL_OUTPUT = """{
     ],
     "com.apple.CoreSimulator.SimRuntime.iOS-26-5": [
       {"name": "iPhone 17", "udid": "F1F8BAB6-DDDD", "state": "Shutdown", "isAvailable": true}
+    ],
+    "com.apple.CoreSimulator.SimRuntime.watchOS-11-5": [
+      {"name": "Apple Watch Ultra 3 (49mm)", "udid": "A8A1E1AC-EEEE",
+       "state": "Shutdown", "isAvailable": true}
+    ]
+  }
+}
+"""
+
+# 真机样例 —— 取自 `xcrun devicectl list devices --json-output` 的真实结构（已裁剪）。
+# 三个条目分别覆盖：可用的 iOS 真机、Apple Watch、以及**配对但未连接**的 iOS 真机。
+DEVICECTL_OUTPUT = """{
+  "result": {
+    "devices": [
+      {
+        "identifier": "6725A022-7CE2-5DD1-AAF5-600FC381D484",
+        "connectionProperties": {
+          "pairingState": "paired",
+          "transportType": "wired",
+          "tunnelState": "disconnected"
+        },
+        "deviceProperties": {
+          "name": "Tars2",
+          "osVersionNumber": "26.6.1",
+          "developerModeStatus": "enabled"
+        },
+        "hardwareProperties": {
+          "platform": "iOS",
+          "reality": "physical",
+          "productType": "iPhone16,1",
+          "udid": "00008130-001979EE3CF3803A"
+        }
+      },
+      {
+        "identifier": "B3ECB119-C017-55E1-835A-23DC5D02DF0F",
+        "connectionProperties": {
+          "pairingState": "paired",
+          "transportType": null,
+          "tunnelState": "unavailable"
+        },
+        "deviceProperties": {"name": "jiusi Apple Watch"},
+        "hardwareProperties": {
+          "platform": "watchOS",
+          "reality": "physical",
+          "productType": "Watch7,5",
+          "udid": "00008310-001B053C0A3A601E"
+        }
+      },
+      {
+        "identifier": "7F50D9B0-2190-51F7-96D3-765726DDF950",
+        "connectionProperties": {
+          "pairingState": "paired",
+          "transportType": null,
+          "tunnelState": "unavailable"
+        },
+        "deviceProperties": {"name": "kaisi iPhone"},
+        "hardwareProperties": {
+          "platform": "iOS",
+          "reality": "physical",
+          "productType": "iPhone17,1",
+          "udid": "00008140-001A5966213B001C"
+        }
+      }
     ]
   }
 }
@@ -54,6 +117,35 @@ class TestParseAdbDevices:
 
         assert devices[0].name == "Pixel_7"
         assert devices[1].name == "SM_G9910"
+
+    def test_emulator_and_real_device_are_distinguished(self):
+        """adb 对模拟器与真机用同一套通道，但两者在混跑里是**不同类别**。
+
+        早期实现把每台 adb 设备都标成 kind="real"，于是 AVD 显示成 [真机]，
+        DeviceMix=real,simulator 也凑不出「一台真机 + 一台模拟器」。
+        """
+        devices = _parse_adb_devices(ADB_OUTPUT)
+
+        assert devices[0].udid == "emulator-5554"
+        assert devices[0].kind == "simulator"
+        assert devices[0].is_real is False
+        assert devices[1].udid == "AKRSUT1618000209"
+        assert devices[1].kind == "real"
+        assert devices[1].is_real is True
+
+    def test_emulator_detected_by_serial_prefix_even_without_qualifiers(self):
+        """判据是 adb 生成的 serial 前缀，不依赖设备端上报的 product:/device: 限定符
+        （那些换镜像/改名就没了，而 serial 形式由 adb 保证）。"""
+        devices = _parse_adb_devices("List of devices attached\nemulator-5556\tdevice\n")
+
+        assert devices[0].kind == "simulator"
+
+    def test_tcp_device_is_treated_as_real(self):
+        """走 TCP 的实体设备（serial 是 host:port）不是模拟器，不能误判。"""
+        devices = _parse_adb_devices(
+            "List of devices attached\n192.168.1.9:5555\tdevice\n")
+
+        assert devices[0].kind == "real"
 
     def test_header_only_yields_empty(self):
         assert _parse_adb_devices("List of devices attached\n\n") == []
@@ -86,6 +178,15 @@ class TestParseSimctlDevices:
         assert devices[1].state == "Booted"
         assert all(d.platform == "ios" for d in devices)
 
+    def test_filters_non_ios_runtimes(self):
+        """watchOS/tvOS 模拟器装不了 iOS app，混进设备池会让 DeviceMix 选中死设备。"""
+        udids = [d.udid for d in _parse_simctl_devices(SIMCTL_OUTPUT)]
+
+        assert "A8A1E1AC-EEEE" not in udids
+
+    def test_kind_is_simulator(self):
+        assert all(d.kind == "simulator" for d in _parse_simctl_devices(SIMCTL_OUTPUT))
+
     def test_rejects_invalid_json(self):
         assert _parse_simctl_devices("not json") == []
 
@@ -99,12 +200,59 @@ class TestDiscoverDevices:
         assert len(devices) == 2
 
     def test_ios_uses_simctl_runner(self):
-        devices = discover_devices("ios", simctl_runner=lambda: SIMCTL_OUTPUT)
+        """iOS 枚举 = 模拟器(simctl) + 真机(devicectl)：真机与模拟器混跑是常规用法。"""
+        devices = discover_devices("ios", simctl_runner=lambda: SIMCTL_OUTPUT,
+                                   devicectl_runner=lambda: DEVICECTL_OUTPUT)
+
+        assert len(devices) == 4
+        assert [d.udid for d in devices][:3] == [
+            "AC199BB6-AAAA", "015EA67B-BBBB", "F1F8BAB6-DDDD"]
+
+    def test_ios_simulator_only_when_no_real_device(self):
+        """devicectl 不可用（未装 / 无真机）时静默降级，不影响只跑模拟器的既有行为。"""
+        devices = discover_devices("ios", simctl_runner=lambda: SIMCTL_OUTPUT,
+                                   devicectl_runner=lambda: "")
+
         assert len(devices) == 3
+        assert all(d.state in {"Booted", "Shutdown"} for d in devices)
 
     def test_unknown_platform_raises(self):
         with pytest.raises(ValueError, match="不支持的平台"):
             discover_devices("windows")
+
+
+class TestParseDevicectlDevices:
+    """真机枚举必须走 devicectl（simctl 看不到 USB 真机）。"""
+
+    def test_keeps_only_connected_ios_real_devices(self):
+        devices = _parse_devicectl_devices(DEVICECTL_OUTPUT)
+
+        assert [d.udid for d in devices] == ["00008130-001979EE3CF3803A"]
+        assert devices[0].name == "Tars2"
+        assert devices[0].platform == "ios"
+
+    def test_filters_watch_and_disconnected_ios(self):
+        """watchOS 与未连接（transportType 为 null）的 iOS 真机都不算可用设备。"""
+        devices = _parse_devicectl_devices(DEVICECTL_OUTPUT)
+        udids = {d.udid for d in devices}
+
+        assert "00008310-001B053C0A3A601E" not in udids      # Apple Watch
+        assert "00008140-001A5966213B001C" not in udids      # iOS 真机但未连接
+
+    def test_disconnected_tunnel_is_not_a_filter(self):
+        """开发者模式刚开、隧道未建时 tunnelState=disconnected，不能据此误杀设备。
+
+        Tars2 在样例里正是 disconnected —— 它必须出现在结果里。
+        """
+        devices = _parse_devicectl_devices(DEVICECTL_OUTPUT)
+
+        assert [d.udid for d in devices] == ["00008130-001979EE3CF3803A"]
+
+    def test_rejects_invalid_json(self):
+        assert _parse_devicectl_devices("not json") == []
+
+    def test_empty_json(self):
+        assert _parse_devicectl_devices("{}") == []
 
 
 class TestResolvePlatform:

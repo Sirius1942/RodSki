@@ -265,8 +265,11 @@ class TestImageMatcher:
 
         assert result["matched"] is True
         assert result["wait_attempts"] == 1
-        # 首次即成功，first_match_time 可能为 0.0 或 None
-        assert result["first_match_time"] is None or result["first_match_time"] == 0.0
+        # 首次即成功时 first_match_time 是「相对起点的耗时」，用挂钟测出来的是个
+        # 极小正数（实测 12 次里有 1 次到 0.001）。断言精确等于 0.0 是**计时竞态**
+        # —— 不是功能问题，而是这条断言把「快」当成了「零」。改为断言它足够小。
+        assert result["first_match_time"] is not None
+        assert 0.0 <= result["first_match_time"] < 0.5
 
     def test_match_wait_polling_on_failure(self):
         """wait>0 时，首次失败后应轮询重试"""

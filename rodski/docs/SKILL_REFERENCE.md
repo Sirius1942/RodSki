@@ -143,6 +143,67 @@
 
 ---
 
+### 1.7 set - 命名变量
+
+**用途**: 把表达式结果存为命名变量，供后续步骤通过 `${key}` 引用
+
+**语法**:
+```xml
+<test_step action="set" model="" data="key=value_expr"/>
+```
+
+`model` 必须为空。`data` 为 `key=表达式` 形式，表达式里可用 `${Return[-N]}` 和
+**纯函数类**内置函数（`encodeURI` / `toUpperCase` / `toString36` / ...）。
+
+**示例**:
+```xml
+<!-- 保存接口返回的 token -->
+<test_step action="send" model="LoginAPI" data="L001"/>
+<test_step action="set" model="" data="auth_token=${Return[-1].token}"/>
+
+<!-- 分步表达式（内置函数不支持嵌套，用多次 set 替代） -->
+<test_step action="set" model="" data="raw=Hello"/>
+<test_step action="set" model="" data="up=${toUpperCase(${raw})}"/>
+<test_step action="set" model="" data="enc=${encodeURI(${up})}"/>
+```
+
+**注意**:
+- `set` **不产生 Return 值** —— 它不改变 `${Return[-N]}` 的指向。上例中 set 之后
+  `${Return[-1]}` 仍指 send 的响应。
+- 读回变量用 `${key}`、`get | | key`，或 `context.named`。
+- `random` / `date` / `timestamp*` 属**数据生成类**，写在 `set` 的 `data` 里会报错
+  （会让用例不可复现）。这类数据放 `data.sqlite` 字段值中。
+
+---
+
+### 1.8 get - 取值
+
+**用途**: 按三种模式取值并写入 Return 历史
+
+**语法**:
+```xml
+<test_step action="get" model="模型名" data="DataID"/>   <!-- 模型模式 -->
+<test_step action="get" model="" data="#selector"/>      <!-- UI 选择器模式 -->
+<test_step action="get" model="" data="varName"/>        <!-- 命名访问模式 -->
+```
+
+| 模式 | 触发条件 | 返回 |
+|------|---------|------|
+| 模型模式 | `model` 非空 + `data` 为 DataID | 该 UI 模型各元素文本的 dict |
+| UI 选择器模式 | `model` 空 + `data` 以 `#` `.` `//` `css=` `xpath=` `id=` `text=` 开头 | 元素文本 |
+| 命名访问模式 | `model` 空 + `data` 为普通标识符 | 之前 `set` 存入的值 |
+
+**示例**:
+```xml
+<test_step action="set" model="" data="mykey=world"/>
+<test_step action="get" model="" data="mykey"/>     <!-- Return[-1] == "world" -->
+```
+
+**注意**: `get_text` 已废弃（发 DeprecationWarning），请改用 `get`。命名访问模式下
+key 不存在会抛 `InvalidParameterError`。
+
+---
+
 ## 2. 桌面自动化 Skill
 
 ### 2.1 launch - 启动应用

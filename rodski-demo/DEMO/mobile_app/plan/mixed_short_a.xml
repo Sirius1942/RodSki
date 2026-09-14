@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  真机 + 模拟器混跑 demo —— 短计划 A（登录失败提示，3 步）。
+
+  三个 mixed_* 计划专供 `rodski queue` 的**异构设备**验收：一台 iOS 真机
+  （devicectl 枚举，UDID 形如 00008130-XXXXXXXXXXXXXXXX）与一台 iOS 模拟器
+  （simctl 枚举，UDID 是标准 UUID），在同一个队列里动态领取计划。
+
+  长度刻意不等：
+    mixed_short_a（APP002，最短）→ 先跑完的设备**必须**回头再领一个
+    mixed_long_b （APP003，最长）→ 独占一台设备，且全过程不被拆分
+    mixed_short_c（APP001，最短）→ 「第二班」计划，证明动态领取
+
+  真机比模拟器慢得多，实际排班大概率是：
+    模拟器：[ mixed_short_a ]→[ mixed_short_c ]
+    真机  ：[ ............ mixed_long_b ............ ]
+  但调度是动态的 —— 脚本只断言「每个计划恰好被一台设备整体执行一次」与
+  「区间重叠」，不假定哪台设备领哪个计划。
+
+  前置见 README.md「真机 + 模拟器混跑验收」。
+  执行入口：scripts/run_mixed_device_demo.sh
+-->
+<test_plan id="mixed_short_a"
+           title="混跑 demo —— 短计划 A（登录失败）"
+           kind="suite"
+           execute="是"
+           default_execute="否">
+  <case id="APP002" execute="是"/>
+</test_plan>

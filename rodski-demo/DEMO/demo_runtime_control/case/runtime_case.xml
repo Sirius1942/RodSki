@@ -7,4 +7,22 @@
       <test_step action="wait" model="" data="1"/>
     </test_case>
   </case>
+
+  <!-- 用于演示：暂停在步骤边界生效，暂停期间无任何新步骤启动，resume 后继续 -->
+  <case execute="是" id="RT_PAUSE" title="运行时暂停与恢复" component_type="界面">
+    <test_case>
+      <test_step action="navigate" model="" data="about:blank"/>
+      <test_step action="wait" model="" data="0.2"/>
+      <test_step action="wait" model="" data="1"/>
+    </test_case>
+  </case>
+
+  <!-- 用于演示：暂停期间队列仍被消费，insert 排入队首，resume 后按插入顺序执行 -->
+  <case execute="是" id="RT_PAUSE_INSERT" title="暂停期间插入步骤" component_type="界面">
+    <test_case>
+      <test_step action="navigate" model="" data="about:blank"/>
+      <test_step action="wait" model="" data="0.2"/>
+      <test_step action="wait" model="" data="1"/>
+    </test_case>
+  </case>
 </cases>

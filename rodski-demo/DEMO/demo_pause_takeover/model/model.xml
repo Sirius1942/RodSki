@@ -41,4 +41,11 @@
       <location type="id">formResult</location>
     </element>
   </model>
+
+  <!-- 顶部导航：探索段用它从看板切到「功能测试」页（探索步骤 type NavMenu N001） -->
+  <model name="NavMenu" type="ui" servicename="">
+    <element name="testLink" type="link">
+      <location type="id">navTest</location>
+    </element>
+  </model>
 </models>

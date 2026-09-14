@@ -1,20 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Android 多设备队列验收预留计划（WI-J）。
+  Android 多设备队列验收 —— 短计划 A（登录失败提示，3 步）。
 
-  **execute="否"：本机无 Android 真机/模拟器，未做动态验收。**
-  保留本文件是为了让 Android 侧的双设备验收有现成的落点：
-  在有 Android 设备的环境里把 execute 改为「是」，然后用 rodski queue 把本计划与
-  android_queue_b 一起入队（设备列表给两台 Android 的 UDID、平台给 android），
-  即可复现与 iOS 完全相同的调度语义（见 README.md「双设备并行验收」）。
-  两个计划长度不等，因此同样可以观察到「先跑完的设备回头再领一个」。
-  前置：两台 Android 设备 adb devices 可见且状态为 device，
-  com.rodski.demo 已安装（见 README「构建并安装 APK」），mock_server 已启动。
+  与 mixed_* 系列（iOS 真机 + iOS 模拟器）对应：这里是 **Android 真机 +
+  Android 模拟器** 的异构混跑。两台设备平台相同、设备类别不同 —— 真机走 USB
+  上的实体手机，模拟器走 AVD，两者在 Appium/UiAutomator2 内部是不同的会话路径。
+
+  长度刻意不等（三个计划才能观察到动态领取）：
+    android_queue_a（APP002，最短）→ 先跑完的设备**必须**回头再领一个
+    android_queue_b（APP003，最长）→ 独占一台设备，且全过程不被拆分
+    android_queue_c（APP001，最短）→ 「第二班」计划，证明动态领取
+
+  设备数量与组合由 data/globalvalue.xml 的 Mobile 组决定
+  （DeviceCount=2 / DeviceMix=real,simulator），**不在命令行写 UDID**。
+
+  前置：mock_server 已启动 + adb reverse tcp:8000 tcp:8000 + Appium server
+  + 真机与模拟器都已安装 com.rodski.demo。详见 README.md「Android 混跑验收」。
+  执行入口：scripts/run_android_mixed_demo.sh
 -->
 <test_plan id="android_queue_a"
-           title="队列 demo（Android 预留）—— 短计划：登录失败"
+           title="队列 demo（Android）—— 短计划：登录失败"
            kind="suite"
-           execute="否"
+           execute="是"
            default_execute="否">
   <case id="APP002" execute="是"/>
 </test_plan>

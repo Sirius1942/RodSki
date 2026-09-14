@@ -4,9 +4,9 @@ from typing import Any, Callable, Dict, Optional
 from pathlib import Path
 
 try:
-    from rodski.data.builtin_functions import call_function
+    from rodski.data.builtin_functions import call_function, is_nondeterministic
 except ImportError:
-    from rodski.data.builtin_functions import call_function
+    from rodski.data.builtin_functions import call_function, is_nondeterministic
 
 _FUNC_PATTERN = re.compile(r'\$\{(\w+)\(([^)]*)\)\}')
 _ESCAPE_PATTERN = re.compile(r'\$\$\{')
@@ -107,14 +107,23 @@ class DataResolver:
         return text
 
     def resolve_case_data(self, text: str) -> str:
-        """解析 Case XML data 属性 — 禁止内置函数，仅允许变量/Return/GlobalValue 引用。
+        """解析 Case XML `data` 属性。
 
-        内置函数 (${random(...)}, ${date(...)}) 只能写在 data.sqlite 字段值中，
-        不能写在 Case XML 的 data 属性里。
+        **纯函数类内置函数允许**（`encodeURI` / `decodeURI` / `toUpperCase` /
+        `toLowerCase` / `toString36` / `upper` / `lower` / `concat`）—— 同输入
+        同输出，用例可复现。`set` 是它们的主要用武之地：`set` 的表达式只能来自
+        Case XML 的 data 属性，这正是 v11.0.0 §4.4.4 示例的写法。
+
+        **数据生成类内置函数禁止**（`random` / `date` / `timestamp*`）—— 每次求值
+        都不同。写在 Case XML 里会让用例不可复现：loop 每轮重新解析、失败重跑
+        重新解析，两次跑出的值不一样；而 result.xml 不记录解析后的值，事后无从
+        对账。它们只能写在 data.sqlite 字段值中（数据行本就是"执行时现取"的语义）。
+
+        见 CORE_DESIGN_CONSTRAINTS.md §4.4.6 规则 5。
         """
         if not isinstance(text, str):
             return str(text) if text is not None else ""
-        # 允许内置函数（如 ${urlencode(varname)}、${timestamp36()}），并解析引用
+        self._reject_nondeterministic_functions(text)
         text = self._resolve_returns(text)
         text = self._resolve_functions(text)
         text = self._resolve_vars(text)
@@ -190,6 +199,23 @@ class DataResolver:
             if val is not None:
                 return str(val)
         return arg
+
+    def _reject_nondeterministic_functions(self, text: str) -> None:
+        """Case XML data 属性中出现数据生成类内置函数时抛错。
+
+        先剥掉 `$${` 转义（`$${random(1)}` 是要发给被测系统的字面量，不是调用），
+        再找 `${name(...)}`；只对**已注册**的函数报错 —— `${undefined(` 之类是
+        普通文本，不该拦。
+        """
+        _ESCAPE_PLACEHOLDER = '\x00ESCAPE\x00'
+        scrubbed = _ESCAPE_PATTERN.sub(_ESCAPE_PLACEHOLDER, text)
+        for match in _FUNC_PATTERN.finditer(scrubbed):
+            func_name = match.group(1)
+            if is_nondeterministic(func_name):
+                raise ValueError(
+                    f"内置函数 ${{{func_name}(...)}} 只能写在 data.sqlite 字段值中，"
+                    f"不能写在 Case XML data 属性中"
+                )
 
     def _resolve_functions(self, text: str) -> str:
         """解析内置函数引用 ${func(args...)}"""

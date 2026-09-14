@@ -24,8 +24,8 @@ require_on_main
 SYNC_SCRIPT="$PROJECT_ROOT/rodski-skills/scripts/sync_test_guide.sh"
 PKG_SCRIPT="$PROJECT_ROOT/rodski-skills/scripts/package_release.sh"
 
-[[ -f "$SYNC_SCRIPT" ]] || fail "未找到 $SYNC_SCRIPT，请确认 rodski-skills/ 项目已初始化。"
-[[ -f "$PKG_SCRIPT" ]]  || fail "未找到 $PKG_SCRIPT，请确认 rodski-skills/ 项目已初始化。"
+[[ -f "$SYNC_SCRIPT" ]] || fail "未找到 ${SYNC_SCRIPT}，请确认 rodski-skills/ 项目已初始化。"
+[[ -f "$PKG_SCRIPT" ]]  || fail "未找到 ${PKG_SCRIPT}，请确认 rodski-skills/ 项目已初始化。"
 
 info "[1/2] 检测测试指南变更..."
 set +e

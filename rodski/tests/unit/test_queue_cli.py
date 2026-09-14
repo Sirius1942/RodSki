@@ -297,3 +297,198 @@ class TestListDevices:
 
         assert queue_cli.handle(A()) == 1
         assert "xcrun simctl" in capsys.readouterr().err
+
+
+def _make_module(tmp_path, mobile_vars=""):
+    """最小可跑的模块：plan/case/model/data 齐备，Mobile 组按需附加。"""
+    for name in ("plan", "case", "model", "data"):
+        (tmp_path / name).mkdir(exist_ok=True)
+    (tmp_path / "model" / "model.xml").write_text(
+        '<?xml version="1.0" encoding="UTF-8"?>\n<models>\n'
+        '  <model name="MobileScreen" type="ui" driver_type="mobile"/>\n'
+        '</models>\n', encoding="utf-8")
+    (tmp_path / "case" / "C1.xml").write_text(
+        '<?xml version="1.0" encoding="UTF-8"?>\n<cases>\n'
+        '  <case execute="是" id="C1" title="t" component_type="界面" priority="P0">\n'
+        '    <test_case><test_step action="verify" model="MobileScreen" data="D1"/></test_case>\n'
+        '  </case>\n</cases>\n', encoding="utf-8")
+    (tmp_path / "plan" / "p1.xml").write_text(
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<test_plan id="p1" title="t" kind="suite" execute="是" default_execute="否">\n'
+        '  <case id="C1" execute="是"/>\n</test_plan>\n', encoding="utf-8")
+    (tmp_path / "data" / "globalvalue.xml").write_text(
+        '<?xml version="1.0" encoding="UTF-8"?>\n<globalvalue>\n'
+        '  <group name="Mobile">\n'
+        '    <var name="Platform" value="ios"/>\n' + mobile_vars +
+        '  </group>\n</globalvalue>\n', encoding="utf-8")
+    return tmp_path
+
+
+def _args(module, **over):
+    class A:
+        pass
+
+    a = A()
+    defaults = dict(module=str(module), platform="ios", devices=None, list_devices=False,
+                    plans=None, max_parallel=None, retry_failed_plans=0,
+                    no_requeue_on_device_loss=False, allow_cross_platform_plan=False,
+                    dry_run=True, report=None, trace=False, verbose=False, coverage=False)
+    defaults.update(over)
+    a.__dict__.update(defaults)
+    return a
+
+
+REAL = queue_cli.Device(udid="REAL-1", platform="ios", name="Tars2",
+                        state="connected", kind="real")
+SIM = queue_cli.Device(udid="SIM-1", platform="ios", name="iPhone 16 Pro",
+                       state="Booted", kind="simulator")
+
+
+class TestConfigDrivenSelection:
+    """设备数量/组合来自**用例执行层配置**（globalvalue 的 Mobile 组），不是 CLI 参数。"""
+
+    def test_config_count_two_selects_two_devices(self, tmp_path, capsys, monkeypatch):
+        _make_module(tmp_path,
+                     '    <var name="DeviceCount" value="2"/>\n'
+                     '    <var name="DeviceMix" value="real,simulator"/>\n')
+        monkeypatch.setattr(queue_cli, "discover_devices", lambda _p: [SIM, REAL])
+
+        assert queue_cli.handle(_args(tmp_path)) == 0
+        out = capsys.readouterr().out
+        assert "DeviceCount=2" in out
+        assert "1 台真机、1 台模拟器" in out
+
+    def test_default_config_uses_all_discovered(self, tmp_path, capsys, monkeypatch):
+        """无 Device* 配置时沿用「发现即用」，且不打印配置行。"""
+        _make_module(tmp_path)
+        monkeypatch.setattr(queue_cli, "discover_devices", lambda _p: [SIM, REAL])
+
+        assert queue_cli.handle(_args(tmp_path)) == 0
+        out = capsys.readouterr().out
+        assert "执行配置" not in out
+        assert "实际选用 2 台设备" in out
+
+    def test_shortage_degrades_with_warning_not_failure(self, tmp_path, capsys, monkeypatch):
+        """要 2 台只有 1 台：仍执行（退出码 0），但必须把降级说清楚。"""
+        _make_module(tmp_path, '    <var name="DeviceCount" value="2"/>\n')
+        monkeypatch.setattr(queue_cli, "discover_devices", lambda _p: [SIM])
+
+        assert queue_cli.handle(_args(tmp_path)) == 0
+        assert "[WARN]" in capsys.readouterr().out
+
+    def test_missing_real_device_still_runs(self, tmp_path, capsys, monkeypatch):
+        """配置要真机、现场只有模拟器 —— 「至少一台能跑就执行」，降级并告警。"""
+        _make_module(tmp_path,
+                     '    <var name="DeviceCount" value="2"/>\n'
+                     '    <var name="DeviceMix" value="real,simulator"/>\n')
+        monkeypatch.setattr(queue_cli, "discover_devices", lambda _p: [SIM])
+
+        assert queue_cli.handle(_args(tmp_path)) == 0
+        out = capsys.readouterr().out
+        assert "没有可用的 real 设备" in out
+        assert "实际选用 1 台设备" in out
+
+    def test_explicit_devices_flag_overrides_config(self, tmp_path, capsys, monkeypatch):
+        """--devices 是 CLI 覆盖，优先级高于配置。"""
+        _make_module(tmp_path, '    <var name="DeviceCount" value="3"/>\n')
+        monkeypatch.setattr(queue_cli, "discover_devices", lambda _p: [SIM, REAL])
+
+        assert queue_cli.handle(_args(tmp_path, devices=["REAL-1"])) == 0
+        out = capsys.readouterr().out
+        assert "REAL-1" in out and "SIM-1" not in out
+
+    def test_devices_flag_accepts_device_name(self, tmp_path, capsys, monkeypatch):
+        _make_module(tmp_path)
+        monkeypatch.setattr(queue_cli, "discover_devices", lambda _p: [SIM, REAL])
+
+        assert queue_cli.handle(_args(tmp_path, devices=["Tars2,iPhone 16 Pro"])) == 0
+        out = capsys.readouterr().out
+        assert "实际选用 2 台设备" in out
+
+    def test_zero_devices_still_hard_fails_even_with_config(self, tmp_path, capsys, monkeypatch):
+        _make_module(tmp_path, '    <var name="DeviceCount" value="2"/>\n')
+        monkeypatch.setattr(queue_cli, "discover_devices", lambda _p: [])
+
+        assert queue_cli.handle(_args(tmp_path)) == 1
+        assert "未发现任何可用 ios 设备" in capsys.readouterr().err
+
+
+class TestRunAutoDispatch:
+    """`rodski run @plan` 在配置要求多设备时自动转 `rodski queue`。"""
+
+    def _run_args(self, module, case, **over):
+        class A:
+            pass
+
+        a = A()
+        defaults = dict(case=case, module=None, platform=None, udid=None, no_queue=False,
+                        dry_run=False, browser=None, model=None, report=None, trace=False,
+                        verbose=False, coverage=False, roam=False)
+        defaults.update(over)
+        a.__dict__.update(defaults)
+        return a
+
+    def test_dispatches_to_queue_when_configured(self, tmp_path, capsys, monkeypatch):
+        """只验证「转」这件事本身：队列真的被调起、计划被原样带过去。
+
+        端到端跑通由 demo 验收负责（见 run_mixed_device_demo.sh），这里跑干跑，
+        否则单测会真去拉子进程执行用例。
+        """
+        from rodski.rodski_cli import run as run_cli
+        _make_module(tmp_path, '    <var name="DeviceCount" value="2"/>\n')
+        monkeypatch.setattr(queue_cli, "discover_devices", lambda _p: [SIM, REAL])
+
+        captured = {}
+
+        def fake_queue_handle(ns):
+            captured["ns"] = ns
+            return 0
+
+        monkeypatch.setattr(queue_cli, "handle", fake_queue_handle)
+
+        args = self._run_args(tmp_path, "@p1")
+        rc = run_cli._maybe_dispatch_to_queue(args, tmp_path)
+
+        assert rc == 0
+        assert captured["ns"].plans == ["@p1"]
+        assert captured["ns"].devices is None          # 让队列自己按配置选设备
+        assert "转 `rodski queue` 调度" in capsys.readouterr().out
+
+    def test_no_dispatch_for_default_config(self, tmp_path, monkeypatch):
+        from rodski.rodski_cli import run as run_cli
+        _make_module(tmp_path)
+
+        assert run_cli._maybe_dispatch_to_queue(self._run_args(tmp_path, "@p1"), tmp_path) is None
+
+    def test_udid_opts_out_of_dispatch(self, tmp_path, monkeypatch):
+        """显式 --udid 就是「用户点名跑这一台」，必须留在单设备路径。"""
+        from rodski.rodski_cli import run as run_cli
+        _make_module(tmp_path, '    <var name="DeviceCount" value="2"/>\n')
+
+        args = self._run_args(tmp_path, "@p1", udid="UDID-X")
+        assert run_cli._maybe_dispatch_to_queue(args, tmp_path) is None
+
+    def test_no_queue_flag_opts_out(self, tmp_path, monkeypatch):
+        from rodski.rodski_cli import run as run_cli
+        _make_module(tmp_path, '    <var name="DeviceCount" value="2"/>\n')
+
+        args = self._run_args(tmp_path, "@p1", no_queue=True)
+        assert run_cli._maybe_dispatch_to_queue(args, tmp_path) is None
+
+    def test_direct_case_path_is_not_a_plan(self, tmp_path, monkeypatch):
+        """`rodski run case/x.xml` 是单用例语义，队列的单元是计划，不转。"""
+        from rodski.rodski_cli import run as run_cli
+        _make_module(tmp_path, '    <var name="DeviceCount" value="2"/>\n')
+
+        args = self._run_args(tmp_path, str(tmp_path / "case" / "C1.xml"))
+        assert run_cli._maybe_dispatch_to_queue(args, tmp_path) is None
+
+    def test_no_queue_flag_parses(self):
+        import argparse
+        from rodski.rodski_cli import run as run_cli
+        parser = argparse.ArgumentParser(prog="rodski")
+        subparsers = parser.add_subparsers(dest="command")
+        run_cli.setup_parser(subparsers)
+
+        assert parser.parse_args(["run", "@p1", "--no-queue"]).no_queue is True
+        assert parser.parse_args(["run", "@p1"]).no_queue is False

@@ -65,7 +65,7 @@ fi
 ok "Appium server: 127.0.0.1:${APPIUM_PORT}"
 
 if [[ ! -d "$APP_PATH" ]]; then
-  fail "未找到已编译的 App：$APP_PATH。请先执行：bash demo_ios_app/build_ios_app.sh"
+  fail "未找到已编译的 App：${APP_PATH}。请先执行：bash demo_ios_app/build_ios_app.sh"
 fi
 ok "被测 App: $APP_PATH"
 
@@ -158,7 +158,7 @@ set -e
 RUN_A_WALL=$(( $(date +%s) - RUN_A_START ))
 echo ""
 echo "Run A 退出码=$RUN_A_CODE 墙钟=${RUN_A_WALL}s"
-[[ $RUN_A_CODE -eq 0 ]] || fail "Run A 未通过（exit=$RUN_A_CODE）"
+[[ $RUN_A_CODE -eq 0 ]] || fail "Run A 未通过（exit=${RUN_A_CODE}）"
 ok "Run A 完成"
 
 QUEUE_A_DIR=$(python3 -c "
@@ -179,7 +179,7 @@ set -e
 RUN_B_WALL=$(( $(date +%s) - RUN_B_START ))
 echo ""
 echo "Run B 退出码=$RUN_B_CODE 墙钟=${RUN_B_WALL}s"
-[[ $RUN_B_CODE -eq 0 ]] || fail "Run B 未通过（exit=$RUN_B_CODE）"
+[[ $RUN_B_CODE -eq 0 ]] || fail "Run B 未通过（exit=${RUN_B_CODE}）"
 ok "Run B 完成"
 
 QUEUE_B_DIR=$(python3 -c "

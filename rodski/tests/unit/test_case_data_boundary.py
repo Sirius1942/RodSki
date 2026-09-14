@@ -1,11 +1,16 @@
-"""T42-005: 内置函数边界测试 — Case XML data 属性禁止使用内置函数。
+"""内置函数边界测试 — 哪些能写在 Case XML data 属性里。
+
+分两类：
+- **数据生成类**（random / date / timestamp*）每次求值都不同 → 写在 Case XML
+  会让用例不可复现（loop 每轮重新解析、重跑重新解析），**报错**。
+- **纯函数类**（encodeURI / decodeURI / toUpperCase / ...）同输入同输出 → 用例
+  层必须能用，`set` 的分步表达式就靠它，**允许**。
 
 验证:
-- Case data 中 ${random(...)} → 报错
-- Case data 中 ${date(...)} → 报错
-- Case data 中 ${GlobalValue.xxx} → 允许（正常解析）
-- Case data 中 ${Return[-1]} → 允许（正常解析）
-- SQLite 字段值中 ${random(...)} → 正常解析
+- Case data 中 ${random(...)} / ${date(...)} → 报错
+- Case data 中 ${encodeURI(...)} 等纯函数 → 允许
+- Case data 中 ${GlobalValue.xxx} / ${Return[-1]} / ${命名变量} → 允许
+- SQLite 字段值中 ${random(...)} → 正常解析（数据行本就是"执行时现取"）
 """
 import re
 
@@ -15,25 +20,41 @@ from data.data_resolver import DataResolver
 
 
 class TestCaseDataBuiltinFunctionBoundary:
-    """Case XML data 属性禁止内置函数"""
+    """Case XML data 属性：数据生成类内置函数禁止，纯函数类允许"""
 
-    def test_random_in_case_data_raises_error(self):
-        """Case data 包含 ${random(...)} 应报错"""
+    @pytest.mark.parametrize("text,func", [
+        ("user_${random(int, 1000, 9999)}", "random"),
+        ("${date(today)}", "date"),
+        ("prefix_${random(str, 8)}_suffix", "random"),
+        ("unique=${timestamp36()}", "timestamp36"),
+        ("t=${timestamp()}", "timestamp"),
+    ])
+    def test_nondeterministic_function_in_case_data_raises_error(self, text, func):
+        """数据生成类内置函数写在 Case data → 报错（用例会不可复现）"""
         resolver = DataResolver()
-        with pytest.raises(ValueError, match="内置函数.*random.*只能写在 data.sqlite"):
-            resolver.resolve_case_data("user_${random(int, 1000, 9999)}")
+        with pytest.raises(ValueError, match=rf"内置函数.*{func}.*只能写在 data.sqlite"):
+            resolver.resolve_case_data(text)
 
-    def test_date_in_case_data_raises_error(self):
-        """Case data 包含 ${date(...)} 应报错"""
+    @pytest.mark.parametrize("text,expected", [
+        ("${encodeURI(hello world)}", "hello%20world"),
+        ("${toUpperCase(abc)}", "ABC"),
+        ("${toString36(1234567890)}", "KF12OI"),
+        ("${decodeURI(hello%20world)}", "hello world"),
+    ])
+    def test_pure_function_in_case_data_allowed(self, text, expected):
+        """纯函数类内置函数写在 Case data → 允许（v11.0.0 §4.4.4 的 set 写法）"""
         resolver = DataResolver()
-        with pytest.raises(ValueError, match="内置函数.*date.*只能写在 data.sqlite"):
-            resolver.resolve_case_data("${date(today)}")
+        assert resolver.resolve_case_data(text) == expected
 
-    def test_random_str_in_case_data_raises_error(self):
-        """Case data 包含 ${random(str, 8)} 应报错"""
+    def test_escaped_function_is_not_rejected(self):
+        """`$${random(1)}` 是要发给被测系统的字面量，不是调用 → 不报错"""
         resolver = DataResolver()
-        with pytest.raises(ValueError, match="内置函数.*random.*只能写在 data.sqlite"):
-            resolver.resolve_case_data("prefix_${random(str, 8)}_suffix")
+        assert resolver.resolve_case_data("$${random(int, 1, 9)}") == "${random(int, 1, 9)}"
+
+    def test_unregistered_function_name_is_not_rejected(self):
+        """未注册的名字是普通文本，不是越界调用 → 不报错（保持既有行为）"""
+        resolver = DataResolver()
+        assert resolver.resolve_case_data("${randomm(int, 1, 9)}") == "${randomm(int, 1, 9)}"
 
     def test_globalvalue_in_case_data_allowed(self):
         """Case data 包含 GlobalValue 引用 → 正常解析，不报错"""
