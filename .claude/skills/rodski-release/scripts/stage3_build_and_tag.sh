@@ -34,12 +34,16 @@ info "[1/5] 同步所有版本号文件..."
 bump_all_versions "$VERSION"
 
 info "[2/5] 提交版本号变更..."
+# 必须与 bump_all_versions() 实际改写的文件一一对应 —— 漏一个，那个文件的
+# 版本号就停在旧值并留在工作区（stage3 结尾的"工作区干净"检查看不到它，
+# 但 tag 会指向不含该变更的 commit）。rodski-skills/ 就是漏过的那两个。
 git add \
     "$PROJECT_ROOT/pyproject.toml" \
     "$RODSKI_DIR/pyproject.toml" \
     "$RODSKI_DIR/__init__.py" \
     "$PROJECT_ROOT/CLAUDE.md" \
     "$RODSKI_DIR/docs/" \
+    "$PROJECT_ROOT/rodski-skills/" \
     2>/dev/null || true
 # 只提交有变更的文件
 if git diff --cached --quiet; then
@@ -49,8 +53,29 @@ else
     ok "  版本号 commit 已创建"
 fi
 
+# 兜底：bump 写过的范围里不许再有未提交改动。上面那份 git add 清单一旦
+# 与 bump_all_versions() 的实际覆盖面脱节，就会有版本文件停在新值却留在
+# 工作区，而 tag 指向不含它的 commit —— 打包出来的东西和 tag 对不上。
+DIRTY=$(git status --porcelain -- \
+    "$PROJECT_ROOT/pyproject.toml" \
+    "$RODSKI_DIR/pyproject.toml" \
+    "$RODSKI_DIR/__init__.py" \
+    "$PROJECT_ROOT/CLAUDE.md" \
+    "$RODSKI_DIR/docs/" \
+    "$PROJECT_ROOT/rodski-skills/" 2>/dev/null || true)
+if [[ -n "$DIRTY" ]]; then
+    echo "$DIRTY" >&2
+    fail "版本号同步后仍有未提交改动，tag 将与产物不一致，发布中止。"
+fi
+ok "  版本号变更已全部入库"
+
 info "[3/5] 清理旧产物并构建..."
-rm -rf "$DIST_DIR" "$PROJECT_ROOT/build"
+# 只清 rodski 自己的旧 wheel/sdist，**不要**整个 rm -rf dist/ ——
+# stage2.5 打出的 dist/rodski-skills-vX.Y.Z.zip 也住在这里，整目录删掉会
+# 让那份发行包在发布结束时凭空消失（且没有任何报错）。
+mkdir -p "$DIST_DIR"
+rm -f "$DIST_DIR"/rodski-*.whl "$DIST_DIR"/rodski-*.tar.gz
+rm -rf "$PROJECT_ROOT/build"
 python3 -m build "$PROJECT_ROOT/" --outdir "$DIST_DIR"
 ok "  构建完成: $(ls "$DIST_DIR")"
 
