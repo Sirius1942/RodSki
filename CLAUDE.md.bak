@@ -142,8 +142,7 @@ RodSki/                     ← 主仓库（父仓库，git remote: github / ori
 │   └── tests/              # 单元测试
 ├── rodski-demo/            # 框架官方示例（唯一示例目录）
 ├── cassmall/               # 业务测试用例
-├── web/                    # 测试用例管理系统（Flask，被父仓库跟踪）
-├── rodski-website/         # ⚠️ 独立仓库：官方文档网站（Next.js）
+├── rodski-web/             # ⚠️ 独立仓库（见下方"独立子项目"说明）
 ├── rodski-agent/           # ⚠️ 独立仓库（见下方"独立子项目"说明）
 └── CLAUDE.md               # 本文件
 ```
@@ -160,46 +159,31 @@ RodSki/                     ← 主仓库（父仓库，git remote: github / ori
 
 ---
 
-## 子项目
-
-### 被父仓库跟踪的子项目
-
-以下目录被父仓库 git 跟踪，版本号与主仓库同步：
-
-#### web/
-
-| 项目 | 说明 |
-|------|------|
-| **路径** | `web/` |
-| **定位** | 测试用例管理系统（Flask + 马里奥主题 UI）|
-| **git 跟踪** | 86 个文件被父仓库跟踪 |
-| **版本号** | 与主仓库同步 |
-| **启动方式** | `cd web && python3 src/app.py` |
-
----
-
 ## 独立子项目（独立代码库，版本号与主仓库同步）
 
-以下目录是**独立 Git 仓库**，物理上位于主仓库目录下，但不由主仓库 git 跟踪（已加入根 `.gitignore`）。它们拥有各自的 `.git/` 和发布节奏，但 **`rodski-agent` 和 `rodski-browser-plugin` 的版本号与主仓库保持同步**（v8.4.0 起）。`rodski-website` 独立演进，版本号不同步。
+以下目录是**独立 Git 仓库**，物理上位于主仓库目录下，但不由主仓库 git 跟踪（已加入根 `.gitignore`）。它们拥有各自的 `.git/` 和发布节奏，但 **`rodski-agent` 和 `rodski-browser-plugin` 的版本号与主仓库保持同步**（v8.4.0 起）。`rodski-web` 独立演进，版本号不同步。
 
 详见 `.pb/conventions/VERSIONING.md` §9。
 
-### rodski-website
+### rodski-web
 
 | 项目 | 说明 |
 |------|------|
-| **路径** | `rodski-website/` |
-| **定位** | RodSki 官方文档网站（Next.js）|
-| **版本文件** | `rodski-website/package.json` → `"version"` |
-| **版本格式** | `MAJOR.MINOR.PATCH`，独立演进 |
-| **git 仓库** | `rodski-website/.git/`（独立本地仓库，需自行绑定 remote）|
+| **路径** | `rodski-web/` |
+| **定位** | RodSki 可视化 Web 管理界面（Flask）|
+| **版本文件** | `rodski-web/VERSION`（纯文本，当前 `1.0.0`）|
+| **版本格式** | `MAJOR.MINOR.PATCH`，规则同主仓库 |
+| **git 仓库** | `rodski-web/.git/`（独立本地仓库，需自行绑定 remote）|
 | **发布方式** | 独立 tag，与主仓库版本号无关 |
+
+**版本号同步文件**（rodski-web 内部）：
+- `rodski-web/VERSION`
 
 **启动方式**：
 ```bash
-cd rodski-website && npm run dev
+cd rodski-web && bash run.sh
 # 或
-cd rodski-website && npm run build && npm start
+cd rodski-web && python3 src/app.py
 ```
 
 ---
@@ -244,7 +228,7 @@ pytest tests/ -q
 
 ### 主仓库与独立子项目的协作规则
 
-1. **版本同步**：`rodski-agent` 和 `rodski-browser-plugin` 版本号与主仓库同步；`rodski-website` 版本独立演进
+1. **版本同步**：`rodski-agent` 和 `rodski-browser-plugin` 版本号与主仓库同步；`rodski-web` 版本独立演进
 2. **git 独立**：各子项目各自 `git init`，主仓库通过 `.gitignore` 忽略
 3. **发布同批**：主仓库发版时，同批更新 agent 和 plugin 版本文件并打对应 tag
 4. **依赖关系**：`rodski-agent` 依赖已安装的 `rodski` 包（通过 `pip install rodski`），但代码仓库独立
