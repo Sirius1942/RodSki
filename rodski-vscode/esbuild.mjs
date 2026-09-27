@@ -12,6 +12,7 @@ mkdirSync(resolve(__dirname, 'dist/webview'), { recursive: true });
 // Copy static assets
 cpSync(resolve(__dirname, 'src/webview/grid.html'), resolve(__dirname, 'dist/webview/grid.html'));
 cpSync(resolve(__dirname, 'src/webview/case.html'), resolve(__dirname, 'dist/webview/case.html'));
+cpSync(resolve(__dirname, 'src/webview/business.html'), resolve(__dirname, 'dist/webview/business.html'));
 cpSync(resolve(__dirname, 'node_modules/sql.js/dist/sql-wasm.wasm'), resolve(__dirname, 'dist/sql-wasm.wasm'));
 
 const shared = { bundle: true, minify, sourcemap: !minify };
@@ -32,6 +33,7 @@ const webviewCtx = await esbuild.context({
   entryPoints: [
     resolve(__dirname, 'src/webview/grid.js'),
     resolve(__dirname, 'src/webview/case.js'),
+    resolve(__dirname, 'src/webview/business.js'),
   ],
   outdir: resolve(__dirname, 'dist/webview'),
   format: 'iife',

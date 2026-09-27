@@ -3,6 +3,7 @@ import { RodSkiTreeProvider, TableItem } from './treeProvider';
 import { openDb, openTable } from './gridPanel';
 import { closeAll, addTable, deleteTable, setExtensionPath } from './dbManager';
 import { openCase } from './casePanel';
+import { openBusinessModel } from './businessModelPanel';
 
 export function activate(context: vscode.ExtensionContext) {
   setExtensionPath(context.extensionPath);
@@ -33,6 +34,22 @@ export function activate(context: vscode.ExtensionContext) {
     }),
     vscode.commands.registerCommand('rodski.openCase', (uri: vscode.Uri) => {
       openCase(context, uri.fsPath);
+    }),
+    vscode.commands.registerCommand('rodski.openBusinessModel', async (uri?: vscode.Uri) => {
+      let filePath = uri?.fsPath;
+      const activePath = vscode.window.activeTextEditor?.document.uri.fsPath;
+      if (!filePath && activePath && /[\\/]business[\\/].*\.xml$/i.test(activePath)) {
+        filePath = activePath;
+      }
+      if (!filePath) {
+        const selected = await vscode.window.showOpenDialog({
+          canSelectMany: false,
+          openLabel: 'Open Business Model Diagram',
+          filters: { 'Business Model XML': ['xml'] },
+        });
+        filePath = selected?.[0]?.fsPath;
+      }
+      if (filePath) { openBusinessModel(context, filePath); }
     }),
     tree
   );
