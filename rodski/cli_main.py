@@ -23,6 +23,7 @@ from rodski_cli import (
     init,
     plan,
     explore,
+    business,
 )
 
 
@@ -110,6 +111,9 @@ def main():
     # explore 子命令
     explore.setup_parser(subparsers)
 
+    # business 子命令
+    business.setup_parser(subparsers)
+
     args = parser.parse_args()
 
     if not args.command:
@@ -130,6 +134,7 @@ def main():
         "data": data.handle,
         "init": init.handle,
         "plan": plan.handle,
+        "business": business.handle,
     }
 
     verbose = getattr(args, "verbose", False)

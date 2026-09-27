@@ -2,6 +2,7 @@
 
 XML 格式参见 schemas/result.xsd。
 """
+import json
 import logging
 import os
 import xml.etree.ElementTree as ET
@@ -9,6 +10,7 @@ from xml.dom import minidom
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, List, Optional
+from collections.abc import Mapping
 from collections import Counter
 
 from .xml_schema_validator import RodskiXmlValidator
@@ -129,6 +131,104 @@ class ResultWriter:
         rodski_logger.addHandler(fh)
 
     @staticmethod
+    def _business_value(value: Any) -> str:
+        """将业务结果中的值稳定地编码为 XML 属性字符串。
+
+        actual/expected/node 输出仍然是普通结构化数据；标量保持可读文本，
+        list/dict 使用 JSON，避免因为 Python repr 造成不可逆或不稳定的结果文件。
+        """
+        if value is None:
+            return ""
+        if isinstance(value, bool):
+            return "true" if value else "false"
+        if isinstance(value, (dict, list, tuple)):
+            return json.dumps(value, ensure_ascii=False, sort_keys=True, default=str)
+        return str(value)
+
+    @classmethod
+    def _write_business_fields(cls, parent: ET.Element, values: Any) -> None:
+        """写入映射字段；非映射值按 value 字段保留。"""
+        if isinstance(values, Mapping):
+            items = values.items()
+        else:
+            items = (("value", values),)
+        for name, value in items:
+            field_elem = ET.SubElement(parent, "field")
+            field_elem.set("name", str(name))
+            field_elem.set("value", cls._business_value(value))
+
+    @classmethod
+    def _write_business_path(cls, parent: ET.Element, path: Any) -> None:
+        """写入路径节点，兼容 list/tuple 以及单个字符串路径。"""
+        if isinstance(path, (str, bytes)):
+            path = [path]
+        for item in path or []:
+            node_elem = ET.SubElement(parent, "node")
+            node_elem.set("id", cls._business_value(item))
+
+    @classmethod
+    def _write_business_result(cls, parent: ET.Element, business_result: Any) -> None:
+        """将 business_call 的结构化结果写入 result XML。
+
+        该结构是 StepType 下的可选扩展；没有 business_result 的旧结果完全不变。
+        """
+        if not isinstance(business_result, Mapping):
+            raise TypeError("business_result must be a mapping")
+
+        result_elem = ET.SubElement(parent, "business_result")
+        for attr in ("id", "ref", "flow", "input", "expect"):
+            if attr in business_result and business_result[attr] is not None:
+                result_elem.set(attr, cls._business_value(business_result[attr]))
+        if "passed" in business_result and business_result["passed"] is not None:
+            result_elem.set("passed", "true" if business_result["passed"] else "false")
+
+        for path_name in ("actual_path", "expected_path"):
+            if path_name not in business_result or business_result[path_name] is None:
+                continue
+            path_elem = ET.SubElement(result_elem, path_name)
+            cls._write_business_path(path_elem, business_result[path_name])
+
+        for map_name in ("actual", "expected"):
+            if map_name not in business_result or business_result[map_name] is None:
+                continue
+            map_elem = ET.SubElement(result_elem, map_name)
+            cls._write_business_fields(map_elem, business_result[map_name])
+
+        if "nodes" in business_result and business_result["nodes"] is not None:
+            nodes_elem = ET.SubElement(result_elem, "nodes")
+            for index, node in enumerate(business_result["nodes"] or [], 1):
+                node_elem = ET.SubElement(nodes_elem, "node")
+                if isinstance(node, Mapping):
+                    node_id = node.get("node_id", node.get("id", index))
+                    node_elem.set("id", cls._business_value(node_id))
+                    node_steps = node.get("steps")
+                    if node_steps is not None:
+                        node_steps_elem = ET.SubElement(node_elem, "steps")
+                        for step_index, step_output in enumerate(node_steps or [], 1):
+                            output_elem = ET.SubElement(node_steps_elem, "step")
+                            output_elem.set("index", str(step_index))
+                            cls._write_business_fields(output_elem, step_output)
+                    extra = {
+                        key: value
+                        for key, value in node.items()
+                        if key not in {"node_id", "id", "steps"}
+                    }
+                    if extra:
+                        fields_elem = ET.SubElement(node_elem, "fields")
+                        cls._write_business_fields(fields_elem, extra)
+                else:
+                    node_elem.set("id", cls._business_value(node))
+
+        if "assertion_errors" in business_result and business_result["assertion_errors"] is not None:
+            errors_elem = ET.SubElement(result_elem, "assertion_errors")
+            errors = business_result["assertion_errors"]
+            if isinstance(errors, (str, bytes)):
+                errors = [errors]
+            for error in errors or []:
+                error_elem = ET.SubElement(errors_elem, "error")
+                error_elem.text = cls._business_value(error)
+
+    @staticmethod
     def _normalize_recordings(result: Dict[str, Any]) -> List[Dict[str, str]]:
         recordings: List[Dict[str, str]] = []
         for idx, item in enumerate(result.get("recordings") or [], 1):
@@ -222,6 +322,8 @@ class ResultWriter:
                     screenshot = step.get("screenshot", "")
                     if screenshot:
                         step_elem.set("screenshot", str(screenshot))
+                    if "business_result" in step and step.get("business_result") is not None:
+                        self._write_business_result(step_elem, step.get("business_result"))
 
             # 添加变量信息
             variables = result.get("variables", {})

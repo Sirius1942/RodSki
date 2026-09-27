@@ -23,6 +23,7 @@ from .exceptions import XmlSchemaValidationError
 
 # 文档类型 -> XSD 文件名（位于 rodski/schemas/）
 SCHEMA_FILES: Dict[str, str] = {
+    "business": "business.xsd",
     "case": "case.xsd",
     "data": "data.xsd",
     "globalvalue": "globalvalue.xsd",
@@ -88,6 +89,7 @@ class RodskiXmlValidator:
     校验失败抛出 :class:`core.exceptions.XmlSchemaValidationError`。
     """
 
+    KIND_BUSINESS = "business"
     KIND_CASE = "case"
     KIND_DATA = "data"
     KIND_GLOBALVALUE = "globalvalue"

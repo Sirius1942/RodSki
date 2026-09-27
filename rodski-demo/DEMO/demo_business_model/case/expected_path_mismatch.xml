@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 刻意失败示例：输入实际触发 invalid 分支，但 Case 声明期望 success。 -->
+<cases tags="business-model-demo,expected-failure">
+    <case execute="是" id="TC-BM-LOGIN-PATH-MISMATCH" title="路径断言失败演示" priority="P2">
+        <test_case>
+            <business_call id="login_wrong_expectation" ref="login_flow" flow="F_LOGIN_SUCCESS"
+                           input="LOGIN_INVALID_01" expect="LOGIN_OK_01" />
+        </test_case>
+    </case>
+</cases>

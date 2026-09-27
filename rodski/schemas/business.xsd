@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="business_models">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="business_model" type="BusinessModelType" minOccurs="1" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attribute name="version" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+  <xs:complexType name="BusinessModelType">
+    <xs:sequence>
+      <xs:element name="description" type="xs:string" minOccurs="0"/>
+      <xs:element name="nodes" type="NodesType"/>
+      <xs:element name="edges" type="EdgesType"/>
+      <xs:element name="flows" type="FlowsType"/>
+    </xs:sequence>
+    <xs:attribute name="id" type="xs:NCName" use="required"/>
+    <xs:attribute name="name" type="xs:string" use="required"/>
+    <xs:attribute name="version" type="xs:string" use="required"/>
+    <xs:attribute name="lifecycle" type="xs:string" use="optional"/>
+    <xs:attribute name="idempotent" type="xs:boolean" use="optional"/>
+  </xs:complexType>
+  <xs:complexType name="NodesType">
+    <xs:sequence><xs:element name="node" type="NodeType" minOccurs="1" maxOccurs="unbounded"/></xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="NodeType">
+    <xs:sequence>
+      <xs:element name="description" type="xs:string" minOccurs="0"/>
+      <xs:element name="steps" type="StepsType" minOccurs="0"/>
+    </xs:sequence>
+    <xs:attribute name="id" type="xs:NCName" use="required"/>
+    <xs:attribute name="title" type="xs:string" use="optional"/>
+  </xs:complexType>
+  <xs:complexType name="StepsType">
+    <xs:sequence><xs:element name="test_step" type="BusinessStepType" minOccurs="1" maxOccurs="unbounded"/></xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="BusinessStepType">
+    <xs:attribute name="action" type="xs:string" use="required"/>
+    <xs:attribute name="model" type="xs:string" use="optional"/>
+    <xs:attribute name="data" type="xs:string" use="optional"/>
+  </xs:complexType>
+  <xs:complexType name="EdgesType">
+    <xs:sequence><xs:element name="edge" type="EdgeType" minOccurs="1" maxOccurs="unbounded"/></xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="EdgeType">
+    <xs:attribute name="from" type="xs:NCName" use="required"/>
+    <xs:attribute name="to" type="xs:NCName" use="required"/>
+    <xs:attribute name="condition" type="xs:string" use="optional"/>
+    <xs:attribute name="label" type="xs:string" use="optional"/>
+  </xs:complexType>
+  <xs:complexType name="FlowsType">
+    <xs:sequence><xs:element name="flow" type="FlowType" minOccurs="1" maxOccurs="unbounded"/></xs:sequence>
+  </xs:complexType>
+  <xs:simpleType name="FlowTypeName">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="basic"/>
+      <xs:enumeration value="alternative"/>
+      <xs:enumeration value="exception"/>
+      <xs:enumeration value="boundary"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:complexType name="FlowType">
+    <xs:attribute name="id" type="xs:NCName" use="required"/>
+    <xs:attribute name="type" type="FlowTypeName" use="required"/>
+    <xs:attribute name="path" type="xs:string" use="required"/>
+  </xs:complexType>
+</xs:schema>

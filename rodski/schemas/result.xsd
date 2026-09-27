@@ -74,6 +74,9 @@
 
   <!-- 单步执行信息 -->
   <xs:complexType name="StepType">
+    <xs:sequence>
+      <xs:element name="business_result" type="BusinessResultType" minOccurs="0" maxOccurs="1"/>
+    </xs:sequence>
     <xs:attribute name="phase" type="xs:string" use="optional"/>
     <xs:attribute name="index" type="xs:nonNegativeInteger" use="required"/>
     <xs:attribute name="action" type="xs:string" use="required"/>
@@ -83,6 +86,78 @@
     <xs:attribute name="execution_time" type="xs:string" use="optional"/>
     <xs:attribute name="error_message" type="xs:string" use="optional"/>
     <xs:attribute name="screenshot" type="xs:string" use="optional"/>
+  </xs:complexType>
+
+  <!-- business_call 结构化结果；StepType 下可选，旧结果无需该元素 -->
+  <xs:complexType name="BusinessResultType">
+    <xs:sequence>
+      <xs:element name="actual_path" type="PathType" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="expected_path" type="PathType" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="actual" type="FieldMapType" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="expected" type="FieldMapType" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="nodes" type="BusinessNodesType" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="assertion_errors" type="AssertionErrorsType" minOccurs="0" maxOccurs="1"/>
+    </xs:sequence>
+    <xs:attribute name="id" type="xs:string" use="optional"/>
+    <xs:attribute name="ref" type="xs:string" use="optional"/>
+    <xs:attribute name="flow" type="xs:string" use="optional"/>
+    <xs:attribute name="input" type="xs:string" use="optional"/>
+    <xs:attribute name="expect" type="xs:string" use="optional"/>
+    <xs:attribute name="passed" type="xs:boolean" use="optional"/>
+  </xs:complexType>
+
+  <xs:complexType name="PathType">
+    <xs:sequence>
+      <xs:element name="node" type="PathNodeType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="PathNodeType">
+    <xs:attribute name="id" type="xs:string" use="required"/>
+  </xs:complexType>
+
+  <xs:complexType name="FieldMapType">
+    <xs:sequence>
+      <xs:element name="field" type="BusinessFieldType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="BusinessFieldType">
+    <xs:attribute name="name" type="xs:string" use="required"/>
+    <xs:attribute name="value" type="xs:string" use="required"/>
+  </xs:complexType>
+
+  <xs:complexType name="BusinessNodesType">
+    <xs:sequence>
+      <xs:element name="node" type="BusinessNodeType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="BusinessNodeType">
+    <xs:sequence>
+      <xs:element name="steps" type="BusinessNodeStepsType" minOccurs="0" maxOccurs="1"/>
+      <xs:element name="fields" type="FieldMapType" minOccurs="0" maxOccurs="1"/>
+    </xs:sequence>
+    <xs:attribute name="id" type="xs:string" use="required"/>
+  </xs:complexType>
+
+  <xs:complexType name="BusinessNodeStepsType">
+    <xs:sequence>
+      <xs:element name="step" type="BusinessNodeStepType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="BusinessNodeStepType">
+    <xs:sequence>
+      <xs:element name="field" type="BusinessFieldType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="index" type="xs:nonNegativeInteger" use="required"/>
+  </xs:complexType>
+
+  <xs:complexType name="AssertionErrorsType">
+    <xs:sequence>
+      <xs:element name="error" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
   </xs:complexType>
 
   <!-- 变量集合类型 -->

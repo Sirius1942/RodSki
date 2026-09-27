@@ -139,6 +139,46 @@ class TestCaseParserFile:
             raise AssertionError('非界面用例 roam=是 应抛出 SKI803')
 
 
+class TestCaseParserBusinessCall:
+    def test_business_call_attributes_are_parsed_as_integration_step(self, tmp_path):
+        case_xml = _write_xml(tmp_path, '''\
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+  <case execute="是" id="bc001" title="业务调用">
+    <test_case>
+      <business_call id="call-1" ref="orders" flow="create" input="sku-A1" expect="status-ok"/>
+    </test_case>
+  </case>
+</cases>''')
+        step = CaseParser(case_xml).parse_cases()[0]['test_case'][0]
+        assert step == {
+            'type': 'business_call',
+            'id': 'call-1',
+            'ref': 'orders',
+            'flow': 'create',
+            'input': 'sku-A1',
+            'expect': 'status-ok',
+        }
+
+    def test_business_call_schema_allows_attributes_in_each_phase(self, tmp_path):
+        from core.xml_schema_validator import RodskiXmlValidator
+
+        case_xml = _write_xml(tmp_path, '''\
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+  <case execute="是" id="bc002" title="各阶段业务调用">
+    <pre_process><business_call id="pre" ref="r" flow="f" input="i" expect="e"/></pre_process>
+    <test_case><business_call id="test" ref="r" flow="f" input="i" expect="e"/></test_case>
+    <post_process><business_call id="post" ref="r" flow="f" input="i" expect="e"/></post_process>
+  </case>
+</cases>''')
+        RodskiXmlValidator.validate_file(case_xml, RodskiXmlValidator.KIND_CASE)
+        case = CaseParser(case_xml).parse_cases()[0]
+        assert [s['id'] for s in case['pre_process']] == ['pre']
+        assert [s['id'] for s in case['test_case']] == ['test']
+        assert [s['id'] for s in case['post_process']] == ['post']
+
+
 class TestCaseParserDirectory:
     def test_parse_directory(self, tmp_path):
         case_dir = _write_case_dir(tmp_path)

@@ -24,6 +24,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Any, Optional, Callable, List, Deque, Set, Mapping, Tuple
 from .model_parser import ModelParser
+from .business_model import BusinessModelParser, BusinessModelExecutor, BusinessModelError
 from .data_table_parser import DataTableParser
 from .global_value_parser import GlobalValueParser
 from .case_parser import CaseParser
@@ -122,6 +123,9 @@ class SKIExecutor:
         """
         self.case_path = Path(case_path).expanduser().resolve()
         self.driver = driver
+        # Business definitions are immutable module assets; cache the parser result
+        # across Cases while keeping every business_call execution context isolated.
+        self._business_models = None
         self.driver_factory = driver_factory
         self._driver_closed = False
 
@@ -1704,7 +1708,9 @@ class SKIExecutor:
 
     def _execute_step_item(self, step: Dict[str, Any], phase_label: str) -> None:
         """执行一个普通步骤 / if / loop 项；scenario 仅由 _run_steps 顶层调度。"""
-        if step.get('type') == 'if':
+        if step.get('type') == 'business_call':
+            self._execute_business_call(step, phase_label)
+        elif step.get('type') == 'if':
             self._execute_if_block(step, phase_label)
         elif step.get('type') == 'loop':
             loop_range = step.get('range', '')
@@ -1718,6 +1724,118 @@ class SKIExecutor:
         else:
             logger.debug(f"  [{self._phase_runtime_seq}] {step['action']}")
             self.execute_step(step, phase_label)
+
+    def _execute_business_call(self, call: Dict[str, Any], phase_label: str) -> None:
+        """Execute one business-model invocation inside its host Case.
+
+        The business graph owns path selection; the Case owns lifecycle and
+        failure propagation.  A call receives a private data view so projecting
+        a business input row onto an ordinary interface model never mutates the
+        module's source SQLite tables or leaks into the next call.
+        """
+        required = ("ref", "flow", "input", "expect")
+        missing = [name for name in required if not str(call.get(name, "")).strip()]
+        if missing:
+            raise BusinessModelError(f"business_call 缺少必填属性: {', '.join(missing)}")
+
+        business_dir = self.module_dir / "business"
+        if self._business_models is None:
+            if not business_dir.is_dir():
+                raise BusinessModelError(f"业务模型目录不存在: {business_dir}")
+            self._business_models = BusinessModelParser().parse_directory(business_dir)
+
+        model_id = call["ref"]
+        model = self._business_models.get(model_id)
+        if model is None:
+            raise BusinessModelError(f"找不到业务模型 ref={model_id!r}")
+
+        # Keep each call isolated.  The normal DataTableParser remains the
+        # source of truth; this copy is only a scoped projection for model
+        # actions whose model table name differs from the business table name.
+        previous_tables = self.data_manager.tables
+        call_tables = copy.deepcopy(previous_tables)
+        self.data_manager.tables = call_tables
+
+        def run_business_step(business_step, context):
+            resolved = str(business_step.data or "")
+            for variable, value in (
+                ("${Business.InputDataID}", context["Business"]["InputDataID"]),
+                ("${Business.ExpectDataID}", context["Business"]["ExpectDataID"]),
+            ):
+                resolved = resolved.replace(variable, str(value))
+
+            action = business_step.action.lower()
+            if action in ("send", "type") and resolved == str(context["Business"]["InputDataID"]):
+                model_name = business_step.model
+                model_def = self.model_parser.get_model(model_name) if self.model_parser else None
+                if model_def:
+                    model_fields = {
+                        name for name in model_def if not name.startswith("__")
+                    }
+                    projected = {
+                        key: value for key, value in context["Input"].items()
+                        if key in model_fields
+                    }
+                    if projected:
+                        call_tables.setdefault(model_name, {})[resolved] = projected
+
+            history_before = len(self.keyword_engine._context.history)
+            step_dict = {
+                "action": business_step.action,
+                "model": business_step.model,
+                "data": resolved,
+                # Business nodes use the same action implementation as normal
+                # Case steps; subset is only relevant to model-driven actions.
+                "match_mode": "subset",
+            }
+            self.execute_step(step_dict, phase_label)
+
+            history = self.keyword_engine._context.history
+            if len(history) <= history_before:
+                return {}
+            output = history[-1]
+            if not isinstance(output, dict):
+                return {}
+            normalized = dict(output)
+            capture = normalized.get("_capture")
+            if isinstance(capture, dict):
+                normalized.update(capture)
+            return normalized
+
+        try:
+            executor = BusinessModelExecutor(
+                model, call_tables,
+                data_source=getattr(self.data_manager, "_sqlite_source", None),
+                step_runner=run_business_step,
+            )
+            result = executor.execute(call["flow"], call["input"], call["expect"])
+        finally:
+            self.data_manager.tables = previous_tables
+
+        business_record = {
+            "id": call.get("id", ""),
+            "ref": model_id,
+            "flow": call["flow"],
+            "input": call["input"],
+            "expect": call["expect"],
+            "actual_path": list(result.actual_path),
+            "expected_path": list(result.expected_path),
+            "actual": result.actual,
+            "expected": result.expected,
+            "passed": result.passed,
+            "assertion_errors": result.assertion_errors,
+            "nodes": result.node_results,
+        }
+        self._current_case_steps_log.append({
+            "index": len(self._current_case_steps_log) + 1,
+            "action": "business_call",
+            "model": model_id,
+            "phase": phase_label,
+            "status": "ok" if result.passed else "fail",
+            "business_result": business_record,
+        })
+        if not result.passed:
+            raise BusinessModelError("; ".join(result.assertion_errors))
 
     def _execute_scenario(
         self,
