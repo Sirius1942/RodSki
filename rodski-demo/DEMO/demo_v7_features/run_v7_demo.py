@@ -24,7 +24,7 @@ if str(project_root / "rodski") not in sys.path:
 from core.case_parser import CaseParser
 
 DEMO_DIR = Path(__file__).resolve().parent
-CASE_FILE = DEMO_DIR / "case" / "v7_demo.xml"
+CASE_FILE = DEMO_DIR / "case"  # CaseParser 支持目录并聚合 v7_smoke/regression/edge XML
 
 # ─── 颜色工具 ────────────────────────────────────────────────────────────
 GREEN = "\033[92m"

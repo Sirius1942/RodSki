@@ -53,19 +53,104 @@ _BROWSER_ACTIONS = frozenset({
     'upload_file', 'clear', 'get_text', 'assert',
 })
 
+# Actions that are intrinsically UI/browser operations.  They must trigger a
+# browser even when a model.xml entry happens to carry a non-web type; the
+# business graph, not model metadata, is the source of the operation kind.
+_BUSINESS_UI_ACTIONS = frozenset({
+    'navigate', 'click', 'type', 'evaluate', 'hover', 'screenshot',
+    'get', 'select', 'upload', 'launch', 'double_click', 'right_click',
+    'upload_file', 'clear', 'get_text',
+})
+
+
+def _business_model_driver_types(module_dir: Path) -> dict:
+    """读取 business model 步骤用于区分接口模型与 UI 模型的 driver 类型。"""
+    model_path = module_dir / "model" / "model.xml"
+    try:
+        root = ET.parse(model_path).getroot()
+    except (ET.ParseError, OSError):
+        return {}
+
+    driver_types = {}
+    for model in root.findall("model"):
+        name = (model.get("name") or "").strip()
+        if not name:
+            continue
+        driver_type = (model.get("driver_type") or "").strip().lower()
+        if not driver_type:
+            model_type = (model.get("type") or "ui").strip().lower()
+            driver_type = model_type if model_type in {"interface", "database"} else "web"
+        driver_types[name] = driver_type
+    return driver_types
+
+
+def _business_model_needs_browser(business_model: ET.Element, driver_types: dict) -> bool:
+    """判断引用的业务模型是否包含需要浏览器的实际步骤。
+
+    UI 动作本身足以说明需要浏览器，不被 model.xml 中偶然的 driver/type
+    元数据覆盖。``assert`` 既可能是接口断言也可能是页面断言，因此只有在
+    关联模型是 web/未知类型时才计入浏览器需求。
+    """
+    non_browser_drivers = {"interface", "database", "android", "ios", "mobile"}
+    for step in business_model.iter("test_step"):
+        action = (step.get("action") or "").strip().lower()
+        if action in _BUSINESS_UI_ACTIONS:
+            return True
+        if action == "assert":
+            model_name = (step.get("model") or "").strip()
+            if not model_name or driver_types.get(model_name, "web") not in non_browser_drivers:
+                return True
+    return False
+
+
+def _business_call_needs_browser(business_call: ET.Element, module_dir: Path, driver_types: dict) -> bool:
+    """按 business/*.xml 中的 business_model@id 查找业务调用。
+
+    一个 business XML 文件可以承载多个业务模型，ref 是模型 id 而不是
+    文件名；因此不能只拼接 ``business/{ref}.xml``。
+    """
+    ref = (business_call.get("ref") or "").strip()
+    if not ref or ref in {".", ".."} or "/" in ref or "\\" in ref:
+        return False
+
+    business_dir = module_dir / "business"
+    if not business_dir.is_dir():
+        return False
+    for business_path in sorted(business_dir.glob("*.xml")):
+        try:
+            root = ET.parse(business_path).getroot()
+        except (ET.ParseError, OSError):
+            # 缺失或无效的业务模型会由执行阶段报告；扫描阶段不应因此中断。
+            continue
+        if root.tag != "business_models":
+            continue
+        for business_model in root.findall("business_model"):
+            if (business_model.get("id") or "").strip() == ref:
+                return _business_model_needs_browser(business_model, driver_types)
+    return False
+
 
 def _needs_browser(case_path: Path) -> bool:
-    """扫描 case XML，判断是否有需要浏览器的步骤"""
+    """扫描 case XML 及 business_call 引用，判断是否有需要浏览器的步骤。"""
     xml_files = list(case_path.glob("*.xml")) if case_path.is_dir() else ([case_path] if case_path.is_file() else [])
+    module_dir = resolve_module_dir(case_path)
+    driver_types = _business_model_driver_types(module_dir)
+
     for xml_file in xml_files:
         try:
             root = ET.parse(xml_file).getroot()
-            for step in root.iter('test_step'):
-                action = (step.get('action') or '').strip().lower()
-                if action in _BROWSER_ACTIONS:
-                    return True
         except ET.ParseError:
-            pass
+            continue
+
+        # 普通 test_step 保持原有判断规则。
+        for step in root.iter('test_step'):
+            action = (step.get('action') or '').strip().lower()
+            if action in _BROWSER_ACTIONS:
+                return True
+
+        for business_call in root.iter("business_call"):
+            if _business_call_needs_browser(business_call, module_dir, driver_types):
+                return True
     return False
 
 
@@ -190,5 +275,10 @@ def main():
 
     print(f"\n📄 结果已保存到: {module_dir / 'result'}/")
 
+    # ski_run.py is a test runner.  Propagate the already calculated case
+    # result to the shell so CI/scripts can distinguish a failed run from a
+    # successful one.  Keep the existing output and success behavior intact.
+    return 1 if failed > 0 else 0
+
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

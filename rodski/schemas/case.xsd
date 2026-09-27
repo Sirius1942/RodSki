@@ -29,6 +29,7 @@
     <xs:sequence>
       <xs:choice minOccurs="0" maxOccurs="unbounded">
         <xs:element name="test_step" type="StepType"/>
+        <xs:element name="business_call" type="BusinessCallType"/>
         <xs:element name="if" type="NestedIfType"/>
       </xs:choice>
       <xs:element name="else" type="ElseType" minOccurs="0" maxOccurs="1"/>
@@ -39,7 +40,10 @@
   <!-- 嵌套 if 容器（第 2 层，不可再嵌套） -->
   <xs:complexType name="NestedIfType">
     <xs:sequence>
-      <xs:element name="test_step" type="StepType" minOccurs="0" maxOccurs="unbounded"/>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element name="test_step" type="StepType"/>
+        <xs:element name="business_call" type="BusinessCallType"/>
+      </xs:choice>
       <xs:element name="else" type="ElseType" minOccurs="0" maxOccurs="1"/>
     </xs:sequence>
     <xs:attribute name="condition" type="xs:string" use="required"/>
@@ -48,7 +52,10 @@
   <!-- elif 容器：条件 + 步骤（跟在 if 或 elif 后面） -->
   <xs:complexType name="ElifType">
     <xs:sequence>
-      <xs:element name="test_step" type="StepType" minOccurs="0" maxOccurs="unbounded"/>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element name="test_step" type="StepType"/>
+        <xs:element name="business_call" type="BusinessCallType"/>
+      </xs:choice>
     </xs:sequence>
     <xs:attribute name="condition" type="xs:string" use="required"/>
   </xs:complexType>
@@ -56,17 +63,21 @@
   <!-- else 容器 -->
   <xs:complexType name="ElseType">
     <xs:sequence>
-      <xs:element name="test_step" type="StepType" minOccurs="0" maxOccurs="unbounded"/>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element name="test_step" type="StepType"/>
+        <xs:element name="business_call" type="BusinessCallType"/>
+      </xs:choice>
     </xs:sequence>
   </xs:complexType>
 
   <!-- loop 容器：循环执行一组步骤 -->
   <xs:complexType name="LoopContainerType">
     <xs:choice minOccurs="0" maxOccurs="unbounded">
-      <xs:element name="test_step" type="StepType"/>
-      <xs:element name="if" type="IfContainerType"/>
-      <xs:element name="elif" type="ElifType"/>
-      <xs:element name="else" type="ElseType"/>
+        <xs:element name="test_step" type="StepType"/>
+        <xs:element name="business_call" type="BusinessCallType"/>
+        <xs:element name="if" type="IfContainerType"/>
+        <xs:element name="elif" type="ElifType"/>
+        <xs:element name="else" type="ElseType"/>
     </xs:choice>
     <xs:attribute name="range" type="xs:string" use="required"/>
     <xs:attribute name="var" type="xs:string" use="optional"/>
@@ -76,6 +87,7 @@
   <xs:complexType name="ScenarioType">
     <xs:choice minOccurs="0" maxOccurs="unbounded">
       <xs:element name="test_step" type="StepType"/>
+      <xs:element name="business_call" type="BusinessCallType"/>
       <xs:element name="if" type="IfContainerType"/>
       <xs:element name="elif" type="ElifType"/>
       <xs:element name="else" type="ElseType"/>
@@ -92,6 +104,7 @@
   <xs:complexType name="PhaseType">
     <xs:choice minOccurs="0" maxOccurs="unbounded">
       <xs:element name="test_step" type="StepType"/>
+      <xs:element name="business_call" type="BusinessCallType"/>
       <xs:element name="if" type="IfContainerType"/>
       <xs:element name="elif" type="ElifType"/>
       <xs:element name="else" type="ElseType"/>
@@ -103,11 +116,12 @@
   <xs:complexType name="TestCasePhaseType">
     <xs:choice minOccurs="1" maxOccurs="unbounded">
       <xs:element name="test_step" type="StepType"/>
+      <xs:element name="business_call" type="BusinessCallType"/>
       <xs:element name="if" type="IfContainerType"/>
       <xs:element name="elif" type="ElifType"/>
       <xs:element name="else" type="ElseType"/>
       <xs:element name="loop" type="LoopContainerType"/>
-      <xs:element name="scenario" type="ScenarioType"/>
+        <xs:element name="scenario" type="ScenarioType"/>
     </xs:choice>
   </xs:complexType>
 
@@ -146,6 +160,15 @@
       <xs:enumeration value="subset"/>
     </xs:restriction>
   </xs:simpleType>
+
+  <!-- Business model calls are first-class Case steps with explicit test intent and data. -->
+  <xs:complexType name="BusinessCallType">
+    <xs:attribute name="id" type="xs:string" use="optional"/>
+    <xs:attribute name="ref" type="xs:string" use="required"/>
+    <xs:attribute name="flow" type="xs:string" use="required"/>
+    <xs:attribute name="input" type="xs:string" use="required"/>
+    <xs:attribute name="expect" type="xs:string" use="required"/>
+  </xs:complexType>
 
   <xs:complexType name="StepType">
     <xs:attribute name="action" type="ActionType" use="required"/>

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 登录流程图：测试 Case 通过 business_call 选择 flow；边条件只依据真实接口响应。 -->
+<business_models version="0.1">
+    <business_model id="login_flow" name="用户登录流程" version="1"
+                    lifecycle="business" idempotent="true">
+        <description>登录后依据真实响应状态进入首页、错误提示或账号锁定提示。</description>
+        <!-- 输入使用 login_flow 普通 Data 表，期望使用 login_flow_verify 普通 Verify 表；均按 RodSki 现有 SQLite EAV 规范维护。 -->
+        <nodes>
+            <node id="open_login" title="开始登录流程" />
+            <node id="submit_login" title="提交登录">
+                <description>username/password 等输入字段来自 login_flow 业务模型 Data 表；字段名由 SQLite schema 定义。</description>
+                <steps>
+                    <test_step action="send" model="LoginAPI" data="${Business.InputDataID}" />
+                </steps>
+            </node>
+            <node id="validate_login" title="读取登录结果">
+                <description>读取 submit_login 节点真实接口响应中的 auto_capture 字段；后续边只依据实际 login_status 判断，不读取 Case.flow。</description>
+            </node>
+            <node id="home" title="登录成功" />
+            <node id="error" title="凭据无效" />
+            <node id="locked" title="账号锁定" />
+        </nodes>
+        <edges>
+            <edge from="open_login" to="submit_login" />
+            <edge from="submit_login" to="validate_login" />
+            <edge from="validate_login" to="home"
+                  condition="${Business.Actual.login_status} == 'success'" label="登录成功" />
+            <edge from="validate_login" to="error"
+                  condition="${Business.Actual.login_status} == 'invalid_credentials'" label="账号或密码错误" />
+            <edge from="validate_login" to="locked"
+                  condition="${Business.Actual.login_status} == 'locked'" label="账号锁定" />
+        </edges>
+        <!-- flow 仅声明合法路径/测试意图，不控制条件边的选择。 -->
+        <flows>
+            <flow id="F_LOGIN_SUCCESS" type="basic" path="open_login&gt;submit_login&gt;validate_login&gt;home" />
+            <flow id="F_LOGIN_INVALID" type="alternative" path="open_login&gt;submit_login&gt;validate_login&gt;error" />
+            <flow id="F_LOGIN_LOCKED" type="exception" path="open_login&gt;submit_login&gt;validate_login&gt;locked" />
+        </flows>
+    </business_model>
+</business_models>

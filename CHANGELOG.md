@@ -1,5 +1,21 @@
 # Changelog
 
+
+## [11.4.0] - 2026-09-27
+
+### Added
+
+- 新增业务模型（Business Model）场景法能力：节点、条件边、基本流、备选流和异常流。
+- 支持 Case 通过 `business_call` 显式引用业务模型、选择业务流并绑定 SQLite Data/Verify 数据表。
+- 新增业务模型 XML Schema、静态图校验、JSON/Mermaid 图、coverage 汇总和 debug CLI。
+- 新增 `rodski-demo/DEMO/demo_business_model` 验收 Demo，覆盖成功、凭据错误、账号锁定及路径错配负向场景。
+
+### Validation
+
+- 业务模型 Demo：3 条正式 Case 通过，1 条路径错配样例按预期失败；节点/边/flow 覆盖 6/6、5/5、3/3。
+- 专项兼容测试：163 passed。
+- 可运行的无外部依赖 Demo 已完成验收，`demo_full` 默认回归 19/19 PASS。
+
 All notable changes to RodSki will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),

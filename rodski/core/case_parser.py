@@ -163,6 +163,9 @@ class CaseParser:
                 if step.get('action'):
                     steps.append(step)
                 i += 1
+            elif el.tag == 'business_call':
+                steps.append(CaseParser._parse_business_call_element(el))
+                i += 1
             elif el.tag == 'if':
                 if_block = CaseParser._parse_if_element(el, depth=1)
                 # 收集紧跟的 elif / else 元素
@@ -174,19 +177,11 @@ class CaseParser:
                     if nxt.tag == 'elif':
                         elif_chain.append({
                             'condition': str(nxt.get('condition', '') or '').strip(),
-                            'steps': [
-                                CaseParser._parse_step_element(s)
-                                for s in nxt.findall('test_step')
-                                if s.get('action')
-                            ],
+                            'steps': CaseParser._parse_branch_steps(nxt),
                         })
                         j += 1
                     elif nxt.tag == 'else':
-                        else_steps = [
-                            CaseParser._parse_step_element(s)
-                            for s in nxt.findall('test_step')
-                            if s.get('action')
-                        ]
+                        else_steps = CaseParser._parse_branch_steps(nxt)
                         j += 1
                         break  # else 终止链
                     else:
@@ -222,6 +217,18 @@ class CaseParser:
         }
 
     @staticmethod
+    def _parse_business_call_element(el: ET.Element) -> Dict[str, str]:
+        """解析 business_call 集成步骤属性。"""
+        return {
+            'type': 'business_call',
+            'id': str(el.get('id', '') or '').strip(),
+            'ref': str(el.get('ref', '') or '').strip(),
+            'flow': str(el.get('flow', '') or '').strip(),
+            'input': str(el.get('input', '') or '').strip(),
+            'expect': str(el.get('expect', '') or '').strip(),
+        }
+
+    @staticmethod
     def _parse_if_element(el: ET.Element, depth: int = 1) -> Dict[str, Any]:
         """解析 if 条件元素（支持 else 分支和嵌套 if，最多 2 层）
 
@@ -231,11 +238,13 @@ class CaseParser:
         """
         condition = str(el.get('condition', '') or '').strip()
 
-        # 解析 then 分支（直属子元素，支持 test_step 和嵌套 if）
+        # 解析 then 分支（直属子元素，支持 business_call 和嵌套 if）
         then_steps: List[Dict[str, Any]] = []
         for child in el:
             if child.tag == 'test_step' and child.get('action'):
                 then_steps.append(CaseParser._parse_step_element(child))
+            elif child.tag == 'business_call':
+                then_steps.append(CaseParser._parse_business_call_element(child))
             elif child.tag == 'if':
                 if depth >= 2:
                     raise ValueError(
@@ -245,14 +254,10 @@ class CaseParser:
             # else 元素在下面单独处理
 
         # 解析 else 分支（仅内联 else，非 phase 级别）
-        else_steps: List[Dict[str, str]] = []
+        else_steps: List[Dict[str, Any]] = []
         else_el = el.find('else')
         if else_el is not None:
-            else_steps = [
-                CaseParser._parse_step_element(step)
-                for step in else_el.findall('test_step')
-                if step.get('action')
-            ]
+            else_steps = CaseParser._parse_branch_steps(else_el)
 
         return {
             'type': 'if',
@@ -262,15 +267,24 @@ class CaseParser:
         }
 
     @staticmethod
+    def _parse_branch_steps(parent: ET.Element) -> List[Dict[str, Any]]:
+        """解析 if/elif/else/loop 的直属动作，避免 business_call 被静默丢弃。"""
+        steps: List[Dict[str, Any]] = []
+        for child in parent:
+            if child.tag == 'test_step' and child.get('action'):
+                steps.append(CaseParser._parse_step_element(child))
+            elif child.tag == 'business_call':
+                steps.append(CaseParser._parse_business_call_element(child))
+        return steps
+
+    @staticmethod
     def _parse_loop_element(el: ET.Element) -> Dict[str, Any]:
         """解析 loop 循环元素"""
         return {
             'type': 'loop',
             'range': str(el.get('range', '') or '').strip(),
             'var': str(el.get('var', 'item') or '').strip(),
-            'steps': [CaseParser._parse_step_element(step)
-                     for step in el.findall('test_step')
-                     if step.get('action')],
+            'steps': CaseParser._parse_branch_steps(el),
         }
 
     @staticmethod

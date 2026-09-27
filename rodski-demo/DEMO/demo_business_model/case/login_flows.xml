@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 正式可执行业务模型 Case；运行说明见 README.md。 -->
+<cases tags="business-model-demo,login">
+    <case execute="是" id="TC-BM-LOGIN-OK" title="登录成功基本流" priority="P0">
+        <test_case>
+            <business_call id="login_success" ref="login_flow" flow="F_LOGIN_SUCCESS"
+                           input="LOGIN_OK_01" expect="LOGIN_OK_01" />
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC-BM-LOGIN-INVALID" title="错误密码备选流" priority="P1">
+        <test_case>
+            <business_call id="login_invalid" ref="login_flow" flow="F_LOGIN_INVALID"
+                           input="LOGIN_INVALID_01" expect="LOGIN_INVALID_01" />
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC-BM-LOGIN-LOCKED" title="锁定账号异常流" priority="P1">
+        <test_case>
+            <business_call id="login_locked" ref="login_flow" flow="F_LOGIN_LOCKED"
+                           input="LOGIN_LOCKED_01" expect="LOGIN_LOCKED_01" />
+        </test_case>
+    </case>
+</cases>

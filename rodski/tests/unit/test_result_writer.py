@@ -89,6 +89,121 @@ class TestWriteResult:
         assert result_elem.get("error_message") == "Element not found"
 
 
+    def test_business_result_written_and_schema_valid(self, result_dir):
+        """business_call step 的完整结果应落盘，并由 result.xsd 校验。"""
+        rw = ResultWriter(result_dir)
+        rw.write_result({
+            "case_id": "TC-BM-LOGIN-OK",
+            "status": "PASS",
+            "steps": [{
+                "index": 1,
+                "phase": "test_case",
+                "action": "business_call",
+                "model": "login_flow",
+                "status": "ok",
+                "business_result": {
+                    "id": "login_success",
+                    "ref": "login_flow",
+                    "flow": "F_LOGIN_SUCCESS",
+                    "input": "LOGIN_OK_01",
+                    "expect": "LOGIN_SUCCESS_01",
+                    "passed": True,
+                    "actual_path": ["open_login", "submit_login", "validate_login", "home"],
+                    "expected_path": ["open_login", "submit_login", "validate_login", "home"],
+                    "actual": {"login_status": "success", "message": "登录成功"},
+                    "expected": {"login_status": "success", "message": "登录成功"},
+                    "nodes": [{
+                        "node_id": "validate_login",
+                        "steps": [{"login_status": "success"}],
+                    }],
+                    "assertion_errors": [],
+                },
+            }],
+        })
+
+        result_file = next(Path(result_dir).glob("rodski_*/result.xml"))
+        business = ET.parse(result_file).find("results/result/steps/step/business_result")
+        assert business is not None
+        assert business.attrib["flow"] == "F_LOGIN_SUCCESS"
+        assert business.attrib["input"] == "LOGIN_OK_01"
+        assert business.attrib["expect"] == "LOGIN_SUCCESS_01"
+        assert business.attrib["passed"] == "true"
+        assert [node.get("id") for node in business.findall("actual_path/node")] == [
+            "open_login", "submit_login", "validate_login", "home"
+        ]
+        assert [node.get("id") for node in business.findall("expected_path/node")] == [
+            "open_login", "submit_login", "validate_login", "home"
+        ]
+        assert {
+            field.get("name"): field.get("value")
+            for field in business.findall("actual/field")
+        } == {"login_status": "success", "message": "登录成功"}
+        assert {
+            field.get("name"): field.get("value")
+            for field in business.findall("expected/field")
+        } == {"login_status": "success", "message": "登录成功"}
+        assert business.find("nodes/node[@id='validate_login']") is not None
+        assert business.find("assertion_errors") is not None
+        assert business.find("assertion_errors").findall("error") == []
+
+    def test_business_result_failure_keeps_assertion_errors(self, result_dir):
+        """路径/字段断言失败也必须保留可追溯的结构化结果。"""
+        rw = ResultWriter(result_dir)
+        rw.write_result({
+            "case_id": "TC-BM-LOGIN-MISMATCH",
+            "status": "FAIL",
+            "steps": [{
+                "index": 1,
+                "action": "business_call",
+                "status": "fail",
+                "business_result": {
+                    "flow": "F_LOGIN_SUCCESS",
+                    "input": "LOGIN_BAD_01",
+                    "expect": "LOGIN_SUCCESS_01",
+                    "actual_path": ["open_login", "submit_login", "validate_login", "error"],
+                    "expected_path": ["open_login", "submit_login", "validate_login", "home"],
+                    "actual": {"login_status": "invalid_credentials"},
+                    "expected": {"login_status": "success"},
+                    "nodes": [{"node_id": "error", "steps": []}],
+                    "assertion_errors": [
+                        "Path mismatch: expected home, got error",
+                        "Field 'login_status': expected 'success', got 'invalid_credentials'",
+                    ],
+                },
+            }],
+        })
+
+        business = ET.parse(next(Path(result_dir).glob("rodski_*/result.xml"))).find(
+            "results/result/steps/step/business_result"
+        )
+        assert [error.text for error in business.findall("assertion_errors/error")] == [
+            "Path mismatch: expected home, got error",
+            "Field 'login_status': expected 'success', got 'invalid_credentials'",
+        ]
+        assert business.find("actual_path/node[@id='error']") is not None
+
+    def test_legacy_step_result_remains_schema_compatible(self, result_dir):
+        """没有 business_result 的旧步骤结果仍按原结构写入。"""
+        rw = ResultWriter(result_dir)
+        rw.write_result({
+            "case_id": "TC-LEGACY",
+            "status": "PASS",
+            "steps": [{
+                "index": 1,
+                "action": "navigate",
+                "model": "",
+                "data": "https://example.com",
+                "status": "OK",
+            }],
+        })
+
+        step = ET.parse(next(Path(result_dir).glob("rodski_*/result.xml"))).find(
+            "results/result/steps/step"
+        )
+        assert step.get("action") == "navigate"
+        assert step.find("business_result") is None
+
+
 class TestBatchWrite:
     def test_batch_write(self, result_dir):
         rw = ResultWriter(result_dir)
