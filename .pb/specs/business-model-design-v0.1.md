@@ -954,7 +954,7 @@ PYTHONDONTWRITEBYTECODE=1 python3 rodski/business_debug.py \
 
 ## 16. 业务模型 XML 核心设计约束
 
-> 本章是本特性设计阶段的强制约束清单，用于实现和验收；它整体仍**尚未**纳入 `rodski/docs/CORE_DESIGN_CONSTRAINTS.md`。截至 2026-09-24，XSD、Case `business_call`、普通 SQLite Data/Verify、真实条件分支、路径/字段断言和 debug 隔离已有实现；完整静态校验、图生成、coverage、统一错误码和完整 trace 仍是待验收目标。只有专项测试、Demo 正式用例和兼容性门禁全部通过后，才提议将稳定条款择要上升到项目级核心设计约束。
+> 本章是本特性设计阶段的强制约束清单，用于实现和验收；其中稳定条款已于 v11.4.0–v11.4.1 择要纳入 `rodski/docs/CORE_DESIGN_CONSTRAINTS.md` §2.7。截至 2026-09-24，XSD、Case `business_call`、普通 SQLite Data/Verify、真实条件分支、路径/字段断言和 debug 隔离已有实现；完整静态校验、图生成、coverage、统一错误码和完整 trace 仍是待验收目标。其余条款在专项测试、Demo 正式用例和兼容性门禁全部通过后再择要上升。
 
 ### 16.1 XML Schema 与解析约束
 

@@ -13,14 +13,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
 import sys
 from pathlib import Path
 
-DEFAULT_REPO = Path.home() / "TestCase"
-DEFAULT_GLOBAL_RODSKI = Path("/opt/homebrew/bin/rodski")
+DEFAULT_REPO = Path(os.environ.get("RODSKI_CASE_REPO") or Path.cwd())
+DEFAULT_GLOBAL_RODSKI = Path(os.environ.get("RODSKI_BIN") or shutil.which("rodski") or "rodski")
 DEFAULT_LONG_TERM_RODSKI = Path.home() / ".local/share/rodski/venv/bin/rodski"
 GUARD = Path(__file__).resolve().with_name("rodski_case_guard.py")
 

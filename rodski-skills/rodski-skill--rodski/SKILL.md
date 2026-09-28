@@ -1,6 +1,6 @@
 ---
 name: rodski
-description: 用于 RodSki 框架源码、XML 活文档协议、关键字实现、XSD schema、CLI、视觉/Desktop/API/DB 能力和 demo 验收链路。处理 RodSki 用例、model.xml、data.sqlite/globalvalue.xml、plan/*.xml 或 TEST_CASE_WRITING_GUIDE.md 合规任务时，优先使用 rodski-case-writer。
+description: 用于 RodSki 框架源码、XML 活文档协议、关键字实现、XSD schema、CLI、视觉/Desktop/API/DB 能力和 demo 验收链路。处理 RodSki 用例、model.xml、business/*.xml、data.sqlite/globalvalue.xml、plan/*.xml 或 TEST_CASE_WRITING_GUIDE.md 合规任务时，优先使用 rodski-case-writer。
 ---
 
 # RodSki
@@ -11,7 +11,7 @@ RodSki 是面向 AI Agent 的确定性执行引擎与 XML 协议层。Agent 负�
 
 ## 任务边界
 
-如果目标是编写、修改、审查或校验 RodSki 用例、`case/*.xml`、`model/model.xml`、`data/data.sqlite`、`data/globalvalue.xml` 或 `plan/*.xml`，优先使用 `rodski-case-writer`，不限于 `$HOME/TestCase`。本 skill 主要服务 RodSki 框架源码、协议、schema、关键字实现、CLI 能力和 demo 验收链路。
+如果目标是编写、修改、审查或校验 RodSki 用例、`case/*.xml`、`model/model.xml`、`data/data.sqlite`、`data/globalvalue.xml`、`plan/*.xml` 或 `business/*.xml`，优先使用 `rodski-case-writer`。本 skill 主要服务 RodSki 框架源码、协议、schema、关键字实现、CLI 能力和 demo 验收链路。
 
 ## 规范来源
 
@@ -22,7 +22,8 @@ RodSki 是面向 AI Agent 的确定性执行引擎与 XML 协议层。Agent 负�
 - `rodski/docs/DATA_FILE_ORGANIZATION.md`：测试数据与全局变量组织规则。
 - `rodski/docs/VISION_LOCATION.md`：视觉定位契约。
 - `rodski/docs/AGENT_INTEGRATION.md`：Agent 与 RodSki 职责边界。
-- `rodski/schemas/*.xsd`：可执行 XML 约束。
+- `rodski/schemas/*.xsd`：可执行 XML 约束（含 v11.4 业务模型 `business.xsd`）。
+- `.pb/specs/business-model-design-v0.1.md`：业务模型（场景法）设计稿；实现位于 `rodski/core/business_model.py`、`rodski/rodski_cli/business.py`。
 
 如果代码与 `CORE_DESIGN_CONSTRAINTS.md` 或 `TEST_CASE_WRITING_GUIDE.md` 冲突，以文档为准并让代码服从，除非用户明确要求修改契约。
 
@@ -32,10 +33,10 @@ RodSki 是面向 AI Agent 的确定性执行引擎与 XML 协议层。Agent 负�
 
 ## 本机工具入口
 
-优先使用稳定全局入口 `/opt/homebrew/bin/rodski`。该入口会转发到长期 RodSki 安装环境，并在需要时通过 skill wrapper 补齐执行 `run`、`data` 等命令所需的 `PYTHONPATH`：
+优先使用用户或目标仓库声明的 RodSki CLI；未声明时使用 `PATH` 上的 `rodski`（在 RodSki 源码仓库内通常是 `.venv/bin/rodski`）：
 
 ```bash
-RODSKI="/opt/homebrew/bin/rodski"
+RODSKI="${RODSKI_BIN:-$(command -v rodski)}"
 "$RODSKI" --version
 ```
 
@@ -46,18 +47,19 @@ RODSKI="/opt/homebrew/bin/rodski"
 "$RODSKI" run --help
 "$RODSKI" data --help
 "$RODSKI" plan --help
+"$RODSKI" business --help
 "$RODSKI" --help | rg -q '\bcapabilities\b' && "$RODSKI" capabilities
 ```
 
-当前 `$HOME/TestCase` 环境里优先使用全局入口 `/opt/homebrew/bin/rodski` 或 `rodski-case-writer` 的流程。该全局入口应转发到长期 RodSki 安装环境 `$HOME/.local/share/rodski/venv/bin/rodski`，不依赖仓库本地 `myenv`。若直接调用 CLI 并看到 `ModuleNotFoundError: No module named 'core'`，改用 wrapper 或设置匹配的 `PYTHONPATH`。
+若直接调用 CLI 并看到 `ModuleNotFoundError: No module named 'core'`，改用 `scripts/rodski.sh` wrapper 或设置匹配的 `PYTHONPATH`。
 
 本机可能有多个 RodSki 入口。若用户明确指定某个入口，先运行 `--version` 重新确认。
 
 可用性选择顺序：
 
 1. 用户明确指定的 RodSki CLI
-2. `/opt/homebrew/bin/rodski`（稳定全局入口）
-3. `$HOME/.local/share/rodski/venv/bin/rodski`（长期 RodSki 安装环境）
+2. 目标仓库本地说明中声明的 CLI
+3. 当前仓库虚拟环境中的 `rodski`（如 `.venv/bin/rodski`）
 4. `command -v rodski` 找到的全局入口
 
 只有在这些入口都不存在，或用户要求安装/升级 RodSki 时，才进入安装流程。
@@ -81,7 +83,7 @@ playwright install chromium
 常用执行命令：
 
 ```bash
-RODSKI="/opt/homebrew/bin/rodski"
+RODSKI="${RODSKI_BIN:-$(command -v rodski)}"
 
 # 执行一个 case 文件、case 目录或测试模块
 "$RODSKI" run rodski-demo/DEMO/demo_full/case/demo_case.xml
@@ -143,6 +145,19 @@ RODSKI="/opt/homebrew/bin/rodski"
 "$RODSKI" data import <module> --overwrite
 ```
 
+业务模型（v11.4，模块下 `business/*.xml`；正式执行只能通过 Case 的 `<business_call>`）：
+
+```bash
+"$RODSKI" business list      rodski-demo/DEMO/demo_business_model
+"$RODSKI" business flow-list rodski-demo/DEMO/demo_business_model --id login_flow
+"$RODSKI" business validate  rodski-demo/DEMO/demo_business_model
+"$RODSKI" business graph     rodski-demo/DEMO/demo_business_model --id login_flow --format mermaid
+"$RODSKI" business coverage  rodski-demo/DEMO/demo_business_model --id login_flow
+# 仅调试一次调用，不产生正式 Case 结果
+"$RODSKI" business debug rodski-demo/DEMO/demo_business_model --id login_flow \
+  --flow F_LOGIN_SUCCESS --input LOGIN_OK_01 --expect LOGIN_OK_01
+```
+
 不要在未重新确认工具存在前生成 `rodski explain ...`、`rodski-agent ...`、`rodski init --with-verify --with-sqlite`、`rodski data validate --strict` 或 `rodski capabilities`。先以当前 CLI 的顶层 `--help`、子命令帮助、XSD 和最小 dry-run 为准；仅在 `--help` 列出 `capabilities` 时才调用它。
 
 查看帮助/能力：
@@ -167,6 +182,7 @@ RODSKI="/opt/homebrew/bin/rodski"
 - 用例编写细则以目标仓库的 `TEST_CASE_WRITING_GUIDE.md`、`rodski-case-writer`、当前 CLI/XSD 为准；本 skill 不复制完整规则，避免多处漂移。
 - 保持三元模型：Case 编排动作，Model 定义元素/API/DB 字段，数据进入 `data/data.sqlite`，全局变量只放 `data/globalvalue.xml`。
 - 受支持关键字、定位器类型、特殊值的权威清单以 `rodski capabilities` 为准；本文档与 `references/` 出现的关键字名单只是示例和常见幻觉提示，不是完整白名单。API 测试使用 `send` + `verify`；UI 批量输入和原子动作使用 `type` + 数据行；不要新增 `http_get`、`assert_json`、`vision_click`、`clipboard` 等第二套关键字。
+- 业务模型（`business/*.xml`）只描述节点、条件边和 flow；`<business_call>` 是 Case 元素不是关键字，节点步骤复用现有关键字。`flow` 只做断言、不能强制选边；边条件只允许白名单 AST，不得引入 `eval`。数据表固定为 `<id>` / `<id>_verify` 普通表。改动需同步 `business.xsd`、`case.xsd`、`CORE_DESIGN_CONSTRAINTS.md` §2.7 和 `TEST_CASE_WRITING_GUIDE.md` 第 17 章。
 - Web/Mobile 导航用 `navigate`；Desktop 启动或切换用 `launch` 前必须确认当前 guide、CLI help、XSD、可选 capabilities 输出和 dry-run 一致。若它们冲突，报告冲突并以 dry-run 结果为准。
 
 ## 校验
@@ -174,7 +190,7 @@ RODSKI="/opt/homebrew/bin/rodski"
 使用仓库现有校验方式。常见检查包括：
 
 ```bash
-RODSKI="/opt/homebrew/bin/rodski"
+RODSKI="${RODSKI_BIN:-$(command -v rodski)}"
 "$RODSKI" --version
 "$RODSKI" --help
 "$RODSKI" run --help

@@ -1,7 +1,7 @@
 {
   "name": "rodski-vscode",
   "displayName": "RodSki Data Editor",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -43,6 +43,10 @@
       {
         "command": "rodski.openCase",
         "title": "Open with RodSki"
+      },
+      {
+        "command": "rodski.openBusinessModel",
+        "title": "RodSki: Open Business Model Diagram"
       }
     ],
     "menus": {
@@ -55,6 +59,11 @@
         {
           "command": "rodski.openCase",
           "when": "resourceExtname == .xml && resourcePath =~ /\\/case\\//",
+          "group": "navigation"
+        },
+        {
+          "command": "rodski.openBusinessModel",
+          "when": "resourceExtname == .xml && resourcePath =~ /\\/business\\//",
           "group": "navigation"
         }
       ],

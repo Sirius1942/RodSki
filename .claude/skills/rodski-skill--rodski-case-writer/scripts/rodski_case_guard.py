@@ -78,7 +78,7 @@ FALLBACK_LOCATOR_TYPES = {
 }
 SKIP_PARTS = {".git", "myenv", "node_modules", "__pycache__", "result", ".vscode", ".idea"}
 WAIT_LONG_THRESHOLD_SECONDS = 5.0
-DEFAULT_GLOBAL_RODSKI = Path("/opt/homebrew/bin/rodski")
+DEFAULT_GLOBAL_RODSKI = Path(os.environ.get("RODSKI_BIN") or shutil.which("rodski") or "rodski")
 DEFAULT_LONG_TERM_RODSKI = Path.home() / ".local/share/rodski/venv/bin/rodski"
 
 

@@ -1,6 +1,28 @@
 # Changelog
 
 
+## [11.4.1] - 2026-09-28
+
+### Added
+
+- VS Code 扩展新增业务模型流程图面板（`rodski-vscode`）。
+- 用例编写指南新增第 17 章「业务模型」：`business/*.xml` 结构、静态校验规则、条件表达式白名单、`B` / `B_verify` 数据表约定、`<business_call>` 用法、结果与 `rodski business` CLI。
+- `rodski-skills`：case-writer 新增 `references/business-model.md`；test-guide 新增 `17_business_model.md` 切片；rodski skill 补充 `business` 子命令。
+
+### Changed
+
+- 核心设计约束 §2.7 补充目录与表名约定、不新增关键字、确定性分支、校验先于副作用四条；模块目录规范加入可选 `business/`。
+- `rodski-skills` 去除业务相关内容：`$HOME/TestCase` 固定路径、`/opt/homebrew/bin/rodski` 固定入口、具体业务流程示例、内部 Registry 地址和 improve 笔记索引；case-writer 脚本默认改为当前目录 / `RODSKI_BIN` / `PATH`。
+
+### Fixed
+
+- `demo_load/README.md` 中无法执行的 `@plan_id=` 命令改为 `rodski run @api_load_basic`。
+
+### Validation
+
+- 单元测试 2504 passed, 3 xfailed。
+- `demo_full` 13 个用例文件 56/56 PASS；`demo_business_model` 3 条正式 Case PASS + 1 条预期失败；`demo_hooks`、`demo_runtime_control`、`demo_pause_takeover`、`demo_roaming_test`、`demo_v11_enhancement`（4/4）、`demo_v7_features`、`demo_load`（466 请求 0 错误）全部通过。
+
 ## [11.4.0] - 2026-09-27
 
 ### Added

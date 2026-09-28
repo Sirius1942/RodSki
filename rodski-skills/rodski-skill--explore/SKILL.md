@@ -44,7 +44,7 @@ description: RodSki AI 驱动的探索式测试能力。当用户要求"探索�
 
 ```bash
 # 1. 列出所有已通过的用例
-cd product/cassmall/payment  # 进入模块目录
+cd product/<项目名>/payment  # 进入模块目录
 rodski run case/ --dry-run | grep PASS
 
 # 或查看最近一次运行结果
@@ -131,7 +131,7 @@ TXN_ID="TXN_explore_${TIMESTAMP}_$$"
 # - data.sqlite: NormalUser、InsufficientBalanceUser（复用现有数据）
 #   注意：唯一性字段需动态生成，不能直接复用原值
 
-rodski data list product/cassmall/payment
+rodski data list product/<项目名>/payment
 # 输出：
 #   PaymentData (5 行)
 #   UserData (10 行)
@@ -192,7 +192,7 @@ rodski data list product/cassmall/payment
 ```bash
 # 生成唯一会话 ID
 SESSION_ID="explore_$(date +%s)_$$"
-MODULE_DIR="product/cassmall/payment"
+MODULE_DIR="product/<项目名>/payment"
 
 # 设置预算
 BUDGET_STEPS=30

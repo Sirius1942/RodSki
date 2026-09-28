@@ -1,6 +1,6 @@
 # RodSki API 与 DB 模式
 
-RodSki 接口和数据库用例使用本文。实时契约仍以 `TEST_CASE_WRITING_GUIDE.md` 为准；本文是从 `$HOME/TestCase/improve` 提炼出的紧凑模式索引。
+RodSki 接口和数据库用例使用本文。实时契约仍以 `TEST_CASE_WRITING_GUIDE.md` 为准；本文是从实际用例经验中提炼的紧凑模式索引。
 
 ## API 主路径
 

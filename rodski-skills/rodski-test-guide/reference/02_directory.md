@@ -23,6 +23,8 @@ product/                           ← 产品根目录（最顶层）
         ├── plan/                  ← 测试计划 XML
         │   ├── project_full.xml
         │   └── *_smoke.xml
+        ├── business/              ← 业务模型 XML（v11.4，可选；使用 business_call 时需要）
+        │   └── business.xml
         ├── perf/                  ← 压测预编译产物（v8.0，kind=load 计划自动生成）
         │   └── api_load_basic.py
         ├── knowledge/             ← 漫游测试地图（v8.3，首次写入时自动生成）
@@ -32,7 +34,7 @@ product/                           ← 产品根目录（最顶层）
             └── result_20260321_100000.xml
 ```
 
-标准模块布局使用 `case/`、`model/`、`fun/`、`data/`、`plan/`、`result/` 这 6 个固定目录名，但当前目录合规硬检查只要求 `case/`、`model/`、`data/`。`fun/` 在使用 `run` 工程时需要，`plan/` 在按计划执行时需要，`result/` 由框架生成。`perf/` 与 `knowledge/` 都按功能需要出现；`knowledge/` 不需要手工创建，也不参与 `REQUIRED_MODULE_DIRS` 检查。
+标准模块布局使用 `case/`、`model/`、`fun/`、`data/`、`plan/`、`result/` 这 6 个固定目录名，但当前目录合规硬检查只要求 `case/`、`model/`、`data/`。`fun/` 在使用 `run` 工程时需要，`plan/` 在按计划执行时需要，`result/` 由框架生成。`perf/`、`knowledge/` 与 `business/` 都按功能需要出现（`business/` 见[第 17 章](#17-业务模型business-modelv1140)）；`knowledge/` 不需要手工创建，也不参与 `REQUIRED_MODULE_DIRS` 检查。
 
 ### 2.1 XML 文件与目录映射
 
@@ -46,6 +48,7 @@ product/                           ← 产品根目录（最顶层）
 | plan/*.xml | `plan/` 目录 | 测试计划定义，每个文件一个计划 |
 | result_*.xml | `result/` 目录 | 框架自动生成的测试结果 |
 | model.xml | `model/` 目录 | 元素定位模型 |
+| business/*.xml | `business/` 目录 | 业务模型：节点、条件边、业务流（v11.4，可选） |
 | test_map.json | `knowledge/` 目录 | 漫游测试自动生成的知识地图；应用层校验 `schema_version=1`，无 XSD |
 
 ### 2.2 Schema 约束（与 `rodski/schemas` 对齐）
@@ -58,6 +61,7 @@ product/                           ← 产品根目录（最顶层）
 | `model.xsd` | `<models>` | 人工 | `<model>` 须 `name`；`<element>` 须 `name`。仅支持**完整格式**（子节点 `<type>` / `<location>` / `<desc>`），~~简化格式已移除（v5.4.0）~~。`DriverType` / `LocatorType` 取值见 [4.2](#42-元素属性说明)、[4.3](#43-定位类型)。接口保留元素名：`_method`、`_url`、`_header_*`（与数据字段一一对应）。 |
 | `data.xsd` | `<datatable>` / `<datatables>` | 人工 | 已废弃（v6.0.0）。测试数据统一存储在 `data.sqlite`，验证数据表名为 `{模型名}_verify`，`table_kind='verify'`。 |
 | `globalvalue.xsd` | `<globalvalue>` | 人工 | 每个 `<group>` 须 `name`；**所有 group 的 `name` 全局唯一**。每组内至少一个 `<var>`，每个 `var` 须同时具备 `name` 与 `value`；**同一 group 内** `var@name` **唯一**（XSD `xs:unique`）。引用格式：`GlobalValue.组名.变量名`。 |
+| `business.xsd` | `<business_models>` | 人工 | v11.4 业务模型。`business_model` 须 `id`/`name`/`version`，内含 `nodes`/`edges`/`flows`；`flow@type` 只能是 `basic` \| `alternative` \| `exception` \| `boundary`。Case 中用 `<business_call ref flow input expect>` 引用（四个属性均必填）。详见 [第 17 章](#17-业务模型business-modelv1140)。 |
 | `result.xsd` | `<testresult>` | **框架生成** | 手工一般无需编写；结构见 [附录：测试结果 XML](#附录测试结果-xmlresultxsd)。 |
 
 本地校验示例（需安装 `xmllint`，Mac 可用 Xcode 命令行工具）：

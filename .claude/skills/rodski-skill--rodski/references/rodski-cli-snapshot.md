@@ -2,34 +2,24 @@
 
 这是最近一次本机快照，不是事实来源。使用前必须重新运行当前 CLI 的 `--version`、`--help` 和相关子命令 `--help`；当前 CLI 顶层 `--help` 列出 `capabilities` 子命令时即可调用它，关键字/定位器/特殊值等清单直接以它的实时输出为准。当快照与当前 CLI、XSD、guide 冲突时，以当前验证结果为准，并在结论中说明冲突。
 
-快照采集入口：
-
-```bash
-/opt/homebrew/bin/rodski
-```
+快照采集入口：`PATH` 上的 `rodski`（`command -v rodski`）。
 
 快照版本（采集时；当前以 `--version` 为准，本机最近一次确认为 7.1.5）：
 
 ```text
-RodSki 7.1.5  ← 历史采集值，使用前用 `/opt/homebrew/bin/rodski --version` 重新确认
+RodSki 7.1.5  ← 历史采集值，使用前用 `rodski --version` 重新确认
 ```
 
 ## 入口
 
-TestCase 用例任务优先使用：
+默认使用主 skill 声明的入口选择顺序：
 
 ```bash
-/opt/homebrew/bin/rodski --version
-```
-
-默认使用主 skill 声明的全局入口：
-
-```bash
-RODSKI="/opt/homebrew/bin/rodski"
+RODSKI="${RODSKI_BIN:-$(command -v rodski)}"
 "$RODSKI" --version
 ```
 
-仅当 `/opt/homebrew/bin/rodski` 不可用，或直接调用 CLI 出现 `ModuleNotFoundError: No module named 'core'` 这类安装形态/PYTHONPATH 问题时，才临时使用历史 wrapper：
+仅当 `PATH` 上的 `rodski` 不可用，或直接调用 CLI 出现 `ModuleNotFoundError: No module named 'core'` 这类安装形态/PYTHONPATH 问题时，才临时使用历史 wrapper：
 
 ```bash
 RODSKI="scripts/rodski.sh"
@@ -162,9 +152,9 @@ rodski [--version] {run,model,config,log,report,docs,data,init,plan,capabilities
 component_types、execute_values 等是会随版本漂移的清单。**不要在本文冻结这份 JSON**——以当前 CLI 实时输出为权威来源：
 
 ```bash
-/opt/homebrew/bin/rodski capabilities
+rodski capabilities
 # 只看关键字 / 定位器 / 特殊值：
-/opt/homebrew/bin/rodski capabilities | python3 -c "import sys,json; d=json.load(sys.stdin); print('version', d['version']); print('keywords', d['supported_keywords']); print('locators', d['locator_types']); print('special', d['special_values'])"
+rodski capabilities | python3 -c "import sys,json; d=json.load(sys.stdin); print('version', d['version']); print('keywords', d['supported_keywords']); print('locators', d['locator_types']); print('special', d['special_values'])"
 ```
 
 `rodski_case_guard.py` 已经直接读取 `capabilities` 的 `supported_keywords` 校验 action、
@@ -179,6 +169,6 @@ component_types、execute_values 等是会随版本漂移的清单。**不要在
 当前 XSD 路径可动态确认（用当前 RodSki 安装环境的 python，不要写死路径）：
 
 ```bash
-RODSKI_PY="$(/opt/homebrew/bin/rodski --help >/dev/null 2>&1; echo $HOME/.local/share/rodski/venv/bin/python)"
+RODSKI_PY="$(head -1 "$(command -v rodski)" | sed 's/^#!//')"   # rodski 入口脚本的 shebang 解释器
 "$RODSKI_PY" -c "import pathlib, rodski; print(pathlib.Path(rodski.__path__[0]) / 'schemas' / 'case.xsd')"
 ```

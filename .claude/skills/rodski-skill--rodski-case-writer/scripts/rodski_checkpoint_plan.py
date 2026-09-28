@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
+import shutil
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
@@ -12,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 
-DEFAULT_RODSKI = "/opt/homebrew/bin/rodski"
+DEFAULT_RODSKI = os.environ.get("RODSKI_BIN") or shutil.which("rodski") or "rodski"
 
 
 @dataclass

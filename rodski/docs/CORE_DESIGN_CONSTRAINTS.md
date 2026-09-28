@@ -489,6 +489,10 @@ pip install rodski[perception-remote]
 4. **数据唯一来源**：业务模型输入和输出只能使用 RodSki 现有 SQLite `data.sqlite` 的普通 Data/Verify 逻辑表。业务 XML 不得重复声明 `username`、`password`、端口或自定义字段；业务模型名与数据表的对应关系必须明确，字段由数据表定义。
 5. **XML Schema 强校验**：业务 XML 必须通过 `business.xsd`；根元素、模型 ID、节点 ID、边引用、条件边、流程类型、flow 路径以及 `business_call` 的必填属性必须满足 Schema 和静态图校验。流程图不得含环、不可达节点或悬空引用。
 6. **可追溯结果**：执行结果必须记录目标 flow、实际路径、输入/期望数据引用及路径/字段断言结果；coverage 只能从正式 Case 结果汇总，不能用模型静态定义冒充执行覆盖。
+7. **目录与表名约定**：业务模型放在测试模块下可选的 `business/*.xml`（`business_model@id` 在模块内唯一）。模型 `B` 的输入表固定为普通 `B`（`table_kind='data'`），期望表固定为 `B_verify`（`table_kind='verify'`）；`expected_path` 是 Verify 表保留字段，与实际路径比较。禁止业务专用元表或额外 `table_kind`。
+8. **不新增关键字**：`<business_call>` 是 Case 结构元素（与 `scenario`/`if`/`loop` 同级），不属于 SUPPORTED 关键字；节点内步骤必须复用现有 `test_step` 与关键字实现，不得为业务模型另造关键字体系。
+9. **确定性分支**：图必须单入口、无环、无不可达节点；多出边节点的每条出边都必须有 `condition`。边条件只允许白名单 AST（比较、`and/or/not`、常量、`${Business.Actual.*}` 等变量），禁止 `eval` 或任意代码。运行时每个节点的出边必须恰好命中 1 条，0 条或多条均失败，不得默认取第一条。
+10. **校验先于副作用**：Schema 校验和图静态校验必须在启动浏览器、调用接口或执行脚本之前完成；定义无效时不得产生任何外部副作用。
 
 ## 3. 接口测试设计约束
 
@@ -924,6 +928,8 @@ product/                           ← 产品根目录（顶层）
         │   └── data.sqlite        ← 唯一测试数据文件（必须）
         ├── plan/                  ← 测试计划 XML 文件
         │   └── *.xml
+        ├── business/              ← 可选：业务模型 XML（v11.4，使用 business_call 时需要）
+        │   └── business.xml
         ├── result/                ← 测试结果 XML（框架自动生成）
         │   └── result_*.xml
         ├── perf/                  ← 可选：压测预编译产物（kind=load 时生成）
@@ -954,7 +960,7 @@ product/                           ← 产品根目录（顶层）
 | `perf/` | 性能压测功能专属的预编译产物目录，可选 | `{plan_id}.py`、`{plan_id}.py.meta` |
 | `knowledge/` | 漫游测试功能专属的知识目录，首次写入时自动创建，可选 | `test_map.json`、`test_map.json.lock` |
 
-`case/`、`model/`、`fun/`、`data/`、`plan/`、`result/` 是标准模块布局中的 6 个固定目录名，但当前 `directory_structure` 合规硬检查只要求 `case/`、`model/`、`data/`。`fun/` 在使用 `run` 工程时需要，`plan/` 在按计划执行时需要，`result/` 由框架按输出需要生成。`perf/` 与 `knowledge/` 都是功能专属目录；尤其不得要求用户为了未启用漫游而手工创建 `knowledge/`。
+`case/`、`model/`、`fun/`、`data/`、`plan/`、`result/` 是标准模块布局中的 6 个固定目录名，但当前 `directory_structure` 合规硬检查只要求 `case/`、`model/`、`data/`。`fun/` 在使用 `run` 工程时需要，`plan/` 在按计划执行时需要，`result/` 由框架按输出需要生成。`perf/`、`knowledge/` 与 `business/` 都是功能专属目录（`business/` 见 §2.7）；尤其不得要求用户为了未启用漫游而手工创建 `knowledge/`。
 
 ### 6.4 禁止变更
 

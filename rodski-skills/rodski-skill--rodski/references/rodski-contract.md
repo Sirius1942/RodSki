@@ -36,7 +36,7 @@ pip install -e ".[all]"
 常用 RodSki CLI：
 
 ```bash
-RODSKI="/opt/homebrew/bin/rodski"
+RODSKI="${RODSKI_BIN:-$(command -v rodski)}"
 "$RODSKI" --version
 "$RODSKI" run case/ --output-format json
 "$RODSKI" run case/ --dry-run
@@ -45,7 +45,7 @@ RODSKI="/opt/homebrew/bin/rodski"
 "$RODSKI" init /path/to/MyTestModule
 ```
 
-仅当 `/opt/homebrew/bin/rodski` 不可用，或直接调用 CLI 出现 `ModuleNotFoundError: No module named 'core'` 这类安装形态/PYTHONPATH 问题时，才临时使用历史 wrapper：
+仅当 `PATH` 上的 `rodski` 不可用，或直接调用 CLI 出现 `ModuleNotFoundError: No module named 'core'` 这类安装形态/PYTHONPATH 问题时，才临时使用历史 wrapper：
 
 ```bash
 RODSKI="scripts/rodski.sh"

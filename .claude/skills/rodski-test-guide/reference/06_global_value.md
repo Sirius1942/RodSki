@@ -20,6 +20,14 @@
     <var name="type" value="sqlite"/>
     <var name="database" value="product/DEMO/demo_site/demo.db"/>
   </group>
+  <group name="Roam">
+    <var name="Enabled" value="否"/>
+    <var name="MaxVariantsPerCase" value="5"/>
+    <var name="MaxDurationSeconds" value="120"/>
+    <var name="MinConfidenceToAct" value="0.6"/>
+    <var name="MaxTokenBudget" value="20000"/>
+    <var name="MaxCostUsd" value="0.5"/>
+  </group>
 </globalvalue>
 ```
 
@@ -44,6 +52,12 @@ GlobalValue.DefaultValue.WaitTime     → "2"
 | DefaultValue | BrowserType | 浏览器类型 | chromium / firefox / webkit |
 | DefaultValue | WaitTime | 每步执行后自动等待秒数 | 2 |
 | DefaultValue | Headless | 无头模式 | True / False |
+| Roam | Enabled | 漫游全局开关；只有 `是` 才允许显式漫游 | 是 / 否 |
+| Roam | MaxVariantsPerCase | 单个基础用例最多执行的漫游变体数 | 5 |
+| Roam | MaxDurationSeconds | 单个漫游会话时长上限（秒） | 120 |
+| Roam | MinConfidenceToAct | 自动执行动作的最低置信度 | 0.6 |
+| Roam | MaxTokenBudget | 自定义/后续 LLM 引擎 token 上限；核心默认引擎不使用 LLM | 20000 |
+| Roam | MaxCostUsd | 自定义/后续 LLM 引擎成本上限（美元） | 0.5 |
 
 ### 6.4 WaitTime — 默认步骤等待时间
 

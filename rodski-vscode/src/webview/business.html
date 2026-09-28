@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-{{nonce}}'; style-src 'unsafe-inline';">
+<script nonce="{{nonce}}">window.__BUSINESS_DATA__ = {{BUSINESS_DATA_JSON}};</script>
+<style>
+  :root { color-scheme: light dark; }
+  body { margin: 0; padding: 12px; font-family: var(--vscode-font-family); font-size: 13px; color: var(--vscode-foreground); background: var(--vscode-editor-background); }
+  .toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+  .filepath { flex: 1 1 240px; min-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--vscode-descriptionForeground); font-size: 12px; }
+  label { color: var(--vscode-descriptionForeground); font-size: 12px; }
+  select, button { font: inherit; color: var(--vscode-button-foreground); background: var(--vscode-button-background); border: 1px solid var(--vscode-button-border, transparent); border-radius: 2px; padding: 3px 8px; }
+  select { color: var(--vscode-foreground); background: var(--vscode-dropdown-background); border-color: var(--vscode-dropdown-border); max-width: 260px; }
+  button { cursor: pointer; }
+  button:hover { background: var(--vscode-button-hoverBackground); }
+  .zoom-group { display: inline-flex; align-items: center; gap: 4px; }
+  #zoom-label { display: inline-block; width: 42px; text-align: center; color: var(--vscode-descriptionForeground); font-size: 12px; }
+  .status { min-height: 18px; padding: 4px 8px; color: var(--vscode-descriptionForeground); }
+  .status.warning { color: var(--vscode-editorWarning-foreground); background: var(--vscode-editorWarning-background); }
+  .status.error, .error-text { color: var(--vscode-errorForeground); }
+  .model-meta { padding: 6px 8px; border-top: 1px solid var(--vscode-panel-border); border-bottom: 1px solid var(--vscode-panel-border); }
+  .model-title { font-weight: 600; }
+  .model-detail { margin-top: 3px; color: var(--vscode-descriptionForeground); font-size: 12px; word-break: break-word; }
+  #diagram-wrap { position: relative; overflow: hidden; margin-top: 8px; min-height: 420px; height: min(68vh, 680px); border: 1px solid var(--vscode-panel-border); background: var(--vscode-editor-background); }
+  #diagram { width: 100%; height: 100%; display: block; user-select: none; }
+  #diagram.panning { cursor: grabbing; }
+  .business-edge { fill: none; stroke: var(--vscode-descriptionForeground); stroke-width: 1.8; cursor: pointer; transition: opacity .15s, stroke .15s, stroke-width .15s; }
+  .business-edge:hover, .business-edge.active, .business-edge.selected { stroke: var(--vscode-charts-blue); stroke-width: 3; }
+  .business-edge.dimmed { opacity: .22; }
+  .edge-label { fill: var(--vscode-descriptionForeground); font-size: 11px; pointer-events: none; }
+  marker path { fill: var(--vscode-descriptionForeground); }
+  .business-node { cursor: pointer; outline: none; transition: opacity .15s; }
+  .business-node rect, .business-node polygon { fill: var(--vscode-editorWidget-background); stroke: var(--vscode-panel-border); stroke-width: 1.8; }
+  .business-node.node-start rect, .business-node.node-start-end rect { fill: color-mix(in srgb, var(--vscode-testing-iconPassed) 16%, var(--vscode-editorWidget-background)); stroke: var(--vscode-testing-iconPassed); }
+  .business-node.node-terminal rect { fill: color-mix(in srgb, var(--vscode-charts-blue) 16%, var(--vscode-editorWidget-background)); stroke: var(--vscode-charts-blue); }
+  .business-node.node-decision polygon { fill: color-mix(in srgb, var(--vscode-charts-yellow) 17%, var(--vscode-editorWidget-background)); stroke: var(--vscode-charts-yellow); }
+  .business-node.active rect, .business-node.active polygon { stroke-width: 2.5; }
+  .business-node.dimmed { opacity: .27; }
+  .business-node.selected rect, .business-node.selected polygon, .business-node:hover rect, .business-node:hover polygon { stroke: var(--vscode-focusBorder); stroke-width: 3; }
+  .node-title { fill: var(--vscode-foreground); font-size: 13px; font-weight: 600; pointer-events: none; }
+  .node-id { fill: var(--vscode-descriptionForeground); font-size: 10px; pointer-events: none; }
+  .bottom-grid { display: grid; grid-template-columns: minmax(240px, 1fr) minmax(260px, 1.3fr); gap: 10px; margin-top: 10px; }
+  .legend, .details { padding: 8px; border: 1px solid var(--vscode-panel-border); background: var(--vscode-editorWidget-background); }
+  .legend-title, .detail-section-title { color: var(--vscode-descriptionForeground); font-size: 12px; font-weight: 600; margin-bottom: 5px; }
+  .legend-items { display: flex; flex-wrap: wrap; gap: 8px 14px; color: var(--vscode-descriptionForeground); font-size: 12px; }
+  .legend-item::before { content: ''; display: inline-block; width: 10px; height: 10px; margin-right: 4px; vertical-align: -1px; border: 2px solid var(--vscode-panel-border); background: var(--vscode-editorWidget-background); }
+  .legend-item.start::before { border-color: var(--vscode-testing-iconPassed); border-radius: 50%; }
+  .legend-item.decision::before { border-color: var(--vscode-charts-yellow); transform: rotate(45deg); }
+  .legend-item.terminal::before { border-color: var(--vscode-charts-blue); border-radius: 50%; }
+  .details h3 { margin: 0 0 7px; font-size: 14px; }
+  .detail-row { display: flex; gap: 8px; margin: 4px 0; line-height: 1.35; }
+  .detail-key { flex: 0 0 68px; color: var(--vscode-descriptionForeground); }
+  .detail-value { min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .hint { margin: 8px 0 0; color: var(--vscode-descriptionForeground); font-size: 12px; line-height: 1.45; }
+  .step-list { margin: 4px 0 0 18px; padding: 0; color: var(--vscode-descriptionForeground); font-size: 12px; }
+  .step-list li { margin: 3px 0; overflow-wrap: anywhere; }
+  @media (max-width: 760px) { .bottom-grid { grid-template-columns: 1fr; } .toolbar select { max-width: 180px; } }
+</style>
+</head>
+<body>
+  <div class="toolbar">
+    <span class="filepath" id="filepath"></span>
+    <label for="model-select">模型</label>
+    <select id="model-select" aria-label="选择业务模型"></select>
+    <label for="flow-select">路径</label>
+    <select id="flow-select" aria-label="选择业务流"></select>
+    <span class="zoom-group">
+      <button id="zoom-out" title="缩小">−</button>
+      <span id="zoom-label">100%</span>
+      <button id="zoom-in" title="放大">＋</button>
+      <button id="fit-view">适配</button>
+      <button id="reset-view">复位</button>
+    </span>
+    <button id="open-source">打开源文件</button>
+  </div>
+  <div id="status" class="status"></div>
+  <div id="model-meta" class="model-meta"></div>
+  <div id="diagram-wrap">
+    <svg id="diagram" role="img" aria-label="业务模型图"></svg>
+  </div>
+  <div class="bottom-grid">
+    <div class="legend">
+      <div class="legend-title">图例</div>
+      <div class="legend-items">
+        <span class="legend-item start">开始</span>
+        <span class="legend-item decision">分支</span>
+        <span class="legend-item terminal">终止</span>
+        <span class="legend-item">普通节点</span>
+        <span>高亮：选中 flow 的路径</span>
+      </div>
+    </div>
+    <div id="details" class="details"></div>
+  </div>
+<script nonce="{{nonce}}" src="{{businessJsUri}}"></script>
+</body>
+</html>

@@ -10,7 +10,7 @@ RodSki 对外发布的独立 Skill 集合，可被 Claude Code、Claude Agent SD
 | 与 `.claude/skills/` 的区别 | `.claude/skills/` 是本仓库 Claude Code 会话的本地加载目录；`rodski-skills/` 是**可分发**、可归档、可打包的对外产物源 |
 | 版本对齐 | `VERSION` 文件与 `rodski/__init__.py::__version__` 保持一致，由发布流程 `bump_all_versions()` 自动同步 |
 | 分发形式 | 每次正式发布生成 `dist/rodski-skills-vX.Y.Z.zip`，可挂载到 GitHub Release / 内部仓库 / SkillHub Registry |
-| Registry | 当前 SkillHub Registry 为 `https://skills.casstime.com`；当前已安装 namespace 为 `rodski-skill`，后续建议统一为 `rodski-skills` |
+| Registry | 通过环境变量 `CLAWHUB_REGISTRY` 指定所用 SkillHub Registry（不在仓库中写死）；当前已安装 namespace 为 `rodski-skill`，后续建议统一为 `rodski-skills` |
 
 ## 目录结构
 
@@ -21,9 +21,8 @@ rodski-skills/
 ├── rodski-test-guide/                    # 用例编写指南 Skill（由 TEST_CASE_WRITING_GUIDE.md 切片生成）
 ├── rodski-skill--rodski/                 # 框架源码 / 协议 / CLI / schema 总控 Skill
 ├── rodski-skill--rodski-case-writer/     # 用例编写、修改、审查、调试 Skill
-├── rodski-skill--switch-rodski-env/      # RodSki 用例换环境 Skill
-├── rodski-skill--submit-testcases-gitlab/# 测试资产提交 GitLab Skill
 ├── rodski-skill--diagnose/               # 疑难 bug / 性能回归诊断 Skill
+├── rodski-skill--explore/                # 探索式测试 Skill
 ├── rodski-skill--pause-takeover/         # 「暂停 → Agent 接管页面 → 继续」交接 Skill (RodSki v11.1.0+)
 └── scripts/                              # 维护脚本（不进入发行包）
     ├── sync_test_guide.sh
@@ -36,11 +35,10 @@ rodski-skills/
 
 | Skill | 来源 / 版本 | 说明 |
 |-------|-------------|------|
-| `rodski-test-guide` | **v11.3.0** (sha256: `146aafe8e498`)；源文档 `rodski/docs/TEST_CASE_WRITING_GUIDE.md` | RodSki 用例 / 模型 / 数据 / 关键字编写权威指南，章节切片位于 `reference/*.md` |
+| `rodski-test-guide` | **v11.4.0** (sha256: `a9eedd1b1f48`)；源文档 `rodski/docs/TEST_CASE_WRITING_GUIDE.md` | RodSki 用例 / 模型 / 数据 / 关键字编写权威指南，章节切片位于 `reference/*.md` |
 | `rodski-skill--rodski` | SkillHub `20260605.034754` | RodSki 框架源码、XML 活文档协议、关键字实现、XSD schema、CLI、视觉/Desktop/API/DB 能力和 demo 验收链路 |
-| `rodski-skill--rodski-case-writer` | SkillHub `20260605.034337` | 在任意 RodSki 用例仓库中编写、修改、调试或审查 `case/model/data/plan` 资产 |
-| `rodski-skill--switch-rodski-env` | SkillHub `20260605.035123` | beta/ci/stage/prod 等环境迁移；补齐缺失用例资产；只替换 URL 和数据库地址 |
-| `rodski-skill--submit-testcases-gitlab` | SkillHub `20260605.035047` | 将提交者自己的 RodSki 测试资产提交到共享 GitLab 仓库个人分支和 owner directory |
+| `rodski-skill--rodski-case-writer` | SkillHub `20260605.034337` | 在任意 RodSki 用例仓库中编写、修改、调试或审查 `case/model/business/data/plan` 资产（含业务模型 `business_call`） |
+| `rodski-skill--explore` | 随主仓库版本 | 基于已通过用例基线的 AI 探索式测试 |
 | `rodski-skill--diagnose` | SkillHub `20260605.034904` | 疑难 bug 和性能回归诊断循环：反馈循环 → 复现 → 假设 → 插桩 → 修复 → 回归 |
 | `rodski-skill--pause-takeover` | **RodSki ≥ v11.1.0**（需 CLI `--cdp` + driver CDP attach） | 用例「暂停 → Agent 接管页面 → 继续」工作流：固定用例跑到目标页后由外部 Agent 用 playwright 判断页面并操作 1-2 个按钮，RodSki 再在同一 CDP 共享浏览器会话继续 verify；框架无关，任何能加载 Markdown skill 的 Agent 可自行编导 |
 
@@ -52,12 +50,11 @@ rodski-skills/
 |----------|----------|
 | 询问 RodSki 用例规则、关键字语义、model.xml/data.sqlite 写法 | `rodski-test-guide` |
 | 编写、修改、审查、修复 RodSki 用例资产 | `rodski-skill--rodski-case-writer` |
+| 用场景法建业务模型（`business/*.xml`、`business_call`、基本流/备选流/异常流） | `rodski-skill--rodski-case-writer`（`references/business-model.md`）；语法细节查 `rodski-test-guide` 第 17 章 |
 | 调试 RodSki 用例运行结果、分析 result 目录 | `rodski-skill--rodski-case-writer` |
 | 修改 RodSki 框架源码、关键字实现、XSD、CLI、驱动层或 demo 验收 | `rodski-skill--rodski` |
 | 排查框架 bug、疑难失败、性能回归 | `rodski-skill--diagnose`，必要时结合 `rodski-skill--rodski` |
-| 将旧环境用例迁移到新环境，只切 URL/DB 地址 | `rodski-skill--switch-rodski-env` |
 | 让固定用例跑到目标页后暂停、由外部 AI Agent 接管页面操作、再继续验证 | `rodski-skill--pause-takeover`（CDP 共享浏览器、双 run 交接；Agent 自编导） |
-| 提交测试资产到共享 GitLab | `rodski-skill--submit-testcases-gitlab` |
 | 发布 RodSki 正式版本 | `.claude/skills/rodski-release`（后续建议纳入本目录和 registry） |
 
 ## 与发布流程的集成
@@ -90,7 +87,7 @@ bash rodski-skills/scripts/package_release.sh $(cat rodski-skills/VERSION)
 从 SkillHub 更新本地 Claude Code skills：
 
 ```bash
-export CLAWHUB_REGISTRY=https://skills.casstime.com
+export CLAWHUB_REGISTRY=<your-skillhub-registry-url>
 npx clawhub --workdir /path/to/rodski --dir .claude/skills update
 ```
 
@@ -110,4 +107,4 @@ npx clawhub --workdir /path/to/rodski --dir .claude/skills update
 2. 修正 bundled scripts 的执行路径，避免 `python3 scripts/xxx.py` 在项目根目录下找不到文件。
 3. 同步 `rodski-test-guide` 到当前 RodSki 版本。
 4. 将 `.claude/skills/rodski-release` 纳入 registry 和本目录归档。
-5. 将 `$HOME/TestCase`、GitLab URL、默认环境目录等业务默认值配置化。
+5. 业务相关 skill（换环境、提交 GitLab）已归档到 `.archived-business-specific/`；保留在本目录的 skill 不得写死业务系统、仓库路径、账号或内部 URL。

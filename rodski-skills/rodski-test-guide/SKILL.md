@@ -6,7 +6,8 @@ description: >
   set / screenshot / assert / clear / upload_file / launch / evaluate / close / check）
   怎么用、data.sqlite 怎么填、Case XML 三阶段（pre_process / test_case / post_process）
   格式、scenario 容器、测试计划 plan/*.xml、GlobalValue 引用、Return 索引、视觉定位器
-  vision/ocr/vision_bbox、桌面端 / 移动端自动化时触发。完整内容按章节拆分在 reference/*.md，
+  vision/ocr/vision_bbox、桌面端 / 移动端自动化、性能压测、业务模型（business/*.xml、
+  business_call、场景法基本流/备选流/异常流）时触发。完整内容按章节拆分在 reference/*.md，
   Agent 命中后按需 Read 对应章节。
 type: reference
 version: 11.4.0
@@ -25,6 +26,7 @@ source: rodski/docs/TEST_CASE_WRITING_GUIDE.md
 - **关键字使用**：「type / verify / send / DB / run / get / set / wait / navigate / launch / screenshot / assert / clear / upload_file / evaluate / close 怎么用」「click / select / hover 是关键字吗」
 - **测试计划**：「plan/*.xml 怎么写」「scenario 容器」「按 tag/group 筛选」
 - **平台**：「桌面端怎么测」「移动端怎么测」「Appium 配置」「app:// URI」
+- **业务模型**：「业务模型怎么写」「business.xml / business_call 怎么用」「场景法 基本流/备选流/异常流」「rodski business validate / graph / coverage」
 - **校验失败**：「XSD 校验报错」「Schema 约束」
 
 ## 使用方式
@@ -40,7 +42,7 @@ source: rodski/docs/TEST_CASE_WRITING_GUIDE.md
 | 文件 | 章节 | 适用问题 |
 |------|------|---------|
 | [`reference/01_concepts.md`](reference/01_concepts.md) | 1. 核心概念：关键字 + 模型 + 数据 | 三要素如何协作、整体心智模型 |
-| [`reference/02_directory.md`](reference/02_directory.md) | 2. 目录结构 | `product/项目/模块/{case,model,data,fun,plan,result}` 六文件夹规范、XSD 校验入口 |
+| [`reference/02_directory.md`](reference/02_directory.md) | 2. 目录结构 | `product/项目/模块/{case,model,data,fun,plan,result}` 六文件夹规范、可选 `business/`、XSD 校验入口 |
 | [`reference/03_case_xml.md`](reference/03_case_xml.md) | 3. Case XML — 用例编写 | `<cases>` / `<case>` / `<pre_process>` / `<test_case>` / `<post_process>` / `<test_step>` / `<scenario>` / `<if>` / `<loop>` 属性与执行语义 |
 | [`reference/04_model_xml.md`](reference/04_model_xml.md) | 4. model.xml — 模型编写 | `<model>` / `<element>` / `<location type>` 全部 12 种定位器、多定位器优先级 |
 | [`reference/05_data_tables.md`](reference/05_data_tables.md) | 5. 数据表 — 测试数据编写 | `data.sqlite` EAV 元表、`rodski data` 命令、字段一致性、UI 动作关键字（click / select / key_press 等）、SQL 数据表 |
@@ -53,7 +55,9 @@ source: rodski/docs/TEST_CASE_WRITING_GUIDE.md
 | [`reference/12_vision_locator.md`](reference/12_vision_locator.md) | 12. 视觉定位器 vision / vision_bbox | OmniParser + LLM 语义定位、坐标定位、配置 vision_config.yaml |
 | [`reference/13_desktop.md`](reference/13_desktop.md) | 13. 桌面端自动化 | `driver_type=windows/macos`、`launch` 启动、屏幕绝对坐标、桌面操作脚本约定 |
 | [`reference/14_mobile.md`](reference/14_mobile.md) | 14. 移动端自动化 | `driver_type=android/ios`、`app://` URI、Appium 配置、视觉降级策略 |
-| [`reference/90_faq.md`](reference/90_faq.md) | 附录 常见问题 | execute=是 / type 失败 / verify 报错 / DB 连接 / Return 不生效 等排查 |
+| [`reference/15_ios.md`](reference/15_ios.md) | 15. iOS 自动化 | iOS 模拟器 / 真机、XCUITest、`--platform ios` |
+| [`reference/16_load_testing.md`](reference/16_load_testing.md) | 16. 性能压测 | `kind=load` 计划、Locust、`--load-ui`；章末含常见问题排查 |
+| [`reference/17_business_model.md`](reference/17_business_model.md) | 17. 业务模型 | `business/*.xml` 节点/条件边/flow、`<business_call>`、`B` / `B_verify` 数据表、条件表达式白名单、`rodski business` CLI |
 | [`reference/91_keyword_cheatsheet.md`](reference/91_keyword_cheatsheet.md) | 附录 关键字速查清单 | 16 个 ActionType 枚举值（含 `check` 兼容项）一句话说明 |
 | [`reference/92_result_xml.md`](reference/92_result_xml.md) | 附录 测试结果 XML result.xsd | 框架生成的 `result/*.xml` 结构 |
 
@@ -93,13 +97,22 @@ send, set, DB, run
 product/{项目}/{模块}/{case,model,data,fun,plan,result}/
 ```
 
-6 个固定文件夹名不可改；`model.xml` 是唯一模型文件名。
+6 个固定文件夹名不可改；`model.xml` 是唯一模型文件名。可选功能目录：`business/`（业务模型）、`perf/`、`knowledge/`。
 
 ### Return 引用规则
 
 - `${Return[-1]}` 只写在**数据表 field 值**中，不能写在 Case XML 的 `data` 属性
 - 接口 / DB 模型的 `_verify` 表中**禁止**使用 `${Return[-1]}`（自引用恒真）
 - UI 模型的 `_verify` 表中允许引用 `${Return[-N]}`（跨源比对）
+
+### 业务模型（v11.4.0）
+
+- 业务模型定义在 `business/*.xml`（`business.xsd`），只能通过 Case 中的 `<business_call ref flow input expect>` 正式执行，四个属性必填
+- `business_call` 是 Case 元素，**不是关键字**；节点步骤复用 17 个关键字，不另造关键字
+- `flow` 只是测试目标与断言，不强制选边；实际路径由真实业务结果 + 边条件决定，不一致即失败
+- 模型 `B` 的输入表固定为 `B`（data），期望表为 `B_verify`（verify，可含 `expected_path`）
+- 图须单入口、无环、无不可达节点；多出边必须都写 `condition`，运行时必须恰好命中 1 条
+- `rodski business debug` 只用于调试，不计入正式结果
 
 ### 测试计划
 
