@@ -22,11 +22,12 @@ demo_load/
 ## 运行方式
 
 ```bash
-# 执行压测计划
-rodski run rodski-demo/DEMO/demo_load/case/ @plan_id=api_load_basic
+# 在模块目录下执行压测计划（@plan_id 从当前模块的 plan/ 解析）
+cd rodski-demo/DEMO/demo_load
+rodski run @api_load_basic
 
 # 生成 HTML 报告
-rodski run rodski-demo/DEMO/demo_load/case/ @plan_id=api_load_basic --report html
+rodski run @api_load_basic --report html
 ```
 
 ## 压测参数
