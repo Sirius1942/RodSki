@@ -27,7 +27,7 @@ cd "$PROJECT_ROOT"
 
 # 用 find -type f 收集文件列表再 zip -@，而不是 `zip -r` 直接递归：
 # rodski-skills/ 下存在形如 rodski-skill--x/rodski-skill--x -> 自身 的 self-referential
-# symlink（clawhub 安装遗留的本地工作区产物）。`zip -r` 会跟随 symlink 无限递归，
+# symlink（本地工作区遗留产物）。`zip -r` 会跟随 symlink 无限递归，
 # 打出深度嵌套的重复目录树并把发行包撑大；`find -type f` 默认不跟随 symlink，
 # 因此既排除 symlink 本身，也排除其指向的内容重复入包。
 # 同时排除 scripts/（维护脚本，不对外）与隐藏文件/目录。

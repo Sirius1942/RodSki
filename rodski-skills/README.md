@@ -9,8 +9,7 @@ RodSki 对外发布的独立 Skill 集合，可被 Claude Code、Claude Agent SD
 | 受众 | 使用或维护 RodSki 的 AI Agent / 业务测试团队 / 框架开发者 |
 | 与 `.claude/skills/` 的区别 | `.claude/skills/` 是本仓库 Claude Code 会话的本地加载目录；`rodski-skills/` 是**可分发**、可归档、可打包的对外产物源 |
 | 版本对齐 | `VERSION` 文件与 `rodski/__init__.py::__version__` 保持一致，由发布流程 `bump_all_versions()` 自动同步 |
-| 分发形式 | 每次正式发布生成 `dist/rodski-skills-vX.Y.Z.zip`，可挂载到 GitHub Release / 内部仓库 / SkillHub Registry |
-| Registry | 通过环境变量 `CLAWHUB_REGISTRY` 指定所用 SkillHub Registry（不在仓库中写死）；当前已安装 namespace 为 `rodski-skill`，后续建议统一为 `rodski-skills` |
+| 分发形式 | 每次正式发布生成 `dist/rodski-skills-vX.Y.Z.zip`，可挂载到 GitHub Release / 内部仓库 |
 
 ## 目录结构
 
@@ -29,17 +28,17 @@ rodski-skills/
     └── package_release.sh
 ```
 
-> `rodski-skill--*` 目录名来自当前 SkillHub / clawhub namespace slug；各 skill 的 `SKILL.md` frontmatter 中仍保留较短的 `name`，例如 `rodski-case-writer`。
+> `rodski-skill--*` 为目录名；各 skill 的 `SKILL.md` frontmatter 中使用较短的 `name`，例如 `rodski-case-writer`。
 
 ## Skills 清单
 
 | Skill | 来源 / 版本 | 说明 |
 |-------|-------------|------|
 | `rodski-test-guide` | **v11.4.0** (sha256: `a9eedd1b1f48`)；源文档 `rodski/docs/TEST_CASE_WRITING_GUIDE.md` | RodSki 用例 / 模型 / 数据 / 关键字编写权威指南，章节切片位于 `reference/*.md` |
-| `rodski-skill--rodski` | SkillHub `20260605.034754` | RodSki 框架源码、XML 活文档协议、关键字实现、XSD schema、CLI、视觉/Desktop/API/DB 能力和 demo 验收链路 |
-| `rodski-skill--rodski-case-writer` | SkillHub `20260605.034337` | 在任意 RodSki 用例仓库中编写、修改、调试或审查 `case/model/business/data/plan` 资产（含业务模型 `business_call`） |
+| `rodski-skill--rodski` | 随主仓库版本 | RodSki 框架源码、XML 活文档协议、关键字实现、XSD schema、CLI、视觉/Desktop/API/DB 能力和 demo 验收链路 |
+| `rodski-skill--rodski-case-writer` | 随主仓库版本 | 在任意 RodSki 用例仓库中编写、修改、调试或审查 `case/model/business/data/plan` 资产（含业务模型 `business_call`） |
 | `rodski-skill--explore` | 随主仓库版本 | 基于已通过用例基线的 AI 探索式测试 |
-| `rodski-skill--diagnose` | SkillHub `20260605.034904` | 疑难 bug 和性能回归诊断循环：反馈循环 → 复现 → 假设 → 插桩 → 修复 → 回归 |
+| `rodski-skill--diagnose` | 随主仓库版本 | 疑难 bug 和性能回归诊断循环：反馈循环 → 复现 → 假设 → 插桩 → 修复 → 回归 |
 | `rodski-skill--pause-takeover` | **RodSki ≥ v11.1.0**（需 CLI `--cdp` + driver CDP attach） | 用例「暂停 → Agent 接管页面 → 继续」工作流：固定用例跑到目标页后由外部 Agent 用 playwright 判断页面并操作 1-2 个按钮，RodSki 再在同一 CDP 共享浏览器会话继续 verify；框架无关，任何能加载 Markdown skill 的 Agent 可自行编导 |
 
 > `rodski-test-guide` 的源文档版本与 sha256 由 `sync_test_guide.sh` 在每次同步时自动更新到 `rodski-test-guide/source.sha256` 和本 README 表格。
@@ -84,27 +83,19 @@ bash rodski-skills/scripts/sync_test_guide.sh
 bash rodski-skills/scripts/package_release.sh $(cat rodski-skills/VERSION)
 ```
 
-从 SkillHub 更新本地 Claude Code skills：
-
-```bash
-export CLAWHUB_REGISTRY=<your-skillhub-registry-url>
-npx clawhub --workdir /path/to/rodski --dir .claude/skills update
-```
-
 ## 设计约定
 
 1. `rodski-test-guide/reference/*.md` 与 `source.sha256` 由 sync 脚本生成，**不要手工编辑**。
 2. 修改测试指南只改源文件 `rodski/docs/TEST_CASE_WRITING_GUIDE.md`，发布流程会自动同步。
-3. 新增 Skill 时遵循同一约定：`rodski-skills/<name>/SKILL.md` + 按需 `reference/` / `scripts/` / 来源元数据。
+3. 新增 Skill 时遵循同一约定：`rodski-skills/<name>/SKILL.md` + 按需 `reference/` / `scripts/`。
 4. `scripts/` 不进入对外发行 zip。
-5. Registry 安装产生的 `.clawhub/origin.json` 可作为来源记录保留在归档目录；发行 zip 默认排除隐藏文件。
+5. 不提交任何第三方安装工具生成的元数据目录（如 `.clawhub/`）或自引用 symlink；发行 zip 默认排除隐藏文件。
 
 ## 后续改进重点
 
 详见 `rodski/docs/RODSKI_SKILLS_REGISTRY.md`。优先级最高的改进包括：
 
-1. 统一 namespace：当前实际为 `@rodski-skill`，建议统一到 `@rodski-skills`。
-2. 修正 bundled scripts 的执行路径，避免 `python3 scripts/xxx.py` 在项目根目录下找不到文件。
-3. 同步 `rodski-test-guide` 到当前 RodSki 版本。
-4. 将 `.claude/skills/rodski-release` 纳入 registry 和本目录归档。
-5. 业务相关 skill（换环境、提交 GitLab）已归档到 `.archived-business-specific/`；保留在本目录的 skill 不得写死业务系统、仓库路径、账号或内部 URL。
+1. 修正 bundled scripts 的执行路径，避免 `python3 scripts/xxx.py` 在项目根目录下找不到文件。
+2. 同步 `rodski-test-guide` 到当前 RodSki 版本。
+3. 将 `.claude/skills/rodski-release` 纳入本目录归档。
+4. 业务相关 skill（换环境、提交 GitLab）已归档到 `.archived-business-specific/`；保留在本目录的 skill 不得写死业务系统、仓库路径、账号或内部 URL。
