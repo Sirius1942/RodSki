@@ -10,7 +10,7 @@ description: >
   business_call、场景法基本流/备选流/异常流）时触发。完整内容按章节拆分在 reference/*.md，
   Agent 命中后按需 Read 对应章节。
 type: reference
-version: 11.4.0
+version: 11.4.1
 source: rodski/docs/TEST_CASE_WRITING_GUIDE.md
 ---
 
