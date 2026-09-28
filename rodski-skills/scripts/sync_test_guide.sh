@@ -71,6 +71,7 @@ MAPPING = [
     (r"^## 14\. ",               "14_mobile.md"),
     (r"^## 15\. ",               "15_ios.md"),
     (r"^## 16\. ",               "16_load_testing.md"),
+    (r"^## 17\. ",               "17_business_model.md"),
     (r"^## 附录：关键字速查",    "91_keyword_cheatsheet.md"),
     (r"^## 附录：测试结果 XML",  "92_result_xml.md"),
 ]

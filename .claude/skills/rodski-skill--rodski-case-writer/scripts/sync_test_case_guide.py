@@ -24,10 +24,10 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="在 RodSki 版本检查后同步 TEST_CASE_WRITING_GUIDE.md。"
     )
-    parser.add_argument("--repo", default=str(Path.home() / "TestCase"), help="RodSki 测试仓库根目录。")
+    parser.add_argument("--repo", default=os.environ.get("RODSKI_CASE_REPO") or str(Path.cwd()), help="RodSki 测试仓库根目录。")
     parser.add_argument(
         "--rodski",
-        default="/opt/homebrew/bin/rodski",
+        default=os.environ.get("RODSKI_BIN") or shutil.which("rodski") or "rodski",
         help="用于兼容性检查的本地 RodSki CLI。",
     )
     parser.add_argument(

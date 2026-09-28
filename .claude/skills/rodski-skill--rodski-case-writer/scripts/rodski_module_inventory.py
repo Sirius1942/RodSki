@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sqlite3
 import sys
@@ -13,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 
-DEFAULT_REPO = Path.home() / "TestCase"
+DEFAULT_REPO = Path(os.environ.get("RODSKI_CASE_REPO") or Path.cwd())
 MODEL_REQUIRED_ACTIONS = {"type", "verify", "send", "DB", "check"}
 SKIP_DIR_PARTS = {".git", "node_modules", "__pycache__", "result", "recordings", "screenshots"}
 

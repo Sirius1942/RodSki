@@ -1,6 +1,6 @@
 # RodSki UI 模式
 
-编写或修复普通 RodSki Web UI 流程时使用本文。实时契约仍以 `TEST_CASE_WRITING_GUIDE.md` 为准；本文是从 `$HOME/TestCase/improve` 提炼出的紧凑模式索引。
+编写或修复普通 RodSki Web UI 流程时使用本文。实时契约仍以 `TEST_CASE_WRITING_GUIDE.md` 为准；本文是从实际用例经验中提炼的紧凑模式索引。
 
 ## 流程形态
 

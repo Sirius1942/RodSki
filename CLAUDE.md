@@ -91,12 +91,14 @@ product/                    ← 顶层，固定名称
         ├── fun/            ← run 关键字脚本
         ├── data/           ← data.sqlite + globalvalue.xml
         ├── plan/           ← 测试计划 XML
+        ├── business/       ← 可选：业务模型 XML（v11.4，business_call 使用）
         └── result/         ← 框架自动生成
 ```
 
 - `product/` 必须是最顶层，不可省略
 - 6 个固定文件夹名称不可更改
 - `model.xml` 是唯一的模型文件名
+- 可选功能目录：`business/`（业务模型）、`perf/`、`knowledge/`
 
 ### Return 引用规则
 

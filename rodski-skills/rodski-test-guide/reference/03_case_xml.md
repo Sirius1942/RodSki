@@ -195,7 +195,7 @@
 
 ### 3.8 控制流结构（if/elif/else/loop）
 
-`case.xsd` 支持在 `<pre_process>`、`<test_case>`、`<post_process>` 及 `<scenario>` 内使用条件分支和循环容器。这些结构**不是独立关键字**，不在 SUPPORTED 列表中。
+`case.xsd` 支持在 `<pre_process>`、`<test_case>`、`<post_process>` 及 `<scenario>` 内使用条件分支和循环容器。v11.4 起这些容器内还可放 `<business_call>`（调用业务模型，见[第 17 章](#17-业务模型business-modelv1140)），它同样不是关键字。这些结构**不是独立关键字**，不在 SUPPORTED 列表中。
 
 #### `<if>` 条件分支
 

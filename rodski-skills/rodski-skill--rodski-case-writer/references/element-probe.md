@@ -16,8 +16,8 @@
 
 ## 探查后端：Playwright MCP
 
-`$HOME/TestCase/.mcp.json` 已注册 `@playwright/mcp`（stdio，`npx @playwright/mcp@latest`）。
-本机已装 node、npx 和 playwright 浏览器。MCP 工具仅在**新会话**加载；当前会话看不到 `browser_*`
+需要在目标仓库的 `.mcp.json`（或 Agent 的 MCP 配置）中注册 `@playwright/mcp`（stdio，`npx @playwright/mcp@latest`），
+并确认本机已装 node、npx 和 playwright 浏览器。MCP 工具仅在**新会话**加载；当前会话看不到 `browser_*`
 工具时，说明 MCP 尚未在本会话生效，需新开会话或改用离线脚本路径（见末节）。
 
 关键工具（写 rodski 定位器只需这几个）：

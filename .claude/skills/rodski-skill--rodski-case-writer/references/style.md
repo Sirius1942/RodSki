@@ -1,23 +1,24 @@
-# $HOME/TestCase 的 RodSki 风格锚点
+# RodSki 用例风格锚点
 
-仅在需要快速查看本地风格锚点时读取本文。完整契约仍以 `TEST_CASE_WRITING_GUIDE.md` 为准。
+仅在需要快速查看风格锚点时读取本文。完整契约仍以 `TEST_CASE_WRITING_GUIDE.md` 为准；目标仓库自身的风格优先于本文。
 
 ## 实时事实来源
 
-- 将 `$HOME/TestCase/TEST_CASE_WRITING_GUIDE.md` 视为只读参考材料和 RodSki 用例编写的核心约束。RodSki 用例工作前先读取它，按其要求设计用例，并且不要在用例工作期间修改、同步覆盖、追加笔记或以其他方式编辑它。
+- 将目标仓库的 `TEST_CASE_WRITING_GUIDE.md` 视为只读参考材料和 RodSki 用例编写的核心约束。RodSki 用例工作前先读取它，按其要求设计用例，并且不要在用例工作期间修改、同步覆盖、追加笔记或以其他方式编辑它。
 - 将当前 RodSki CLI 输出、schema/help、目标模块文件，以及最小有意义校验作为实时事实。受支持关键字、定位器类型和特殊值以 `rodski capabilities` 为权威清单（当前 CLI 顶层 `--help` 列出 `capabilities` 时调用，取其 `supported_keywords`/`locator_types`/`special_values`）。
-- 将 `$HOME/TestCase/improve` 仅视为历史笔记归档。不要把它作为新用例编写来源；只有用户要求历史笔记，或已检查实时证据后继续调试失败模式时才查阅。
+- 目标仓库中的历史经验笔记只作为失败排查参考，不作为新用例编写来源。
 
-## 现有示例
+## 参考示例
 
-- 简单 UI 登录：`$HOME/TestCase/00 Pass/登录/ec-admin-login/case/ui_login.xml`
-- 场景决策表：`$HOME/TestCase/00 Pass/询价/case/inquiry_decision_table.xml`
-- API send/verify 套件：`$HOME/TestCase/00 Pass/平台促销活动/case/platform_promotion_positive_api.xml`
+优先参考目标模块中已通过的同类用例；目标仓库没有同类用例时，参考 RodSki 官方示例 `rodski-demo/`：
+
+- UI / API / DB 综合示例：`rodski-demo/DEMO/demo_full/`
+- 业务模型（`business_call`）示例：`rodski-demo/DEMO/demo_business_model/`
 
 ## 本地风格
 
 - XML 改动保持小范围。保留目标文件周围的引号风格、自闭合标签空格和既有排序。
-- 优先使用中文业务标题和简洁描述。ID 应遵循目标模块现有族系：登录风格 ID、`IQ_001` 场景 ID，或 `TC-API-001` API ID。
+- 优先使用简洁、贴合业务语义的标题。ID 应遵循目标模块现有族系，例如 `TC-UI-001`、`TC-API-001`、`SC_001` 场景 ID。
 - Case 文件名遵循目标模块现有约定。不要只为了改变中文/英文命名、大小写或 snake_case 而重命名稳定文件。
 - UI 用例通常把导航和登录放在 `pre_process`，业务断言链放在 `test_case`，`close` 放在 `post_process`。
 - 决策表用例保留一个物理 case，并在 `test_case` 内用 `scenario` 块拆分组合。
@@ -54,5 +55,5 @@ Web UI `model.xml` 元素使用 guide 的多定位器机制：多个 `<location>
 - 决策表只在 `test_case` 内使用 `scenario`。
 - Case 文件名匹配目标模块现有命名约定；避免无关重命名。
 - 新增或修改的 Web UI model 元素使用 `<location type="...">...</location>`，并在存在多个定位器时显式添加 `priority`。
-- `$HOME/TestCase/improve` 没有用于新用例编写；如果用于失败历史，只能通过 `references/improve-index.md` 到达某一个具体笔记。
+- 使用业务模型时，`business_call` 四个属性齐全，`rodski business validate` 通过，一条 flow 对应一个 Case。
 - 最终答复说明校验命令和结果。
