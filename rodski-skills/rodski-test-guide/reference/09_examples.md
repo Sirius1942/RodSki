@@ -93,11 +93,17 @@ product/DEMO/demo_site/
 # 方式1：指定 case XML 文件
 rodski run rodski-demo/DEMO/demo_full/case/demo_case.xml
 
-# 方式2：指定 case 目录（执行所有 XML）
+# 方式2：指定 case 目录（递归执行该目录下所有 XML，任意层级，v11.5.0 起）
 rodski run rodski-demo/DEMO/demo_full/case/
+
+# 方式2b：指定 case 下的任意子目录（同样递归，v11.5.0 起）
+rodski run rodski-demo/DEMO/demo_full/case/order/
 
 # 方式3：指定测试模块目录
 rodski run rodski-demo/DEMO/demo_full/
+
+# 方式4：文件 + --case-id，只执行该文件中的指定用例（v11.5.0 起，可逗号分隔多个）
+rodski run rodski-demo/DEMO/demo_full/case/order/order_basic.xml --case-id TC002
 
 # 按标签过滤（OR 匹配，命中任一即可）
 rodski run case/ --tags smoke
@@ -119,5 +125,32 @@ rodski run case/ --report html
 # 无头模式
 rodski run case/ --headless
 ```
+
+> `--case-id` 必须与**单个用例文件**路径一起使用；传目录会报 `SKI208 CaseIdRequiresFile`。`--case-id` 与 `@plan_id` 固定互斥（见 §10.6），与 `--tags` / `--priority` 同用时只在指定用例内过滤。
+
+### 9.8 结果目录说明（v11.5.0）
+
+一次运行目录（`result/rodski_{ts}/`）下，**用例级产物**（步骤截图、失败截图、场景截图子目录、录像）按用例文件路径镜像存放在运行目录的 `case/` 子目录中，与 `case/` 的目录结构完全一致；用例文件对应的目录名为文件名去掉 `.xml`。**此规则适用于所有用例文件，包括位于 `case/` 根目录的文件**，没有特例：
+
+```
+case/                              result/rodski_20260928_100000/
+├── smoke_root.xml                 ├── result.xml               ← 汇总产物，位置不变
+├── order/                         ├── execution_summary.json   ← 汇总产物，位置不变
+│   ├── order_basic.xml            ├── execution.log            ← 汇总产物，位置不变
+│   └── refund/                    └── case/                    ← 镜像 case/ 目录结构
+│       └── refund_apply.xml           ├── smoke_root/
+                                        │   └── screenshots/
+                                        └── order/
+                                            ├── order_basic/
+                                            │   └── screenshots/
+                                            └── refund/
+                                                └── refund_apply/
+                                                    ├── screenshots/
+                                                    └── recordings/
+```
+
+截图**文件名格式不变**（`{caseid}_{stepindex}_{phase}_{timestamp}.png`、场景截图子目录 `{caseid}_{scenarioid}_{scenariotitle}/`、失败截图 `{caseid}_{timestamp}_failure.png`）。跨文件同 `case_id` 的用例分别写入各自文件的镜像目录，互不覆盖——这是引入镜像目录的主要动机之一。
+
+`result.xml`、`execution_summary.json`、`execution.log`、`trace.json`、HTML 报告等**汇总产物保持在运行目录根**，不随用例文件镜像；其中记录的截图/录像路径同步改为相对运行目录的新路径。消费方（HTML 报告、web、rodski-agent、browser-plugin、VSCode 插件）应优先读取结果中记录的路径，不要自行按旧的扁平规则拼接 `result/screenshots/...`。
 
 ---

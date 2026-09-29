@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 页面均为内嵌 data: URL，不依赖任何外部服务 -->
+<globalvalue>
+  <group name="DefaultValue">
+    <var name="WaitTime" value="0"/>
+  </group>
+  <group name="Page">
+    <var name="ROOT" value="data:text/html,%3Ch1%20id%3D%22title%22%3EROOT%3C%2Fh1%3E"/>
+    <var name="ORDER_BASIC" value="data:text/html,%3Ch1%20id%3D%22title%22%3EORDER_BASIC%3C%2Fh1%3E"/>
+    <var name="ORDER_DETAIL" value="data:text/html,%3Ch1%20id%3D%22title%22%3EORDER_DETAIL%3C%2Fh1%3E"/>
+    <var name="REFUND_APPLY" value="data:text/html,%3Ch1%20id%3D%22title%22%3EREFUND_APPLY%3C%2Fh1%3E"/>
+    <var name="REFUND_APPROVE" value="data:text/html,%3Ch1%20id%3D%22title%22%3EREFUND_APPROVE%3C%2Fh1%3E"/>
+    <var name="LOGIN" value="data:text/html,%3Ch1%20id%3D%22title%22%3ELOGIN%3C%2Fh1%3E"/>
+  </group>
+</globalvalue>

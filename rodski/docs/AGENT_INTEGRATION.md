@@ -99,13 +99,13 @@ for result in root.findall(".//result[@status='FAIL']"):
 | `rodski explain <case.xml>` | 用例自然语言解释 | 文本说明 |
 | `rodski validate <path>` | XML 格式校验 | 校验结果 |
 | `rodski run <path> --headless` | 无头模式执行 | JSON 结果 |
-| `rodski roam --case <case_id> [module_dir] --output-format json` | 定向执行一条合格用例并漫游；资格错误显式返回 | JSON 结构化结果，含 `roam_summary` |
+| `rodski roam --case-file <case.xml> --case-id <case_id> --output-format json` | 定向执行一条合格用例并漫游；资格错误显式返回（v11.5.0 起，原 `--case <case_id>` 拆分为文件 + ID，见 [CORE §6.5/§7.7](../docs/CORE_DESIGN_CONSTRAINTS.md)） | JSON 结构化结果，含 `roam_summary` |
 | `rodski run <path> --roam --output-format json` | 批量执行，并对合格且通过的 UI 用例漫游 | JSON 结构化结果；不合格用例静默跳过漫游 |
 
 ### 唯一输入格式
 
 所有输入均为 XML 文件或 SQLite 数据库：
-- `case/*.xml` — 用例定义
+- `case/**/*.xml` — 用例定义（支持任意多级子目录，递归发现，v11.5.0 起）
 - `model/model.xml` — 元素模型（唯一定位器格式：`<location type="...">值</location>`）
 - `data/data.sqlite` — 测试数据（唯一数据文件）
 - `data/globalvalue.xml` — 全局变量
@@ -126,7 +126,7 @@ for result in root.findall(".//result[@status='FAIL']"):
 | `SKI701` Hook 拒绝执行（`before_keyword` deny 或外部命令 hook exit code 2） | 1 | 检查 `hooks.json`/进程内回调的拒绝原因（`reason` 字段），确认是否为预期的高危操作拦截 |
 | `SKI702` Hook 执行超时 | 1 | 检查外部命令 hook 脚本本身是否卡死；必要时调大 `hooks.json` 中的 `timeout` |
 | `SKI703` `on_run_start` 合规检查未通过 | 1 | 查看 `checks_failed` 列表定位具体检查项；目录结构缺失必须先修复，其余检查项可用 `--force-compliance` 显式跳过（会留痕） |
-| `SKI801` 漫游用例未找到 | 1 | 检查 `--case` ID 和模块路径；该错误只用于定向 `rodski roam --case` |
+| `SKI801` 漫游用例未找到 | 1 | 检查 `--case-file`/`--case-id` 和用例文件路径；该错误只用于定向 `rodski roam --case-file --case-id` |
 | `SKI802` 定向漫游资格不满足 | 1 | 确认 `Roam.Enabled=是`、`case.roam="是"` 且本次为显式漫游；批量 `run --roam` 对同类不合格用例静默跳过 |
 | `SKI803` 不支持的漫游用例类型 | 1 | 仅允许 `component_type` 为空或为 `界面` 的用例声明 `roam="是"`；接口/数据库用例应移除该声明 |
 
@@ -614,7 +614,7 @@ result = subprocess.run(
 )
 
 # 保存截图用于分析
-# RodSki 会在失败时自动保存截图到 result/screenshots/
+# RodSki 会在失败时自动保存截图到 result/{run}/case/{case_file 去 .xml}/screenshots/（v11.5.0 起按 case/ 目录结构镜像，不再是扁平的 result/screenshots/；详见 CORE「Agent 契约摘要 · 截图目录规则」）
 ```
 
 ---

@@ -1,6 +1,6 @@
 """集成测试：并发执行"""
 import pytest
-from core.parallel_executor import ParallelExecutor
+from rodski.core.parallel_executor import ParallelExecutor
 
 
 def test_concurrent_basic():

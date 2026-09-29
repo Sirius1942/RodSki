@@ -3,9 +3,12 @@
 The roaming command deliberately delegates to ``run.handle`` so path
 resolution, hooks, compliance checks, driver lifecycle, and output formatting
 keep exactly the same behavior as a normal run.
+
+v11.5.0: 支持 --case-file + --case-id 定位用例（多级嵌套目录）。
 """
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 from . import run
@@ -18,7 +21,10 @@ def setup_parser(subparsers):
         nargs="?",
         help="用例 XML、case/ 目录或测试模块目录（默认当前目录）",
     )
-    parser.add_argument("--case", required=True, dest="roam_case_id", help="基础用例 ID")
+    # v11.5.0: 新增 --case-file + --case-id，保留旧 --case 为兼容路径
+    parser.add_argument("--case-file", dest="roam_case_file", help="用例文件路径（相对 case/ 的 POSIX 路径）")
+    parser.add_argument("--case-id", dest="roam_case_id_new", help="用例 ID")
+    parser.add_argument("--case", dest="roam_case_id", help="（向后兼容）用例 ID，仅当模块只有一个用例文件或 ID 全模块唯一时可用")
     parser.add_argument("--model", help="模型文件路径 (model.xml)，不指定则自动推断")
     parser.add_argument(
         "--browser",
@@ -61,11 +67,53 @@ def setup_parser(subparsers):
         metavar="MODULE_PATH",
         help="漫游决策引擎模块路径（Python 文件），须导出 create_engine() 工厂函数",
     )
+    # 供 handle() 在缺少用例定位参数时调用 parser.error()（argparse 惯例：exit code 2）
+    parser.set_defaults(_roam_parser=parser)
 
 
 def handle(args):
-    """Map ``rodski roam`` onto the shared run execution pipeline."""
-    args.case = args.path or str(Path.cwd())
+    """Map ``rodski roam`` onto the shared run execution pipeline.
+
+    v11.5.0: 支持 --case-file + --case-id 定位用例；保留旧 --case 仅在
+    单文件模块或 ID 全模块唯一时可用，否则提示使用新参数。
+    """
+    from pathlib import Path
+
+    # 解析用例定位参数
+    case_file = getattr(args, "roam_case_file", None)
+    case_id_new = getattr(args, "roam_case_id_new", None)
+    case_id_old = getattr(args, "roam_case_id", None)
+
+    # 优先使用新参数
+    if case_file and case_id_new:
+        # 新模式：--case-file + --case-id
+        module_dir = Path(args.path or Path.cwd()).resolve()
+        if module_dir.is_file():
+            module_dir = module_dir.parent.parent
+        elif module_dir.name == "case":
+            module_dir = module_dir.parent
+        args.case = str(module_dir / "case" / case_file)
+        args.roam_case_id = case_id_new
+    elif case_id_old:
+        # 旧模式：--case（向后兼容），路径推导由 run.handle 完成
+        args.case = args.path or str(Path.cwd())
+        args.roam_case_id = case_id_old
+        # 在多文件模块中会有歧义，这里暂不检查，留给 run.handle 判断
+    elif case_id_new:
+        print("错误: --case-id 必须与 --case-file 一起使用", file=sys.stderr)
+        return 1
+    elif case_file:
+        print("错误: --case-file 必须与 --case-id 一起使用", file=sys.stderr)
+        return 1
+    else:
+        parser = getattr(args, "_roam_parser", None)
+        message = "必须指定 --case-file + --case-id 或使用旧 --case"
+        if parser is not None:
+            # argparse 惯例：用法错误以 exit code 2 退出（与缺失必填参数一致）
+            parser.error(message)
+        print(f"错误: {message}", file=sys.stderr)
+        return 1
+
     args.roam = True
     args.roam_mode = "single_case"
 

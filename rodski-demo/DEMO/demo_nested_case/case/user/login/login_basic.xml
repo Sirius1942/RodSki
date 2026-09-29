@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 第 2 层：user/login/ ；TC002 execute=否，参与唯一性检查但不执行 -->
+<cases>
+  <case execute="是" id="TC001" title="登录页" component_type="界面" priority="P1" tags="nested,smoke">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Page.LOGIN"/>
+    </pre_process>
+    <test_case>
+      <test_step action="verify" model="Page" data="V_LOGIN"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+  <case execute="否" id="TC002" title="登录页（停用）" component_type="界面" priority="P1" tags="nested">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Page.LOGIN"/>
+    </pre_process>
+    <test_case>
+      <test_step action="verify" model="Page" data="V_LOGIN"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+</cases>

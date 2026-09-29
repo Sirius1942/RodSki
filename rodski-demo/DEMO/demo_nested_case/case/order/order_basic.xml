@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 第 1 层：order/ ；TC001 与其他文件同 ID（文件内唯一即可） -->
+<cases>
+  <case execute="是" id="TC001" title="订单列表" component_type="界面" priority="P1" tags="nested,smoke">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Page.ORDER_BASIC"/>
+    </pre_process>
+    <test_case>
+      <test_step action="verify" model="Page" data="V_ORDER_BASIC"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+  <case execute="是" id="TC002" title="订单详情" component_type="界面" priority="P1" tags="nested">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Page.ORDER_DETAIL"/>
+    </pre_process>
+    <test_case>
+      <test_step action="verify" model="Page" data="V_ORDER_DETAIL"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+</cases>

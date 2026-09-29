@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 第 2 层：order/refund/ -->
+<cases>
+  <case execute="是" id="TC001" title="申请退款" component_type="界面" priority="P1" tags="nested">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Page.REFUND_APPLY"/>
+    </pre_process>
+    <test_case>
+      <test_step action="verify" model="Page" data="V_REFUND_APPLY"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+</cases>

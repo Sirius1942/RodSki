@@ -126,6 +126,47 @@ class DataParseError(ParseError):
     error_code = "SKI203"
 
 
+class DuplicateCaseIdInFileError(ParseError):
+    """同一用例文件内 case@id 重复（含 execute="否" 的用例）。
+
+    v11.5.0 起：case 目录支持多级嵌套，用例 ID 只要求在**同一文件内**唯一；
+    跨文件允许同 ID（内部用 ``{case_file}::{case_id}`` 作为完整标识）。
+    """
+
+    error_code = "SKI205"
+
+    def __init__(self, case_file: str, case_id: str, **kwargs):
+        self.case_file = case_file
+        self.case_id = case_id
+        details = dict(kwargs.pop("details", {}) or {})
+        details.update({"case_file": case_file, "case_id": case_id})
+        super().__init__(
+            f"用例文件内 ID 重复: file={case_file}, id={case_id}",
+            details=details,
+            **kwargs,
+        )
+
+
+class ReservedCaseSubdirNameError(ParseError):
+    """case/ 下的子目录使用了保留名（case/model/fun/data/plan/result/business/perf/knowledge）。
+
+    保留名保证「向上查找最近的 case 祖先」在任意嵌套深度下都能唯一推导模块目录。
+    """
+
+    error_code = "SKI206"
+
+    def __init__(self, path: str, name: str, **kwargs):
+        self.path = path
+        self.name = name
+        details = dict(kwargs.pop("details", {}) or {})
+        details.update({"path": path, "name": name})
+        super().__init__(
+            f"case/ 下的子目录不得使用保留名 '{name}': {path}",
+            details=details,
+            **kwargs,
+        )
+
+
 class XmlSchemaValidationError(ParseError):
     """XML 实例不符合对应 XSD Schema 约束"""
 
@@ -150,6 +191,23 @@ class XmlSchemaValidationError(ParseError):
         if validation_errors:
             details["validation_errors"] = validation_errors
         super().__init__(message, details=details, **kwargs)
+
+
+# ── 错误码映射 ──────────────────────────────────────────────────
+
+ERROR_CODE_MAP = {
+    "SKI000": SKIError,
+    "SKI001": ConfigurationError,
+    "SKI101": ConfigFileNotFoundError,
+    "SKI102": InvalidConfigError,
+    "SKI200": ParseError,
+    "SKI201": CaseParseError,
+    "SKI202": ModelParseError,
+    "SKI203": DataParseError,
+    "SKI204": XmlSchemaValidationError,
+    "SKI205": DuplicateCaseIdInFileError,
+    "SKI206": ReservedCaseSubdirNameError,
+}
 
 
 # ── 执行错误 ──────────────────────────────────────────────────
@@ -350,17 +408,7 @@ class APIConnectionError(ConnectionError):
         super().__init__(message, details=details, **kwargs)
 
 
-# ── 错误码映射 ──────────────────────────────────────────────────
-
-ERROR_CODE_MAP = {
-    "SKI000": SKIError,
-    "SKI001": ConfigurationError,
-    "SKI101": ConfigFileNotFoundError,
-    "SKI102": InvalidConfigError,
-    "SKI200": ParseError,
-    "SKI201": CaseParseError,
-    "SKI202": ModelParseError,
-    "SKI203": DataParseError,
+ERROR_CODE_MAP.update({
     "SKI300": ExecutionError,
     "SKI301": KeywordError,
     "SKI311": UnknownKeywordError,
@@ -371,11 +419,58 @@ ERROR_CODE_MAP = {
     "SKI322": TimeoutError,
     "SKI323": StaleElementError,
     "SKI324": DriverStoppedError,
+    "SKI315": DiagnosisTimeoutError,
+    "SKI316": AutoCaptureError,
     "SKI331": AssertionFailedError,
     "SKI400": ConnectionError,
     "SKI401": DatabaseConnectionError,
     "SKI402": APIConnectionError,
-}
+})
+
+
+class PlanCaseFileRequiredError(ParseError):
+    """多用例文件模块中 plan 的 <case> 省略了 file 属性。
+
+    v11.5.0 起：plan 中 <case> 必须指定 file 属性（唯一例外：模块 case/ 下
+    递归只有一个用例文件时可以省略，自动指向该文件）。
+    """
+
+    error_code = "SKI207"
+
+    def __init__(self, case_id: str, candidates: list[str], **kwargs):
+        self.case_id = case_id
+        self.candidates = candidates
+        details = dict(kwargs.pop("details", {}) or {})
+        details.update({"case_id": case_id, "candidates": candidates})
+        candidates_str = "\n  - ".join(candidates) if candidates else "(无匹配文件)"
+        example_file = candidates[0] if candidates else "<相对 case/ 的用例文件路径>"
+        super().__init__(
+            f"多用例文件模块中 plan case 引用必须指定 file 属性: id={case_id}\n"
+            f"包含该 ID 的候选文件:\n  - {candidates_str}\n"
+            f"请补充 file 属性，如: <case file=\"{example_file}\" id=\"{case_id}\"/>",
+            details=details,
+            **kwargs,
+        )
+
+
+class CaseIdRequiresFileError(ParseError):
+    """--case-id 未与单个用例文件路径一起使用，或与 @plan_id 同用。
+
+    v11.5.0 起：--case-id 必须与单个用例文件路径一起使用（避免跨文件同 ID 产生歧义），
+    且与 @plan_id 固定互斥。
+    """
+
+    error_code = "SKI208"
+
+    def __init__(self, reason: str, **kwargs):
+        self.reason = reason
+        details = dict(kwargs.pop("details", {}) or {})
+        details.update({"reason": reason})
+        super().__init__(
+            f"--case-id 使用错误: {reason}",
+            details=details,
+            **kwargs,
+        )
 
 
 class LoadModeUnsupportedError(SKIError):
@@ -404,6 +499,14 @@ class LoadDependencyMissingError(SKIError):
 class LoadBrowserModeUnsupportedCaseError(SKIError):
     """压测计划（browser 模式）引用了非界面类型的 case。"""
     error_code = "SKI604"
+
+
+ERROR_CODE_MAP.update({
+    "SKI601": LoadModeUnsupportedError,
+    "SKI602": LoadModeUnsupportedCaseError,
+    "SKI603": LoadDependencyMissingError,
+    "SKI604": LoadBrowserModeUnsupportedCaseError,
+})
 
 
 class HookDeniedError(ExecutionError):

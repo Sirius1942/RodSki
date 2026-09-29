@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 全量：递归执行 case/ 全树（期望 6 个用例执行，login TC002 execute=否 不执行） -->
+<test_plan id="project_full" title="嵌套目录全量" kind="suite" execute="是" default_execute="是">
+</test_plan>

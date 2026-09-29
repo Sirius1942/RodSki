@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 目录可选：case_dir 递归选入 user/ 全部可执行用例 + 精确选择 order_basic.xml 的 TC002（期望 2 个用例执行） -->
+<test_plan id="mixed_selection" title="目录与用例混合选择" kind="suite" execute="是" default_execute="否">
+  <case_dir path="user" execute="是"/>
+  <case file="order/order_basic.xml" id="TC002" execute="是"/>
+</test_plan>

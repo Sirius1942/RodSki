@@ -27,10 +27,12 @@ if __package__ in (None, ""):
     from rodski.core.ski_executor import SKIExecutor, resolve_module_dir
     from rodski.core.config_manager import ConfigManager
     from rodski.core.logger import Logger
+    from rodski.core.case_discovery import discover_case_files
 else:
     from .core.ski_executor import SKIExecutor, resolve_module_dir
     from .core.config_manager import ConfigManager
     from .core.logger import Logger
+    from .core.case_discovery import discover_case_files
 
 
 def create_driver(headless: bool = False, browser: str = "chromium", driver_type: str = "web"):
@@ -132,7 +134,7 @@ def _business_call_needs_browser(business_call: ET.Element, module_dir: Path, dr
 
 def _needs_browser(case_path: Path) -> bool:
     """扫描 case XML 及 business_call 引用，判断是否有需要浏览器的步骤。"""
-    xml_files = list(case_path.glob("*.xml")) if case_path.is_dir() else ([case_path] if case_path.is_file() else [])
+    xml_files = discover_case_files(case_path) if case_path.is_dir() else ([case_path] if case_path.is_file() else [])
     module_dir = resolve_module_dir(case_path)
     driver_types = _business_model_driver_types(module_dir)
 

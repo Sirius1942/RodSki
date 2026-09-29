@@ -78,10 +78,24 @@ class ModelParser:
             - 其余 key 为元素定义
         """
         models = {}
+        seen_model_names = {}  # {name: line_number} for duplicate detection
+
         for model_node in self.root.findall('model'):
             model_name = model_node.get('name')
             if not model_name:
                 continue
+
+            # v11.5.0: 检测同名 model（给出名称与行号）
+            model_line = getattr(model_node, 'sourceline', None) or 'unknown'
+            if model_name in seen_model_names:
+                prev_line = seen_model_names[model_name]
+                raise ModelParseError(
+                    f"同名 model 重复定义: '{model_name}' "
+                    f"(第 {prev_line} 行与第 {model_line} 行)",
+                    model_file=str(self.xml_path),
+                    model_name=model_name,
+                )
+            seen_model_names[model_name] = model_line
 
             model_type = model_node.get('type', '').strip() or None
             elements = {}
@@ -101,10 +115,24 @@ class ModelParser:
                 models[model_name]['__auto_capture_send__'] = None
                 continue
 
+            # 检测同一 model 内的同名 element
+            seen_element_names = {}  # {name: line_number}
             for elem_node in model_node.findall('element'):
                 element_name = elem_node.get('name')
                 if not element_name:
                     continue
+
+                # v11.5.0: 检测同一 model 内的同名 element
+                elem_line = getattr(elem_node, 'sourceline', None) or 'unknown'
+                if element_name in seen_element_names:
+                    prev_line = seen_element_names[element_name]
+                    raise ModelParseError(
+                        f"model '{model_name}' 中同名 element 重复定义: '{element_name}' "
+                        f"(第 {prev_line} 行与第 {elem_line} 行)",
+                        model_file=str(self.xml_path),
+                        model_name=model_name,
+                    )
+                seen_element_names[element_name] = elem_line
 
                 element_info = self._parse_element(elem_node, model_type)
                 if element_info:

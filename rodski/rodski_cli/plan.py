@@ -4,7 +4,7 @@ from __future__ import annotations
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 
 def setup_parser(subparsers):
@@ -45,7 +45,17 @@ def setup_parser(subparsers):
     # add-case
     ac_p = sub.add_parser("add-case", help="添加 case 到 plan")
     ac_p.add_argument("plan_id")
+    ac_p.add_argument("case_file", help="用例文件路径(相对case/目录)")
     ac_p.add_argument("case_id")
+
+    # add-dir
+    ad_p = sub.add_parser("add-dir", help="添加目录到 plan")
+    ad_p.add_argument("plan_id")
+    ad_p.add_argument("path", help="目录路径(相对case/目录,空字符串表示整个case/)")
+
+    # migrate
+    mg_p = sub.add_parser("migrate", help="为缺少file的plan case自动补充file属性")
+    mg_p.add_argument("module", help="模块目录路径")
 
     # add-scenario
     as_p = sub.add_parser("add-scenario", help="添加 scenario 到 plan")
@@ -177,12 +187,16 @@ def _find_or_create_case_node(root: ET.Element, case_id: str) -> ET.Element:
 
 
 def _collect_existing_case_ids() -> set:
-    """Parse case/*.xml and return set of case_id."""
+    """Parse case/ 下所有嵌套 XML，返回 case_id 集合。"""
     case_d = _case_dir()
     ids = set()
     if not case_d.is_dir():
         return ids
-    for xml_file in case_d.glob("*.xml"):
+    try:
+        from ..core.case_discovery import discover_case_files
+    except ImportError:
+        from rodski.core.case_discovery import discover_case_files
+    for xml_file in discover_case_files(case_d):
         try:
             tree = ET.parse(xml_file)
             for case_node in tree.getroot().findall("case"):
@@ -195,12 +209,16 @@ def _collect_existing_case_ids() -> set:
 
 
 def _collect_existing_scenario_ids() -> Dict[str, set]:
-    """Parse case/*.xml and return {case_id: {scenario_id, ...}}."""
+    """Parse case/ 下所有嵌套 XML，返回 {case_id: {scenario_id, ...}}。"""
     case_d = _case_dir()
     result: Dict[str, set] = {}
     if not case_d.is_dir():
         return result
-    for xml_file in case_d.glob("*.xml"):
+    try:
+        from ..core.case_discovery import discover_case_files
+    except ImportError:
+        from rodski.core.case_discovery import discover_case_files
+    for xml_file in discover_case_files(case_d):
         try:
             tree = ET.parse(xml_file)
             for case_node in tree.getroot().findall("case"):
@@ -239,6 +257,8 @@ def handle(args):
         "preview": _handle_preview,
         "create": _handle_create,
         "add-case": _handle_add_case,
+        "add-dir": _handle_add_dir,
+        "migrate": _handle_migrate,
         "add-scenario": _handle_add_scenario,
         "disable-case": _handle_disable_case,
         "disable-scenario": _handle_disable_scenario,
@@ -277,7 +297,23 @@ def _handle_list(args):
         print("无 plan 文件")
         return 0
     for f in files:
-        print(f.stem)
+        try:
+            tree = ET.parse(f)
+            root = tree.getroot()
+            kind = root.get("kind", "")
+            title = root.get("title", "")
+            case_count = len(root.findall("case"))
+            case_dir_count = len(root.findall("case_dir"))
+            info = f"{f.stem} [{kind}]"
+            if title:
+                info += f" {title}"
+            info += f" ({case_count} cases"
+            if case_dir_count > 0:
+                info += f", {case_dir_count} dirs"
+            info += ")"
+            print(info)
+        except ET.ParseError:
+            print(f"{f.stem} (解析错误)")
     return 0
 
 
@@ -291,52 +327,126 @@ def _handle_show(args):
 
 
 def _handle_validate(args):
-    plan_d = _plan_dir()
-    if not plan_d.is_dir():
-        print("plan/ 目录不存在", file=sys.stderr)
-        return 1
-
-    if args.plan_id:
-        targets = [_plan_path(args.plan_id)]
-        if not targets[0].is_file():
-            print(f"错误: plan 文件不存在: {targets[0]}", file=sys.stderr)
-            return 1
+    plan_id = args.plan_id
+    if plan_id:
+        paths = [_plan_path(plan_id)]
     else:
-        targets = sorted(plan_d.glob("*.xml"))
+        plan_d = _plan_dir()
+        if not plan_d.is_dir():
+            print("plan/ 目录不存在")
+            return 0
+        paths = sorted(plan_d.glob("*.xml"))
 
-    if not targets:
+    if not paths:
         print("无 plan 文件")
         return 0
 
-    case_ids = _collect_existing_case_ids()
-    scenario_map = _collect_existing_scenario_ids()
-    errors: List[str] = []
+    try:
+        from ..core.case_discovery import discover_case_files
+    except ImportError:
+        from rodski.core.case_discovery import discover_case_files
 
-    for plan_file in targets:
-        try:
-            tree = ET.parse(plan_file)
-        except ET.ParseError as e:
-            errors.append(f"{plan_file.name}: XML 解析错误 - {e}")
+    all_stale = []
+    for path in paths:
+        if not path.is_file():
+            print(f"跳过: {path}")
             continue
-        root = tree.getroot()
-        plan_id_attr = (root.get("id") or "").strip()
-        if plan_id_attr != plan_file.stem:
-            errors.append(f"{plan_file.name}: id={plan_id_attr!r} 与文件名 {plan_file.stem!r} 不一致")
-        for case_node in root.findall("case"):
-            cid = (case_node.get("id") or "").strip()
-            if cid and cid not in case_ids:
-                errors.append(f"{plan_file.name}: case '{cid}' 不存在")
-            for sc_node in case_node.findall("scenario"):
-                sid = (sc_node.get("id") or "").strip()
-                if sid and cid in scenario_map and sid not in scenario_map.get(cid, set()):
-                    errors.append(f"{plan_file.name}: scenario '{sid}' (case '{cid}') 不存在")
 
-    if errors:
-        print("校验失败:")
-        for e in errors:
-            print(f"  - {e}")
+        tree, root, _ = _load_plan_tree(path.stem)
+        plan_id = root.get("id", "")
+
+        # Build case_file -> [case_id, ...] and case_id -> [case_file, ...] indices
+        case_d = _case_dir()
+        if not case_d.is_dir():
+            print(f"{plan_id}: case/ 目录不存在")
+            continue
+
+        case_file_to_ids: Dict[str, set] = {}
+        case_id_to_files: Dict[str, set] = {}
+        scenario_index: Dict[Tuple[str, str], set] = {}
+        case_files = discover_case_files(case_d)
+        # Owner decision C2: file may be omitted only when the module has exactly one case file
+        multi_file_module = len(case_files) > 1
+        for xml_file in case_files:
+            try:
+                from ..core.case_discovery import relative_case_file, resolve_module_dir
+            except ImportError:
+                from rodski.core.case_discovery import relative_case_file, resolve_module_dir
+
+            module_dir = resolve_module_dir(xml_file)
+            case_file = relative_case_file(module_dir, xml_file)
+
+            tree_c = ET.parse(xml_file)
+            for case_node in tree_c.getroot().findall("case"):
+                cid = (case_node.get("id") or "").strip()
+                if cid:
+                    case_file_to_ids.setdefault(case_file, set()).add(cid)
+                    case_id_to_files.setdefault(cid, set()).add(case_file)
+                    scenarios: set = set()
+                    tc_node = case_node.find("test_case")
+                    if tc_node is not None:
+                        for sc in tc_node.findall("scenario"):
+                            sid = (sc.get("id") or "").strip()
+                            if sid:
+                                scenarios.add(sid)
+                    scenario_index[(case_file, cid)] = scenarios
+
+        stale = []
+        for case_node in root.findall("case"):
+            case_id = (case_node.get("id") or "").strip()
+            file_attr = case_node.get("file")
+
+            resolved_file = None
+            if file_attr:
+                # Explicit file specified
+                file_attr = file_attr.strip()
+                if file_attr not in case_file_to_ids:
+                    stale.append(f"  case id={case_id} file={file_attr}: 文件不存在")
+                elif case_id not in case_file_to_ids.get(file_attr, set()):
+                    stale.append(f"  case id={case_id} file={file_attr}: 文件内无此ID")
+                else:
+                    resolved_file = file_attr
+            else:
+                # No file: check existence and the single-case-file rule
+                candidate_files = case_id_to_files.get(case_id, set())
+                if not candidate_files:
+                    stale.append(f"  case id={case_id}: ID不存在")
+                elif multi_file_module:
+                    candidates_str = ", ".join(sorted(candidate_files))
+                    stale.append(f"  case id={case_id}: 多用例文件模块需补充file属性 [SKI207] (候选: {candidates_str})")
+                else:
+                    resolved_file = next(iter(candidate_files))
+
+            if resolved_file is not None:
+                known_scenarios = scenario_index.get((resolved_file, case_id), set())
+                for scenario_node in case_node.findall("scenario"):
+                    sid = (scenario_node.get("id") or "").strip()
+                    if sid and sid not in known_scenarios:
+                        stale.append(
+                            f"  case id={case_id} file={resolved_file}: scenario '{sid}' 不存在"
+                        )
+
+        for case_dir_node in root.findall("case_dir"):
+            dir_path = (case_dir_node.get("path") or "").strip()
+            if dir_path == "":
+                target_dir = case_d
+            else:
+                target_dir = case_d / dir_path
+            if not target_dir.is_dir():
+                stale.append(f"  case_dir path={dir_path}: 目录不存在")
+
+        if stale:
+            print(f"{plan_id}: {len(stale)} 个stale引用")
+            for s in stale:
+                print(s)
+            all_stale.extend(stale)
+        else:
+            print(f"{plan_id}: OK")
+
+    if all_stale:
+        print(f"校验失败: {len(all_stale)} 个问题")
         return 1
-    print(f"校验通过: {len(targets)} 个 plan 文件")
+    print(f"校验通过: {len(paths)} 个 plan 文件")
     return 0
 
 
@@ -361,7 +471,7 @@ def _handle_preview(args):
         print("case/ 目录不存在", file=sys.stderr)
         return 1
     cases = CaseParser(str(case_d)).parse_cases()
-    selection = TestPlanSelection(cases, plan)
+    selection = TestPlanSelection(cases, plan, module_dir=case_d.parent)
     result = selection.select()
 
     selected = result.get("selected", [])
@@ -440,14 +550,119 @@ def _handle_create(args):
 
 def _handle_add_case(args):
     tree, root, path = _load_plan_tree(args.plan_id)
-    # Check duplicate
+    case_file = args.case_file.strip()
+    case_id = args.case_id.strip()
+
+    # Check if already exists (by case_uid)
     for case_node in root.findall("case"):
-        if case_node.get("id") == args.case_id:
-            print(f"case '{args.case_id}' 已存在于 plan")
+        existing_id = (case_node.get("id") or "").strip()
+        existing_file = (case_node.get("file") or "").strip()
+        if existing_id == case_id and existing_file == case_file:
+            print(f"已存在: case file={case_file} id={case_id}")
             return 0
-    ET.SubElement(root, "case", {"id": args.case_id, "execute": "是"})
+
+    case_node = ET.SubElement(root, "case", {"id": case_id, "file": case_file, "execute": "是"})
     _write_plan_xml(path, root)
-    print(f"添加 case '{args.case_id}' 到 {args.plan_id}")
+    print(f"添加: case file={case_file} id={case_id}")
+    return 0
+
+
+def _handle_add_dir(args):
+    tree, root, path = _load_plan_tree(args.plan_id)
+    dir_path = args.path.strip()
+
+    # Check if already exists
+    for case_dir_node in root.findall("case_dir"):
+        existing_path = (case_dir_node.get("path") or "").strip()
+        if existing_path == dir_path:
+            print(f"已存在: case_dir path={dir_path}")
+            return 0
+
+    case_dir_node = ET.SubElement(root, "case_dir", {"path": dir_path, "execute": "是"})
+    _write_plan_xml(path, root)
+    print(f"添加: case_dir path={dir_path}")
+    return 0
+
+
+def _handle_migrate(args):
+    """为缺少file的plan case自动补充file属性。"""
+    from pathlib import Path
+    module_dir = Path(args.module).resolve()
+    case_d = module_dir / "case"
+    plan_d = module_dir / "plan"
+
+    if not case_d.is_dir():
+        print(f"错误: case/ 目录不存在: {case_d}", file=sys.stderr)
+        return 1
+    if not plan_d.is_dir():
+        print(f"错误: plan/ 目录不存在: {plan_d}", file=sys.stderr)
+        return 1
+
+    try:
+        from ..core.case_discovery import discover_case_files, relative_case_file, resolve_module_dir
+    except ImportError:
+        from rodski.core.case_discovery import discover_case_files, relative_case_file, resolve_module_dir
+
+    # Build case_id -> [case_file, ...] index
+    case_id_to_files: Dict[str, List[str]] = {}
+    for xml_file in discover_case_files(case_d):
+        mod_dir = resolve_module_dir(xml_file)
+        case_file = relative_case_file(mod_dir, xml_file)
+
+        tree_c = ET.parse(xml_file)
+        for case_node in tree_c.getroot().findall("case"):
+            cid = (case_node.get("id") or "").strip()
+            if cid:
+                case_id_to_files.setdefault(cid, []).append(case_file)
+
+    # Check if single-file module (can skip migration)
+    all_files = set()
+    for files in case_id_to_files.values():
+        all_files.update(files)
+    if len(all_files) <= 1:
+        print(f"单文件模块，无需迁移: {module_dir}")
+        return 0
+
+    # Process each plan
+    plan_files = sorted(plan_d.glob("*.xml"))
+    modified_count = 0
+    ambiguous_count = 0
+
+    for plan_path in plan_files:
+        tree = ET.parse(plan_path)
+        root = tree.getroot()
+        modified = False
+
+        for case_node in root.findall("case"):
+            case_id = (case_node.get("id") or "").strip()
+            file_attr = case_node.get("file")
+
+            if file_attr:
+                # Already has file attribute
+                continue
+
+            candidate_files = case_id_to_files.get(case_id, [])
+            if len(candidate_files) == 0:
+                print(f"  {plan_path.stem}: case id={case_id} 不存在，跳过")
+            elif len(candidate_files) == 1:
+                # Unique: auto-fill
+                case_node.set("file", candidate_files[0])
+                print(f"  {plan_path.stem}: case id={case_id} 补充 file={candidate_files[0]}")
+                modified = True
+            else:
+                # Ambiguous: list candidates
+                candidates_str = ", ".join(candidate_files)
+                print(f"  {plan_path.stem}: case id={case_id} 有歧义，候选: {candidates_str}")
+                ambiguous_count += 1
+
+        if modified:
+            _write_plan_xml(plan_path, root)
+            modified_count += 1
+
+    print(f"\n迁移完成: {modified_count} 个plan已更新")
+    if ambiguous_count > 0:
+        print(f"警告: {ambiguous_count} 个歧义引用需要手动处理")
+        return 1
     return 0
 
 

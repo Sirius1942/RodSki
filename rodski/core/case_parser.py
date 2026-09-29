@@ -11,7 +11,8 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 
-from .exceptions import RoamUnsupportedCaseError
+from .case_discovery import discover_case_files, resolve_module_dir, relative_case_file
+from .exceptions import DuplicateCaseIdInFileError, RoamUnsupportedCaseError
 from .xml_schema_validator import RodskiXmlValidator
 
 logger = logging.getLogger("rodski")
@@ -22,10 +23,13 @@ class CaseParser:
         """初始化 Case 解析器
 
         Args:
-            case_path: case XML 文件路径，或 case/ 目录路径（加载目录下所有 XML）
+            case_path: case XML 文件路径，或 case/ 目录路径（递归加载目录下所有 XML）
         """
         self.case_path = Path(case_path)
         self._cases: List[Dict[str, Any]] = []
+        # v11.5.0：case 目录支持任意多级嵌套。case_file（相对模块 case/ 的
+        # POSIX 路径）需要知道模块目录，从传入路径用 resolve_module_dir 推导。
+        self._module_dir = resolve_module_dir(self.case_path)
         logger.debug(f"初始化 CaseParser: path={case_path}")
 
     def parse_cases(self) -> List[Dict[str, Any]]:
@@ -33,7 +37,7 @@ class CaseParser:
         self._cases = []
 
         if self.case_path.is_dir():
-            for xml_file in sorted(self.case_path.glob("*.xml")):
+            for xml_file in discover_case_files(self.case_path):
                 self._cases.extend(self._parse_file(xml_file))
         elif self.case_path.is_file():
             self._cases = self._parse_file(self.case_path)
@@ -44,6 +48,17 @@ class CaseParser:
         logger.info(f"解析完成: 共 {len(self._cases)} 个用例")
         return self._cases
 
+    def _case_file_for(self, xml_path: Path) -> str:
+        """计算 xml_path 相对模块 case/ 目录的 POSIX 路径（case_file）。
+
+        单元测试等场景下常直接用任意临时文件构造 CaseParser（不在真实的
+        ``{module}/case/`` 结构下），此时无法算出相对路径，退化为文件名本身。
+        """
+        try:
+            return relative_case_file(self._module_dir, xml_path)
+        except ValueError:
+            return xml_path.name
+
     def _parse_file(self, xml_path: Path) -> List[Dict[str, Any]]:
         """解析单个 case XML 文件"""
         logger.debug(f"解析用例文件: {xml_path}")
@@ -51,6 +66,7 @@ class CaseParser:
         tree = ET.parse(xml_path)
         root = tree.getroot()
         cases = []
+        case_file = self._case_file_for(xml_path)
 
         # 读取根节点的 step_wait 属性（毫秒）
         step_wait_ms = root.get('step_wait', None)
@@ -59,8 +75,16 @@ class CaseParser:
         raw_suite_tags = (root.get('tags') or '').strip()
         suite_tags = [t.strip() for t in raw_suite_tags.split(',') if t.strip()] if raw_suite_tags else []
 
+        # 同一用例文件内 case@id 必须唯一——execute="否" 的用例也参与检查
+        # （v11.5.0 起，用例 ID 只要求文件内唯一；跨文件同 ID 合法）。
+        seen_ids: set = set()
         for case_node in root.findall('case'):
             case_id = case_node.get('id', '')
+            if case_id:
+                if case_id in seen_ids:
+                    raise DuplicateCaseIdInFileError(case_file=case_file, case_id=case_id)
+                seen_ids.add(case_id)
+
             roam = case_node.get('roam', '否').strip()
             component_type = case_node.get('component_type', '').strip()
             if roam == '是' and component_type not in ('', '界面'):
@@ -84,6 +108,8 @@ class CaseParser:
 
             case = {
                 'case_id': case_id,
+                'case_file': case_file,
+                'case_uid': f"{case_file}::{case_id}",
                 'title': case_node.get('title', ''),
                 'description': case_node.get('description', ''),
                 'component_type': component_type,

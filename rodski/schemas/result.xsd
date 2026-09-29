@@ -49,6 +49,7 @@
       <xs:element name="recordings" type="RecordingsType" minOccurs="0" maxOccurs="1"/>
     </xs:sequence>
     <xs:attribute name="case_id" type="xs:string" use="required"/>
+    <xs:attribute name="case_file" type="xs:string" use="optional"/>
     <xs:attribute name="title" type="xs:string" use="optional"/>
     <xs:attribute name="status" type="StatusType" use="required"/>
     <xs:attribute name="execution_time" type="xs:string" use="optional"/>

@@ -1,7 +1,7 @@
 # RodSki 核心设计约束
 
-**版本**: v11.4.1
-**日期**: 2026-09-27
+**版本**: v11.5.0
+**日期**: 2026-09-28
 
 本文档记录 RodSki 框架的核心设计决策与约束规则，所有后续开发必须遵循。
 
@@ -13,6 +13,7 @@
 
 | 版本 | 日期 | 主要变更 |
 |------|------|---------|
+| v11.5.0 | 2026-09-28 | `case/` 支持任意多级嵌套目录，递归发现用例（§6.5 新增）；用例完整标识改为 `case_file + case.id`，ID 只要求文件内唯一（§7.2）；`result.xsd` 新增 `case_file`（§7.6）；`plan.xsd` 的 `case@file` 必填（单文件模块兼容例外）、新增 `case_dir`，`--case-id` 加入 `@plan_id` 互斥 selector 清单（§7.7）；结果目录按 `case/` 目录结构镜像，截图/录像路径随之改变（Agent 契约摘要） |
 | v11.3.0 | 2026-09-14 | iOS 真机纳入设备发现（devicectl）、真机+模拟器混跑约束（§11.5 追加）、移动端导航两条硬约束（§11.5 追加） |
 | v11.4.0 | 2026-09-27 | 业务模型场景法约束：Case 显式选择业务流、普通 SQLite Data/Verify 数据表、XML Schema 与 debug-only 独立执行边界 |
 | v11.2.0 | 2026-09-10 | 移动端多设备并发约束（§11.5）：计划不可拆分、动态领取、`--udid` 覆盖顺序、并发端口分槽 |
@@ -916,8 +917,9 @@ SUPPORTED = [
 product/                           ← 产品根目录（顶层）
 └── {测试项目名}/                   ← 测试项目（如 DEMO）
     └── {测试模块名}/               ← 测试模块/业务（如 demo_site）
-        ├── case/                  ← 测试用例 XML 文件
-        │   └── *.xml
+        ├── case/                  ← 测试用例 XML 文件，支持任意多级子目录（v11.5.0 起，递归发现，见 §6.5）
+        │   ├── *.xml
+        │   └── {业务域}/.../*.xml ← 可继续嵌套；子目录名不得使用保留目录名
         ├── model/                 ← 模型 XML 文件
         │   └── model.xml
         ├── fun/                   ← 代码工程目录（run 关键字使用）
@@ -951,7 +953,7 @@ product/                           ← 产品根目录（顶层）
 
 | 目录 | 职责 | 文件类型 |
 |------|------|---------|
-| `case/` | 存放测试用例定义 | `*.xml`（符合 case.xsd） |
+| `case/` | 存放测试用例定义；支持任意多级子目录，执行/解析/plan/lint 均递归查找（v11.5.0 起，见 §6.5） | `*.xml`（符合 case.xsd，可位于 `case/` 下任意深度） |
 | `model/` | 存放页面/接口模型 | `model.xml`（符合 model.xsd） |
 | `fun/` | 存放 run 关键字的代码工程 | `*.py` |
 | `data/` | 存放数据表和全局变量 | `data.sqlite`（必须）、`globalvalue.xml`（符合 globalvalue.xsd） |
@@ -969,6 +971,28 @@ product/                           ← 产品根目录（顶层）
 - **固定文件夹只出现在测试模块层级下**，不可出现在测试项目层级
 - **model.xml 是唯一的模型文件名**，不可改名
 - **不得把 `perf/` 或 `knowledge/` 加入 `REQUIRED_MODULE_DIRS`**；它们按功能需要生成
+- **`case/` 子目录不得使用保留名**（`case/model/fun/data/plan/result/business/perf/knowledge`），否则报 `SKI206`（v11.5.0 起，见 §6.5）
+
+### 6.5 case/ 递归发现与用例标识（v11.5.0 起）
+
+`case/` 支持**任意多级子目录**；执行、解析、`plan`、`dry-run`、`rodski case lint` 等所有消费者统一通过 `rodski/core/case_discovery.py` 的 `discover_case_files()` 递归发现用例文件，不得自行 `glob("*.xml")` 只扫描一层。
+
+| 规则 | 说明 |
+|------|------|
+| 递归 | `case/**/*.xml`，不限制层级 |
+| 排序 | 按相对 `case/` 的 POSIX 路径逐段排序，跨平台结果确定；扁平目录顺序与旧版一致 |
+| 忽略 | 以 `.` 开头的目录或文件（如 `.git/`、`.draft/`）；非 `.xml` 文件（如 `README.md`） |
+| 保留名 | 子目录不得命名为 `case / model / fun / data / plan / result / business / perf / knowledge`，否则解析阶段报 `SKI206 ReservedCaseSubdirName` |
+| 符号链接 | 不跟随目录符号链接（防循环、防跨模块引用） |
+| XSD 校验 | 每个被发现的文件仍按 `case.xsd` 校验，与 §7.0 一致 |
+
+**用例的完整标识 = 用例文件（相对 `case/` 的 POSIX 路径，即 `case_file`）+ 用例 ID**：
+
+- `case.id` 只要求在**所属用例文件内**唯一（`execute="否"` 的用例也参与检查）；同一文件内重复报 `SKI205 DuplicateCaseIdInFile`，报错信息需指出文件与重复的 ID。
+- **跨文件允许出现相同 ID**；框架内部以 `{case_file}::{case_id}` 作为完整标识。`plan`、`result`、CLI 均按"文件 + ID"定位用例，不再把 `case.id` 当作模块内全局唯一键（详见 §7.2、§7.6、§7.7）。
+- `resolve_module_dir()` 向上查找最近的、名为 `case` 的祖先目录，其父目录即模块目录；有 §6.4 的保留名规则兜底，"最近的 `case` 祖先"在任意嵌套深度下都能唯一确定。
+- 结果目录按用例文件路径镜像组织（用例级截图/录像），详见「Agent 契约摘要 · 截图目录规则」。
+- 相关错误码：`SKI205`（文件内 ID 重复）、`SKI206`（保留子目录名）、`SKI207`（plan 省略必填 `file`，见 §7.7）、`SKI208`（`--case-id` 使用方式不当，见 §7.7）。所有错误必须在启动浏览器/驱动之前抛出（校验先于副作用）。
 
 ---
 
@@ -980,7 +1004,7 @@ product/                           ← 产品根目录（顶层）
 
 | 读取时机 | 文档类型 | 不符合 Schema 时 |
 |---------|---------|------------------|
-| 解析 `case/*.xml` | 用例 | 抛出 `XmlSchemaValidationError`（错误码 `SKI204`） |
+| 解析 `case/**/*.xml`（递归发现的每个文件，见 §6.5） | 用例 | 抛出 `XmlSchemaValidationError`（错误码 `SKI204`） |
 | 解析 `data/*.xml`（不含 globalvalue） | 数据表 | 同上 |
 | 解析 `data/globalvalue.xml` | 全局变量 | 同上 |
 | 解析 `plan/*.xml` | 测试计划 | 同上 |
@@ -1001,7 +1025,7 @@ RodskiXmlValidator.validate_file("path/to/case.xml", RodskiXmlValidator.KIND_CAS
 
 | 文件类型 | Schema 文件 | 存放目录 | 说明 |
 |---------|------------|---------|------|
-| 用例 XML | `schemas/case.xsd` | `case/` | 用例定义（三阶段容器 + test_step） |
+| 用例 XML | `schemas/case.xsd` | `case/`（支持任意多级子目录，递归发现，见 §6.5） | 用例定义（三阶段容器 + test_step） |
 | 模型 XML | `schemas/model.xsd` | `model/` | 元素定位模型 |
 | 数据表 XML | `schemas/data.xsd` | `data/` | 输入数据表 + 验证数据表 |
 | 全局变量 XML | `schemas/globalvalue.xsd` | `data/` | 全局变量定义 |
@@ -1054,7 +1078,7 @@ pre_process → test_case → roaming（可选）→ post_process
 | 属性/元素 | 必需 | 说明 |
 |-----------|------|------|
 | `case.execute` | 是 | `是` 或 `否`，只有 `是` 才执行 |
-| `case.id` | 是 | 用例唯一编号 |
+| `case.id` | 是 | 用例编号；只要求**在所属用例文件内唯一**（v11.5.0 起，见 §6.5），`execute="否"` 的用例也参与检查；同文件内重复报 `SKI205`。用例的完整标识 = `case_file`（相对 `case/` 的 POSIX 路径）+ `case.id`，**跨文件允许相同 ID** |
 | `case.title` | 是 | 用例标题 |
 | `case.description` | 否 | 用例描述 |
 | `case.component_type` | 否 | `界面` / `接口` / `数据库` |
@@ -1152,10 +1176,12 @@ model.xml 格式与之前版本保持一致，仅支持完整格式（`<location
 <testresult>
   <summary total="2" passed="1" failed="1" pass_rate="50.0%" .../>
   <results>
-    <result case_id="c001" title="登录测试" status="PASS" execution_time="2.345" .../>
+    <result case_file="order/refund/refund_apply.xml" case_id="c001" title="登录测试" status="PASS" execution_time="2.345" .../>
   </results>
 </testresult>
 ```
+
+`case_file` 为可选属性（v11.5.0 起新增），记录该用例所属文件相对 `case/` 的 POSIX 路径；跨文件同 `case_id` 时用于消歧（见 §6.5）。trace 的 case span、`CaseReport` 同步携带该字段。
 
 结果 XML 由框架自动生成，用户不需要手动编写。
 
@@ -1168,7 +1194,7 @@ model.xml 格式与之前版本保持一致，仅支持完整格式（`<location
 | 信息 | 唯一事实来源 |
 |------|--------------|
 | 测试计划执行范围 | `plan/{测试目的}_{测试类型}.xml` |
-| 用例、场景、步骤定义 | `case/*.xml` |
+| 用例、场景、步骤定义 | `case/**/*.xml`（支持任意多级子目录，递归发现，见 §6.5） |
 | 模型定义 | `model/model.xml` |
 | 测试数据 | `data/data.sqlite` |
 | 全局变量 | `data/globalvalue.xml` |
@@ -1185,15 +1211,19 @@ model.xml 格式与之前版本保持一致，仅支持完整格式（`<location
 - 不新增 `rs_testsuite`、`rs_test_plan`、`rs_execution_plan` 等 SQLite 计划表。
 - `rodski run` 未指定计划时，优先读取 `plan/project_full.xml`。
 - 若不存在 `project_full.xml` 但 `plan/*_full.xml` 只有一个，可使用该 full 计划；若存在多个 full 计划，必须提示用户显式指定 `@plan_id`。
+- **`<case>` 的 `file` 属性必填**（v11.5.0 起）：值为相对 `case/` 的 POSIX 路径。唯一兼容例外——模块 `case/` 下（递归）**只有一个用例文件**时可省略 `file`，自动指向该文件；存在多个用例文件而省略 `file` 时，解析报错 `SKI207 PlanCaseFileRequired`，提示为该 `id` 补充 `file` 并列出包含该 ID 的候选文件。
+- **`<case>` 的 `id` 只需在其 `file` 指向的文件内唯一**，不再是模块内全局唯一键（见 §6.5）。
+- 新增可选元素 `<case_dir path="..." execute="是"/>`：`path` 为相对 `case/` 的目录（递归选入，空字符串表示整个 `case/`），选中该目录下所有 `execute="是"` 的用例；同一用例同时被 `case_dir` 与显式 `case` 命中时，以 `case` 的显式配置为准。
+- `file` / `id` / `case_dir.path` 指向不存在的文件、ID 或目录时记为 stale 引用，只记录不崩溃（不变）。
 
 **执行入口约束**：
 
 | 入口 | 示例 | 执行范围来源 | 是否落盘 |
 |------|------|--------------|----------|
 | 显式 plan | `rodski run @project_full` | `plan/project_full.xml` | 是 |
-| 临时 selector | `rodski run --tag smoke` | `case/*.xml` 中的 scenario 元数据 | 否 |
+| 临时 selector | `rodski run --tag smoke` | `case/**/*.xml` 中的 scenario 元数据 | 否 |
 
-`@plan_id` 与 `--tag` / `--group` / `--exclude-tag` / `--priority` 等执行范围 selector **固定互斥**。同一次 `rodski run` 只能选择一种执行范围来源，不能做隐式合并、交集过滤或优先级裁决。
+`@plan_id` 与 `--tag` / `--group` / `--exclude-tag` / `--priority` / `--case-id`（v11.5.0 起新增，见下）等执行范围 selector **固定互斥**。同一次 `rodski run` 只能选择一种执行范围来源，不能做隐式合并、交集过滤或优先级裁决。
 
 ```bash
 # ✅ 显式 plan 模式
@@ -1202,10 +1232,17 @@ rodski run @project_full
 # ✅ 临时 selector 模式
 rodski run --tag smoke
 
+# ✅ 文件 + --case-id（v11.5.0，见 §6.5；--case-id 必须与单个用例文件路径一起使用，可逗号分隔多个 ID）
+rodski run case/order/refund/refund_apply.xml --case-id TC001
+
 # ❌ 不支持：plan 与 selector 同时使用
 rodski run @project_full --tag smoke
 rodski run @project_full --group negative
 rodski run @project_full --priority P0
+rodski run @project_full --case-id TC001
+
+# ❌ 不支持：--case-id 与目录一起使用（跨文件同 ID 会有歧义，报 SKI208）
+rodski run case/order/ --case-id TC001
 ```
 
 若 selector 结果需要长期复用，必须先生成 plan XML，再以显式 plan 模式执行：
@@ -1256,7 +1293,7 @@ case XML 中 <case execute="否">
 
 | 能力 | 说明 |
 |------|------|
-| 固定步骤 | 来自 `case/*.xml` 的 `<test_step>`，顺序与内容在运行前已知 |
+| 固定步骤 | 来自 `case/**/*.xml` 的 `<test_step>`，顺序与内容在运行前已知 |
 | 动态步骤 | 由 CLI 指令、扩展点或运行时策略在**执行过程中**插入的、与 Case 文件非一一对应的步骤 |
 | 混合执行 | 同一用例阶段内，执行序列为「固定步骤流」与「动态步骤」的**可组合序列**（插入位置由策略决定，例如某固定步前后、或某关键字回调后） |
 | 运行时控制 | 在固定步骤**执行过程中**，允许通过外部命令（如 CLI / 服务端下发）进行**暂停**、**插入**、**终止**，以改变后续执行路径（见 8.6） |
@@ -1371,7 +1408,7 @@ case XML 中 <case execute="否">
 
 1. `globalvalue.xml` 中 `Roam.Enabled=是`
 2. 当前 `case.roam="是"`
-3. CLI 显式使用 `rodski roam --case` 或 `rodski run --roam`
+3. CLI 显式使用 `rodski roam --case-file --case-id`（v11.5.0 起，原 `--case` 拆分为文件 + ID，见 §6.5/§7.7）或 `rodski run --roam`
 
 单用例命令对找不到或不满足条件的目标分别报告 `SKI801`/`SKI802`；批量 `--roam` 对不满足条件的用例静默跳过。`case.roam="是"` 仅允许 `component_type` 为空或为 `界面`，否则抛 `SKI803`。
 
@@ -1416,7 +1453,7 @@ RodSki 的测试必须严格区分为两层：
 | 规则 | 说明 |
 |------|------|
 | **必须使用 rodski-demo** | 验收测试必须落在 `rodski-demo/` 示例工程中 |
-| **必须有 Case** | 至少补充或修改 `case/*.xml` 示例用例 |
+| **必须有 Case** | 至少补充或修改 `case/**/*.xml` 示例用例 |
 | **必须有配套模型/数据** | 涉及新能力时，必须补充 `model/`、`data/` |
 | **必须体现真实链路** | 必须以关键字 + 模型 + 数据的真实执行链路进行验证 |
 | **可以分阶段启用** | 若 demo 页面/接口尚未准备好，可先 `execute="否"` 预留，但不能视为“已动态验收通过” |
@@ -2314,10 +2351,10 @@ test:
 
 | 项目 | 规范 |
 |------|------|
-| 用例格式 | XML（`case/*.xml`） |
+| 用例格式 | XML（`case/**/*.xml`，支持任意多级子目录，v11.5.0 起递归发现，见 §6.5） |
 | 模型格式 | XML（`model/model.xml`） |
 | 数据格式 | SQLite（`data/data.sqlite`，唯一数据文件） |
-| 测试计划格式 | XML（`plan/*.xml`，每个文件一个测试计划） |
+| 测试计划格式 | XML（`plan/*.xml`，每个文件一个测试计划；`<case>` 的 `file` 属性必填，见 §7.7） |
 | 定位器格式 | `<location type="类型">值</location>`（唯一格式，v5.4.0 起） |
 | 关键字集合 | navigate / launch / type / send / verify / assert / run / DB / get / set / wait / clear / upload_file / screenshot / evaluate |
 
@@ -2326,22 +2363,29 @@ test:
 | 项目 | 规范 |
 |------|------|
 | 结果文件 | `execution_summary.json` |
-| 截图 | `result/screenshots/`（见下方截图目录规则） |
+| 截图 | `result/{run}/case/{case_file 去 .xml}/screenshots/`（v11.5.0 起镜像 `case/` 目录结构；见下方截图目录规则） |
 | 日志 | `result/execution.log` |
 | Return 值 | 通过 `${Return[-1]}` 在数据表中引用 |
 
 #### 截图目录规则
 
+一次运行目录（`result/rodski_{ts}/`）下，用例级产物按**用例文件路径**镜像存放在 `case/{case_file 去 .xml}/` 中（v11.5.0 起，见 §6.5、§7.7 附近的设计说明）；`case_file` 为该用例文件相对 `case/` 的 POSIX 路径。**此规则适用于所有用例文件，包括位于 `case/` 根目录的文件**，没有特例。截图**文件名格式不变**：
+
 | 场景 | 存放路径 | 文件名格式 |
 |------|---------|-----------|
-| 非场景步骤（预处理/后处理/普通用例步骤） | `screenshots/` | `{caseid}_{stepindex}_{phase}_{timestamp}.png` |
-| 场景步骤（`test_case` 内 `<scenario>` 容器中的步骤） | `screenshots/{caseid}_{scenarioid}_{scenariotitle}/` | `{stepindex}_{timestamp}.png` |
-| 失败截图 | `screenshots/` | `{caseid}_{timestamp}_failure.png` |
+| 非场景步骤（预处理/后处理/普通用例步骤） | `result/{run}/case/{case_file 去 .xml}/screenshots/` | `{caseid}_{stepindex}_{phase}_{timestamp}.png` |
+| 场景步骤（`test_case` 内 `<scenario>` 容器中的步骤） | `result/{run}/case/{case_file 去 .xml}/screenshots/{caseid}_{scenarioid}_{scenariotitle}/` | `{stepindex}_{timestamp}.png` |
+| 失败截图 | `result/{run}/case/{case_file 去 .xml}/screenshots/` | `{caseid}_{timestamp}_failure.png` |
+
+例如 `case/order/refund/refund_apply.xml` 的截图落在 `result/rodski_{ts}/case/order/refund/refund_apply/screenshots/` 下。录像同理落在同目录的 `recordings/` 下。
 
 **约束**：
 - 场景截图必须保存在以 `{caseid}_{scenarioid}_{scenariotitle}` 命名的子目录中，同一用例的同一场景所有步骤截图集中在该目录
-- 非场景步骤截图直接存放在 `screenshots/` 根目录，不创建额外子目录
+- 非场景步骤截图直接存放在所属用例文件镜像目录的 `screenshots/` 根目录，不创建额外子目录
 - 截图路径中不允许出现 `/` 等路径分隔符（`phase` 字段中的 `/` 必须在生成文件名前替换为 `_`）
+- 跨文件同 `case_id` 的用例分别写入各自文件的镜像目录，互不覆盖（这是引入镜像目录的主要动机之一）
+- `result.xml`、`execution_summary.json`、`execution.log`、`trace.json`、HTML 报告等汇总产物保持在运行目录根，不随用例文件镜像；其中记录的截图/录像路径同步改为相对运行目录的新路径
+- 消费方（HTML 报告、web、rodski-agent、browser-plugin、VSCode 插件）应优先读取结果中记录的路径，不要自行按旧规则拼接 `result/screenshots/...`
 
 ### 版本兼容性
 
@@ -2351,6 +2395,7 @@ test:
 | v5.6.0 | LLM 能力统一到 LLMClient |
 | v5.7.0 | 文档叙事统一为执行引擎定位 |
 | v6.3.0 | 新增 `plan/*.xml` 测试计划；显式 plan 与 selector 固定互斥 |
+| v11.5.0 | `case/**/*.xml` 递归发现；用例标识 = `case_file + case.id`；截图/录像路径改为按 `case/` 目录镜像（不再是扁平 `result/screenshots/`）；`result.xsd` 新增 `case_file`；`--case-id` 加入 `@plan_id` 互斥 selector 清单 |
 
 ---
 
@@ -2380,7 +2425,7 @@ test:
 - [ ] 目录结构符合 `product/项目/模块` 规范（§6）
 - [ ] `directory_structure` 硬检查只要求 `case/model/data`；`fun/plan/result` 按能力需要，`perf/knowledge` 保持功能专属目录（§6）
 - [ ] 测试计划只存放在 `plan/*.xml`，不进入 `data.sqlite`（§7.7）
-- [ ] `@plan_id` 与 tag/group/priority selector 固定互斥（§7.7）
+- [ ] `@plan_id` 与 tag/group/priority/`--case-id` selector 固定互斥（§7.7）
 - [ ] 自检不使用 pytest（§9）
 - [ ] 数据表格式符合规范（§7.3）
 - [ ] 视觉定位器类型符合规范（§10）
@@ -2388,10 +2433,16 @@ test:
 - [ ] 漫游动作复用现有关键字和 `_run_steps`，未新增关键字或借用外部运行时 insert 通道
 - [ ] `rodski/core/` 不含具体决策引擎实现；`on_case_pass_roam_ready` 或 `--roam-engine` 提供引擎（§8.9）
 - [ ] `CaseReport.roam`（`RoamReport`）已在 `data_model.py` 声明，XSD 已定义 `RoamSummaryType`
+- [ ] `case/` 全部消费者（parser/metadata/scheduler/CLI/plan/lint）通过 `case_discovery.discover_case_files()` 递归发现，未见新的 `glob("*.xml")` 单层扫描（§6.5）
+- [ ] `case/` 子目录未使用保留名，违规触发 `SKI206`；同文件内 `case.id` 重复触发 `SKI205`（含 `execute="否"`），且在启动驱动前抛出（§6.5）
+- [ ] 用例标识按 `case_file + case.id` 处理，未把 `case.id` 当模块内全局唯一键（§6.5、§7.2）
+- [ ] `plan/*.xml` 的 `<case>` 已带必填 `file`（单文件模块兼容例外），省略且有歧义时报 `SKI207`；`case_dir` 与 `case` 冲突时以 `case` 为准（§7.7）
+- [ ] `--case-id` 只能与单个用例文件路径一起使用（目录报 `SKI208`），且与 `@plan_id` 互斥（§7.7）
+- [ ] `result/{run}/` 下用例级截图/录像已按 `case/{case_file 去 .xml}/` 镜像存放，截图文件名规则未变，汇总产物仍在运行目录根（Agent 契约摘要 · 截图目录规则）
 
 ---
 
-*文档版本: v7.0.2 | 最后更新: 2026-05-21*
+*文档版本: v11.5.0 | 最后更新: 2026-09-29*
 
 ## 21. 性能压测模式约束（v8.0）
 

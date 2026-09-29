@@ -67,12 +67,18 @@ rodski plan init
 # 创建冒烟计划
 rodski plan create invoice_smoke --kind suite --default-execute 否 --title "开票冒烟"
 
-# 向计划添加 case 和 scenario
-rodski plan add-case invoice_smoke TC040
+# 向计划添加 case 和 scenario（v11.5.0 起 add-case 为 3 个参数：计划、用例文件、用例 ID）
+rodski plan add-case invoice_smoke case/order/invoice_apply.xml TC040
 rodski plan add-scenario invoice_smoke TC040 INV-001
+
+# 按目录整体添加（v11.5.0 新增，递归选入该目录下 execute="是" 的用例）
+rodski plan add-dir invoice_smoke case/order/invoice
 
 # 从 tag 选择结果生成计划
 rodski plan create invoice_smoke --kind suite --from-tag smoke --title "开票冒烟"
+
+# 迁移存量 plan：为省略 file 的 <case> 自动补全（能唯一定位时），有歧义的列出待人工处理（v11.5.0 新增）
+rodski plan migrate invoice_module
 ```
 
 **plan XML 示例**（`plan/invoice_smoke.xml`）：
@@ -84,11 +90,17 @@ rodski plan create invoice_smoke --kind suite --from-tag smoke --title "开票�
            kind="suite"
            execute="是"
            default_execute="否">
-  <case id="TC040" execute="是">
+  <!-- file 为相对 case/ 的 POSIX 路径，v11.5.0 起必填 -->
+  <case file="order/invoice_apply.xml" id="TC040" execute="是">
     <scenario id="INV-001" execute="是"/>
   </case>
+
+  <!-- 按目录整体选入（递归），可选 -->
+  <case_dir path="order/refund" execute="是"/>
 </test_plan>
 ```
+
+> **`file` 必填的唯一兼容例外**：模块 `case/` 下（递归）只有一个用例文件时可以省略 `file`，框架自动指向该文件。存在多个用例文件却省略 `file` 时，解析 plan 报 `SKI207 PlanCaseFileRequired`，提示为该 `id` 补充 `file`，并列出包含该 ID 的候选文件。`case_dir` 与 `case` 同时命中同一用例时，以显式的 `case` 配置为准。
 
 ### 10.4 执行测试计划
 
@@ -140,6 +152,7 @@ rodski run @invoice_smoke --tag smoke
 rodski run @invoice_smoke --group negative
 rodski run @invoice_smoke --exclude-tag slow
 rodski run @invoice_smoke --priority P0
+rodski run @invoice_smoke --case-id TC040   # --case-id 同样属于执行范围 selector，与 @plan_id 固定互斥（v11.5.0 起）
 ```
 
 如果需要把 tag 选择结果长期保存，先生成 plan 再执行：

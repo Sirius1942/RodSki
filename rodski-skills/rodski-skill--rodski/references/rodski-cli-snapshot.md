@@ -4,10 +4,10 @@
 
 快照采集入口：`PATH` 上的 `rodski`（`command -v rodski`）。
 
-快照版本（采集时；当前以 `--version` 为准，本机最近一次确认为 7.1.5）：
+快照版本（采集时；当前以 `--version` 为准，本机最近一次确认为 11.4.1）：
 
 ```text
-RodSki 7.1.5  ← 历史采集值，使用前用 `rodski --version` 重新确认
+RodSki 11.4.1  ← 历史采集值，使用前用 `rodski --version` 重新确认
 ```
 
 ## 入口
@@ -31,7 +31,7 @@ wrapper 会从 RodSki 入口脚本的 Python shebang 动态探测 `rodski.__path
 ## 顶层命令
 
 ```text
-rodski [--version] {run,model,config,log,report,docs,data,init,plan,capabilities}
+rodski [--version] {run,roam,model,config,log,report,docs,data,init,plan,capabilities,explore,queue,business,case}
 ```
 
 未重新确认前不要生成：
@@ -70,9 +70,27 @@ rodski [--version] {run,model,config,log,report,docs,data,init,plan,capabilities
 "$RODSKI" run case/ --record-scope all_screens
 "$RODSKI" run case/ --record-monitor 1
 "$RODSKI" run case/ --record-resolution 1920x1080
+"$RODSKI" run case/order/refund/refund_apply.xml --case-id tc001,tc002
 ```
 
-`case` 参数可以是 XML 文件、`case/` 目录、测试模块目录或计划引用 `@plan_id`。`--output-format` 支持 `text`、`json`。`--browser` 支持 `chromium`、`firefox`、`webkit`。`--debug` 只对 `scenario_debug` / `step_debug` 类型 plan 生效。
+`case` 参数可以是 XML 文件、`case/` 目录（v11.5.0 起支持任意多级嵌套子目录）、测试模块目录或计划引用 `@plan_id`。`--case-id`（v11.5.0 新增）按用例 ID 过滤，逗号分隔多个，必须与单个用例文件路径一起使用（不能配合目录或 `@plan_id`），与 `@plan_id` 固定互斥。`--output-format` 支持 `text`、`json`。`--browser` 支持 `chromium`、`firefox`、`webkit`。`--debug` 只对 `scenario_debug` / `step_debug` 类型 plan 生效。
+
+## roam（v11.5.0 起支持嵌套定位）
+
+```bash
+"$RODSKI" roam <module_dir> --case-file order/refund/refund_apply.xml --case-id tc001
+"$RODSKI" roam <module_dir> --case tc001   # 旧模式：仅当模块只有一个用例文件或 ID 全模块唯一时可用
+```
+
+`--case-file` + `--case-id` 是 v11.5.0 起推荐的定位方式（`--case-file` 是相对 `case/` 的 POSIX 路径）；旧的单独 `--case` 参数保留作向后兼容。两者都缺失时以 argparse 用法错误退出（exit code 2）。其余参数（`--model`/`--browser`/`--headless`/`--trace`/`--platform` 等）与 `run` 一致，实际使用前用 `--help` 再确认。
+
+## case（v11.5.0 新增）
+
+```bash
+"$RODSKI" case lint <module>
+```
+
+检查 `case/` 目录结构与内容：ERROR（同文件内 ID 重复、子目录使用保留名）会让命令以非 0 退出；WARNING（目录/文件名不是 snake_case、单文件用例数超过 30）和 INFO（合法的跨文件同 ID）只提示不影响退出码。
 
 ## data
 
@@ -83,11 +101,15 @@ rodski [--version] {run,model,config,log,report,docs,data,init,plan,capabilities
 "$RODSKI" data query <module> <table>
 "$RODSKI" data query <module> <table> --limit 20
 "$RODSKI" data validate <module>
+"$RODSKI" data validate <module> --orphans
 "$RODSKI" data import <module>
 "$RODSKI" data import <module> --overwrite
+"$RODSKI" data dump <module>
+"$RODSKI" data dump <module> --format json
+"$RODSKI" data add-field <module> <table> <field> --default BLANK
 ```
 
-`module` 是测试模块目录，通常包含 `case/`、`model/`、`data/`。不要给 `validate` 加未确认的 `--strict`。
+`module` 是测试模块目录，通常包含 `case/`、`model/`、`data/`。不要给 `validate` 加未确认的 `--strict`；孤儿数据检查用 `--orphans`（v11.5.0 新增）。`dump` 只读、输出到 stdout、字段/行稳定排序，便于 diff。`add-field`（v11.5.0 新增）为逻辑表新增字段并回填所有已存在行的默认值。
 
 ## init
 
@@ -110,7 +132,9 @@ rodski [--version] {run,model,config,log,report,docs,data,init,plan,capabilities
 "$RODSKI" plan create <plan_id> --kind suite --title "标题"
 "$RODSKI" plan create <plan_id> --from-tag smoke
 "$RODSKI" plan create <plan_id> --from-group smoke
-"$RODSKI" plan add-case <plan_id> <case_id>
+"$RODSKI" plan add-case <plan_id> <case_file> <case_id>
+"$RODSKI" plan add-dir <plan_id> <path>
+"$RODSKI" plan migrate <module>
 "$RODSKI" plan add-scenario <plan_id> <case_id> <scenario_id>
 "$RODSKI" plan enable-case <plan_id> <case_id>
 "$RODSKI" plan disable-case <plan_id> <case_id>
@@ -120,7 +144,7 @@ rodski [--version] {run,model,config,log,report,docs,data,init,plan,capabilities
 "$RODSKI" plan debug-step ...
 ```
 
-`plan` 子命令较多，实际使用前先跑对应 `"$RODSKI" plan <subcommand> --help`。
+`add-case`（v11.5.0 起签名变更：新增 `case_file` 位置参数，相对 `case/` 的路径）写入 `<case file="..." id="...">`；`add-dir`（v11.5.0 新增）写入 `<case_dir path="...">` 批量选择一个 `case/` 子目录，`path` 为空字符串表示整个 `case/`；`migrate`（v11.5.0 新增）为旧 plan 中缺少 `file` 属性的 `<case>` 按模块自动补齐。`plan` 子命令较多，实际使用前先跑对应 `"$RODSKI" plan <subcommand> --help`。
 
 ## report/log/config/docs/model
 

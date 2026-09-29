@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 嵌套目录验收：所有用例共用一个页面模型 -->
+<models>
+  <model name="Page" type="ui">
+    <element name="title" type="web">
+      <location type="id">title</location>
+    </element>
+  </model>
+</models>

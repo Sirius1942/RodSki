@@ -1,6 +1,30 @@
 # Changelog
 
 
+## [11.5.0] - 2026-09-29
+
+用例目录多级嵌套，面向大型产品的用例组织。设计：`.pb/specs/v11.5.0-nested-case-directory-design.md`；迭代：`.pb/iterations/iteration-63/`。
+
+### Added
+
+- `case/` 支持任意多级子目录，执行、解析、plan、dry-run、queue、explain 统一递归发现用例文件（新增 `core/case_discovery.py`）；按相对路径逐段排序，忽略以 `.` 开头的目录/文件与非 `.xml` 文件，不跟随目录符号链接。
+- 用例身份 = 用例文件（相对 `case/` 的 POSIX 路径）+ 用例 ID；用例字典新增 `case_file`、`case_uid`。
+- plan：`<case file="..." id="..."/>` 精确选择；新增可选 `<case_dir path="..."/>` 按目录递归选入；`rodski plan add-case <plan> <file> <id>`、`add-dir`、`migrate`（为缺 `file` 的引用自动补全，歧义项列出待人工处理）。
+- CLI：`rodski run` 支持执行 `case/` 下任意子目录；新增 `--case-id`（须与单个用例文件路径一起使用，与 `@plan_id` 固定互斥）；在 `case/` 嵌套子目录中执行 `@plan_id` 可定位模块根；`rodski roam --case-file/--case-id`。
+- 结果目录镜像 case 目录：用例级截图（含场景子目录、失败截图）与录像写入 `result/{run}/case/<用例文件去 .xml>/screenshots|recordings/`，跨文件同名用例互不覆盖；汇总文件仍在运行目录根。`result.xsd` 新增 `case_file`，HTML 报告新增按目录视图。
+- 维护工具：`rodski case lint`、`rodski model lint`、`rodski data dump`（只读，可作 git textconv）、`rodski data validate --orphans`、`rodski data add-field`。
+- 错误码：`SKI205` 同一用例文件内 ID 重复、`SKI206` `case/` 子目录使用保留名、`SKI207` 多用例文件模块中 plan 省略 `file`、`SKI208` `--case-id` 用法错误；均在启动驱动前抛出。
+- `rodski-demo` 新增验收模块 `demo_nested_case`（3 层嵌套、跨文件同名 ID、18 项自动化验收 `run_acceptance.py`）、`demo_nested_case_single`、`demo_nested_case_dup_id`。
+
+### Changed
+
+- 用例 ID 唯一性范围改为「所属用例文件内」（CORE §7.2）。
+- plan 的 `<case>` 必须写 `file`；唯一兼容例外：模块 `case/` 下（递归）只有一个用例文件。引用在任何文件中都不存在的 ID 记为 stale 引用。
+- `ModelParser` 检测同名 model 与同一 model 内同名 element 并报错（此前后者静默覆盖前者）。
+- 迁移 `rodski-demo` 存量 plan（demo_full、demo_load、mobile_app 补 `file`；demo_perception 的 plan 改为符合 `plan.xsd` 的 `<test_plan>` 格式）。
+- 文档：CORE_DESIGN_CONSTRAINTS、TEST_CASE_WRITING_GUIDE（目录与命名规范、plan、CLI、结果目录）、AGENT_INTEGRATION；`rodski-skills` 相关参考同步更新；web 用例解析支持嵌套目录。
+
+
 ## [11.4.1] - 2026-09-28
 
 ### Added

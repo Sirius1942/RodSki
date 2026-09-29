@@ -790,8 +790,12 @@ def collect_plan_driver_types(plan_path: Path, case_dir: Optional[Path] = None) 
         return set()
 
     case_dir = case_dir or (plan_path.parent.parent / "case")
+    try:
+        from .case_discovery import discover_case_files
+    except ImportError:                                   # pragma: no cover
+        from rodski.core.case_discovery import discover_case_files
     driver_types: set = set()
-    for xml_file in sorted(case_dir.glob("*.xml")):
+    for xml_file in discover_case_files(case_dir):
         try:
             root = ET.parse(xml_file).getroot()
         except ET.ParseError:

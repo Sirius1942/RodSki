@@ -33,12 +33,12 @@ def setup_parser(subparsers):
 
 
 def _resolve_module_dir(case_path: Path) -> Path:
-    """从 case 路径推导测试模块目录"""
-    if case_path.is_file():
-        return case_path.parent.parent
-    elif case_path.is_dir() and case_path.name == 'case':
-        return case_path.parent
-    return case_path
+    """从 case 路径推导测试模块目录（委托 case_discovery，支持任意嵌套深度）"""
+    try:
+        from ..core.case_discovery import resolve_module_dir
+    except ImportError:
+        from core.case_discovery import resolve_module_dir
+    return resolve_module_dir(case_path)
 
 
 def handle(args):

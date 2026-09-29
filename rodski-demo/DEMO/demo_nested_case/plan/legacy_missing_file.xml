@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 负向：模块内有多个用例文件时省略 file 必须报错，提示补充 file（期望非 0 退出、不执行任何用例） -->
+<test_plan id="legacy_missing_file" title="缺少 file 属性" kind="suite" execute="是" default_execute="否">
+  <case id="TC001" execute="是"/>
+</test_plan>

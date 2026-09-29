@@ -142,17 +142,17 @@ class TestPlanCreate:
 class TestPlanAddCase:
     def test_add_case(self, project):
         handle(Namespace(plan_action="init", kind="suite", default_execute="是", force=False))
-        args = Namespace(plan_action="add-case", plan_id="project_full", case_id="tc001")
+        args = Namespace(plan_action="add-case", plan_id="project_full", case_file="tc001.xml", case_id="tc001")
         rc = handle(args)
         assert rc == 0
         tree = ET.parse(project / "plan" / "project_full.xml")
         cases = tree.getroot().findall("case")
-        assert any(c.get("id") == "tc001" for c in cases)
+        assert any(c.get("id") == "tc001" and c.get("file") == "tc001.xml" for c in cases)
 
     def test_add_case_no_duplicate(self, project, capsys):
         handle(Namespace(plan_action="init", kind="suite", default_execute="是", force=False))
-        handle(Namespace(plan_action="add-case", plan_id="project_full", case_id="tc001"))
-        handle(Namespace(plan_action="add-case", plan_id="project_full", case_id="tc001"))
+        handle(Namespace(plan_action="add-case", plan_id="project_full", case_file="tc001.xml", case_id="tc001"))
+        handle(Namespace(plan_action="add-case", plan_id="project_full", case_file="tc001.xml", case_id="tc001"))
         tree = ET.parse(project / "plan" / "project_full.xml")
         cases = [c for c in tree.getroot().findall("case") if c.get("id") == "tc001"]
         assert len(cases) == 1
@@ -161,7 +161,7 @@ class TestPlanAddCase:
 class TestPlanAddScenario:
     def test_add_scenario(self, project):
         handle(Namespace(plan_action="init", kind="suite", default_execute="是", force=False))
-        handle(Namespace(plan_action="add-case", plan_id="project_full", case_id="tc001"))
+        handle(Namespace(plan_action="add-case", plan_id="project_full", case_file="tc001.xml", case_id="tc001"))
         args = Namespace(plan_action="add-scenario", plan_id="project_full", case_id="tc001", scenario_id="sc01")
         rc = handle(args)
         assert rc == 0
@@ -193,7 +193,7 @@ class TestPlanAddScenario:
 class TestPlanEnableDisable:
     def test_disable_case(self, project):
         handle(Namespace(plan_action="init", kind="suite", default_execute="是", force=False))
-        handle(Namespace(plan_action="add-case", plan_id="project_full", case_id="tc001"))
+        handle(Namespace(plan_action="add-case", plan_id="project_full", case_file="tc001.xml", case_id="tc001"))
         rc = handle(Namespace(plan_action="disable-case", plan_id="project_full", case_id="tc001"))
         assert rc == 0
         tree = ET.parse(project / "plan" / "project_full.xml")
@@ -202,7 +202,7 @@ class TestPlanEnableDisable:
 
     def test_enable_case(self, project):
         handle(Namespace(plan_action="init", kind="suite", default_execute="是", force=False))
-        handle(Namespace(plan_action="add-case", plan_id="project_full", case_id="tc001"))
+        handle(Namespace(plan_action="add-case", plan_id="project_full", case_file="tc001.xml", case_id="tc001"))
         handle(Namespace(plan_action="disable-case", plan_id="project_full", case_id="tc001"))
         rc = handle(Namespace(plan_action="enable-case", plan_id="project_full", case_id="tc001"))
         assert rc == 0
@@ -240,11 +240,11 @@ class TestPlanValidate:
         rc = handle(Namespace(plan_action="validate", plan_id="project_full"))
         assert rc == 0
         out = capsys.readouterr().out
-        assert "校验通过" in out
+        assert "OK" in out
 
     def test_validate_detects_stale_case(self, project, capsys):
         handle(Namespace(plan_action="init", kind="suite", default_execute="是", force=False))
-        handle(Namespace(plan_action="add-case", plan_id="project_full", case_id="nonexistent"))
+        handle(Namespace(plan_action="add-case", plan_id="project_full", case_file="nonexistent.xml", case_id="nonexistent"))
         rc = handle(Namespace(plan_action="validate", plan_id="project_full"))
         assert rc == 1
         out = capsys.readouterr().out
@@ -260,6 +260,27 @@ class TestPlanValidate:
         out = capsys.readouterr().out
         assert "sc_bad" in out
 
+    def _write_plan_case_without_file(self, project: Path, case_id: str):
+        root = _build_plan_root("project_full", kind="suite", default_execute="否")
+        ET.SubElement(root, "case", {"id": case_id, "execute": "是"})
+        _write_plan_xml(project / "plan" / "project_full.xml", root)
+
+    def test_validate_requires_file_in_multi_file_module(self, project, capsys):
+        """Owner C2: a module-unique id still needs file once case/ holds more than one file."""
+        _make_case_xml(project, "tc001", [])
+        _make_case_xml(project, "tc002", [])
+        self._write_plan_case_without_file(project, "tc001")
+        rc = handle(Namespace(plan_action="validate", plan_id="project_full"))
+        assert rc == 1
+        out = capsys.readouterr().out
+        assert "SKI207" in out and "tc001.xml" in out
+
+    def test_validate_allows_missing_file_in_single_file_module(self, project, capsys):
+        _make_case_xml(project, "tc001", [])
+        self._write_plan_case_without_file(project, "tc001")
+        rc = handle(Namespace(plan_action="validate", plan_id="project_full"))
+        assert rc == 0
+        assert "校验通过: 1 个 plan 文件" in capsys.readouterr().out
 
 class TestPlanDebugScenario:
     def test_debug_scenario_creates_plan(self, project):

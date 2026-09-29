@@ -11,7 +11,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 from pathlib import Path
 
-from core.exceptions import (
+from rodski.core.exceptions import (
     SKIError,
     ElementNotFoundError,
     TimeoutError as StepTimeoutError,
@@ -20,9 +20,9 @@ from core.exceptions import (
     DriverStoppedError as PageCrashError,
     DiagnosisTimeoutError,
 )
-from core.diagnosis_engine import DiagnosisEngine, DiagnosisReport
-from core.recovery_engine import RecoveryEngine, RecoveryResult
-from core.browser_recycler import ExecutionSnapshot, BrowserRecycler
+from rodski.core.diagnosis_engine import DiagnosisEngine, DiagnosisReport
+from rodski.core.recovery_engine import RecoveryEngine, RecoveryResult
+from rodski.core.browser_recycler import ExecutionSnapshot, BrowserRecycler
 
 
 class TestExceptionFramework:

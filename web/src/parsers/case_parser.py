@@ -91,22 +91,28 @@ class CaseParser:
         return cases
     
     def list_case_files(self, module: Optional[str] = None) -> List[str]:
-        """列出所有用例文件"""
+        """列出所有用例文件（v11.5.0: 支持递归嵌套目录）"""
         case_files = []
         search_path = self.data_path
-        
+
         if module:
             search_path = os.path.join(self.data_path, module, 'case')
-        
+
         if not os.path.exists(search_path):
             return case_files
-        
+
+        # v11.5.0: 递归扫描，忽略 . 开头的目录/文件
         for root, dirs, files in os.walk(search_path):
+            # 过滤隐藏目录（以 . 开头）
+            dirs[:] = [d for d in dirs if not d.startswith('.')]
+
             for f in files:
-                if f.endswith('.xml'):
+                # 忽略 . 开头的文件和非 XML 文件
+                if not f.startswith('.') and f.endswith('.xml'):
                     case_files.append(os.path.join(root, f))
-        
-        return case_files
+
+        # 按路径排序（逐段排序）
+        return sorted(case_files)
     
     def list_modules(self) -> List[str]:
         """列出所有模块"""

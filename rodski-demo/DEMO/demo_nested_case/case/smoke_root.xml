@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- case/ 根目录文件：验证根目录文件同样镜像到 result/{run}/case/smoke_root/ -->
+<cases>
+  <case execute="是" id="TC001" title="根目录冒烟" component_type="界面" priority="P1" tags="nested,smoke">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Page.ROOT"/>
+    </pre_process>
+    <test_case>
+      <test_step action="verify" model="Page" data="V_ROOT"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+</cases>

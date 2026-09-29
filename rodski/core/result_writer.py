@@ -108,10 +108,13 @@ class ResultWriter:
         run_dir_name = f"rodski_{timestamp}" + (f"_{suffix}" if suffix else "")
         self.current_run_dir = self.result_dir / run_dir_name
         self.current_run_dir.mkdir(parents=True, exist_ok=True)
-        screenshots_dir = self.current_run_dir / "screenshots"
-        screenshots_dir.mkdir(exist_ok=True)
-        recordings_dir = self.current_run_dir / "recordings"
-        recordings_dir.mkdir(exist_ok=True)
+
+        # v11.5.0: 不再在运行目录根创建 screenshots/recordings，而是按 case_file 镜像
+        # 注释掉旧代码，避免创建废弃的目录
+        # screenshots_dir = self.current_run_dir / "screenshots"
+        # screenshots_dir.mkdir(exist_ok=True)
+        # recordings_dir = self.current_run_dir / "recordings"
+        # recordings_dir.mkdir(exist_ok=True)
 
         # 同步日志目录到 Logger
         rodski_logger = logging.getLogger("rodski")
@@ -286,6 +289,12 @@ class ResultWriter:
         for result in results:
             result_elem = ET.SubElement(results_elem, "result")
             result_elem.set("case_id", str(result.get("case_id", "")))
+
+            # v11.5.0: 新增 case_file 属性（可选）
+            case_file = result.get("case_file", "")
+            if case_file:
+                result_elem.set("case_file", str(case_file))
+
             result_elem.set("title", str(result.get("title", "")))
             result_elem.set("status", str(result.get("status", "FAIL")).upper())
             result_elem.set("execution_time", str(result.get("execution_time", "")))
