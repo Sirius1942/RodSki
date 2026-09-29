@@ -70,7 +70,10 @@ python3 scripts/sync_test_case_guide.py \
 - Case 文件名应遵循目标模块现有命名风格。不要只为了改变语言、大小写或 snake_case/CamelCase 风格而重命名稳定用例文件。
 - 涉及“业务规则说明”“规则说明”“说明”等需要为当前规则命名或描述的字段时，名称应贴合当前用例表达的业务语义，避免泛泛写成占位词；描述应简明扼要，只保留支撑当前验证点的关键信息。
 - Case 文件名前缀应反映实际执行类型：纯界面用 `UI`，纯接口用 `API`，纯数据库用 `DB`；混合用例用组合前缀，如 `UI+DB`、`API+DB`、`UI+API+DB`。判定以实际 `test_step action` 为准：`navigate`/`type`/`evaluate`/`screenshot`/`get` 等归 UI，`send` 归 API，`DB` 或明确数据库检查脚本归 DB。纯 DB 用例的 `component_type` 应为 `数据库`。
-- 当存在 `send`、`type` 或 `verify` 的 model/data 路径时，不要用宽泛的 `evaluate` 代码伪造通过。
+- 当存在 `send`、`type` 或 `verify` 的 model/data 路径时，不要用宽泛的 `evaluate` 代码伪造通过。特别是用 `querySelectorAll(...).length` 之类在 `evaluate` 里做断言时，选择器失效会返回空集合、用例"静默通过"；断言优先走 model + `_verify`。
+- `verify` 默认 **strict 模式**：`_verify` 行必须包含模型的**全部**字段，否则报"字段缺失"。只想校验部分字段时，在步骤上写 `match_mode="subset"`；或者在不校验的字段填 `BLANK`。
+- `globalvalue.xml` 的 `DefaultValue.WaitTime` 会作用于**每一步**（当前单位为秒）。新模块保持 `0`，交互等待交给框架的智能等待与状态 `verify`；设成 `1` 会让每个用例多出"步数 × 1 秒"的耗时。
+- DB 断言、`sql`/`query` 混用与 SQL 占位符规则见 `references/api-db-patterns.md`「DB 主路径」。
 - 业务模型：`<business_call>` 必须同时写 `ref`、`flow`、`input`、`expect`；它是 Case 元素不是关键字，不要写成 `test_step action="business_call"`。`flow` 只是断言目标，不要为了让用例通过去改边条件或伪造输出；一条 flow 对应一个 Case。模型 `B` 的数据放在普通表 `B`（data）和 `B_verify`（verify）。改动 `business/` 后先跑 `rodski business validate <module>`。细节见 `references/business-model.md`。
 
 ## 工作流

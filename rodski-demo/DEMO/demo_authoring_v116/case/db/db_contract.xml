@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- v11.5.2 P0 验收：SQL 时间字面量不被当作参数（B1）；sql=BLANK 回落到 query（B2） -->
+<cases tags="p0,db">
+  <case execute="是" id="TC001" title="query 模板：时间字面量 + 命名参数，sql=BLANK 回落" component_type="数据库" priority="P0">
+    <test_case>
+      <test_step action="DB" model="OrderDB" data="Q_TIME"/>
+      <test_step action="verify" model="OrderDB" data="V_TIME"/>
+    </test_case>
+  </case>
+  <case execute="是" id="TC002" title="直接 SQL：引号内时间字面量" component_type="数据库" priority="P0">
+    <test_case>
+      <test_step action="DB" model="OrderDB" data="Q_SQL"/>
+      <test_step action="verify" model="OrderDB" data="V_SQL"/>
+    </test_case>
+  </case>
+</cases>

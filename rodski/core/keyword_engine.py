@@ -2321,7 +2321,12 @@ class KeywordEngine:
                 raise InvalidParameterError(
                     keyword="verify",
                     param_name="data",
-                    reason=f"verify 批量验证失败: 字段 '{element_name}' 在验证数据行 '{data_id}' 中缺失"
+                    reason=(
+                        f"verify 批量验证失败: 字段 '{element_name}' 在验证数据行 '{data_id}' 中缺失。"
+                        f"提示: 默认 strict 模式要求验证行包含模型全部字段；"
+                        f"只校验部分字段请在步骤上写 match_mode=\"subset\"，"
+                        f"或在该字段填 BLANK 跳过"
+                    )
                 )
 
             raw_expected = str(data_row[element_name])
@@ -3169,20 +3174,22 @@ class KeywordEngine:
         sql = None
         operation = 'query'
 
+        def _effective(value) -> str:
+            """BLANK / NULL / NONE / 空串 视为未提供（同一逻辑表字段集合一致，缺省字段须填占位值）"""
+            text = str(value if value is not None else '').strip()
+            return '' if text.upper() in ('', 'BLANK', 'NULL', 'NONE') else text
+
+        raw_sql = _effective(row_data.get('sql', '') or row_data.get('SQL', ''))
+        raw_query = _effective(row_data.get('query', ''))
+
         # 模式1: 数据表中直接写 SQL
-        if 'sql' in row_data or 'SQL' in row_data:
-            sql = str(row_data.get('sql', '') or row_data.get('SQL', '')).strip()
+        if raw_sql:
+            sql = raw_sql
             operation = str(row_data.get('operation', '') or row_data.get('Operation', 'query')).strip().lower()
 
         # 模式2: 数据表引用模型中的 query
-        elif 'query' in row_data:
-            query_name = str(row_data.get('query', '')).strip()
-            if not query_name:
-                raise InvalidParameterError(
-                    keyword="DB",
-                    param_name="data",
-                    reason=f"数据行 '{data_id}' 的 query 字段为空"
-                )
+        elif raw_query:
+            query_name = raw_query
 
             if query_name not in queries:
                 raise InvalidParameterError(
@@ -3199,7 +3206,10 @@ class KeywordEngine:
             raise InvalidParameterError(
                 keyword="DB",
                 param_name="data",
-                reason=f"数据行 '{data_id}' 中未找到 'sql' 或 'query' 字段"
+                reason=(
+                    f"数据行 '{data_id}' 既没有有效的 'sql' 也没有有效的 'query'"
+                    f"（BLANK/NULL/NONE/空值视为未提供）。请为该行填写其中之一"
+                )
             )
 
         # 4. 替换参数化查询中的 :param
@@ -3245,13 +3255,19 @@ class KeywordEngine:
         """
         import re
 
-        def replace_param(match):
-            param_name = match.group(1)
+        def render_value(param_name: str, position: int) -> str:
             if param_name not in params:
+                snippet_start = max(0, position - 20)
+                snippet = sql[snippet_start:position + len(param_name) + 21].replace("\n", " ")
                 raise InvalidParameterError(
                     keyword="DB",
                     param_name=param_name,
-                    reason=f"SQL 中引用了参数 ':{param_name}'，但数据表中未提供该参数"
+                    reason=(
+                        f"SQL 中引用了参数 ':{param_name}'，但数据表中未提供该参数"
+                        f"（位置附近: ...{snippet}...）。"
+                        f"提示: 参数名须以字母或下划线开头，写在引号内的冒号（如时间 '00:00:00'）不会被当作参数；"
+                        f"请在数据行中增加字段 '{param_name}'，或改写该处 SQL"
+                    )
                 )
 
             value = params[param_name]
@@ -3268,11 +3284,38 @@ class KeywordEngine:
             value_str = str(value).replace("'", "''")
             return f"'{value_str}'"
 
-        # 匹配 :param_name 格式（参数名只能是字母、数字、下划线）
-        pattern = r':(\w+)'
-        result = re.sub(pattern, replace_param, sql)
+        # 按 SQL 词法扫描：引号内的内容、`::` 类型转换原样保留；
+        # 占位符为 `:name`，name 必须以字母或下划线开头（`'00:00:00'` 中的 `:00` 不是参数）
+        out: List[str] = []
+        i, n = 0, len(sql)
+        while i < n:
+            ch = sql[i]
+            if ch in ("'", '"'):
+                j = i + 1
+                while j < n:
+                    if sql[j] == ch:
+                        if j + 1 < n and sql[j + 1] == ch:  # '' / "" 为转义
+                            j += 2
+                            continue
+                        break
+                    j += 1
+                out.append(sql[i:j + 1])
+                i = j + 1
+                continue
+            if ch == ':':
+                if i + 1 < n and sql[i + 1] == ':':  # PostgreSQL `::type`
+                    out.append('::')
+                    i += 2
+                    continue
+                m = re.match(r'[A-Za-z_]\w*', sql[i + 1:])
+                if m and not (i > 0 and (sql[i - 1].isalnum() or sql[i - 1] == '_')):
+                    out.append(render_value(m.group(0), i))
+                    i += 1 + m.end()
+                    continue
+            out.append(ch)
+            i += 1
 
-        return result
+        return ''.join(out)
 
     def _truncate_result(self, result: List[Dict], limit: int = 1000) -> Union[List[Dict], Dict]:
         """截断查询结果

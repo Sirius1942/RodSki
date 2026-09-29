@@ -31,6 +31,9 @@ RodSki 接口和数据库用例使用本文。实时契约仍以 `TEST_CASE_WRIT
 - SQL 不应直接嵌入 `case.xml`。
 - 查询行应有清晰的 DataID，验证行应断言真实业务值。
 - DB `_verify` 行不得将最新 Return 自引用为期望值。
+- **断言查询结果**：数据库模型里用 `<location type="field">列名</location>` 声明要校验的列，`DB` 之后接 `verify 模型名 行ID`（与第一行结果比较）。不要用 `<if>` 分支或 `evaluate` 判断查询结果。
+- **同表混用 `query` 行和 `sql` 行**：每行都带齐 `query` / `sql` / `operation`，不用的填 `BLANK`。v11.5.2 起 `BLANK/NULL/NONE/空` 视为未提供：先取有效 `sql`，没有再取 `query`。
+- **参数占位符** `:name` 必须以字母或下划线开头；写在引号里的冒号（如 `'2026-01-01 00:00:00'`）和 `::type` 转换不会被当作参数（v11.5.2 起）。旧版本遇到"未提供参数 `:00`"就是这个原因。
 
 ## UI 流程中的 API/DB
 

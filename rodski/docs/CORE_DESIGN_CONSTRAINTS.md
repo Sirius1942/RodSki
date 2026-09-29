@@ -2118,12 +2118,13 @@ Element not found after 30 retries (9.0s): id=submit-btn
 
 **位置**：`rodski-demo/DEMO/`
 
-**包含项目**（24 个）：
+**包含项目**（23 个）：
 - `demo_full/` - 完整功能演示（UI、接口、数据库、Return引用等）
 - `demo_runtime_control/` - 运行时控制演示（暂停、插入、终止）
 - `demo_nested_case/` - 嵌套目录用例（v11.5.0，3 层嵌套 + 自动化验收）
 - `demo_nested_case_single/` - 单用例文件模块（v11.5.0，测试省略 `file` 的兼容规则）
-- `demo_nested_case_dup_id/` - 跨文件同名 ID（v11.5.0，测试 SKI205）
+- `demo_nested_case_dup_id/` - 同一文件内 ID 重复（v11.5.0，测试 SKI205）
+- `demo_authoring_v116/` - AI 编写契约与断言可靠性（v11.5.2 起，DB 占位符/BLANK 回落；v11.6.0 扩展）
 - `demo_v11_enhancement/` - v11.x 增强特性演示
 - `demo_v7_features/` - v7.0 特性演示
 - `demo_business_model/` - 业务模型演示（v11.4.0）
@@ -2144,14 +2145,9 @@ Element not found after 30 retries (9.0s): id=submit-btn
 
 **约束**：
 - Demo 项目必须简单易懂，代码量最小化
-- 每个 Demo 必须有独立的 README.md 说明（当前有 6 个缺失，见下方待补）
+- 每个 Demo 必须有独立的 README.md 说明
 - Demo 用例必须能够独立运行
 - 不依赖外部真实业务系统
-
-**待补 README**（6 个）：
-- `browser_plugin/`、`browser_plugin_baidu/`
-- `demo_v11_enhancement/`、`demo_v7_features/`
-- `qq_music/`、`vscode_plugin/`
 
 ### 14.3 业务测试项目
 

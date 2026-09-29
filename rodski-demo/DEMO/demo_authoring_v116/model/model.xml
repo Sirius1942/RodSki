@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- v11.5.2 / v11.6.0 验收：AI 编写契约与断言可靠性 -->
+<models>
+  <model name="OrderDB" type="database" connection="order_db" servicename="订单库（模块内 data.sqlite）">
+    <query name="count_paid_since" remark="时间字面量与命名参数混用（v11.5.2 B1）">
+      <sql>SELECT COUNT(*) AS n FROM orders WHERE created_at &gt;= '2026-01-01 00:00:00' AND status = :status</sql>
+    </query>
+    <element name="n" type="database">
+      <location type="field">n</location>
+    </element>
+  </model>
+</models>

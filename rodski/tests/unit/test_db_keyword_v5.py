@@ -90,6 +90,60 @@ class TestDBKeywordV5:
 
         assert result == "SELECT * FROM orders WHERE note = 'It''s a test'"
 
+    def test_replace_params_ignores_time_literal(self):
+        """v11.5.2: 引号内时间字面量中的 ':00' 不是参数"""
+        sql = "SELECT * FROM orders WHERE created_at >= '2026-09-29 00:00:00' AND status = :status"
+        result = self.engine._replace_sql_params(sql, {"status": "paid"})
+        assert result == "SELECT * FROM orders WHERE created_at >= '2026-09-29 00:00:00' AND status = 'paid'"
+
+    def test_replace_params_ignores_colon_inside_quotes(self):
+        """引号内的 ':name' 原样保留，含 '' 转义的字符串也能正确跳过"""
+        sql = "SELECT ':user' AS a, 'it''s :x' AS b, \"col:y\" FROM t WHERE id = :id"
+        result = self.engine._replace_sql_params(sql, {"id": 7})
+        assert result == "SELECT ':user' AS a, 'it''s :x' AS b, \"col:y\" FROM t WHERE id = 7"
+
+    def test_replace_params_keeps_postgres_cast(self):
+        """PostgreSQL `::type` 类型转换不是参数"""
+        sql = "SELECT total::int FROM orders WHERE id = :id"
+        result = self.engine._replace_sql_params(sql, {"id": 1})
+        assert result == "SELECT total::int FROM orders WHERE id = 1"
+
+    def test_replace_params_reuses_same_param(self):
+        sql = "SELECT * FROM t WHERE a = :v OR b = :v"
+        assert self.engine._replace_sql_params(sql, {"v": 3}) == "SELECT * FROM t WHERE a = 3 OR b = 3"
+
+    def test_replace_params_missing_has_hint(self):
+        """缺参数时报错带位置片段与修复提示"""
+        with pytest.raises(InvalidParameterError) as exc_info:
+            self.engine._replace_sql_params("SELECT * FROM t WHERE a = :missing_one", {})
+        message = str(exc_info.value)
+        assert "missing_one" in message and "提示" in message
+
+    @patch.object(KeywordEngine, '_get_db_connection')
+    @patch.object(KeywordEngine, '_execute_db_sql')
+    def test_blank_sql_falls_back_to_query(self, mock_execute, mock_get_conn):
+        """v11.5.2: sql 为 BLANK 时视为未提供，回落到 query 模式（同一逻辑表字段集合一致）"""
+        self.model_parser.get_database_model.return_value = {
+            "type": "database",
+            "connection": "sqlite_db",
+            "queries": {"count": {"sql": "SELECT COUNT(*) AS n FROM orders", "remark": ""}},
+        }
+        self.data_manager.get_data.return_value = {"sql": "BLANK", "query": "count", "operation": "BLANK"}
+        mock_get_conn.return_value = Mock()
+        mock_execute.return_value = [{"n": 3}]
+
+        assert self.engine._kw_db({"model": "OrderQuery", "data": "Q002"}) is True
+        assert mock_execute.call_args[0][2] == "SELECT COUNT(*) AS n FROM orders"
+
+    def test_blank_sql_and_blank_query_raises(self):
+        self.model_parser.get_database_model.return_value = {
+            "type": "database", "connection": "sqlite_db", "queries": {},
+        }
+        self.data_manager.get_data.return_value = {"sql": "BLANK", "query": "NONE"}
+        with pytest.raises(InvalidParameterError) as exc_info:
+            self.engine._kw_db({"model": "OrderQuery", "data": "Q003"})
+        assert "既没有有效的 'sql' 也没有有效的 'query'" in str(exc_info.value)
+
     def test_truncate_under_limit(self):
         """测试小于 1000 行不截断"""
         result = [{"id": i} for i in range(100)]

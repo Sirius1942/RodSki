@@ -1,6 +1,25 @@
 # Changelog
 
 
+## [11.5.2] - 2026-09-29
+
+修复 AI 写用例对比实验暴露的 DB 契约缺陷，改进报错提示。设计：`.pb/specs/v11.6.0-ai-authoring-and-performance-design.md` §4。
+
+### Fixed
+
+- SQL 命名参数改为按 SQL 词法扫描替换：参数名须以字母或下划线开头，引号内的内容与 `::type` 类型转换原样保留。此前 `'2026-01-01 00:00:00'` 中的 `:00` 会被当成参数，报"未提供参数 `:00`"。
+- DB 数据行的 `sql` / `query` 取值为 `BLANK` / `NULL` / `NONE` / 空时视为未提供：先取有效 `sql`，没有再取 `query`。此前只要存在 `sql` 字段就执行，`sql=BLANK` 会报 `near "BLANK": syntax error`，导致同表混用 `sql` 行与 `query` 行时无法满足字段集合一致约束。
+- `TEST_CASE_WRITING_GUIDE.md` §5.5 示例的两行字段集合不一致（违反其自身约束），已改为带齐 `query` / `sql` / `operation` 并填 `BLANK`。
+- `CORE_DESIGN_CONSTRAINTS.md` §14.2：删除 11.5.1 遗留的"6 个 README 待补"过时说明，demo 清单改为实际的 23 个。
+
+### Changed
+
+- 报错附带修复提示：`verify` 缺字段时提示 `match_mode="subset"` 或填 `BLANK`；SQL 缺参数时给出位置片段并说明引号内冒号不是参数。
+- GUIDE §5.5 补充 BLANK 回落规则、占位符规则，以及用 `DB` + `verify` 断言查询结果的写法。
+- `rodski-skills` case-writer：补充 `verify` strict/subset、`WaitTime` 对耗时的影响、`evaluate` 断言"静默通过"风险，以及 DB 三条契约。
+- 新增验收模块 `rodski-demo/DEMO/demo_authoring_v116/`（DB 契约用例，在 11.5.1 上 0/2、修复后 2/2）。
+
+
 ## [11.5.1] - 2026-09-29
 
 文档修正版本：修复 CORE_DESIGN_CONSTRAINTS.md 中的约束矛盾、与代码实现不一致、结构问题，补齐 6 个 demo README。

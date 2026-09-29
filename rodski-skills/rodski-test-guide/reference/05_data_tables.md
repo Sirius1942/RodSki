@@ -197,12 +197,15 @@ Case XML 写 `type Login L001` 时，框架遍历 Login 模型：
 DB 关键字使用的数据行也属于普通逻辑表，默认表名与数据库模型名一致，例如 `QuerySQL`。
 
 ```xml
-<!-- data.sqlite 中的 QuerySQL 表 -->
+<!-- data.sqlite 中的 QuerySQL 表：同表混用 query 行和 sql 行时，所有行都带齐 query/sql/operation，不用的填 BLANK -->
 <datatable name="QuerySQL">
   <row id="Q001" remark="查询总数">
     <field name="query">count</field>
+    <field name="sql">BLANK</field>
+    <field name="operation">BLANK</field>
   </row>
   <row id="Q002" remark="插入数据">
+    <field name="query">BLANK</field>
     <field name="sql">INSERT INTO items (name) VALUES ('test')</field>
     <field name="operation">execute</field>
   </row>
@@ -220,7 +223,16 @@ DB 关键字使用的数据行也属于普通逻辑表，默认表名与数据�
 - Case 写法使用新语法：`<test_step action="DB" model="数据库模型名" data="Q001"/>`
 - `model` 必须是 `type="database"` 的模型名，不再填写 GlobalValue 连接组名
 - 连接信息来自数据库模型的 `connection` 属性，再映射到 `globalvalue.xml` 中对应组
-- SQLite 方案下，数据库逻辑表同样必须固定字段集合；不能同表混用 `query` 行和 `sql` 行且字段集合不一致
+- SQLite 方案下，数据库逻辑表同样必须固定字段集合；同表混用 `query` 行和 `sql` 行时，每行都要带齐这些字段，不用的填 `BLANK`
+- `sql` / `query` 的取值为 `BLANK` / `NULL` / `NONE` / 空时视为**未提供**（v11.5.2 起）：先看 `sql`，没有有效 `sql` 再看 `query`；两者都没有则报错
+- **参数占位符**为 `:name`，`name` 必须以字母或下划线开头（v11.5.2 起）。写在单引号 / 双引号字符串里的冒号不是参数，例如 `created_at >= '2026-01-01 00:00:00'` 中的 `:00`；PostgreSQL 的 `::type` 类型转换也不是参数
+
+**校验查询结果**：数据库模型中用 `type="database"`、`<location type="field">列名</location>` 声明要校验的列，执行 `DB` 后用 `verify 模型名 行ID` 比对（读取 `模型名_verify` 表，与第一行结果比较），不要用 `<if>` 或 `evaluate` 判断：
+
+```xml
+<test_step action="DB" model="OrderDB" data="Q_TIME"/>
+<test_step action="verify" model="OrderDB" data="V_TIME"/>
+```
 
 ### 5.6 数据表中使用 Return 引用
 
