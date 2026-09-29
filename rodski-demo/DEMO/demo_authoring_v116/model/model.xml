@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- v11.5.2 / v11.6.0 验收：AI 编写契约与断言可靠性 -->
+<!-- v11.5.2 / v11.6.0 验收：AI 编写契约与断言可靠性
+     注意：page 定位类型与 location@frame 属性为 v11.6.0 新语法（spec A1/C1/C2），实现前本文件无法通过 model.xsd -->
 <models>
   <model name="OrderDB" type="database" connection="order_db" servicename="订单库（模块内 data.sqlite）">
     <query name="count_paid_since" remark="时间字面量与命名参数混用（v11.5.2 B1）">
@@ -7,6 +8,76 @@
     </query>
     <element name="n" type="database">
       <location type="field">n</location>
+    </element>
+  </model>
+
+  <!-- A1 原生数量/存在断言 + A2 verify 自动重试：表格 300~800ms 后异步渲染 -->
+  <model name="AsyncTable" type="ui">
+    <element name="rows" type="web">
+      <location type="css">#orderBody tr.order-row</location>
+    </element>
+    <element name="total" type="web">
+      <location type="id">total</location>
+    </element>
+  </model>
+
+  <!-- A1 页面级断言 -->
+  <model name="PageInfo" type="ui">
+    <element name="currentPath" type="web">
+      <location type="page">path</location>
+    </element>
+    <element name="pageTitle" type="web">
+      <location type="page">title</location>
+    </element>
+  </model>
+
+  <!-- P3 登录态复用 -->
+  <model name="Login" type="ui">
+    <element name="username" type="web">
+      <location type="id">username</location>
+    </element>
+    <element name="password" type="web">
+      <location type="id">password</location>
+    </element>
+    <element name="loginBtn" type="web">
+      <location type="id">loginBtn</location>
+    </element>
+  </model>
+  <model name="Home" type="ui">
+    <element name="userName" type="web">
+      <location type="id">userName</location>
+    </element>
+  </model>
+
+  <!-- C1 dialog：dialog 元素排在触发按钮之前 -->
+  <model name="DialogPage" type="ui">
+    <element name="dialog" type="web">
+      <location type="page">dialog</location>
+    </element>
+    <element name="deleteBtn" type="web">
+      <location type="id">deleteBtn</location>
+    </element>
+    <element name="status" type="web">
+      <location type="id">status</location>
+    </element>
+    <element name="promptBtn" type="web">
+      <location type="id">promptBtn</location>
+    </element>
+    <element name="promptResult" type="web">
+      <location type="id">promptResult</location>
+    </element>
+  </model>
+
+  <!-- C2 iframe 定位 -->
+  <model name="PayFrame" type="ui">
+    <element name="cardNo" type="web">
+      <location type="css" frame="#payFrame">#cardNo</location>
+    </element>
+    <element name="payBtn" type="web">
+      <location type="css" frame="#payFrame">#payBtn</location>
+    </element>
+    <element name="payResult" type="web">
+      <location type="css" frame="#payFrame">#payResult</location>
     </element>
   </model>
 </models>

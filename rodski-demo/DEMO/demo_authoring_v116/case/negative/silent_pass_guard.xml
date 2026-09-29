@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- V02 防静默通过：改版页面行 class 变了，同一断言必须失败（expect_fail），失败信息须含期望 10 与实际 0
+     V05 未预期弹窗：DialogPolicy=fail 时步骤失败并报告弹窗文本，不卡住 -->
+<cases tags="v116,negative">
+  <case execute="是" id="TC001" title="选择器失效时 $count 断言必须失败" component_type="界面" priority="P0" expect_fail="是">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/async_table_v2.html"/>
+    </pre_process>
+    <test_case>
+      <test_step action="verify" model="AsyncTable" data="V_ROWS"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+  <case execute="是" id="TC002" title="未注册处理器的弹窗在 DialogPolicy=fail 下失败" component_type="界面" priority="P0" expect_fail="是">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/dialog.html"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="DialogPage" data="D_UNEXPECTED"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+</cases>

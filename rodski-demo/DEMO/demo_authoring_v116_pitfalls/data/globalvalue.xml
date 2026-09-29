@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<globalvalue>
+  <group name="DefaultValue">
+    <!-- 故意保留旧写法：WaitTime=1（旧单位为秒）。v11.6.0 起按毫秒，≤30 的旧值按秒兼容并告警（V17） -->
+    <var name="WaitTime" value="1"/>
+  </group>
+  <group name="order_db">
+    <var name="type" value="sqlite"/>
+    <var name="database" value="data/data.sqlite"/>
+  </group>
+</globalvalue>

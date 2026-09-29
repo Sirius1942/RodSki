@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- V10 P3：登录一次、保存登录态，后续用例复用，不再走 UI 登录
+     V11 P2：shared_browser 下未加载登录态的用例仍是全新 context（被重定向到登录页），验证隔离 -->
+<cases tags="v116,auth">
+  <case execute="是" id="TC001" title="UI 登录并保存登录态" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/login.html"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="Login" data="L_ADMIN"/>
+      <test_step action="verify" model="PageInfo" data="V_HOME"/>
+      <test_step action="run" model="" data="save_auth_state(name='admin')"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+  <case execute="是" id="TC002" title="复用登录态直接进入首页" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="run" model="" data="use_auth_state(name='admin')"/>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/home.html"/>
+    </pre_process>
+    <test_case>
+      <test_step action="verify" model="PageInfo" data="V_HOME"/>
+      <test_step action="verify" model="Home" data="V_ADMIN"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+  <case execute="是" id="TC003" title="未加载登录态的用例不继承上一个用例的会话" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/home.html"/>
+    </pre_process>
+    <test_case>
+      <test_step action="verify" model="PageInfo" data="V_LOGIN"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+</cases>

@@ -1,0 +1,13 @@
+<!doctype html><html><head><meta charset="utf-8"><title>登录</title></head><body>
+<h1>登录</h1>
+<input id="username"><input id="password" type="password">
+<button id="loginBtn" onclick="login()">登录</button>
+<script>
+function login() {
+  var u = document.getElementById('username').value;
+  localStorage.setItem('token', 'tk-' + u);
+  localStorage.setItem('user', u);
+  document.cookie = 'sid=' + u + '; path=/';
+  location.href = '/home.html';
+}
+</script></body></html>

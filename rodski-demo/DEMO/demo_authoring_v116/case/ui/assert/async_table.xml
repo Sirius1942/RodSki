@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- V01 A1+A2：异步表格用原生数量断言，不写任何 wait（verify 自动重试到期望值） -->
+<cases tags="v116,assert">
+  <case execute="是" id="TC001" title="异步表格 10 行（$count，无 wait）" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/async_table.html"/>
+    </pre_process>
+    <test_case>
+      <test_step action="verify" model="AsyncTable" data="V_ROWS"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+  <case execute="是" id="TC002" title="异步表格行存在（$exists）" component_type="界面" priority="P1">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/async_table.html"/>
+    </pre_process>
+    <test_case>
+      <test_step action="verify" model="AsyncTable" data="V_EXISTS"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+</cases>

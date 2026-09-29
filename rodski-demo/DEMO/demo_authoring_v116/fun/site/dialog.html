@@ -1,0 +1,14 @@
+<!doctype html><html><head><meta charset="utf-8"><title>弹窗</title></head><body>
+<button id="deleteBtn" onclick="del()">删除订单</button>
+<span id="status"></span>
+<button id="promptBtn" onclick="note()">添加备注</button>
+<span id="promptResult"></span>
+<script>
+function del() {
+  document.getElementById('status').textContent = confirm('确认删除订单 ORD1?') ? '已删除' : '已取消';
+}
+function note() {
+  var v = prompt('请输入备注');
+  document.getElementById('promptResult').textContent = v === null ? '未填写' : v;
+}
+</script></body></html>

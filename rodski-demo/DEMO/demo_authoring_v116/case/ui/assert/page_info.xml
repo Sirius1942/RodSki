@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- V03 A1：page 定位类型断言重定向后的路径与标题 -->
+<cases tags="v116,assert">
+  <case execute="是" id="TC001" title="未登录访问受保护页被重定向到登录页" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/protected.html"/>
+    </pre_process>
+    <test_case>
+      <test_step action="verify" model="PageInfo" data="V_LOGIN"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+</cases>
