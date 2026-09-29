@@ -94,6 +94,31 @@ class ResultWriter:
         self.result_dir.mkdir(parents=True, exist_ok=True)
         self._summary = ExecutionSummary()
         self.current_run_dir: Optional[Path] = None
+        # v11.6.0：运行级标注（evidence_mode / session_mode），写入 <summary> 属性
+        self.run_meta: Dict[str, str] = {}
+        # v11.6.0 --workers：worker 进程只收集结果（由父进程合并后统一写 result.xml）
+        self.collect_only: bool = False
+        self.collected: List[Dict[str, Any]] = []
+
+    def attach_run_dir(self, run_dir: str, worker_tag: Optional[str] = None) -> None:
+        """v11.6.0 --workers：挂到父进程已创建的运行目录，而不是新建时间戳目录。
+
+        日志以追加方式写入同一个 ``execution.log``（每行带 ``[worker_tag]``），
+        用例级产物照常镜像到 ``case/<用例文件>/``。
+        """
+        self.current_run_dir = Path(run_dir)
+        self.current_run_dir.mkdir(parents=True, exist_ok=True)
+        rodski_logger = logging.getLogger("rodski")
+        rodski_logger.setLevel(logging.DEBUG)
+        for handler in list(rodski_logger.handlers):
+            if isinstance(handler, logging.FileHandler):
+                rodski_logger.removeHandler(handler)
+                handler.close()
+        fh = logging.FileHandler(self.current_run_dir / "execution.log", mode="a", encoding="utf-8")
+        fh.setLevel(logging.DEBUG)
+        tag = f" [{worker_tag}]" if worker_tag else ""
+        fh.setFormatter(logging.Formatter(f"%(asctime)s [%(levelname)s]{tag} %(message)s"))
+        rodski_logger.addHandler(fh)
 
     def _init_run_dir(self) -> None:
         """初始化本次执行的结果目录"""
@@ -106,8 +131,19 @@ class ResultWriter:
         # 未设置该环境变量时目录名与既有行为完全一致。
         suffix = os.environ.get("RODSKI_RUN_DIR_SUFFIX", "").strip()
         run_dir_name = f"rodski_{timestamp}" + (f"_{suffix}" if suffix else "")
-        self.current_run_dir = self.result_dir / run_dir_name
-        self.current_run_dir.mkdir(parents=True, exist_ok=True)
+        # 两次 run 在同一秒内先后启动（如很快结束的 DB 用例后紧接着再跑）时，
+        # 后者不得落进前者的目录覆盖其 result.xml / execution.log：同名已存在则追加 _2、_3 …
+        self.result_dir.mkdir(parents=True, exist_ok=True)
+        candidate = self.result_dir / run_dir_name
+        seq = 1
+        while True:
+            try:
+                candidate.mkdir(parents=False, exist_ok=False)
+                break
+            except FileExistsError:
+                seq += 1
+                candidate = self.result_dir / f"{run_dir_name}_{seq}"
+        self.current_run_dir = candidate
 
         # v11.5.0: 不再在运行目录根创建 screenshots/recordings，而是按 case_file 镜像
         # 注释掉旧代码，避免创建废弃的目录
@@ -259,6 +295,10 @@ class ResultWriter:
 
     def write_results(self, results: List[Dict[str, Any]]) -> None:
         """批量写入用例结果到 XML 文件"""
+        if getattr(self, "collect_only", False):
+            # --workers 的 worker 进程：只收集，由父进程合并后写出汇总 result.xml
+            self.collected = list(results or [])
+            return
         if not results:
             return
 
@@ -284,6 +324,10 @@ class ResultWriter:
         summary_elem.set("average_time", summary["average_time"])
         summary_elem.set("start_time", summary["start_time"])
         summary_elem.set("end_time", summary["end_time"])
+        for meta_key in ("evidence_mode", "session_mode"):
+            meta_value = (getattr(self, "run_meta", None) or {}).get(meta_key)
+            if meta_value:
+                summary_elem.set(meta_key, str(meta_value))
 
         results_elem = ET.SubElement(root, "results")
         for result in results:

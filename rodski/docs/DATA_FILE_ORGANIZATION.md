@@ -62,7 +62,7 @@ rodski init <target> --no-sqlite  # 不创建 data.sqlite（不推荐）
 <?xml version="1.0" encoding="UTF-8"?>
 <globalvalue>
     <group name="DefaultValue">
-        <var name="WaitTime" value="500"/>
+        <var name="WaitTime" value="0"/>  <!-- 毫秒（v11.6.0）；交互等待交给智能等待与 verify 自动重试 -->
     </group>
     <group name="demo_db">
         <var name="type" value="sqlite"/>

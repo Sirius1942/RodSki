@@ -37,7 +37,7 @@
 
 | 属性 | 必需 | 说明 | 取值规则 |
 |------|------|------|---------|
-| `step_wait` | 否 | 步骤间等待时间（毫秒） | 如 `500`，覆盖 GlobalValue 中的 WaitTime |
+| `step_wait` | 否 | 步骤间固定等待时间（**毫秒**，与 `DefaultValue.WaitTime` 同单位，见 [§6.4](#64-waittime-与执行策略配置v1160)） | 如 `500`，覆盖 GlobalValue 中的 WaitTime；一般不写（默认不等待） |
 | `tags` | 否 | 套件标签 | 逗号分隔，如 `smoke,login`。文件内所有用例共享此标签，CLI 可按标签过滤 |
 
 #### `<case>` 用例属性
@@ -159,7 +159,7 @@
 | `clear` | 清空输入 |
 | `get_text` | **已废弃**，请改用 `get` |
 | `get` | 三模式取值：`get ModelName D001`（模型模式，推荐）/ `get #selector`（UI 选择器，低级补充）/ `get var_name`（命名访问） |
-| `evaluate` | 执行 JS 表达式（**仅 Web**，低优先级，结构化结果保留原类型） |
+| `evaluate` | 执行 JS 表达式（**仅 Web**，逃生舱，结构化结果保留原类型）；`data="file:fun/js/x.js"` 引用模块内脚本（v11.6.0，见 [§8.7](#87-evaluate--逃生舱与-file-脚本v1160)） |
 | `send` | 发 HTTP 请求 |
 | `set` | 写入命名变量：`set \| key=value`，写入 context.named 并写入 history |
 | `DB` | 执行 SQL |

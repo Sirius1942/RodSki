@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- V19 动态等待（verify 自动重试，A2）正向场景：所有用例均不含 wait 步骤，页面时间线见 fun/site/dynamic_wait.html -->
+<cases tags="v116,dynamic-wait">
+  <case execute="是" id="TC001" title="1500ms 后出现的文本" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/dynamic_wait.html"/>
+    </pre_process>
+    <test_case>
+      <test_step action="verify" model="DynamicWait" data="V_LATE"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+  <case execute="是" id="TC002" title="状态由处理中变为已完成（须读到最新值）" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/dynamic_wait.html"/>
+    </pre_process>
+    <test_case>
+      <test_step action="verify" model="DynamicWait" data="V_STATUS"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+  <case execute="是" id="TC003" title="列表逐条追加到 10 条（中途 1~9 条不判通过）" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/dynamic_wait.html"/>
+    </pre_process>
+    <test_case>
+      <test_step action="verify" model="DynamicWait" data="V_COUNT"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+  <case execute="是" id="TC004" title="两字段不同时刻变为期望值（同一次读取同时满足）" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/dynamic_wait.html"/>
+    </pre_process>
+    <test_case>
+      <test_step action="verify" model="DynamicWait" data="V_BOTH"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+  <case execute="是" id="TC005" title="加载遮罩从 DOM 消失" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/dynamic_wait.html"/>
+    </pre_process>
+    <test_case>
+      <test_step action="verify" model="DynamicWait" data="V_SPINNER_GONE"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+  <case execute="是" id="TC006" title="隐藏按钮变为可见" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/dynamic_wait.html"/>
+    </pre_process>
+    <test_case>
+      <test_step action="verify" model="DynamicWait" data="V_VISIBLE"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+</cases>

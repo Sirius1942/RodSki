@@ -345,7 +345,7 @@ order_no = ORD_${random(digits, 8)}
   <group name="DefaultValue">
     <!-- 压测目标地址（可被 load_profile 的 host 节点覆盖）-->
     <var name="URL"      value="http://api.staging.example.com"/>
-    <var name="WaitTime" value="1"/>
+    <var name="WaitTime" value="0"/>  <!-- 单位毫秒（v11.6.0 起） -->
   </group>
 </globalvalue>
 ```

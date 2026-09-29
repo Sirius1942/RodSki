@@ -265,7 +265,6 @@ v7.0.0-draft 已在 `rodski/schemas/model.xsd` 中增加：
     <var name="AppiumServer" value="http://127.0.0.1:4723"/>
     <var name="DeviceName" value="Android"/>
     <var name="AppTarget" value="app://android/com.example/.MainActivity"/>
-    <var name="WaitTime" value="2"/>
   </group>
 </globalvalue>
 ```

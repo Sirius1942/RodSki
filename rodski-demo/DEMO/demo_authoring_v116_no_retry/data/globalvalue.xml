@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<globalvalue>
+  <group name="DefaultValue">
+    <var name="WaitTime" value="0"/>
+    <!-- AutoWait=0 关闭 verify 自动重试：恢复单次比对（v11.6.0 A2，D1/D7） -->
+    <var name="AutoWait" value="0"/>
+  </group>
+  <group name="Page">
+    <!-- 文本 1000ms 后才出现 -->
+    <var name="LATE" value="data:text/html,%3Cdiv%20id%3D%22lateText%22%3E%3C%2Fdiv%3E%3Cscript%3EsetTimeout%28function%28%29%7Bdocument.getElementById%28%22lateText%22%29.textContent%3D%22%E6%95%B0%E6%8D%AE%E5%B7%B2%E5%8A%A0%E8%BD%BD%22%3B%7D%2C1000%29%3C%2Fscript%3E"/>
+  </group>
+</globalvalue>

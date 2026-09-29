@@ -250,7 +250,7 @@ welcomeMsg=欢迎, admin
 <globalvalue>
   <group name="DefaultValue">
     <var name="URL" value="http://localhost:8000"/>
-    <var name="WaitTime" value="500"/>
+    <var name="WaitTime" value="0"/>  <!-- 毫秒（v11.6.0）；交互等待交给智能等待与 verify 自动重试 -->
   </group>
   <group name="sqlite_db">
     <var name="type" value="sqlite"/>

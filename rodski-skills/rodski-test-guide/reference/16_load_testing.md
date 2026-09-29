@@ -176,4 +176,24 @@ Return 引用只应写在**数据表 XML 的 field 值中**，不要直接写在
 
 `case.xsd` 要求每个 `<case>` **必须**包含恰好一个 `<test_step>`。仅写 `<pre_process>` 等而不写 `<test_step>` 不会通过校验。
 
+### Q8: verify 报「字段缺失」？
+
+默认 `strict` 模式要求 `_verify` 行包含模型的全部字段。只校验部分字段时在步骤上加 `match_mode="subset"`，或在不校验的字段填 `BLANK`（见 [§5.7.3](#573-strict--subset-与-blank)）。
+
+### Q9: XML 报错，位置在 `evaluate` 的 data 属性里？
+
+属性中的 `&&` 要写成 `&amp;&amp;`，`<` 写成 `&lt;`；更好的做法是把脚本放到 `fun/js/*.js`，用 `data="file:fun/js/xxx.js"` 引用（见 [§8.7](#87-evaluate--逃生舱与-file-脚本v1160)）。
+
+### Q10: `action="click"` 报不支持的关键字？
+
+`click` / `hover` / `select` 等不是关键字，而是 `type` 数据表里的字段值：在模型中声明按钮元素，数据表该字段填 `click`，用 `<test_step action="type" model="模型名" data="DataID"/>` 执行（见 [§5.4](#54-批量输入时的特殊值)）。
+
+### Q11: 异步加载的数据 verify 偶尔失败，要加 wait 吗？
+
+不要加。v11.6.0 起 UI `verify` 会自动重试到期望值（默认最多 5 秒）；数据确实更慢时调大 `DefaultValue.AutoWait`（单位毫秒，见 [§5.7.2](#572-ui-verify-自动重试替代-wait)）。
+
+### Q12: SQL 报「未提供参数 :00」？
+
+`:name` 参数名必须以字母或下划线开头，引号内的冒号（如 `'2026-01-01 00:00:00'`）和 `::int` 不算参数（v11.5.2 起）。仍报错时检查是否真的漏了某个 `:参数` 对应的数据列（见 [§5.5](#55-sql-数据表)）。
+
 ---

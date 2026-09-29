@@ -30,6 +30,7 @@ from typing import Callable, Dict, List, Optional, Tuple
 HERE = Path(__file__).resolve().parent
 MOD = HERE                                         # demo_authoring_v116
 PIT = HERE.parent / "demo_authoring_v116_pitfalls"
+NORETRY = HERE.parent / "demo_authoring_v116_no_retry"
 REPO = HERE.parent.parent.parent
 SITE_PORT = 8766
 
@@ -278,12 +279,69 @@ def v18_contract_hints() -> None:
     expect("契约速查" in skill, "case-writer skill 应包含「契约速查」一节")
 
 
+def _exec_time(r: Run, key: Tuple[str, str]) -> float:
+    try:
+        return float(r.by_key().get(key, {}).get("execution_time", "nan"))
+    except ValueError:
+        return float("nan")
+
+
+def v19_dynamic_wait_positive() -> None:
+    """V19 动态等待正向：6 个异步场景均不写 wait，verify 自动重试到期望值，满足即结束。"""
+    f = MOD / "case/ui/wait/dynamic_wait.xml"
+    expect('action="wait"' not in f.read_text(encoding="utf-8"), "动态等待用例不应包含 wait 步骤")
+    r = rodski(["case/ui/wait/dynamic_wait.xml"])
+    scenarios = {
+        "TC001": "1500ms 后出现的文本", "TC002": "处理中→已完成（须读到最新值）",
+        "TC003": "逐条追加到 10 条", "TC004": "两字段须同时满足",
+        "TC005": "加载遮罩消失（$exists=false）", "TC006": "隐藏按钮变为可见（$visible）",
+    }
+    got = r.by_key()
+    failed = [f"{tc} {name}: {got.get(('ui/wait/dynamic_wait.xml', tc), {}).get('status')} "
+              f"{got.get(('ui/wait/dynamic_wait.xml', tc), {}).get('error_message', '')[:120]}"
+              for tc, name in scenarios.items()
+              if got.get(("ui/wait/dynamic_wait.xml", tc), {}).get("status") != "PASS"]
+    expect(r.code == 0 and not failed, "以下动态等待场景未通过:\n  " + "\n  ".join(failed), r.out)
+    # 满足即结束：最晚的变化在 2.5s，若 verify 空等到 AutoWait(5000ms) 才返回，单用例会明显超过 5.5s
+    slow = {tc: round(_exec_time(r, ("ui/wait/dynamic_wait.xml", tc)), 2) for tc in scenarios
+            if not _exec_time(r, ("ui/wait/dynamic_wait.xml", tc)) < 5.5}
+    expect(not slow, f"条件满足后应立即结束，以下用例耗时 ≥5.5s: {slow}")
+    print("     耗时(s): " + ", ".join(f"{tc}={_exec_time(r, ('ui/wait/dynamic_wait.xml', tc)):.1f}" for tc in scenarios))
+
+
+def v20_dynamic_wait_boundary() -> None:
+    """V20 动态等待边界：超过 AutoWait 必须失败且不卡死；DB verify 不重试、立即失败。"""
+    r = rodski(["case/negative/dynamic_wait_boundary.xml"])
+    late, db = ("negative/dynamic_wait_boundary.xml", "TC001"), ("negative/dynamic_wait_boundary.xml", "TC002")
+    got = r.by_key()
+    expect(got.get(late, {}).get("status") == "PASS",
+           f"超时场景应真的失败（expect_fail 判定 PASS）: {got.get(late)}", r.out)
+    t = _exec_time(r, late)
+    expect(4.0 <= t <= 15.0, f"超时场景耗时应在 AutoWait(5000ms) 附近（4~15s），实际 {t:.1f}s："
+                             f"过短说明没有重试，过长说明被其他等待拖住")
+    expect("超时才出现" in r.evidence(late), "失败信息应包含期望值「超时才出现」", r.evidence(late))
+    expect(got.get(db, {}).get("status") == "PASS", f"DB verify 期望写错应失败: {got.get(db)}", r.out)
+    td = _exec_time(r, db)
+    expect(td < 3.0, f"DB verify 不应自动重试（应立即失败），实际耗时 {td:.1f}s")
+    print(f"     超时场景 {t:.1f}s / DB 立即失败 {td:.1f}s")
+
+
+def v21_verify_timeout_zero() -> None:
+    """V21 AutoWait=0 关闭自动重试：1s 后出现的文本在单次比对下必须失败。"""
+    r = rodski(["case/"], module=NORETRY)
+    res = r.by_key().get(("no_retry.xml", "TC001"), {})
+    expect(res.get("status") == "PASS",
+           f"AutoWait=0 时 verify 应只比对一次并失败（expect_fail 判定 PASS）；"
+           f"若仍重试，文本 1s 后出现会让断言成功、本用例判为不通过: {res}", r.out)
+
+
 CHECKS: Dict[str, Callable[[], None]] = {
     "V01": v01_async_count_without_wait, "V02": v02_silent_pass_guard, "V03": v03_page_path_title,
     "V04": v04_dialog_accept_dismiss_prompt, "V05": v05_unexpected_dialog_fails_fast, "V06": v06_iframe,
     "V07": v07_evaluate_file, "V08": v08_v09_db_contract, "V10": v10_v11_auth_state_shared_browser,
     "V12": v12_workers, "V13": v13_junit, "V14": v14_lint_rules, "V15": v15_data_set,
     "V16": v16_evidence_concise, "V17": v17_waittime_units, "V18": v18_contract_hints,
+    "V19": v19_dynamic_wait_positive, "V20": v20_dynamic_wait_boundary, "V21": v21_verify_timeout_zero,
 }
 
 
@@ -306,7 +364,7 @@ def main(argv: List[str]) -> int:
                 print(f"FAIL {key} {title}\n     {type(e).__name__}: {e}")
     finally:
         server.shutdown()
-        for m in (MOD, PIT):
+        for m in (MOD, PIT, NORETRY):
             shutil.rmtree(m / "result", ignore_errors=True)
         subprocess.run(["git", "-C", str(REPO), "checkout", "--", "rodski-demo/demo.db",
                         "rodski-demo/img/tc031_actual.png", "rodski-demo/wait_test.png"],

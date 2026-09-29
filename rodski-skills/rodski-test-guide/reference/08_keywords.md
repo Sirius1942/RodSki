@@ -9,8 +9,8 @@
 | **navigate** | 导航到 URL（无浏览器时自动创建）；移动端支持 `app://android/包名/Activity` 和 `app://ios/BundleId` 格式启动 App | — | URL / GlobalValue 引用 / app:// URI |
 | **close** | 关闭浏览器及移动端驱动（同时释放 android/ios 驱动缓存） | — | — |
 | **type** | UI 批量输入（PC 端 / 移动端统一） | 模型名 | DataID |
-| **verify** | 批量验证（UI / 接口通用） | 模型名 | DataID（自动查 `模型名_verify` 表） |
-| **wait** | 等待指定秒数 | — | 秒数（如 `3`） |
+| **verify** | 批量验证（UI / 接口通用）；UI 模型自动重试到期望值（v11.6.0，[§5.7](#57-verify-期望值操作符原生断言与自动重试v1160)） | 模型名 | DataID（自动查 `模型名_verify` 表） |
+| **wait** | 等待指定秒数（固定等待，仅用于演示 / 确需固定时长；等异步结果请直接 `verify`） | — | 秒数（如 `3`） |
 | **clear** | 清空输入框 | — | CSS 选择器 |
 | **get** | 三模式取值：model+DataID → 模型元素文本（推荐）；CSS 选择器 → UI 元素文本（低级补充）；变量名 → 命名变量读取 | 模型名（可选） | DataID 或 CSS 选择器 或 变量名 |
 
@@ -175,5 +175,69 @@ DB 用例格式：
 #### 脚本编写规范
 
 脚本通过 `print()` 输出返回值。框架会自动尝试 JSON 解析。
+
+#### 内置函数（进程内执行，`model` 必须为空）
+
+`data` 是已注册的内置函数调用时，`run` 在当前进程内直接执行（不走子进程）。**`model` 必须写空字符串**，否则会被当作 `fun/` 下的工程名：
+
+```xml
+<test_step action="run" model="" data="mock_route(url_pattern='/api/users', status=200, body='[]')"/>
+```
+
+| 函数 | 作用 |
+|------|------|
+| `mock_route(url_pattern, status, body, content_type)` / `clear_routes()` | Mock / 清除接口响应（仅 Playwright） |
+| `wait_for_response(url_pattern, timeout)` | 等待网络请求完成 |
+| `start_js_coverage()` / `stop_js_coverage(output)` | JS 覆盖率 |
+| `reset_request_log()` / `get_request_log()` | 请求日志 |
+| `save_auth_state(name)` / `use_auth_state(name)` | 登录态复用（v11.6.0），见 [§8.8](#88-登录态复用save_auth_state--use_auth_statev1160) |
+
+### 8.7 evaluate — 逃生舱与 file: 脚本（v11.6.0）
+
+`evaluate` 在页面中执行 JavaScript（仅 Web），返回值写入 Return。它是**逃生舱**：数量、存在、可见、URL、标题、弹窗、查询结果都有原生写法（见 [§5.7.4](#574-什么时候还用-evaluate) 对照表），`evaluate` 只留给原生能力覆盖不到的检查。
+
+**XML 属性转义**：XML 属性里不能直接写 `&&`、`<`，要写成 `&amp;&amp;`、`&lt;`。脚本稍长时，推荐放到模块内的 `fun/js/` 目录，用 `file:` 引用，脚本里可以原样写 `&&`、`<` 和引号：
+
+```xml
+<test_step action="evaluate" model="" data="file:fun/js/check_rows.js"/>
+```
+
+```javascript
+// fun/js/check_rows.js
+(() => {
+  const rows = document.querySelectorAll('#orderBody tr.order-row');
+  if (rows.length === 10 && rows[0].innerText.trim() === 'ORD1') return rows.length;
+  throw new Error('期望 10 行且首行为 ORD1，实际 ' + rows.length + ' 行');
+})()
+```
+
+- `file:` 后的路径相对**模块目录**（`case/`、`fun/` 的上级）；只允许模块内的文件，绝对路径或 `..` 越界会被拒绝。
+- 脚本抛出异常时步骤失败。
+- XML 解析失败且问题出在属性里的 `&` / `<` 时，报错会提示上面两种改法。
+
+### 8.8 登录态复用：save_auth_state / use_auth_state（v11.6.0）
+
+一个用例做一次 UI 登录并保存登录态，后续用例直接加载，省掉重复登录：
+
+```xml
+<!-- TC001：UI 登录后保存 -->
+<test_case>
+  <test_step action="type" model="Login" data="L_ADMIN"/>
+  <test_step action="verify" model="PageInfo" data="V_HOME"/>
+  <test_step action="run" model="" data="save_auth_state(name='admin')"/>
+</test_case>
+
+<!-- TC002：先加载登录态，再 navigate 到登录后的页面 -->
+<pre_process>
+  <test_step action="run" model="" data="use_auth_state(name='admin')"/>
+  <test_step action="navigate" model="" data="GlobalValue.Site.URL/home.html"/>
+</pre_process>
+```
+
+- 保存的是浏览器 context 的 cookie + localStorage，只存在**本次 run 的内存**中，不写入结果目录或仓库；run 结束即失效。
+- `use_auth_state` 必须写在该用例的 `navigate` **之前**（它作用于本用例新建的 context）。
+- 找不到名字时报错：先确认保存该登录态的用例已经在前面执行（同一用例文件内按书写顺序执行；用 plan 时注意顺序）。
+- 推荐与 `SessionMode=shared_browser` 搭配（[§6.4.4](#644-sessionmode--浏览器会话复用)）：浏览器只启动一次、用例之间仍然隔离，只有显式 `use_auth_state` 的用例才带登录态。
+- `--workers` 并行时，保存和使用登录态的用例要放在**同一个用例文件**里（同一文件在同一 worker 中顺序执行）。
 
 ---

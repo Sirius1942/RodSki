@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- V20 动态等待边界（均为 expect_fail，即断言必须真的失败）：
+     TC001 元素 20s 后才出现，超过 AutoWait=5000ms → 必须失败，且在超时附近结束（不卡死、也不能立刻失败）
+     TC002 DB 模型的 verify 不做自动重试 → 期望值写错时立即失败（不等满 AutoWait） -->
+<cases tags="v116,dynamic-wait,negative">
+  <case execute="是" id="TC001" title="超过 AutoWait 仍未满足：失败且不卡死" component_type="界面" priority="P0" expect_fail="是">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/dynamic_wait.html"/>
+    </pre_process>
+    <test_case>
+      <test_step action="verify" model="DynamicWait" data="V_TOO_LATE"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+  <case execute="是" id="TC002" title="DB verify 不自动重试：期望写错立即失败" component_type="数据库" priority="P0" expect_fail="是">
+    <test_case>
+      <test_step action="DB" model="OrderDB" data="Q_TIME"/>
+      <test_step action="verify" model="OrderDB" data="V_WRONG"/>
+    </test_case>
+  </case>
+</cases>

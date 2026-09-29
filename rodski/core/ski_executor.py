@@ -33,6 +33,16 @@ from .plan_parser import PlanParser
 from .test_plan_selection import TestPlanSelection
 from .result_writer import ResultWriter, write_execution_summary
 from .config_manager import ConfigManager
+from .session_mode import (
+    EVIDENCE_CONCISE,
+    SESSION_SHARED_BROWSER,
+    SESSION_SHARED_SESSION,
+    SharedBrowser,
+    resolve_evidence_mode,
+    resolve_session_mode,
+    resolve_wait_time,
+    validate_default_values,
+)
 try:
     from ..data.data_resolver import DataResolver
     from ..drivers.base_driver import BaseDriver
@@ -175,12 +185,26 @@ class SKIExecutor:
         self.global_vars = self.global_parser.parse()
         self.case_parser = CaseParser(str(self.case_path))
 
-        # 读取默认等待时间
+        # v11.6.0 CORE §7.4：执行策略键非法取值在启动驱动前报错（校验先于副作用）
+        validate_default_values(self.global_vars)
+
+        # 读取默认等待时间（v11.6.0 D3：单位统一为毫秒；0 < 旧值 ≤ 30 按秒兼容并告警一次）
+        # default_wait_time 仍以「秒」保存，供 time.sleep 与既有调用方使用
         default_wait_str = self.global_vars.get('DefaultValue', {}).get('WaitTime', '0')
-        try:
-            self.default_wait_time = float(default_wait_str)
-        except (ValueError, TypeError):
-            self.default_wait_time = 0.0
+        self.default_wait_time, self._wait_time_warning = resolve_wait_time(default_wait_str)
+        self._wait_time_warned = False
+
+        # v11.6.0 SessionMode / EvidenceMode：CLI（经 config 透传）> DefaultValue > 默认值
+        self.session_mode = resolve_session_mode(self.config.get("session_mode"), self.global_vars)
+        self.evidence_mode = resolve_evidence_mode(self.config.get("evidence_mode"), self.global_vars)
+        if self.evidence_mode == EVIDENCE_CONCISE:
+            # 简洁记录模式：按失败截图方式处理，不产生逐步截图；录像行为不变
+            self.auto_screenshot_on_step = False
+        self._shared_browser: Optional[SharedBrowser] = None
+        if self.session_mode == SESSION_SHARED_BROWSER:
+            self._shared_browser = SharedBrowser()
+            self.driver_factory = self._wrap_driver_factory(driver_factory)
+            self._attach_shared_browser(driver)
 
         # 初始化关键字引擎和数据解析器
         self.keyword_engine = KeywordEngine(
@@ -211,6 +235,11 @@ class SKIExecutor:
 
         # 初始化结果写入器
         self.result_writer = ResultWriter(str(self.result_dir))
+        # v11.6.0：结果 XML 标注本次运行的记录模式与会话模式（排障时避免误以为截图缺失）
+        self.result_writer.run_meta = {
+            "evidence_mode": self.evidence_mode,
+            "session_mode": self.session_mode,
+        }
 
         self.runtime_control: BaseRuntimeControl = runtime_control or BaseRuntimeControl()
         self._runtime_stopped_graceful = False
@@ -277,6 +306,70 @@ class SKIExecutor:
                 logger.info(f"录像已懒启动（driver={driver_type}）: {started}")
         except Exception as e:
             logger.warning(f"录像懒启动失败: {e}")
+
+    # ── v11.6.0 SessionMode ──────────────────────────────────────────
+
+    def _attach_shared_browser(self, driver) -> None:
+        """shared_browser 模式：把 run 级共享浏览器挂到 Web 驱动上（其他驱动忽略）。"""
+        shared = getattr(self, "_shared_browser", None)
+        attach = getattr(driver, "attach_shared_browser", None)
+        if shared is not None and callable(attach):
+            attach(shared)
+
+    def _wrap_driver_factory(self, factory):
+        """包装驱动工厂：新建的 Web 驱动自动挂接共享浏览器（每用例新 context）。"""
+        if factory is None:
+            return None
+
+        def _factory(*args, **kwargs):
+            new_driver = factory(*args, **kwargs)
+            self._attach_shared_browser(new_driver)
+            return new_driver
+
+        return _factory
+
+    def _start_new_shared_browser_context(self) -> None:
+        """shared_browser 模式：用例开始前确保使用全新的 BrowserContext。
+
+        上一个用例写了 close 时 context 已关闭，这里无需处理；未写 close 时关闭其 context，
+        使本用例不继承上一个用例的 cookie / storage / 页面（隔离不变）。
+        """
+        if self._driver_closed or self.driver is None:
+            return
+        if getattr(self.driver, "_shared_browser", None) is None:
+            return
+        if getattr(self.driver, "browser", None) is None:
+            return  # 浏览器尚未懒启动（本 run 还没有页面），天然是新 context
+        try:
+            self.driver.close()
+        except Exception as e:
+            logger.debug(f"shared_browser: 关闭上一用例 context 时出错: {e}")
+        self._driver_closed = True
+
+    def _is_shared_session_close(self, action_key: str) -> bool:
+        """shared_session 模式下 Web 用例的 close 不关闭会话（run 结束时统一关闭）。"""
+        if action_key != 'close' or getattr(self, "session_mode", None) != SESSION_SHARED_SESSION:
+            return False
+        # 移动端 / 桌面端驱动的 close 仍按原语义执行
+        mobile = getattr(self.keyword_engine, "_desktop_drivers", {}) or {}
+        return not any(k in mobile for k in ("android", "ios"))
+
+    @staticmethod
+    def _clear_run_auth_states() -> None:
+        """每次 run 开始时清空内存中的登录态（save_auth_state 只在同一次 run 内有效）。"""
+        try:
+            try:
+                from ..builtin_ops import get_builtin
+            except ImportError:
+                from builtin_ops import get_builtin
+            import sys as _sys
+            fn = get_builtin("save_auth_state")
+            mod = _sys.modules.get(getattr(fn, "__module__", "")) if fn else None
+            if mod is not None and hasattr(mod, "clear_auth_states"):
+                mod.clear_auth_states()
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"清空登录态失败: {e}")
+
     def _ensure_driver_alive(self) -> None:
         """确保驱动可用，如果驱动已关闭则重新创建"""
         if self._driver_closed:
@@ -360,6 +453,18 @@ class SKIExecutor:
         plan_selection = self._compile_plan_selection(cases)
         cases = self._filter_cases_by_plan_scope(cases, plan_selection)
         cases, plan_case_skips = self._apply_plan_selection(cases, plan_selection)
+        # v11.6.0 --workers：worker 进程与顺序执行用同一 case_path 做发现与选择，
+        # 只额外保留分给自己的用例文件（选择 / SKIP 语义与顺序执行完全一致）
+        case_file_filter = getattr(self, 'case_file_filter', None)
+        if case_file_filter is not None:
+            cases = [c for c in cases if c.get('case_file', '') in case_file_filter]
+        # v11.6.0 --workers：把最终选中的用例清单交给 worker（异常时父进程据此补行）
+        _on_selected = getattr(self, 'on_cases_selected', None)
+        if callable(_on_selected):
+            try:
+                _on_selected(cases, plan_case_skips)
+            except Exception as e:
+                logger.debug(f"on_cases_selected 回调失败（忽略）: {e}")
 
         # Debug mode: 如果启用了 --debug 且 plan kind 是 scenario_debug/step_debug，走调试执行路径
         if getattr(self, 'debug_mode', False) and hasattr(self, 'plan'):
@@ -372,6 +477,16 @@ class SKIExecutor:
 
         # 初始化结果目录（用于步骤截图）
         self.result_writer._init_run_dir()
+
+        # v11.6.0：运行配置摘要 + WaitTime 旧单位弃用告警（每次 run 打印一次，写入 execution.log）
+        if getattr(self, "_wait_time_warning", None) and not getattr(self, "_wait_time_warned", False):
+            logger.warning(self._wait_time_warning)
+            self._wait_time_warned = True
+        logger.info(
+            f"会话模式 SessionMode={getattr(self, 'session_mode', 'isolated')}，"
+            f"记录模式 EvidenceMode={getattr(self, 'evidence_mode', 'full')}"
+        )
+        self._clear_run_auth_states()
 
         # 报告收集器：开始执行
         if getattr(self, 'report_collector', None):
@@ -390,6 +505,8 @@ class SKIExecutor:
                 results.append(self._case_result_skipped(case, case_skip))
                 logger.info(f"  SKIP ({case_skip})")
                 continue
+            if getattr(self, "session_mode", None) == SESSION_SHARED_BROWSER:
+                self._start_new_shared_browser_context()
             if self._driver_closed:
                 logger.info(f"用例 {case_count}/{total_cases}: 驱动已关闭，重新创建浏览器...")
                 try:
@@ -1219,6 +1336,20 @@ class SKIExecutor:
         return recording_config.get(key, default)
 
     def _select_recording_backend(self) -> Optional[str]:
+        backend = self._select_recording_backend_raw()
+        if backend == "playwright" and getattr(self, "session_mode", None) == SESSION_SHARED_SESSION:
+            # Playwright 原生录像只能在新建 context 时开启，按用例分段必然为每个用例重建 context，
+            # 与 shared_session「用例间共用同一 context 和页面」冲突：该模式下跳过原生用例录像。
+            if not getattr(self, "_shared_session_recording_warned", False):
+                logger.warning(
+                    "SessionMode=shared_session：跳过 Playwright 原生用例录像（它需要为每个用例重建 "
+                    "BrowserContext，会破坏会话共享）。需要录像请改用 shared_browser，或 --record-mode screen"
+                )
+                self._shared_session_recording_warned = True
+            return None
+        return backend
+
+    def _select_recording_backend_raw(self) -> Optional[str]:
         if not getattr(self, "recording_enabled", False):
             return None
         mode = self._recording_option("mode", "auto")
@@ -1470,6 +1601,24 @@ class SKIExecutor:
         result["recordings"] = list(self._recording_segments)
         return result
 
+    def _reset_driver_case_state(self) -> None:
+        """v11.6.0 (C1): 用例开始时清除驱动上跨用例遗留的弹窗状态（驱动不支持则忽略）。"""
+        drivers = [getattr(self, 'driver', None)]
+        engine = getattr(self, 'keyword_engine', None)
+        if engine is not None:
+            drivers.append(getattr(engine, 'driver', None))
+        seen = set()
+        for drv in drivers:
+            if drv is None or id(drv) in seen:
+                continue
+            seen.add(id(drv))
+            reset = getattr(type(drv), 'reset_case_dialog_state', None)
+            if callable(reset):
+                try:
+                    drv.reset_case_dialog_state()
+                except Exception as e:
+                    logger.debug(f"清除弹窗状态失败（忽略）: {e}")
+
     def execute_case(self, case: Dict[str, Any]) -> Dict[str, Any]:
         """执行单个用例（三阶段：预处理 → 用例 → 后处理）。
 
@@ -1500,6 +1649,9 @@ class SKIExecutor:
             self._current_scenario_id = None
             self._current_scenario_title = None
 
+            # v11.6.0 (C1): 清除上一个用例遗留的弹窗状态（未用上的一次性处理器、最近弹窗文本、
+            # 未预期弹窗）；shared_session 或未写 close 时驱动跨用例复用（CORE §2.5.6）
+            self._reset_driver_case_state()
             # v11.5.0: 创建结果目录镜像结构（case/{case_file 去 .xml}/screenshots|recordings）
             self._ensure_case_result_dirs(case)
 
@@ -2142,7 +2294,14 @@ class SKIExecutor:
             logger.debug(f"数据解析: '{data}' -> '{resolved_data}'")
 
         action_key = action.lower()
-        if self._driver_closed and action_key not in ('close', 'wait', 'set', 'send', 'db', 'run'):
+        # use_auth_state 作用于本用例的新 context：上一用例 close 后需先重建驱动再加载登录态
+        _needs_live_for_run = (
+            action_key == 'run' and not (model or '').strip()
+            and str(resolved_data or '').lstrip().startswith('use_auth_state(')
+        )
+        if self._driver_closed and (
+            action_key not in ('close', 'wait', 'set', 'send', 'db', 'run') or _needs_live_for_run
+        ):
             self._ensure_driver_alive()
             if self._active_recording_backend in self._DRIVER_RECORDING_BACKENDS and self._case_recording_active:
                 self._start_playwright_recording_segment(getattr(self, '_current_case_id', 'unknown'))
@@ -2176,7 +2335,12 @@ class SKIExecutor:
             self._finalize_current_playwright_segment(getattr(self, '_current_case_id', 'unknown'))
 
         # 特殊处理 set 动作：将变量同步到动态执行器
-        if action_key == 'set':
+        _shared_session_close = self._is_shared_session_close(action_key)
+        if _shared_session_close:
+            # SessionMode=shared_session：用例间共用同一 context 与页面，close 不关闭会话
+            logger.info("SessionMode=shared_session：close 保留浏览器会话，供后续用例复用（run 结束时统一关闭）")
+            self.keyword_engine.store_return(True)
+        elif action_key == 'set':
             params = {'var_name': model, 'value': resolved_data}
             self.keyword_engine.execute(action, params)
             # 同步到动态执行器
@@ -2228,6 +2392,10 @@ class SKIExecutor:
                         'error': str(exc),
                         'browser_monitor': _browser_errors_fail,
                     })
+                self._capture_concise_failure_screenshot(step_type)
+                raise
+            except Exception:
+                self._capture_concise_failure_screenshot(step_type)
                 raise
 
         history_after = self.keyword_engine._context.history
@@ -2281,7 +2449,7 @@ class SKIExecutor:
                 'browser_monitor': _browser_errors,
             })
 
-        if action_key == 'close':
+        if action_key == 'close' and not _shared_session_close:
             if self._active_recording_backend in self._DRIVER_RECORDING_BACKENDS:
                 self._finalize_current_playwright_segment(getattr(self, '_current_case_id', 'unknown'))
             self._driver_closed = True
@@ -2312,8 +2480,30 @@ class SKIExecutor:
         if getattr(self, '_active_recording_backend', None) == "screen" and getattr(self, '_screen_recorder', None) is not None:
             self._screen_recorder.set_step(None)
 
-    def _auto_screenshot(self, step_type: str) -> None:
-        """步骤执行后自动截图"""
+    def _capture_concise_failure_screenshot(self, step_type: str) -> None:
+        """EvidenceMode=concise：场景步骤失败时，在场景子目录补一张失败截图。
+
+        full 模式下场景子目录已有逐步截图；concise 模式不产生逐步截图，失败时按
+        「失败截图」的方式补齐场景目录中的证据（文件名带 ``_failure``）。非场景步骤的
+        失败截图由用例级 _take_failure_screenshot 负责，这里不重复。
+        """
+        try:
+            if getattr(self, "evidence_mode", None) != EVIDENCE_CONCISE:
+                return
+            if not getattr(self, "_current_scenario_id", None) or self._driver_closed:
+                return
+            shot_driver = getattr(self, "_recording_driver", None) or self.driver
+            if shot_driver is None or getattr(shot_driver, "_is_closed", False):
+                return
+            # 只对已有页面的 UI 会话截图，避免为接口/DB 步骤拉起浏览器
+            if hasattr(shot_driver, "page") and getattr(shot_driver, "page", None) is None:
+                return
+            self._auto_screenshot(step_type, failure=True)
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"简洁模式失败截图失败: {e}")
+
+    def _auto_screenshot(self, step_type: str, failure: bool = False) -> None:
+        """步骤执行后自动截图（failure=True 时文件名带 _failure，供 concise 模式使用）"""
         try:
             if not self.result_writer.current_run_dir:
                 return
@@ -2338,13 +2528,13 @@ class SKIExecutor:
                     folder_name = f"{folder_name}_{safe_title}"
                 screenshot_dir = case_result_base / "screenshots" / folder_name
                 screenshot_dir.mkdir(parents=True, exist_ok=True)
-                filename = f"{self._step_index:02d}_{timestamp}.png"
+                filename = f"{self._step_index:02d}_{timestamp}{'_failure' if failure else ''}.png"
             else:
                 # 非场景步骤：直接存 {镜像目录}/screenshots/
                 screenshot_dir = case_result_base / "screenshots"
                 screenshot_dir.mkdir(parents=True, exist_ok=True)
                 safe_phase = re.sub(r'[/\\]', '_', step_type)
-                filename = f"{case_id}_{self._step_index:02d}_{safe_phase}_{timestamp}.png"
+                filename = f"{case_id}_{self._step_index:02d}_{safe_phase}_{timestamp}{'_failure' if failure else ''}.png"
 
             path = screenshot_dir / filename
             # 移动端 self.driver 可能是 web 占位，优先用录像/关键字引擎的活跃 driver
@@ -2354,7 +2544,7 @@ class SKIExecutor:
             ok = shot_driver.screenshot(str(path))
             logger.debug(f"步骤截图: {path}")
             # 记录相对路径到最近一条 step log，供报告每步内联展示
-            if ok and getattr(self, "_current_case_steps_log", None):
+            if ok and not failure and getattr(self, "_current_case_steps_log", None):
                 self._current_case_steps_log[-1]["screenshot"] = self._relative_run_path(str(path))
         except Exception as e:
             logger.debug(f"自动截图失败: {e}")
@@ -2380,3 +2570,8 @@ class SKIExecutor:
                 self.driver.close()
             except Exception as e:
                 logger.debug(f"关闭驱动时出错: {e}")
+
+        # v11.6.0 shared_browser：run 结束时统一关闭共享浏览器进程
+        shared = getattr(self, "_shared_browser", None)
+        if shared is not None:
+            shared.close()

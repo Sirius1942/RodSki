@@ -11,10 +11,11 @@
 | `navigate` | 导航到 URL（无浏览器时自动创建） |
 | `close` | 关闭浏览器 |
 | `type` | UI 批量输入（PC/移动端统一） |
-| `verify` | 批量验证（UI + 接口通用） |
+| `verify` | 批量验证（UI + 接口通用）；UI 模型自动重试到期望值，支持 `$count` / `$exists` / `$visible` 等原生断言（v11.6.0） |
 | `check` | 与 `verify` 等价（XSD 枚举中的兼容项） |
 | `assert` | 断言元素值 |
-| `wait` | 等待指定秒数 |
+| `wait` | 等待指定秒数（固定等待；等异步结果请直接 `verify`） |
+| `evaluate` | 执行 JS（仅 Web，逃生舱；`file:` 引用 `fun/js/*.js`） |
 | `upload_file` | 上传文件 |
 | `clear` | 清空输入框 |
 | `get_text` | 已废弃，请改用 `get` |

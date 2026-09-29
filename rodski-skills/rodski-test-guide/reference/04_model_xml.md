@@ -38,13 +38,14 @@
 | `value` | 可选 | 简化格式建议成对出现 | 与简化格式 `type` 配对，表示定位值 |
 | `<type>` 子节点 | 可选 | Web 常用 | UI 控件语义：input / button / select / text / textarea |
 | `<location type="...">` | 可选 | 完整格式常用 | `location@type` 取值见 [4.3](#43-定位类型)（`LocatorType`） |
+| `<location frame="...">` | 可选 | 元素在 iframe 内时填写 | v11.6.0：定位 `<iframe>` 的 CSS 选择器，多层用 ` >> ` 串联，见 [4.3.5](#435-iframe-内元素locationframev1160) |
 | `<desc>` | 可选 | — | 元素描述，便于维护 |
 
 > **运行时**：除 XSD 外，实际执行仍需要可用的定位信息——**完整格式**建议写 `type="web|interface|other"` + `<location>`；**简化格式**写 `type`（定位类型）+ `value`。
 
 ### 4.3 定位器类型（完整）
 
-RodSki 支持 12 种定位器类型，分为传统定位器和视觉定位器两大类。
+定位器类型以 `rodski/schemas/model.xsd` 的 `LocatorType` 为准，分为传统定位器、页面属性定位器 `page`（v11.6.0）和视觉定位器三类。
 
 #### 4.3.1 传统定位器
 
@@ -59,6 +60,7 @@ RodSki 支持 12 种定位器类型，分为传统定位器和视觉定位器两
 | `name` | name 属性选择器 | 按框架解析规则使用 |
 | `static` | 静态字面量 | 常用于接口 `_method`、固定 URL 等 |
 | `field` | 接口字段映射 | 常用于接口 body / query 字段名 |
+| `page` | 页面属性（v11.6.0，仅 Web） | 值只能是 `url` / `title` / `path` / `dialog`，见 [4.3.4](#434-页面属性定位器-pagev1160) |
 
 #### 4.3.2 视觉定位器
 
@@ -92,6 +94,7 @@ RodSki 支持 12 种定位器类型，分为传统定位器和视觉定位器两
 1. 所有定位器使用 `<location type="类型">值</location>` 格式
 2. `type` 属性必须为 LocatorType 枚举值之一
 3. 值写在 location 标签内容中
+4. `<location>` 可选属性：`priority`、`platform`（android / ios）、`item`、`frame`（v11.6.0，iframe 内定位，见 4.3.5）
 
 > **v6.7.6 起，model.xsd 不再接受旧格式（element@value、element@locator）。ModelParser 遇到旧格式会抛出明确错误。**
 
@@ -134,6 +137,96 @@ RodSki 支持 12 种定位器类型，分为传统定位器和视觉定位器两
     <location type="vision_bbox">100,200,150,250</location>
 </element>
 ```
+
+#### 4.3.4 页面属性定位器 `page`（v11.6.0）
+
+`page` 不定位 DOM 元素，而是把**页面属性**声明成模型元素，之后用普通 `verify` 断言。用它替代 `evaluate` 里的 `location.pathname` / `document.title` 断言。
+
+| 值 | `verify` 读到的实际值 | 在 `type` 数据表中该字段填什么 |
+|----|------------------------|-------------------------------|
+| `url` | 当前完整 URL | `BLANK`（只读） |
+| `title` | 页面标题 `document.title` | `BLANK`（只读） |
+| `path` | URL 的路径部分，如 `/login.html`（不含域名、`?query`、`#hash`） | `BLANK`（只读） |
+| `dialog` | 最近一次原生弹窗（alert / confirm / prompt）的文本；本用例还没出现过弹窗时为空字符串 | `accept` / `dismiss` / `accept:输入文本`（为**下一次**弹窗注册一次性处理器）；`BLANK` 不注册 |
+
+**断言重定向后的路径与标题**：
+
+```xml
+<!-- model.xml -->
+<model name="PageInfo" type="ui">
+    <element name="currentPath" type="web">
+        <location type="page">path</location>
+    </element>
+    <element name="pageTitle" type="web">
+        <location type="page">title</location>
+    </element>
+</model>
+```
+
+| PageInfo_verify | currentPath | pageTitle |
+|-----------------|-------------|-----------|
+| V_LOGIN | `/login.html` | `登录` |
+| V_ORDER | `{"$contains": "/order/"}` | `BLANK` |
+
+```xml
+<test_step action="navigate" model="" data="GlobalValue.Site.URL/protected.html"/>
+<test_step action="verify" model="PageInfo" data="V_LOGIN"/>   <!-- 自动重试到跳转完成 -->
+```
+
+**原生弹窗（confirm / prompt）**：在模型里声明 `dialog` 元素，**排在触发弹窗的按钮之前**（`type` 按模型元素顺序执行，处理器要先注册）：
+
+```xml
+<model name="DialogPage" type="ui">
+    <element name="dialog" type="web">
+        <location type="page">dialog</location>
+    </element>
+    <element name="deleteBtn" type="web">
+        <location type="id">deleteBtn</location>
+    </element>
+    <element name="status" type="web">
+        <location type="id">status</location>
+    </element>
+</model>
+```
+
+| DialogPage | dialog | deleteBtn | status | 说明 |
+|------------|--------|-----------|--------|------|
+| D_ACCEPT | `accept` | `click` | `BLANK` | 点删除，确认弹窗 |
+| D_DISMISS | `dismiss` | `click` | `BLANK` | 点删除，取消弹窗 |
+
+prompt 弹窗填 `accept:输入文本`，例如 `accept:加急` 表示输入「加急」后确认（完整示例见 `rodski-demo/DEMO/demo_authoring_v116/`）。
+
+| DialogPage_verify | dialog | deleteBtn | status |
+|-------------------|--------|-----------|--------|
+| V_DELETED | `确认删除订单 ORD1?` | `BLANK` | `已删除` |
+
+- 没注册处理器的弹窗按 `DefaultValue.DialogPolicy` 处理（默认 `fail`：该步骤立即失败，错误信息带弹窗文本，不会卡住），见 [§6.4](#64-waittime-与执行策略配置v1160)。
+- 一次性处理器只对下一次弹窗生效；用例结束时自动清除。
+- 不要再在 `evaluate` 里写 `window.confirm = () => true` 之类的垫片（`rodski case lint` 会给出 WARNING）。
+- `page` 元素不能和其他定位器写在同一个 `<element>` 里，也不能加 `frame`；`$count` / `$exists` / `$visible` 不适用于 `page` 元素。
+
+#### 4.3.5 iframe 内元素：`location@frame`（v11.6.0）
+
+元素位于 `<iframe>` 内时，在 `<location>` 上加 `frame` 属性，值为定位该 iframe 的 **CSS 选择器**；多层嵌套用 ` >> ` 从外到内串联。读、写、计数都会在该 frame 内进行，不需要（也没有）「切换 frame」步骤。
+
+```xml
+<model name="PayFrame" type="ui">
+    <element name="cardNo" type="web">
+        <location type="css" frame="#payFrame">#cardNo</location>
+    </element>
+    <element name="payBtn" type="web">
+        <location type="css" frame="#payFrame">#payBtn</location>
+    </element>
+    <!-- 两层嵌套 -->
+    <element name="agree" type="web">
+        <location type="id" frame="#outerFrame >> #termsFrame">agree</location>
+    </element>
+</model>
+```
+
+- `frame` 只对 `id` / `class` / `css` / `xpath` / `text` / `tag` / `name` 有效；视觉定位器和 `page` 不接受 `frame`。
+- iframe 找不到时按定位失败报错，错误信息指出是哪一层 frame。
+- `switch_frame` 不是关键字，不能写在 `action` 中。
 
 ### ~~4.4 简化格式~~ — 已移除（v5.4.0）
 

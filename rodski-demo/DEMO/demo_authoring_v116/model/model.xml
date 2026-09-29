@@ -80,4 +80,15 @@
       <location type="css" frame="#payFrame">#payResult</location>
     </element>
   </model>
+  <!-- A2 动态等待（verify 自动重试）专项：页面时间线见 fun/site/dynamic_wait.html -->
+  <model name="DynamicWait" type="ui">
+    <element name="lateText" type="web"><location type="id">lateText</location></element>
+    <element name="status" type="web"><location type="id">status</location></element>
+    <element name="items" type="web"><location type="css">#list li.item</location></element>
+    <element name="fieldA" type="web"><location type="id">fieldA</location></element>
+    <element name="fieldB" type="web"><location type="id">fieldB</location></element>
+    <element name="spinner" type="web"><location type="id">spinner</location></element>
+    <element name="hiddenBtn" type="web"><location type="id">hiddenBtn</location></element>
+    <element name="veryLate" type="web"><location type="id">veryLate</location></element>
+  </model>
 </models>

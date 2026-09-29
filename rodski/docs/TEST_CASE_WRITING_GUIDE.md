@@ -1,7 +1,7 @@
 # RodSki 用例编写指南
 
-**版本**: v11.5.2
-**日期**: 2026-09-28
+**版本**: v11.6.0
+**日期**: 2026-09-29
 **适用框架**: RodSki v8.3.0+
 
 ---
@@ -205,7 +205,7 @@ case/
 
 | 属性 | 必需 | 说明 | 取值规则 |
 |------|------|------|---------|
-| `step_wait` | 否 | 步骤间等待时间（毫秒） | 如 `500`，覆盖 GlobalValue 中的 WaitTime |
+| `step_wait` | 否 | 步骤间固定等待时间（**毫秒**，与 `DefaultValue.WaitTime` 同单位，见 [§6.4](#64-waittime-与执行策略配置v1160)） | 如 `500`，覆盖 GlobalValue 中的 WaitTime；一般不写（默认不等待） |
 | `tags` | 否 | 套件标签 | 逗号分隔，如 `smoke,login`。文件内所有用例共享此标签，CLI 可按标签过滤 |
 
 #### `<case>` 用例属性
@@ -327,7 +327,7 @@ case/
 | `clear` | 清空输入 |
 | `get_text` | **已废弃**，请改用 `get` |
 | `get` | 三模式取值：`get ModelName D001`（模型模式，推荐）/ `get #selector`（UI 选择器，低级补充）/ `get var_name`（命名访问） |
-| `evaluate` | 执行 JS 表达式（**仅 Web**，低优先级，结构化结果保留原类型） |
+| `evaluate` | 执行 JS 表达式（**仅 Web**，逃生舱，结构化结果保留原类型）；`data="file:fun/js/x.js"` 引用模块内脚本（v11.6.0，见 [§8.7](#87-evaluate--逃生舱与-file-脚本v1160)） |
 | `send` | 发 HTTP 请求 |
 | `set` | 写入命名变量：`set \| key=value`，写入 context.named 并写入 history |
 | `DB` | 执行 SQL |
@@ -452,13 +452,14 @@ case/
 | `value` | 可选 | 简化格式建议成对出现 | 与简化格式 `type` 配对，表示定位值 |
 | `<type>` 子节点 | 可选 | Web 常用 | UI 控件语义：input / button / select / text / textarea |
 | `<location type="...">` | 可选 | 完整格式常用 | `location@type` 取值见 [4.3](#43-定位类型)（`LocatorType`） |
+| `<location frame="...">` | 可选 | 元素在 iframe 内时填写 | v11.6.0：定位 `<iframe>` 的 CSS 选择器，多层用 ` >> ` 串联，见 [4.3.5](#435-iframe-内元素locationframev1160) |
 | `<desc>` | 可选 | — | 元素描述，便于维护 |
 
 > **运行时**：除 XSD 外，实际执行仍需要可用的定位信息——**完整格式**建议写 `type="web|interface|other"` + `<location>`；**简化格式**写 `type`（定位类型）+ `value`。
 
 ### 4.3 定位器类型（完整）
 
-RodSki 支持 12 种定位器类型，分为传统定位器和视觉定位器两大类。
+定位器类型以 `rodski/schemas/model.xsd` 的 `LocatorType` 为准，分为传统定位器、页面属性定位器 `page`（v11.6.0）和视觉定位器三类。
 
 #### 4.3.1 传统定位器
 
@@ -473,6 +474,7 @@ RodSki 支持 12 种定位器类型，分为传统定位器和视觉定位器两
 | `name` | name 属性选择器 | 按框架解析规则使用 |
 | `static` | 静态字面量 | 常用于接口 `_method`、固定 URL 等 |
 | `field` | 接口字段映射 | 常用于接口 body / query 字段名 |
+| `page` | 页面属性（v11.6.0，仅 Web） | 值只能是 `url` / `title` / `path` / `dialog`，见 [4.3.4](#434-页面属性定位器-pagev1160) |
 
 #### 4.3.2 视觉定位器
 
@@ -506,6 +508,7 @@ RodSki 支持 12 种定位器类型，分为传统定位器和视觉定位器两
 1. 所有定位器使用 `<location type="类型">值</location>` 格式
 2. `type` 属性必须为 LocatorType 枚举值之一
 3. 值写在 location 标签内容中
+4. `<location>` 可选属性：`priority`、`platform`（android / ios）、`item`、`frame`（v11.6.0，iframe 内定位，见 4.3.5）
 
 > **v6.7.6 起，model.xsd 不再接受旧格式（element@value、element@locator）。ModelParser 遇到旧格式会抛出明确错误。**
 
@@ -548,6 +551,96 @@ RodSki 支持 12 种定位器类型，分为传统定位器和视觉定位器两
     <location type="vision_bbox">100,200,150,250</location>
 </element>
 ```
+
+#### 4.3.4 页面属性定位器 `page`（v11.6.0）
+
+`page` 不定位 DOM 元素，而是把**页面属性**声明成模型元素，之后用普通 `verify` 断言。用它替代 `evaluate` 里的 `location.pathname` / `document.title` 断言。
+
+| 值 | `verify` 读到的实际值 | 在 `type` 数据表中该字段填什么 |
+|----|------------------------|-------------------------------|
+| `url` | 当前完整 URL | `BLANK`（只读） |
+| `title` | 页面标题 `document.title` | `BLANK`（只读） |
+| `path` | URL 的路径部分，如 `/login.html`（不含域名、`?query`、`#hash`） | `BLANK`（只读） |
+| `dialog` | 最近一次原生弹窗（alert / confirm / prompt）的文本；本用例还没出现过弹窗时为空字符串 | `accept` / `dismiss` / `accept:输入文本`（为**下一次**弹窗注册一次性处理器）；`BLANK` 不注册 |
+
+**断言重定向后的路径与标题**：
+
+```xml
+<!-- model.xml -->
+<model name="PageInfo" type="ui">
+    <element name="currentPath" type="web">
+        <location type="page">path</location>
+    </element>
+    <element name="pageTitle" type="web">
+        <location type="page">title</location>
+    </element>
+</model>
+```
+
+| PageInfo_verify | currentPath | pageTitle |
+|-----------------|-------------|-----------|
+| V_LOGIN | `/login.html` | `登录` |
+| V_ORDER | `{"$contains": "/order/"}` | `BLANK` |
+
+```xml
+<test_step action="navigate" model="" data="GlobalValue.Site.URL/protected.html"/>
+<test_step action="verify" model="PageInfo" data="V_LOGIN"/>   <!-- 自动重试到跳转完成 -->
+```
+
+**原生弹窗（confirm / prompt）**：在模型里声明 `dialog` 元素，**排在触发弹窗的按钮之前**（`type` 按模型元素顺序执行，处理器要先注册）：
+
+```xml
+<model name="DialogPage" type="ui">
+    <element name="dialog" type="web">
+        <location type="page">dialog</location>
+    </element>
+    <element name="deleteBtn" type="web">
+        <location type="id">deleteBtn</location>
+    </element>
+    <element name="status" type="web">
+        <location type="id">status</location>
+    </element>
+</model>
+```
+
+| DialogPage | dialog | deleteBtn | status | 说明 |
+|------------|--------|-----------|--------|------|
+| D_ACCEPT | `accept` | `click` | `BLANK` | 点删除，确认弹窗 |
+| D_DISMISS | `dismiss` | `click` | `BLANK` | 点删除，取消弹窗 |
+
+prompt 弹窗填 `accept:输入文本`，例如 `accept:加急` 表示输入「加急」后确认（完整示例见 `rodski-demo/DEMO/demo_authoring_v116/`）。
+
+| DialogPage_verify | dialog | deleteBtn | status |
+|-------------------|--------|-----------|--------|
+| V_DELETED | `确认删除订单 ORD1?` | `BLANK` | `已删除` |
+
+- 没注册处理器的弹窗按 `DefaultValue.DialogPolicy` 处理（默认 `fail`：该步骤立即失败，错误信息带弹窗文本，不会卡住），见 [§6.4](#64-waittime-与执行策略配置v1160)。
+- 一次性处理器只对下一次弹窗生效；用例结束时自动清除。
+- 不要再在 `evaluate` 里写 `window.confirm = () => true` 之类的垫片（`rodski case lint` 会给出 WARNING）。
+- `page` 元素不能和其他定位器写在同一个 `<element>` 里，也不能加 `frame`；`$count` / `$exists` / `$visible` 不适用于 `page` 元素。
+
+#### 4.3.5 iframe 内元素：`location@frame`（v11.6.0）
+
+元素位于 `<iframe>` 内时，在 `<location>` 上加 `frame` 属性，值为定位该 iframe 的 **CSS 选择器**；多层嵌套用 ` >> ` 从外到内串联。读、写、计数都会在该 frame 内进行，不需要（也没有）「切换 frame」步骤。
+
+```xml
+<model name="PayFrame" type="ui">
+    <element name="cardNo" type="web">
+        <location type="css" frame="#payFrame">#cardNo</location>
+    </element>
+    <element name="payBtn" type="web">
+        <location type="css" frame="#payFrame">#payBtn</location>
+    </element>
+    <!-- 两层嵌套 -->
+    <element name="agree" type="web">
+        <location type="id" frame="#outerFrame >> #termsFrame">agree</location>
+    </element>
+</model>
+```
+
+- `frame` 只对 `id` / `class` / `css` / `xpath` / `text` / `tag` / `name` 有效；视觉定位器和 `page` 不接受 `frame`。
+- iframe 找不到时按定位失败报错，错误信息指出是哪一层 frame。
+- `switch_frame` 不是关键字，不能写在 `action` 中。
 
 ### ~~4.4 简化格式~~ — 已移除（v5.4.0）
 
@@ -754,7 +847,22 @@ rodski data validate <module>
 
 # 从 XML 迁移数据到 data.sqlite
 rodski data import <module> [--overwrite]
+
+# 行级编辑（v11.6.0）：直接改 data.sqlite，改完即可重跑，无需 import
+rodski data set <module> <table> <data_id> field=value [field=value ...]   # 修改已有行
+rodski data add-row <module> <table> <data_id> field=value [...] [--remark 备注]   # 新增行：必须给出完整字段集合
+rodski data delete-row <module> <table> <data_id>                          # 删除行
 ```
+
+例如接口返回的订单数由 1 变为 2，只改期望值：
+
+```bash
+rodski data set product/shop/order OrderDB_verify V_OK n=2
+```
+
+- `data set` 只能修改 schema 中已声明的字段；写错字段名会报错并列出合法字段。
+- `data add-row` 缺字段时报错，提示为缺少的字段填 `BLANK` / `NULL` / `NONE`（字段集合一致约束，见 5.1）。
+- 值中含空格时整体加引号：`rodski data set <module> Login_verify V001 "welcomeMsg=欢迎, admin"`。
 
 
 ### 5.4 批量输入时的特殊值
@@ -786,6 +894,7 @@ rodski data import <module> [--overwrite]
 | `drag【目标定位器】` | 拖拽元素到目标位置 | `<field name="card">drag【#drop-zone】</field>` |
 | `scroll` | 默认滚动（向下 300px） | `<field name="page">scroll</field>` |
 | `scroll【x,y】` | 自定义滚动距离 | `<field name="page">scroll【0,500】</field>` |
+| `accept` / `dismiss` / `accept:文本` | 仅用于 `page=dialog` 元素（v11.6.0）：为下一次原生弹窗注册一次性处理器 | `<field name="dialog">accept:加急</field>`，见 [4.3.4](#434-页面属性定位器-pagev1160) |
 
 > **注意**：动作关键字使用中文方括号 **【】** 包裹参数。
 
@@ -895,9 +1004,123 @@ Case XML 写法（验证写在 `<test_case>` 内，作为一条 `test_step`）�
 </test_case>
 ```
 
+### 5.7 verify 期望值：操作符、原生断言与自动重试（v11.6.0）
+
+`_verify` 表的字段值除了写字面期望值，还可以写**单键 JSON 操作符**。
+
+#### 5.7.1 操作符一览
+
+| 操作符 | 适用 | 含义 | 字段值示例 |
+|--------|------|------|-----------|
+| `$gt` / `$gte` / `$lt` / `$lte` | UI / 接口 / DB | 数值比较 | `{"$gte": 100}` |
+| `$contains` | UI / 接口 / DB | 字符串包含 / 数组包含 | `{"$contains": "/order/"}` |
+| `$count` | UI 元素 | 定位器匹配的元素数量 = N | `{"$count": 10}` |
+| `$count_gte` / `$count_lte` | UI 元素 | 匹配数量 ≥ N / ≤ N | `{"$count_gte": 1}` |
+| `$exists` | UI 元素 | 元素存在 / 不存在 | `{"$exists": true}` / `{"$exists": false}` |
+| `$visible` | UI 元素 | 元素可见 / 不可见 | `{"$visible": true}` |
+
+- 每个字段值只能有一个操作符；操作符右侧只能是字面量（不能写 `${Return[-1]}`）。
+- `$count*` / `$exists` / `$visible` 作用于该字段对应模型元素的定位器（支持 `frame`），**只用于 UI 模型的 DOM 元素**；接口返回数组的长度用 `字段.length` + `$gt` 等数值操作符。
+- **0 匹配不会被跳过**：选择器失效、元素一个都没找到时，按「实际 0 / 不存在」判定。`{"$count": 10}` 会失败并报「期望 10，实际 0」。这正是原生断言比 `evaluate` 断言可靠的地方。
+
+**示例：异步表格有 10 行**（`AsyncTable` 模型的 `rows` 元素定位 `#orderBody tr.order-row`）：
+
+| AsyncTable_verify | rows | total |
+|-------------------|------|-------|
+| V_ROWS | `{"$count": 10}` | `共 10 条` |
+| V_EXISTS | `{"$exists": true}` | `BLANK` |
+
+```xml
+<test_step action="navigate" model="" data="GlobalValue.Site.URL/async_table.html"/>
+<test_step action="verify" model="AsyncTable" data="V_ROWS"/>   <!-- 不需要 wait -->
+```
+
+#### 5.7.2 UI verify 自动重试（替代 `wait`）
+
+UI 模型的 `verify` 会在自动等待 `DefaultValue.AutoWait` 毫秒内（默认 `5000`，即 5 秒；每 200ms 一轮）反复读取**全部**字段并比对，全部匹配立即通过；超时后按最后一次读到的值报失败，逐字段列出期望 / 实际。
+
+- 因此异步加载、跳转后的页面**直接写 `verify`**，不要在前面插 `wait 1`/`wait 2`。等元素消失写 `{"$exists": false}` 或 `{"$visible": false}`。
+- 接口 / DB 模型的 `verify` 不重试（结果是一次性的）。
+- `DefaultValue.AutoWait=0` 关闭重试，恢复单次比对；页面特别慢时可调大（如 `10000` = 10 秒），见 [§6.4](#64-waittime-与执行策略配置v1160)。
+- 预期失败（`expect_fail="是"`）的 UI 用例要等到超时才判定失败，耗时约等于 `AutoWait`。
+
+#### 5.7.3 strict / subset 与 BLANK
+
+- 默认 `strict`：`_verify` 行必须包含模型的全部字段。只关心部分字段时，在步骤上写 `match_mode="subset"`，或在不校验的字段填 `BLANK`（UI / DB 模型中 `BLANK` 表示跳过该字段；接口模型中 `BLANK` 表示期望空字符串）。
+
+```xml
+<test_step action="verify" model="Login" data="V001" match_mode="subset"/>
+```
+
+- strict 模式下某行一半以上字段都是 `BLANK` 时，`rodski case lint` 会提示改用 `match_mode="subset"`（INFO）。
+- 缺字段的报错会直接给出这两种修法。
+
+#### 5.7.4 什么时候还用 evaluate
+
+`evaluate` 是逃生舱：只有原生断言表达不了的检查才用它。脚本里有 `&&`、`<`、引号时，不要写在 XML 属性里，放到模块内的 `fun/js/*.js`，用 `file:` 引用（见 [§8.7](#87-evaluate--逃生舱与-file-脚本v1160)）。
+
+| 想断言的内容 | 推荐写法 | 不推荐（lint 会提示） |
+|--------------|----------|----------------------|
+| 列表行数 | `{"$count": 10}` | `evaluate` 中 `querySelectorAll(...).length` |
+| 元素出现 / 消失 | `{"$exists": true/false}` | `evaluate` 中 `querySelector(...)` 判空 |
+| 当前路径 / URL / 标题 | `page` 元素 + `verify`（4.3.4） | `evaluate` 中 `location.pathname` |
+| 弹窗 | `DialogPolicy` + `page=dialog` 元素 | `evaluate` 中 `window.confirm = ...` |
+| 查询结果 | `DB` + `verify`（5.5） | `evaluate` / `<if>` 判断 |
+
 ---
 
 ## 6. GlobalValue XML — 全局变量
+
+### 6.0 什么时候用全局变量
+
+**判断标准：这个值是否"换一个环境就要改"，或者"整个模块共用、与单条用例无关"。** 是，就放 `globalvalue.xml`；否，就放 `data.sqlite` 或运行时变量。
+
+**该用全局变量**
+
+| 场景 | 例子 | 推荐组名 |
+|------|------|----------|
+| 随环境变化的地址 | 站点 URL、API 基址、第三方回调地址 | `DefaultValue.URL` 或按系统分组（如 `Site.URL`、`Api.BASE_URL`） |
+| 与环境绑定的账号 | 测试环境的登录名、租户号（密码见下方"不该用"） | `Account` |
+| 数据库连接 | 连接类型、地址、库名（被数据库模型的 `connection` 引用） | 与模型 `connection` 同名的组，如 `order_db` |
+| 移动端设备与应用 | `Platform`、`UDID`、`AppPackage`、`BundleId`、Appium 地址 | `Mobile` |
+| 模块内多个用例共享、且随环境变化的常量 | 默认门店编码、默认币种 | 按业务命名的组 |
+| 框架执行策略 | `WaitTime`、`AutoWait`、`DialogPolicy`、`SessionMode`、`EvidenceMode`（见 [§6.3](#63-框架内置全局变量)、[§6.4](#64-waittime-与执行策略配置v1160)） | 固定为 `DefaultValue` |
+
+**不该用全局变量**
+
+| 值 | 应该放在 | 原因 |
+|----|----------|------|
+| 某条用例的输入数据、期望值 | `data.sqlite` 的数据表 / `_verify` 表 | 用例数据要跟用例一起维护、按 DataID 引用（[§5](#5-数据表--测试数据编写)） |
+| 运行时产生的值（订单号、token、接口返回字段） | `set` / `get` 命名变量、`${Return[-N]}`、模型 `auto_capture` | 每次运行都不同，写死在全局变量里会过期 |
+| 生产环境或个人的真实密码、密钥 | 不要写进任何被提交的文件；使用测试环境专用账号 | 避免把敏感信息提交进仓库（CORE §16.2）。框架目前不支持从环境变量读取 globalvalue，测试账号的密码如需放在 globalvalue，应只用于测试环境 |
+| 只有一两条用例用到的常量 | 这些用例自己的数据行 | 全局变量越少越好找，不要把它当"公共常量池" |
+
+**换环境只改 globalvalue**：用例、模型、数据表里凡是涉及环境的值都用 `GlobalValue.组名.变量名` 引用，切换 beta / ci / prod 时只替换 `globalvalue.xml`，其余文件不动（`rodski-skill--switch-rodski-env` 就是按这个约定工作的）。
+
+```xml
+<!-- beta 环境 -->
+<globalvalue>
+  <group name="DefaultValue">
+    <var name="URL" value="https://beta.example.com"/>
+    <var name="WaitTime" value="0"/>          <!-- 毫秒 -->
+    <var name="AutoWait" value="5000"/>       <!-- 毫秒：verify 自动等待上限 -->
+  </group>
+  <group name="Account">
+    <var name="Admin" value="qa_admin"/>
+  </group>
+  <group name="order_db">
+    <var name="type" value="mysql"/>
+    <var name="host" value="beta-db.example.com"/>
+  </group>
+</globalvalue>
+```
+
+```xml
+<!-- 用例与数据表中只引用，不写死地址 -->
+<test_step action="navigate" model="" data="GlobalValue.DefaultValue.URL/login"/>
+```
+
+数据表字段值同样可以写 `GlobalValue.Account.Admin`；数据库模型写 `connection="order_db"`，连接信息由同名组提供。
 
 ### 6.1 文件格式
 
@@ -911,7 +1134,11 @@ Case XML 写法（验证写在 `<test_case>` 内，作为一条 `test_step`）�
   <group name="DefaultValue">
     <var name="URL" value="http://127.0.0.1:5555"/>
     <var name="BrowserType" value="chromium"/>
-    <var name="WaitTime" value="2"/>
+    <var name="WaitTime" value="0"/>           <!-- 毫秒；0 = 不做固定等待 -->
+    <var name="AutoWait" value="5000"/>        <!-- 毫秒；自动等待：UI verify 自动重试上限 -->
+    <var name="DialogPolicy" value="fail"/>
+    <var name="SessionMode" value="shared_browser"/>
+    <var name="EvidenceMode" value="full"/>
   </group>
   <group name="sqlite_db">
     <var name="type" value="sqlite"/>
@@ -938,7 +1165,7 @@ GlobalValue.组名.变量名
 
 ```
 GlobalValue.DefaultValue.URL          → "http://127.0.0.1:5555"
-GlobalValue.DefaultValue.WaitTime     → "2"
+GlobalValue.DefaultValue.WaitTime     → "0"
 ```
 
 ### 6.3 框架内置全局变量
@@ -947,7 +1174,11 @@ GlobalValue.DefaultValue.WaitTime     → "2"
 |------|-----|------|--------|
 | DefaultValue | URL | 测试环境地址 | http://127.0.0.1:5555 |
 | DefaultValue | BrowserType | 浏览器类型 | chromium / firefox / webkit |
-| DefaultValue | WaitTime | 每步执行后自动等待秒数 | 2 |
+| DefaultValue | WaitTime | 每步执行后的固定等待，单位**毫秒**（v11.6.0 起；旧值 ≤30 暂按秒兼容并告警） | 0 |
+| DefaultValue | AutoWait | **自动等待**：UI `verify` 自动重试的上限，单位**毫秒**；`0` 关闭（v11.6.0） | 5000 |
+| DefaultValue | DialogPolicy | 未注册处理器的原生弹窗：`accept` / `dismiss` / `fail`（v11.6.0） | fail |
+| DefaultValue | SessionMode | 浏览器会话：`isolated` / `shared_browser` / `shared_session`（v11.6.0） | isolated |
+| DefaultValue | EvidenceMode | 截图证据：`full` / `concise`（v11.6.0） | full |
 | DefaultValue | Headless | 无头模式 | True / False |
 | Roam | Enabled | 漫游全局开关；只有 `是` 才允许显式漫游 | 是 / 否 |
 | Roam | MaxVariantsPerCase | 单个基础用例最多执行的漫游变体数 | 5 |
@@ -956,15 +1187,69 @@ GlobalValue.DefaultValue.WaitTime     → "2"
 | Roam | MaxTokenBudget | 自定义/后续 LLM 引擎 token 上限；核心默认引擎不使用 LLM | 20000 |
 | Roam | MaxCostUsd | 自定义/后续 LLM 引擎成本上限（美元） | 0.5 |
 
-### 6.4 WaitTime — 默认步骤等待时间
+### 6.4 WaitTime 与执行策略配置（v11.6.0）
 
-设置 `DefaultValue.WaitTime` 后，框架在**每个步骤执行完成后**自动等待指定秒数。
+#### 6.4.1 WaitTime — 步骤固定等待（单位：毫秒）
+
+设置 `DefaultValue.WaitTime` 后，框架在**每个步骤执行完成后**固定等待指定**毫秒**数。`<cases step_wait="...">` 同样是**毫秒**，写了就覆盖 `WaitTime`。
 
 | 关键字 | 是否应用 WaitTime |
 |--------|-----------------|
-| navigate / type / click / verify 等 | 是 |
+| navigate / type / verify / send 等 | 是 |
 | wait | 否（wait 自身已包含等待） |
 | close | 否（浏览器已关闭） |
+
+**推荐 `WaitTime=0`**：交互等待由智能等待（元素出现即继续）和 `verify` 自动重试（[§5.7.2](#572-ui-verify-自动重试替代-wait)）负责，固定等待只用于演示或录屏。固定等待会按步数线性累加：20 步 × 1000ms = 每个用例多 20 秒。`WaitTime > 0` 或用例里出现数字字面量 `wait` 时，`rodski case lint` 会给出 WARNING 并估算耗时。
+
+**单位迁移（v11.6.0 之前 WaitTime 按秒解析）**：
+
+| 写法 | v11.6.0 起的解释 |
+|------|------------------|
+| `0` | 不等待 |
+| `1` ~ `30`（旧写法） | **过渡期按秒**解释（`1` = 1 秒），并打印一次弃用告警：提示 WaitTime 已改为毫秒，请改写（如 `1` → `1000`） |
+| `> 30` | 按毫秒解释（`500` = 0.5 秒） |
+
+请尽快把旧值改写为毫秒；过渡兼容会在后续版本移除。
+
+#### 6.4.2 AutoWait — 自动等待（单位：毫秒）
+
+UI 模型的 `verify` 在 `AutoWait` 毫秒内反复读取、比对，直到全部字段匹配或超时（默认 `5000`，即 5 秒）。`0` 关闭重试（单次比对）。接口 / DB 的 `verify` 不受影响。单位与 `WaitTime`、`step_wait` 一致，都是毫秒。
+
+- 11.6.0 开发期曾叫 `VerifyTimeout`（单位秒）；配置里如果还写着 `VerifyTimeout`，执行前会报错并提示改为 `AutoWait`。
+- 作用范围：只控制 `verify` 的自动重试；元素出现前的智能等待（§13）仍用原有配置。详见 [§5.7.2](#572-ui-verify-自动重试替代-wait)。
+
+#### 6.4.3 DialogPolicy — 未预期的原生弹窗
+
+| 取值 | 行为 |
+|------|------|
+| `fail`（默认） | 出现未注册处理器的弹窗时，该步骤立即失败，错误信息包含弹窗文本；不会卡住等待，也不会静默吞掉 |
+| `accept` | 自动确认（prompt 按其默认值确认） |
+| `dismiss` | 自动取消 |
+
+需要对某一次弹窗做特定处理时，用 `page=dialog` 元素注册一次性处理器，见 [4.3.4](#434-页面属性定位器-pagev1160)。
+
+#### 6.4.4 SessionMode — 浏览器会话复用
+
+| 取值 | 行为 | 隔离性 |
+|------|------|--------|
+| `isolated`（默认） | 每个用例启动一次浏览器 | 完全隔离 |
+| `shared_browser`（推荐） | 整个 run 只启动一次浏览器，每个用例新建独立 context；用例里的 `close` 只关闭本用例的 context | cookie / localStorage / 页面按用例隔离 |
+| `shared_session` | 所有用例共用同一个页面（相当于以往不写 `close`） | 不隔离 |
+
+CLI `--session-mode` 可临时覆盖。配合登录态复用（[§8.8](#88-登录态复用save_auth_state--use_auth_statev1160)）可以省掉每个用例的 UI 登录。
+
+#### 6.4.5 EvidenceMode — 截图证据模式
+
+| 取值 | 行为 |
+|------|------|
+| `full`（默认） | 每步截图 + 失败截图 |
+| `concise` | 只在步骤失败时截图（与失败截图相同的处理方式），不产生逐步截图 |
+
+- 两种模式下**录像不受影响**：是否录像仍由 `--record` / `recording` 配置决定。
+- `result.xml` 与 HTML 报告会标注本次使用的模式，避免误以为截图丢失。
+- CLI `--evidence full|concise` 可临时覆盖。步数多、只关心失败现场时用 `concise` 节省时间；排查偶发问题时保持 `full` 并开启录像。
+
+**非法取值**（如 `DialogPolicy=yes`）会在执行开始前报错并列出合法取值。优先级：CLI 参数 > `globalvalue.xml` > 默认值。
 
 ### 6.5 数据库连接配置
 
@@ -1225,8 +1510,8 @@ INSERT INTO rs_field VALUES ('PayAPI', 'D001', 'txn_no', 'TXN${date(today, %Y%m%
 | **navigate** | 导航到 URL（无浏览器时自动创建）；移动端支持 `app://android/包名/Activity` 和 `app://ios/BundleId` 格式启动 App | — | URL / GlobalValue 引用 / app:// URI |
 | **close** | 关闭浏览器及移动端驱动（同时释放 android/ios 驱动缓存） | — | — |
 | **type** | UI 批量输入（PC 端 / 移动端统一） | 模型名 | DataID |
-| **verify** | 批量验证（UI / 接口通用） | 模型名 | DataID（自动查 `模型名_verify` 表） |
-| **wait** | 等待指定秒数 | — | 秒数（如 `3`） |
+| **verify** | 批量验证（UI / 接口通用）；UI 模型自动重试到期望值（v11.6.0，[§5.7](#57-verify-期望值操作符原生断言与自动重试v1160)） | 模型名 | DataID（自动查 `模型名_verify` 表） |
+| **wait** | 等待指定秒数（固定等待，仅用于演示 / 确需固定时长；等异步结果请直接 `verify`） | — | 秒数（如 `3`） |
 | **clear** | 清空输入框 | — | CSS 选择器 |
 | **get** | 三模式取值：model+DataID → 模型元素文本（推荐）；CSS 选择器 → UI 元素文本（低级补充）；变量名 → 命名变量读取 | 模型名（可选） | DataID 或 CSS 选择器 或 变量名 |
 
@@ -1392,6 +1677,70 @@ DB 用例格式：
 
 脚本通过 `print()` 输出返回值。框架会自动尝试 JSON 解析。
 
+#### 内置函数（进程内执行，`model` 必须为空）
+
+`data` 是已注册的内置函数调用时，`run` 在当前进程内直接执行（不走子进程）。**`model` 必须写空字符串**，否则会被当作 `fun/` 下的工程名：
+
+```xml
+<test_step action="run" model="" data="mock_route(url_pattern='/api/users', status=200, body='[]')"/>
+```
+
+| 函数 | 作用 |
+|------|------|
+| `mock_route(url_pattern, status, body, content_type)` / `clear_routes()` | Mock / 清除接口响应（仅 Playwright） |
+| `wait_for_response(url_pattern, timeout)` | 等待网络请求完成 |
+| `start_js_coverage()` / `stop_js_coverage(output)` | JS 覆盖率 |
+| `reset_request_log()` / `get_request_log()` | 请求日志 |
+| `save_auth_state(name)` / `use_auth_state(name)` | 登录态复用（v11.6.0），见 [§8.8](#88-登录态复用save_auth_state--use_auth_statev1160) |
+
+### 8.7 evaluate — 逃生舱与 file: 脚本（v11.6.0）
+
+`evaluate` 在页面中执行 JavaScript（仅 Web），返回值写入 Return。它是**逃生舱**：数量、存在、可见、URL、标题、弹窗、查询结果都有原生写法（见 [§5.7.4](#574-什么时候还用-evaluate) 对照表），`evaluate` 只留给原生能力覆盖不到的检查。
+
+**XML 属性转义**：XML 属性里不能直接写 `&&`、`<`，要写成 `&amp;&amp;`、`&lt;`。脚本稍长时，推荐放到模块内的 `fun/js/` 目录，用 `file:` 引用，脚本里可以原样写 `&&`、`<` 和引号：
+
+```xml
+<test_step action="evaluate" model="" data="file:fun/js/check_rows.js"/>
+```
+
+```javascript
+// fun/js/check_rows.js
+(() => {
+  const rows = document.querySelectorAll('#orderBody tr.order-row');
+  if (rows.length === 10 && rows[0].innerText.trim() === 'ORD1') return rows.length;
+  throw new Error('期望 10 行且首行为 ORD1，实际 ' + rows.length + ' 行');
+})()
+```
+
+- `file:` 后的路径相对**模块目录**（`case/`、`fun/` 的上级）；只允许模块内的文件，绝对路径或 `..` 越界会被拒绝。
+- 脚本抛出异常时步骤失败。
+- XML 解析失败且问题出在属性里的 `&` / `<` 时，报错会提示上面两种改法。
+
+### 8.8 登录态复用：save_auth_state / use_auth_state（v11.6.0）
+
+一个用例做一次 UI 登录并保存登录态，后续用例直接加载，省掉重复登录：
+
+```xml
+<!-- TC001：UI 登录后保存 -->
+<test_case>
+  <test_step action="type" model="Login" data="L_ADMIN"/>
+  <test_step action="verify" model="PageInfo" data="V_HOME"/>
+  <test_step action="run" model="" data="save_auth_state(name='admin')"/>
+</test_case>
+
+<!-- TC002：先加载登录态，再 navigate 到登录后的页面 -->
+<pre_process>
+  <test_step action="run" model="" data="use_auth_state(name='admin')"/>
+  <test_step action="navigate" model="" data="GlobalValue.Site.URL/home.html"/>
+</pre_process>
+```
+
+- 保存的是浏览器 context 的 cookie + localStorage，只存在**本次 run 的内存**中，不写入结果目录或仓库；run 结束即失效。
+- `use_auth_state` 必须写在该用例的 `navigate` **之前**（它作用于本用例新建的 context）。
+- 找不到名字时报错：先确认保存该登录态的用例已经在前面执行（同一用例文件内按书写顺序执行；用 plan 时注意顺序）。
+- 推荐与 `SessionMode=shared_browser` 搭配（[§6.4.4](#644-sessionmode--浏览器会话复用)）：浏览器只启动一次、用例之间仍然隔离，只有显式 `use_auth_state` 的用例才带登录态。
+- `--workers` 并行时，保存和使用登录态的用例要放在**同一个用例文件**里（同一文件在同一 worker 中顺序执行）。
+
 ---
 
 ## 9. 完整示例
@@ -1440,7 +1789,7 @@ product/DEMO/demo_site/
 <globalvalue>
   <group name="DefaultValue">
     <var name="URL" value="http://127.0.0.1:5555"/>
-    <var name="WaitTime" value="2"/>
+    <var name="WaitTime" value="0"/>
   </group>
   <group name="sqlite_db">
     <var name="type" value="sqlite"/>
@@ -1516,15 +1865,36 @@ rodski run case/ --tags smoke --priority P0
 # 执行后自动生成 HTML 报告
 rodski run case/ --report html
 
+# 生成 JUnit XML（CI 用，v11.6.0）；可与 html 逗号并列
+rodski run case/ --report junit
+rodski run case/ --report html,junit
+
+# 浏览器会话复用（v11.6.0，覆盖 DefaultValue.SessionMode）
+rodski run case/ --session-mode shared_browser
+
+# 按用例文件并行，4 个 worker（v11.6.0）
+rodski run case/ --workers 4
+
+# 简洁记录模式：只保留失败截图，录像不受影响（v11.6.0，覆盖 DefaultValue.EvidenceMode）
+rodski run case/ --evidence concise
+
+# 以上执行方式参数可与 @plan_id 同用（它们不是执行范围 selector）
+rodski run @project_full --workers 4 --session-mode shared_browser --report junit
+
+# 静态检查常见写法问题（固定 wait、evaluate 断言、弹窗垫片、sql/query 均无效等）
+rodski case lint <module>
+
 # 无头模式
 rodski run case/ --headless
 ```
 
 > `--case-id` 必须与**单个用例文件**路径一起使用；传目录会报 `SKI208 CaseIdRequiresFile`。`--case-id` 与 `@plan_id` 固定互斥（见 §10.6），与 `--tags` / `--priority` 同用时只在指定用例内过滤。
+>
+> `--workers N` 以**用例文件**为单位分给 N 个进程，同一文件内的用例在同一进程中按顺序执行；结果合并到同一个运行目录（`result.xml`、`junit.xml`、截图镜像目录都在一起）。有先后依赖的用例（如先保存登录态、再使用）请放在同一个文件里。
 
 ### 9.8 结果目录说明（v11.5.0）
 
-一次运行目录（`result/rodski_{ts}/`）下，**用例级产物**（步骤截图、失败截图、场景截图子目录、录像）按用例文件路径镜像存放在运行目录的 `case/` 子目录中，与 `case/` 的目录结构完全一致；用例文件对应的目录名为文件名去掉 `.xml`。**此规则适用于所有用例文件，包括位于 `case/` 根目录的文件**，没有特例：
+一次运行目录（`result/rodski_{ts}/`；同一秒内先后启动的多次运行，后者目录名追加 `_2`、`_3`，互不覆盖，v11.6.0）下，**用例级产物**（步骤截图、失败截图、场景截图子目录、录像）按用例文件路径镜像存放在运行目录的 `case/` 子目录中，与 `case/` 的目录结构完全一致；用例文件对应的目录名为文件名去掉 `.xml`。**此规则适用于所有用例文件，包括位于 `case/` 根目录的文件**，没有特例：
 
 ```
 case/                              result/rodski_20260928_100000/
@@ -1546,6 +1916,57 @@ case/                              result/rodski_20260928_100000/
 截图**文件名格式不变**（`{caseid}_{stepindex}_{phase}_{timestamp}.png`、场景截图子目录 `{caseid}_{scenarioid}_{scenariotitle}/`、失败截图 `{caseid}_{timestamp}_failure.png`）。跨文件同 `case_id` 的用例分别写入各自文件的镜像目录，互不覆盖——这是引入镜像目录的主要动机之一。
 
 `result.xml`、`execution_summary.json`、`execution.log`、`trace.json`、HTML 报告等**汇总产物保持在运行目录根**，不随用例文件镜像；其中记录的截图/录像路径同步改为相对运行目录的新路径。消费方（HTML 报告、web、rodski-agent、browser-plugin、VSCode 插件）应优先读取结果中记录的路径，不要自行按旧的扁平规则拼接 `result/screenshots/...`。
+
+`--report junit` 生成的 `junit.xml` 同样在运行目录根（v11.6.0）。`--evidence concise` 时 `screenshots/` 下只有失败截图（文件名含 `failure`）。
+
+### 9.9 CI 接入（JUnit，v11.6.0）
+
+`--report junit` 在运行目录根生成 `junit.xml`：每个用例文件是一个 `<testsuite>`，每个用例是一个 `<testcase>`（`classname` = 用例文件相对 `case/` 的路径，`name` = 用例 ID），失败用例带 `<failure>`（错误信息 + 失败截图相对路径）。运行目录名带时间戳，CI 中用通配符收集。
+
+**GitLab CI**：
+
+```yaml
+rodski-test:
+  image: mcr.microsoft.com/playwright/python:v1.47.0-jammy
+  script:
+    - pip install rodski
+    - cd product/shop/order
+    - rodski run case/ --headless --session-mode shared_browser --workers 4 --report html,junit
+  artifacts:
+    when: always
+    paths:
+      - product/shop/order/result/
+    reports:
+      junit: product/shop/order/result/*/junit.xml
+```
+
+**GitHub Actions**：
+
+```yaml
+jobs:
+  rodski:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install rodski && python -m playwright install --with-deps chromium
+      - run: rodski run case/ --headless --session-mode shared_browser --workers 4 --report html,junit
+        working-directory: product/shop/order
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rodski-result
+          path: product/shop/order/result/
+      - uses: mikepenz/action-junit-report@v4
+        if: always()
+        with:
+          report_paths: product/shop/order/result/*/junit.xml
+```
+
+- 退出码：有失败用例时非 0，CI 据此判定失败；`expect_fail="是"` 且确实失败的用例按通过计。
+- CI 里建议 `WaitTime=0`，并用 `--evidence concise` 缩短耗时；需要排查偶发失败时加 `--record` 保留录像。
 
 ---
 
@@ -2081,7 +2502,6 @@ export ANTHROPIC_API_KEY=your_api_key
     <var name="AppActivity" value="com.example.app.MainActivity"/>
     <var name="AppTarget" value="app://android/com.example.app/com.example.app.MainActivity"/>
     <var name="NoReset" value="true"/>
-    <var name="WaitTime" value="3"/>
   </group>
 </globalvalue>
 ```
@@ -2096,7 +2516,8 @@ export ANTHROPIC_API_KEY=your_api_key
 | `BundleId` | iOS Bundle ID |
 | `AppTarget` | app:// URI（供 navigate 使用） |
 | `NoReset` | 是否保留应用状态（`true`/`false`） |
-| `WaitTime` | 步骤间等待秒数 |
+
+> 步骤固定等待统一由 `DefaultValue.WaitTime`（毫秒）控制，`Mobile` 组中不再写 `WaitTime`，见 [§6.4](#64-waittime-与执行策略配置v1160)。
 
 ### 14.4 视觉定位降级策略（v7.0.1）
 
@@ -2474,6 +2895,26 @@ Return 引用只应写在**数据表 XML 的 field 值中**，不要直接写在
 
 `case.xsd` 要求每个 `<case>` **必须**包含恰好一个 `<test_step>`。仅写 `<pre_process>` 等而不写 `<test_step>` 不会通过校验。
 
+### Q8: verify 报「字段缺失」？
+
+默认 `strict` 模式要求 `_verify` 行包含模型的全部字段。只校验部分字段时在步骤上加 `match_mode="subset"`，或在不校验的字段填 `BLANK`（见 [§5.7.3](#573-strict--subset-与-blank)）。
+
+### Q9: XML 报错，位置在 `evaluate` 的 data 属性里？
+
+属性中的 `&&` 要写成 `&amp;&amp;`，`<` 写成 `&lt;`；更好的做法是把脚本放到 `fun/js/*.js`，用 `data="file:fun/js/xxx.js"` 引用（见 [§8.7](#87-evaluate--逃生舱与-file-脚本v1160)）。
+
+### Q10: `action="click"` 报不支持的关键字？
+
+`click` / `hover` / `select` 等不是关键字，而是 `type` 数据表里的字段值：在模型中声明按钮元素，数据表该字段填 `click`，用 `<test_step action="type" model="模型名" data="DataID"/>` 执行（见 [§5.4](#54-批量输入时的特殊值)）。
+
+### Q11: 异步加载的数据 verify 偶尔失败，要加 wait 吗？
+
+不要加。v11.6.0 起 UI `verify` 会自动重试到期望值（默认最多 5 秒）；数据确实更慢时调大 `DefaultValue.AutoWait`（单位毫秒，见 [§5.7.2](#572-ui-verify-自动重试替代-wait)）。
+
+### Q12: SQL 报「未提供参数 :00」？
+
+`:name` 参数名必须以字母或下划线开头，引号内的冒号（如 `'2026-01-01 00:00:00'`）和 `::int` 不算参数（v11.5.2 起）。仍报错时检查是否真的漏了某个 `:参数` 对应的数据列（见 [§5.5](#55-sql-数据表)）。
+
 ---
 
 ## 17. 业务模型（Business Model，v11.4.0）
@@ -2649,10 +3090,11 @@ rodski business debug     <module> --id login_flow --flow F_LOGIN_SUCCESS \
 | `navigate` | 导航到 URL（无浏览器时自动创建） |
 | `close` | 关闭浏览器 |
 | `type` | UI 批量输入（PC/移动端统一） |
-| `verify` | 批量验证（UI + 接口通用） |
+| `verify` | 批量验证（UI + 接口通用）；UI 模型自动重试到期望值，支持 `$count` / `$exists` / `$visible` 等原生断言（v11.6.0） |
 | `check` | 与 `verify` 等价（XSD 枚举中的兼容项） |
 | `assert` | 断言元素值 |
-| `wait` | 等待指定秒数 |
+| `wait` | 等待指定秒数（固定等待；等异步结果请直接 `verify`） |
+| `evaluate` | 执行 JS（仅 Web，逃生舱；`file:` 引用 `fun/js/*.js`） |
 | `upload_file` | 上传文件 |
 | `clear` | 清空输入框 |
 | `get_text` | 已废弃，请改用 `get` |
@@ -2687,9 +3129,10 @@ rodski business debug     <module> --id login_flow --flow F_LOGIN_SUCCESS \
 | 根元素 | `<testresult>` |
 | 子元素顺序 | 先 `<summary>`（1 个），再 `<results>`（1 个） |
 | `<summary>` | `total` / `passed` / `failed` 必填；`skipped`、`errors` 等有默认值 |
+| `<summary>` 运行标注 | v11.6.0 新增可选属性 `evidence_mode`（`full` \| `concise`）与 `session_mode`（`isolated` \| `shared_browser` \| `shared_session`），记录本次运行实际生效的记录模式与会话模式；HTML 报告页眉同步显示 |
 | `<results>` 下 `<result>` | `case_id`、`status` 必填；`status` 只能是 `PASS` \| `FAIL` \| `SKIP` \| `ERROR`；`case_file`（v11.5.0 新增，可选）记录该用例所属文件相对 `case/` 的 POSIX 路径，跨文件同 `case_id` 时用于消歧，见 [§3.2.1](#321-用例-id-唯一性v11500)、[§9.8](#98-结果目录说明v11500) |
 
 ---
 
-**文档版本**: v11.5.0
-**最后更新**: 2026-09-28
+**文档版本**: v11.6.0
+**最后更新**: 2026-09-29

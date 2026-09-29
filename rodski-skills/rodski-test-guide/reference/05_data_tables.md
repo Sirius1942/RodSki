@@ -116,7 +116,22 @@ rodski data validate <module>
 
 # 从 XML 迁移数据到 data.sqlite
 rodski data import <module> [--overwrite]
+
+# 行级编辑（v11.6.0）：直接改 data.sqlite，改完即可重跑，无需 import
+rodski data set <module> <table> <data_id> field=value [field=value ...]   # 修改已有行
+rodski data add-row <module> <table> <data_id> field=value [...] [--remark 备注]   # 新增行：必须给出完整字段集合
+rodski data delete-row <module> <table> <data_id>                          # 删除行
 ```
+
+例如接口返回的订单数由 1 变为 2，只改期望值：
+
+```bash
+rodski data set product/shop/order OrderDB_verify V_OK n=2
+```
+
+- `data set` 只能修改 schema 中已声明的字段；写错字段名会报错并列出合法字段。
+- `data add-row` 缺字段时报错，提示为缺少的字段填 `BLANK` / `NULL` / `NONE`（字段集合一致约束，见 5.1）。
+- 值中含空格时整体加引号：`rodski data set <module> Login_verify V001 "welcomeMsg=欢迎, admin"`。
 
 
 ### 5.4 批量输入时的特殊值
@@ -148,6 +163,7 @@ rodski data import <module> [--overwrite]
 | `drag【目标定位器】` | 拖拽元素到目标位置 | `<field name="card">drag【#drop-zone】</field>` |
 | `scroll` | 默认滚动（向下 300px） | `<field name="page">scroll</field>` |
 | `scroll【x,y】` | 自定义滚动距离 | `<field name="page">scroll【0,500】</field>` |
+| `accept` / `dismiss` / `accept:文本` | 仅用于 `page=dialog` 元素（v11.6.0）：为下一次原生弹窗注册一次性处理器 | `<field name="dialog">accept:加急</field>`，见 [4.3.4](#434-页面属性定位器-pagev1160) |
 
 > **注意**：动作关键字使用中文方括号 **【】** 包裹参数。
 
@@ -256,5 +272,68 @@ Case XML 写法（验证写在 `<test_case>` 内，作为一条 `test_step`）�
   <test_step action="verify" model="ItemDetail" data="V001"/>
 </test_case>
 ```
+
+### 5.7 verify 期望值：操作符、原生断言与自动重试（v11.6.0）
+
+`_verify` 表的字段值除了写字面期望值，还可以写**单键 JSON 操作符**。
+
+#### 5.7.1 操作符一览
+
+| 操作符 | 适用 | 含义 | 字段值示例 |
+|--------|------|------|-----------|
+| `$gt` / `$gte` / `$lt` / `$lte` | UI / 接口 / DB | 数值比较 | `{"$gte": 100}` |
+| `$contains` | UI / 接口 / DB | 字符串包含 / 数组包含 | `{"$contains": "/order/"}` |
+| `$count` | UI 元素 | 定位器匹配的元素数量 = N | `{"$count": 10}` |
+| `$count_gte` / `$count_lte` | UI 元素 | 匹配数量 ≥ N / ≤ N | `{"$count_gte": 1}` |
+| `$exists` | UI 元素 | 元素存在 / 不存在 | `{"$exists": true}` / `{"$exists": false}` |
+| `$visible` | UI 元素 | 元素可见 / 不可见 | `{"$visible": true}` |
+
+- 每个字段值只能有一个操作符；操作符右侧只能是字面量（不能写 `${Return[-1]}`）。
+- `$count*` / `$exists` / `$visible` 作用于该字段对应模型元素的定位器（支持 `frame`），**只用于 UI 模型的 DOM 元素**；接口返回数组的长度用 `字段.length` + `$gt` 等数值操作符。
+- **0 匹配不会被跳过**：选择器失效、元素一个都没找到时，按「实际 0 / 不存在」判定。`{"$count": 10}` 会失败并报「期望 10，实际 0」。这正是原生断言比 `evaluate` 断言可靠的地方。
+
+**示例：异步表格有 10 行**（`AsyncTable` 模型的 `rows` 元素定位 `#orderBody tr.order-row`）：
+
+| AsyncTable_verify | rows | total |
+|-------------------|------|-------|
+| V_ROWS | `{"$count": 10}` | `共 10 条` |
+| V_EXISTS | `{"$exists": true}` | `BLANK` |
+
+```xml
+<test_step action="navigate" model="" data="GlobalValue.Site.URL/async_table.html"/>
+<test_step action="verify" model="AsyncTable" data="V_ROWS"/>   <!-- 不需要 wait -->
+```
+
+#### 5.7.2 UI verify 自动重试（替代 `wait`）
+
+UI 模型的 `verify` 会在自动等待 `DefaultValue.AutoWait` 毫秒内（默认 `5000`，即 5 秒；每 200ms 一轮）反复读取**全部**字段并比对，全部匹配立即通过；超时后按最后一次读到的值报失败，逐字段列出期望 / 实际。
+
+- 因此异步加载、跳转后的页面**直接写 `verify`**，不要在前面插 `wait 1`/`wait 2`。等元素消失写 `{"$exists": false}` 或 `{"$visible": false}`。
+- 接口 / DB 模型的 `verify` 不重试（结果是一次性的）。
+- `DefaultValue.AutoWait=0` 关闭重试，恢复单次比对；页面特别慢时可调大（如 `10000` = 10 秒），见 [§6.4](#64-waittime-与执行策略配置v1160)。
+- 预期失败（`expect_fail="是"`）的 UI 用例要等到超时才判定失败，耗时约等于 `AutoWait`。
+
+#### 5.7.3 strict / subset 与 BLANK
+
+- 默认 `strict`：`_verify` 行必须包含模型的全部字段。只关心部分字段时，在步骤上写 `match_mode="subset"`，或在不校验的字段填 `BLANK`（UI / DB 模型中 `BLANK` 表示跳过该字段；接口模型中 `BLANK` 表示期望空字符串）。
+
+```xml
+<test_step action="verify" model="Login" data="V001" match_mode="subset"/>
+```
+
+- strict 模式下某行一半以上字段都是 `BLANK` 时，`rodski case lint` 会提示改用 `match_mode="subset"`（INFO）。
+- 缺字段的报错会直接给出这两种修法。
+
+#### 5.7.4 什么时候还用 evaluate
+
+`evaluate` 是逃生舱：只有原生断言表达不了的检查才用它。脚本里有 `&&`、`<`、引号时，不要写在 XML 属性里，放到模块内的 `fun/js/*.js`，用 `file:` 引用（见 [§8.7](#87-evaluate--逃生舱与-file-脚本v1160)）。
+
+| 想断言的内容 | 推荐写法 | 不推荐（lint 会提示） |
+|--------------|----------|----------------------|
+| 列表行数 | `{"$count": 10}` | `evaluate` 中 `querySelectorAll(...).length` |
+| 元素出现 / 消失 | `{"$exists": true/false}` | `evaluate` 中 `querySelector(...)` 判空 |
+| 当前路径 / URL / 标题 | `page` 元素 + `verify`（4.3.4） | `evaluate` 中 `location.pathname` |
+| 弹窗 | `DialogPolicy` + `page=dialog` 元素 | `evaluate` 中 `window.confirm = ...` |
+| 查询结果 | `DB` + `verify`（5.5） | `evaluate` / `<if>` 判断 |
 
 ---

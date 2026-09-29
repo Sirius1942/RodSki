@@ -23,6 +23,7 @@ from .exceptions import (
     AssertionFailedError,
     AutoCaptureError,
     HookDeniedError,
+    UnexpectedDialogError,
     is_retryable_error,
     is_critical_error,
 )
@@ -477,6 +478,9 @@ class KeywordEngine:
                 logger.error(f"❌ before_keyword 拦截: keyword={keyword}, reason={reason}")
                 raise HookDeniedError(event="before_keyword", reason=reason)
 
+        # v11.6.0 (C1): 把 DefaultValue.DialogPolicy 同步到 Web 驱动（校验先于副作用）
+        self._sync_dialog_policy()
+
         # 打印关键字执行日志
         self._log_keyword_start(keyword, resolved_params)
         
@@ -502,6 +506,8 @@ class KeywordEngine:
                 attempts += 1
                 try:
                     result = method(resolved_params)
+                    # v11.6.0 (C1): 本步骤中出现了未预期弹窗（DialogPolicy=fail）→ 步骤失败
+                    self._raise_on_unexpected_dialog(keyword)
 
                     # 成功日志
                     self._log_keyword_success(keyword, attempts, result)
@@ -527,8 +533,14 @@ class KeywordEngine:
                     logger.error(f"❌ 断言失败: {e}")
                     raise
 
+                except UnexpectedDialogError as e:
+                    # 未预期弹窗不重试（重试会再次触发同一弹窗）
+                    logger.error(f"❌ {e}")
+                    raise
+
                 except DriverError as e:
-                    # 驱动错误
+                    # 驱动错误：若期间出现了未预期弹窗，弹窗才是根因
+                    self._raise_on_unexpected_dialog(keyword)
                     last_error = e
                     logger.error(f"❌ 驱动操作失败: {e}")
                     if attempts <= max_retries:
@@ -603,6 +615,38 @@ class KeywordEngine:
                         hook(keyword, resolved_params, hook_result)
                     except Exception as e:
                         logger.warning(f"after_keyword 回调异常，忽略: {e}")
+
+    # ── v11.6.0 (C1) 原生弹窗策略 ───────────────────────────────────
+
+    _DIALOG_POLICIES = ("accept", "dismiss", "fail")
+
+    def _sync_dialog_policy(self) -> None:
+        """读取 DefaultValue.DialogPolicy（accept|dismiss|fail，默认 fail）并下发到 Web 驱动。"""
+        raw = ((self._global_vars or {}).get('DefaultValue', {}) or {}).get('DialogPolicy')
+        policy = str(raw).strip().lower() if raw not in (None, '') else 'fail'
+        if policy not in self._DIALOG_POLICIES:
+            raise InvalidParameterError(
+                keyword="(config)", param_name="DialogPolicy",
+                reason=(
+                    f"DefaultValue.DialogPolicy 只能是 accept / dismiss / fail，得到: '{raw}'。"
+                    f"修复: globalvalue.xml 中写 <var name=\"DialogPolicy\" value=\"fail\"/>"
+                ),
+            )
+        driver = self.driver
+        if driver is None or getattr(driver, '_dialog_policy', None) == policy:
+            return
+        setter = getattr(driver, 'set_dialog_policy', None)
+        if callable(setter):
+            setter(policy)
+
+    def _raise_on_unexpected_dialog(self, keyword: str) -> None:
+        """驱动记录了未预期弹窗（DialogPolicy=fail）时抛出 UnexpectedDialogError。"""
+        consume = getattr(self.driver, 'consume_unexpected_dialog', None)
+        if not callable(consume):
+            return
+        text = consume()
+        if isinstance(text, str) and text:
+            raise UnexpectedDialogError(text, keyword=keyword)
 
     def _log_keyword_start(self, keyword: str, params: Dict) -> None:
         param_str = ", ".join(f"{k}={v}" for k, v in params.items() if v)
@@ -1107,6 +1151,8 @@ class KeywordEngine:
                 else:
                     logger.info("浏览器已关闭，自动创建新浏览器实例...")
                 self.driver = self._driver_factory()
+                # v11.6.0 (C1): 新建的驱动同样遵循 DialogPolicy
+                self._sync_dialog_policy()
             else:
                 raise DriverStoppedError(
                     "浏览器未启动且未提供 driver_factory，无法自动创建"
@@ -1251,14 +1297,19 @@ class KeywordEngine:
 
         return result
 
-    def _execute_element_action(self, value: str, locator: str, element_name: str, driver=None):
+    def _execute_element_action(self, value: str, locator: str, element_name: str, driver=None,
+                                frame: Optional[str] = None):
         """检查数据表值是否为 UI 动作关键字，是则执行对应操作。
 
         Args:
             driver: 指定驱动实例，默认使用 self.driver
+            frame: v11.6.0 (C2) 元素所在 iframe（location@frame），None 为顶层页面
         """
         target_driver = driver or self.driver
         value_lower = value.strip().lower()
+
+        if frame:
+            return self._execute_frame_element_action(value, locator, element_name, target_driver, frame)
 
         # 简单动作：值恰好等于关键字名
         if value_lower in self.ELEMENT_ACTIONS:
@@ -1308,6 +1359,70 @@ class KeywordEngine:
             return ('scroll', element_name, target_driver.scroll(x, y))
 
         return None
+
+    # v11.6.0 (C2): iframe 内元素支持的动作（方法均接受 frame 关键字参数）
+    _FRAME_ACTION_METHODS = {
+        'click': 'click_locator', 'double_click': 'double_click_locator',
+        'right_click': 'right_click_locator', 'hover': 'hover_locator',
+    }
+
+    def _execute_frame_element_action(self, value: str, locator: str, element_name: str,
+                                      target_driver, frame: str):
+        """iframe 内元素的数据表动作值；非动作值返回 None（由调用方按文本输入处理）。"""
+        value_lower = value.strip().lower()
+        if value_lower in self._FRAME_ACTION_METHODS:
+            fn = getattr(target_driver, self._FRAME_ACTION_METHODS[value_lower])
+            logger.debug(f"{element_name}: {value_lower} {locator} (frame={frame})")
+            return (value_lower, element_name, fn(locator, frame=frame))
+        if value_lower.startswith('select'):
+            select_value = self._extract_bracket_value(value)
+            if not select_value:
+                return None
+            return ('select', element_name, target_driver.select(locator, select_value, frame=frame))
+        if value_lower.startswith('key_press'):
+            # 键盘事件发往当前焦点元素，与 frame 无关
+            return self._execute_element_action(value, locator, element_name, driver=target_driver)
+        if value_lower == 'scroll' or value_lower.startswith('scroll【') or value_lower.startswith('drag'):
+            raise InvalidParameterError(
+                keyword="type", param_name=element_name,
+                reason=(
+                    f"iframe 内元素（frame={frame}）暂不支持 '{value}'；"
+                    f"支持 click / double_click / right_click / hover / select【值】 / key_press【键】 与文本输入"
+                ),
+            )
+        return None
+
+    # v11.6.0 (C1): type 批量中 <location type="page">dialog</location> 字段的取值
+    _DIALOG_FIELD_HINT = (
+        "dialog 字段只能填 accept / dismiss / accept:输入文本（prompt 用），BLANK 表示不注册；"
+        "该元素须排在触发弹窗的按钮之前，例如 dialog=accept、deleteBtn=click"
+    )
+
+    def _register_dialog_field(self, element_name: str, page_prop: str, value: str, target_driver) -> tuple:
+        """处理 type 批量中的 page 定位元素：dialog 注册一次性处理器，其余 page 属性只读。"""
+        if page_prop != 'dialog':
+            raise InvalidParameterError(
+                keyword="type", param_name=element_name,
+                reason=(
+                    f"<location type=\"page\">{page_prop}</location> 是只读的页面属性，"
+                    f"type 数据行中该字段只能填 BLANK；断言请用 verify"
+                ),
+            )
+        raw = value.strip()
+        action, sep, prompt_text = raw.partition(':')
+        action = action.strip().lower()
+        if action not in ('accept', 'dismiss') or (action == 'dismiss' and sep):
+            raise InvalidParameterError(
+                keyword="type", param_name=element_name,
+                reason=f"无效的弹窗处理 '{value}'。{self._DIALOG_FIELD_HINT}",
+            )
+        if not hasattr(target_driver, 'register_dialog_handler'):
+            raise InvalidParameterError(
+                keyword="type", param_name=element_name,
+                reason=f"当前驱动 {type(target_driver).__name__} 不支持原生弹窗处理（目前仅 Web/Playwright）",
+            )
+        target_driver.register_dialog_handler(action, prompt_text if sep else None)
+        return ('dialog', element_name, True)
 
     def _batch_type(self, model_name: str, data_ref: str) -> bool:
         """批量输入：遍历模型元素，匹配数据表字段
@@ -1396,6 +1511,14 @@ class KeywordEngine:
                 _platform = self._current_locator_platform(model_name)
                 if _platform is not None:
                     locations = self.model_parser.select_locations(locations, _platform)
+
+            # v11.6.0 (C1): <location type="page">dialog</location> → 为下一次弹窗注册一次性处理器
+            _page_loc = next((l for l in locations if l.get("type") == "page"), None)
+            if _page_loc is not None:
+                operations.append(self._register_dialog_field(
+                    element_name, str(_page_loc.get("value", "")).strip(), value, target_driver,
+                ))
+                continue
 
             locator_mode = element_info.get('locator_mode', 'sequential')
 
@@ -1561,7 +1684,10 @@ class KeywordEngine:
                             logger.debug(f"  ↳ 定位器 {locator} 成功 (priority={loc.get('priority',1)})")
                             break
 
-                    action_result = self._execute_element_action(value, locator, element_name, driver=target_driver)
+                    loc_frame = loc.get("frame")
+                    action_result = self._execute_element_action(
+                        value, locator, element_name, driver=target_driver, frame=loc_frame,
+                    )
                     if action_result is not None:
                         if action_result[2]:  # 操作成功
                             operations.append(action_result)
@@ -1578,7 +1704,11 @@ class KeywordEngine:
                         input_value = input_value[:-9]
                         display_value = '***'
                     logger.debug(f"{element_name}: {locator} <- '{display_value}'")
-                    result = target_driver.type_locator(locator, input_value)
+                    if loc_frame:
+                        # v11.6.0 (C2): iframe 内元素
+                        result = target_driver.type_locator(locator, input_value, frame=loc_frame)
+                    else:
+                        result = target_driver.type_locator(locator, input_value)
                     if result:
                         operations.append(('type', element_name, True))
                         op_done = True
@@ -1596,7 +1726,7 @@ class KeywordEngine:
                         from vision.perception_interface import (  # type: ignore
                             PerceptionUnavailableError,
                         )
-                    if isinstance(e, PerceptionUnavailableError):
+                    if isinstance(e, (PerceptionUnavailableError, InvalidParameterError)):
                         raise
                     last_error = e
                     logger.debug(f"  ↳ 定位器 {locator} 异常: {e}，尝试下一个...")
@@ -2307,6 +2437,210 @@ class KeywordEngine:
                                if not name.startswith('__')]
             logger.debug(f"match_mode=strict: 验证 {len(fields_to_verify)} 个模型字段")
 
+        # v11.6.0 (A2): UI 模型 verify 在 AutoWait（自动等待）内每 200ms 重试，直到全部字段匹配或超时；
+        # 接口/DB 结果是一次性的，保持单次比对
+        verify_timeout = self._resolve_verify_timeout() if model_type == MODEL_TYPE_UI else 0.0
+        if verify_timeout > 0 and any(
+            info and self._is_vision_locator(info.get('locator_type', ''))
+            for _n, info in fields_to_verify
+        ):
+            logger.debug("verify 含视觉定位字段，关闭自动重试（单次比对）")
+            verify_timeout = 0.0
+        deadline = time.monotonic() + verify_timeout
+        attempts = 0
+        last_error: Optional[BaseException] = None
+        # 轮询期间驱动使用无等待读取（元素不在 DOM 中立即返回），总等待只由 AutoWait 控制
+        instant_toggle = (
+            getattr(target_driver, 'set_instant_reads', None) if model_type == MODEL_TYPE_UI else None
+        )
+        if callable(instant_toggle):
+            instant_toggle(True)
+        try:
+            while True:
+                attempts += 1
+                try:
+                    results, mismatches = self._verify_fields_once(
+                        model_name, data_id, data_row, fields_to_verify, match_mode,
+                        model_type, driver_type, target_driver,
+                    )
+                    last_error = None
+                except Exception as e:
+                    # 读取失败（页面跳转中 context 被销毁、元素瞬时不可读等）视为本轮未匹配继续重试；
+                    # 契约类错误与驱动已停止/未预期弹窗直接抛出（CORE §4.6.5）
+                    if verify_timeout <= 0 or not self._is_transient_verify_error(e):
+                        raise
+                    last_error = e
+                    results, mismatches = {}, []
+                    logger.debug(f"verify 第 {attempts} 次读取失败，视为本轮未匹配继续重试: {e}")
+                remaining = deadline - time.monotonic()
+                if (not mismatches and last_error is None) or remaining <= 0:
+                    break
+                time.sleep(min(self.VERIFY_RETRY_INTERVAL, remaining))
+        finally:
+            if callable(instant_toggle):
+                try:
+                    instant_toggle(False)
+                except Exception:
+                    pass
+        if last_error is not None:
+            # 超时时最后一轮仍读取失败：按最后一次的错误报告
+            logger.error(
+                f"verify 自动重试 {attempts} 次（AutoWait={verify_timeout * 1000:g}ms）后仍读取失败: {last_error}"
+            )
+            raise last_error
+        if mismatches and attempts > 1:
+            logger.info(
+                f"verify 自动重试 {attempts} 次（AutoWait={verify_timeout * 1000:g}ms）后仍不匹配，"
+                f"按最后一次读取的实际值报告失败"
+            )
+        elif attempts > 1:
+            logger.info(f"verify 第 {attempts} 次读取时全部字段匹配（自动重试）")
+
+        if mismatches:
+            failure_payload = dict(results)
+            failure_payload['_verify_passed'] = False
+            failure_payload['passed'] = False
+            failure_payload['_verify_mismatches'] = mismatches
+            self.store_return(failure_payload)
+
+            detail = "; ".join(
+                f"{m['element']}(期望='{m['expected']}', 实际='{m['actual']}'"
+                + (f"，{m['reason']}" if m.get('reason') else "") + ")"
+                for m in mismatches
+            )
+            if attempts > 1:
+                detail += f"（已自动重试等待 {verify_timeout * 1000:g}ms，DefaultValue.AutoWait）"
+            logger.error(f"批量验证失败: {detail}")
+            raise AssertionFailedError(
+                message=f"批量验证失败: {detail}",
+                details={'mismatches': mismatches},
+            )
+
+        if len(results) == 0:
+            raise AssertionFailedError(
+                message="verify 失败: 比较字段数为 0，不允许空校验通过",
+                details={'data_id': data_id, 'model': model_name},
+            )
+
+        success_payload = dict(results)
+        success_payload['_verify_passed'] = True
+        success_payload['passed'] = True
+        self.store_return(success_payload)
+        logger.info(f"批量验证通过: {len(results)} 个字段全部匹配")
+        return True
+
+    # v11.6.0 (A2): verify 自动重试的轮询间隔（秒）
+    VERIFY_RETRY_INTERVAL = 0.2
+    # v11.6.0 (A2): 未配置 DefaultValue.AutoWait（自动等待）时的默认值（毫秒）
+    DEFAULT_AUTO_WAIT_MS = 5000
+
+    @staticmethod
+    def _is_transient_verify_error(exc: BaseException) -> bool:
+        """verify 轮询中可视为「本轮未匹配」的瞬时读取错误。
+
+        DriverError（驱动已停止、未预期弹窗除外）与 Playwright 原生错误（如跳转中
+        'Execution context was destroyed'）为瞬时错误；契约类错误（InvalidParameterError 等）不是。
+        """
+        if isinstance(exc, (DriverStoppedError, UnexpectedDialogError)):
+            return False
+        if isinstance(exc, DriverError):
+            return True
+        return type(exc).__module__.startswith('playwright')
+
+    def _resolve_verify_timeout(self) -> float:
+        """读取 DefaultValue.AutoWait（自动等待，毫秒）并换算为秒。
+
+        未配置时为 5000 毫秒；0 表示关闭 verify 自动重试（单次比对）。
+        旧键 VerifyTimeout（v11.6.0 开发期名称）已更名，出现时报错而不是静默忽略。
+        """
+        defaults = (self._global_vars or {}).get('DefaultValue', {}) or {}
+        if 'VerifyTimeout' in defaults:
+            raise InvalidParameterError(
+                keyword="verify",
+                param_name="VerifyTimeout",
+                reason=(
+                    "DefaultValue.VerifyTimeout 已更名为 DefaultValue.AutoWait（自动等待，单位毫秒）。"
+                    "修复: 改写为 <var name=\"AutoWait\" value=\"5000\"/>；填 0 关闭 verify 自动重试"
+                ),
+            )
+        raw = defaults.get('AutoWait')
+        if raw is None or str(raw).strip() == '':
+            return self.DEFAULT_AUTO_WAIT_MS / 1000.0
+        try:
+            value = float(str(raw).strip())
+        except ValueError:
+            value = -1.0
+        if value < 0:
+            raise InvalidParameterError(
+                keyword="verify",
+                param_name="AutoWait",
+                reason=(
+                    f"DefaultValue.AutoWait 必须是非负数（毫秒），得到: '{raw}'。"
+                    f"提示: 默认 5000（5 秒）；填 0 关闭 verify 自动重试"
+                ),
+            )
+        return value / 1000.0
+
+    @staticmethod
+    def _web_selector(locator_type: str, locator_value: str) -> str:
+        """把模型定位器转换为 Playwright 选择器（用于元素数量 / 可见性断言）。"""
+        if locator_type == 'id':
+            return f'[id="{locator_value}"]'
+        if locator_type == 'class':
+            return ''.join(f'.{c}' for c in locator_value.split())
+        if locator_type in ('css', 'tag'):
+            return locator_value
+        if locator_type == 'xpath':
+            return f'xpath={locator_value}'
+        if locator_type == 'text':
+            return f'text={locator_value}'
+        if locator_type == 'name':
+            return f'[name="{locator_value}"]'
+        return f'{locator_type}={locator_value}'
+
+    def _read_element_state(self, target_driver, operator: str, element_name: str,
+                            locator_type: str, locator_value: str, frame: Optional[str]):
+        """读取元素状态操作符的实际值：$count*/$exists → 匹配数量，$visible → 是否可见。"""
+        if locator_type == 'page':
+            # CORE §2.5.6 page 约束第 3 条：元素级操作符不适用于 page 元素（校验先于执行）
+            raise InvalidParameterError(
+                keyword="verify", param_name=element_name,
+                reason=(
+                    f"{operator} 是元素级断言，不能用于 page 元素（<location type=\"page\">{locator_value}</location>）。"
+                    f"提示: page 元素请写字面值或 $contains 比较；"
+                    f"要判断元素是否存在请对 DOM 元素使用 {operator}"
+                ),
+            )
+        if self._is_vision_locator(locator_type):
+            raise InvalidParameterError(
+                keyword="verify", param_name=element_name,
+                reason=f"{operator} 不支持视觉定位器（{locator_type}），请改用 css/id/xpath 等 DOM 定位器",
+            )
+        selector = self._web_selector(locator_type, locator_value)
+        if operator in AssertionEngine.VISIBILITY_OPERATORS:
+            if not hasattr(target_driver, 'is_element_visible'):
+                raise InvalidParameterError(
+                    keyword="verify", param_name=element_name,
+                    reason=f"当前驱动 {type(target_driver).__name__} 不支持 $visible 断言（目前仅 Web/Playwright）",
+                )
+            return bool(target_driver.is_element_visible(selector, frame=frame))
+        if not hasattr(target_driver, 'count_elements'):
+            raise InvalidParameterError(
+                keyword="verify", param_name=element_name,
+                reason=f"当前驱动 {type(target_driver).__name__} 不支持 {operator} 断言（目前仅 Web/Playwright）",
+            )
+        count = target_driver.count_elements(selector, frame=frame)
+        return 0 if count is None else int(count)
+
+    def _verify_fields_once(self, model_name: str, data_id: str, data_row: Dict,
+                            fields_to_verify: List, match_mode: str, model_type: str,
+                            driver_type: str, target_driver) -> Tuple[Dict, List]:
+        """读取一次所有待验证字段的实际值并比对，返回 (results, mismatches)。
+
+        契约类错误（字段缺失、操作符参数非法）直接抛出，不进入重试。
+        """
+        results: Dict[str, Any] = {}
+        mismatches: List[Dict[str, Any]] = []
         for element_name, element_info in fields_to_verify:
             if element_name.startswith('__'):
                 continue
@@ -2360,8 +2694,36 @@ class KeywordEngine:
                 logger.debug(f"{element_name}: 实际={actual_str}, 期望={expected_mapped} → {'OK' if matched else 'FAIL'}")
                 continue
 
+            # v11.0.0: 检查是否为断言操作符（v11.6.0 起在读取实际值之前解析，
+            # 以便元素状态操作符 $count/$exists/$visible 读取数量/可见性而非文本）
+            expected_for_comparison = expected
+            is_operator = False
+            if isinstance(expected, str) and expected.strip().startswith('{'):
+                try:
+                    expected_dict = json.loads(expected)
+                    if AssertionEngine.is_operator_dict(expected_dict):
+                        is_operator = True
+                        expected_for_comparison = expected_dict
+                except json.JSONDecodeError:
+                    pass  # 不是 JSON，当普通字符串处理
+            elif isinstance(expected, dict) and AssertionEngine.is_operator_dict(expected):
+                is_operator = True
+                expected_for_comparison = expected
+            element_op = (next(iter(expected_for_comparison))
+                          if is_operator and AssertionEngine.is_element_operator(expected_for_comparison)
+                          else None)
+            if element_op and model_type != MODEL_TYPE_UI:
+                raise InvalidParameterError(
+                    keyword="verify", param_name=element_name,
+                    reason=(
+                        f"{element_op} 是元素状态断言，只能用于 UI 模型；"
+                        f"接口/DB 结果请用 $gt/$gte/$lt/$lte/$contains 或字面值比较"
+                    ),
+                )
+
             locator_type = element_info['locator_type']
             locator_value = element_info['locator_value']
+            frame = element_info.get('frame')
             # 平台感知过滤（WI-48）：移动端按当前平台选取主定位器
             if model_type == MODEL_TYPE_UI:
                 _platform = self._current_locator_platform(model_name)
@@ -2371,10 +2733,27 @@ class KeywordEngine:
                     if _selected:
                         locator_type = _selected[0]['type']
                         locator_value = _selected[0]['value']
+                        frame = _selected[0].get('frame')
             locator = f"{locator_type}={locator_value}"
 
+            element_state = None
             if model_type == MODEL_TYPE_UI:
-                if locator_type == "vision_image":
+                if element_op:
+                    # v11.6.0 (A1): 数量 / 存在 / 可见断言，0 匹配按实际数量 0 判定，绝不跳过
+                    element_state = self._read_element_state(
+                        target_driver, element_op, element_name, locator_type, locator_value, frame,
+                    )
+                    actual_str = str(element_state)
+                elif locator_type == "page":
+                    # v11.6.0 (A1/C1): 页面级属性 url / title / path / dialog
+                    if not hasattr(target_driver, 'get_page_property'):
+                        raise InvalidParameterError(
+                            keyword="verify", param_name=element_name,
+                            reason=f"当前驱动 {type(target_driver).__name__} 不支持 page 定位类型（目前仅 Web/Playwright）",
+                        )
+                    actual = target_driver.get_page_property(locator_value)
+                    actual_str = str(actual) if actual is not None else ""
+                elif locator_type == "vision_image":
                     # vision_image verify 语义：模板存在性断言
                     # 找到模板 → 视为"actual 与 expected 一致"（presence check）
                     # 找不到 → actual 设为明确标识，触发不匹配
@@ -2418,6 +2797,12 @@ class KeywordEngine:
                         locator_type, locator_value
                     )
                     actual_str = str(actual) if actual is not None else ""
+                elif frame and hasattr(target_driver, 'get_text_locator'):
+                    # v11.6.0 (C2): iframe 内元素
+                    actual = target_driver.get_text_locator(
+                        self._web_selector(locator_type, locator_value), frame=frame
+                    )
+                    actual_str = str(actual) if actual is not None else ""
                 elif hasattr(target_driver, 'get_text_locator'):
                     if locator_type == 'id':
                         actual = target_driver.get_text_locator(f"#{locator_value}")
@@ -2439,29 +2824,14 @@ class KeywordEngine:
 
             results[element_name] = actual_str
 
-            # v11.0.0: 检查是否为断言操作符
-            expected_for_comparison = expected
-            is_operator = False
-
-            # 尝试解析 JSON 操作符字典
-            if isinstance(expected, str) and expected.strip().startswith('{'):
-                try:
-                    expected_dict = json.loads(expected)
-                    if AssertionEngine.is_operator_dict(expected_dict):
-                        is_operator = True
-                        expected_for_comparison = expected_dict
-                except json.JSONDecodeError:
-                    pass  # 不是 JSON，当普通字符串处理
-            elif isinstance(expected, dict) and AssertionEngine.is_operator_dict(expected):
-                is_operator = True
-                expected_for_comparison = expected
-
             # 执行比较
             if is_operator:
                 # v11.0.0: 使用断言操作符
                 try:
                     # 获取实际值（非字符串形式）
-                    if model_type == MODEL_TYPE_UI:
+                    if element_op:
+                        actual_val = element_state
+                    elif model_type == MODEL_TYPE_UI:
                         actual_val = actual_str
                     else:
                         last_return = self.get_return(-1)
@@ -2474,6 +2844,12 @@ class KeywordEngine:
                     matched = True
                     logger.debug(
                         f"{element_name}: 实际={actual_val}, 操作符={expected_for_comparison} → OK"
+                    )
+                except ValueError as ve:
+                    # 操作符期望值格式错误属于契约错误，不重试
+                    raise InvalidParameterError(
+                        keyword="verify", param_name=element_name,
+                        reason=f"{ve}。示例: {{\"$count\": 10}} / {{\"$exists\": true}} / {{\"$visible\": false}}",
                     )
                 except AssertOpError as ae:
                     matched = False
@@ -2498,35 +2874,7 @@ class KeywordEngine:
                         'actual': actual_str,
                     })
 
-        if mismatches:
-            failure_payload = dict(results)
-            failure_payload['_verify_passed'] = False
-            failure_payload['passed'] = False
-            failure_payload['_verify_mismatches'] = mismatches
-            self.store_return(failure_payload)
-
-            detail = "; ".join(
-                f"{m['element']}(期望='{m['expected']}', 实际='{m['actual']}')"
-                for m in mismatches
-            )
-            logger.error(f"批量验证失败: {detail}")
-            raise AssertionFailedError(
-                message=f"批量验证失败: {detail}",
-                details={'mismatches': mismatches},
-            )
-
-        if len(results) == 0:
-            raise AssertionFailedError(
-                message="verify 失败: 比较字段数为 0，不允许空校验通过",
-                details={'data_id': data_id, 'model': model_name},
-            )
-
-        success_payload = dict(results)
-        success_payload['_verify_passed'] = True
-        success_payload['passed'] = True
-        self.store_return(success_payload)
-        logger.info(f"批量验证通过: {len(results)} 个字段全部匹配")
-        return True
+        return results, mismatches
 
     def _batch_verify_db(self, data_row: Dict, model_name: str) -> bool:
         """DB verify: 由 _verify 数据行字段驱动比较
@@ -2763,8 +3111,14 @@ class KeywordEngine:
                 reason="缺少 JavaScript 表达式"
             )
 
-        # 先解析表达式中的 Return 引用
-        if self.data_resolver:
+        if expression.strip().startswith("file:"):
+            # v11.6.0 (C3): 从模块目录读取脚本，绕开 XML 属性转义（&& < 引号）；
+            # 脚本内容原样执行，不做 ${...} 替换（避免误伤 JS 模板字符串）
+            script_path = self._resolve_evaluate_file(expression.strip()[len("file:"):].strip())
+            expression = script_path.read_text(encoding="utf-8")
+            logger.info(f"evaluate 读取脚本: {script_path}")
+        elif self.data_resolver:
+            # 先解析表达式中的 Return 引用
             expression = self.data_resolver.resolve_with_return(expression)
 
         logger.info(f"执行 JS: {expression[:200]}")
@@ -2809,6 +3163,44 @@ class KeywordEngine:
         logger.info(f"JS 结果: {str(result)[:200]}")
         self.store_return(result)
         return True
+
+    def _resolve_evaluate_file(self, rel: str) -> Path:
+        """解析 evaluate 的 file: 脚本路径：只允许模块目录内的相对路径，拒绝越界与绝对路径。"""
+        example = '示例: <test_step action="evaluate" model="" data="file:fun/js/check.js"/>'
+        if not rel:
+            raise InvalidParameterError(
+                keyword="evaluate", param_name="data",
+                reason=f"file: 后缺少脚本路径。{example}",
+            )
+        module_dir = self._module_dir or (
+            resolve_module_dir(self._case_file) if self._case_file else None
+        )
+        if module_dir is None:
+            raise InvalidParameterError(
+                keyword="evaluate", param_name="data",
+                reason="无法确定模块目录，file: 脚本需通过 rodski run 在模块内执行",
+            )
+        base = Path(module_dir).resolve()
+        raw = Path(rel)
+        if raw.is_absolute() or raw.drive:
+            raise InvalidParameterError(
+                keyword="evaluate", param_name="data",
+                reason=f"file: 只接受模块目录内的相对路径，不能是绝对路径: '{rel}'。{example}",
+            )
+        target = (base / raw).resolve()
+        try:
+            target.relative_to(base)
+        except ValueError:
+            raise InvalidParameterError(
+                keyword="evaluate", param_name="data",
+                reason=f"file: 路径越出模块目录（{base}）: '{rel}'。脚本请放在模块内，如 fun/js/",
+            )
+        if not target.is_file():
+            raise InvalidParameterError(
+                keyword="evaluate", param_name="data",
+                reason=f"file: 脚本不存在: {target}（路径相对模块目录 {base}）",
+            )
+        return target
 
     def _kw_upload_file(self, params: Dict) -> bool:
         """上传文件"""

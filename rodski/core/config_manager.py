@@ -36,6 +36,10 @@ DEFAULTS = {
     "smart_wait_max_retries": 30,
     "smart_wait_retry_interval": 0.3,
     "smart_wait_log_retry": True,
+    # v11.6.0：None 表示沿用 globalvalue DefaultValue.SessionMode / EvidenceMode（再缺省为
+    # isolated / full）；CLI --session-mode / --evidence 写入这里覆盖
+    "session_mode": None,
+    "evidence_mode": None,
 }
 
 VALID_KEYS = {
@@ -44,6 +48,8 @@ VALID_KEYS = {
     "headless": {True, False},
     "log_level": {"DEBUG", "INFO", "WARNING", "ERROR"},
     "report_format": {"html", "json"},
+    "session_mode": {None, "isolated", "shared_browser", "shared_session"},
+    "evidence_mode": {None, "full", "concise"},
 }
 
 

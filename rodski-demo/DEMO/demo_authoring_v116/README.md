@@ -2,13 +2,13 @@
 
 设计：`.pb/specs/v11.6.0-ai-authoring-and-performance-design.md`（§9.1）
 来源：AI 写用例对比实验（Playwright+pytest+PO vs RodSki）暴露的问题。
-配套夹具：`../demo_authoring_v116_pitfalls/`（复现错误写法，供 lint / 兼容性验收）。
+配套夹具：`../demo_authoring_v116_pitfalls/`（复现错误写法，供 lint / 兼容性验收）、`../demo_authoring_v116_no_retry/`（`AutoWait=0`）。
 
 ## 运行
 
 ```bash
 source .venv/bin/activate
-python3 rodski-demo/DEMO/demo_authoring_v116/run_acceptance.py        # 全部
+python3 rodski-demo/DEMO/demo_authoring_v116/run_acceptance.py        # 全部（19 项）
 python3 rodski-demo/DEMO/demo_authoring_v116/run_acceptance.py V04    # 单项
 ```
 
@@ -38,5 +38,20 @@ cd rodski-demo/DEMO/demo_authoring_v116/fun/site && python3 -m http.server 8766
 | V16 | `--evidence concise` | 简洁记录模式：只保留失败截图，录像不受影响 |
 | V17 | 夹具 `WaitTime=1` | 等待单位统一毫秒，旧值按秒兼容并告警 |
 | V18 | `rodski capabilities` / skills | `pitfalls` 字段与「契约速查」 |
+| **V19** | `case/ui/wait/dynamic_wait.xml` | **动态等待正向**：延迟出现、状态变化（读最新值）、逐条追加计数、多字段同时满足、遮罩消失、隐藏变可见；均不写 `wait`，满足即结束（单用例 < 5.5s） |
+| **V20** | `case/negative/dynamic_wait_boundary.xml` | **动态等待边界**：超过 `AutoWait` 必须失败且在超时附近结束（4~15s）；DB `verify` 不重试、立即失败（< 3s） |
+| **V21** | `../demo_authoring_v116_no_retry/` | `AutoWait=0` 关闭自动重试 |
 
-`data/globalvalue.xml` 中 `WaitTime` 按毫秒（v11.6.0 起），显式声明了 `VerifyTimeout`、`DialogPolicy`、`EvidenceMode` 的默认值作为示范。
+### 动态等待测试页 `fun/site/dynamic_wait.html`
+
+| 元素 | 时间线（自页面加载起） | 验证点 |
+|------|------------------------|--------|
+| `lateText` | 1500ms 出现「数据已加载」 | 延迟出现的文本 |
+| `status` | 「处理中」→ 2000ms「已完成」 | 轮询读取最新值，不能停在第一次读到的值 |
+| `items` | 每 250ms 追加一条，2500ms 满 10 条 | `$count` 在中途 1~9 条时不判通过 |
+| `fieldA` / `fieldB` | 1000ms / 2500ms 变为期望值 | 同一次读取中所有字段同时满足 |
+| `spinner` | 2000ms 从 DOM 移除 | `$exists: false` 等待消失 |
+| `hiddenBtn` | 1500ms 由隐藏变可见 | `$visible: true` |
+| `veryLate` | 20000ms 才出现 | 超过 `AutoWait` 必须失败且不卡死 |
+
+`data/globalvalue.xml` 中 `WaitTime` 按毫秒（v11.6.0 起），显式声明了 `AutoWait`、`DialogPolicy`、`EvidenceMode` 的默认值作为示范。

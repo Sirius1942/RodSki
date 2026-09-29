@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<models>
+  <model name="LatePage" type="ui">
+    <element name="lateText" type="web"><location type="id">lateText</location></element>
+  </model>
+</models>

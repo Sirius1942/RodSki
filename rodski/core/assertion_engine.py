@@ -3,6 +3,9 @@
 支持的操作符:
 - 数值比较: $gt, $gte, $lt, $lte
 - 包含检查: $contains
+- 元素状态（v11.6.0，仅 UI 模型）: $count, $count_gte, $count_lte, $exists, $visible
+  实际值由 keyword_engine 读取：$count* / $exists 传入元素匹配数量（int），
+  $visible 传入是否可见（bool）。匹配 0 个元素时按实际数量 0 判定，绝不跳过。
 
 用法示例:
     engine = AssertionEngine()
@@ -22,7 +25,18 @@ class AssertionError(Exception):
 class AssertionEngine:
     """断言操作符求值引擎"""
 
-    SUPPORTED_OPERATORS = {'$gt', '$gte', '$lt', '$lte', '$contains'}
+    # v11.6.0: 元素状态操作符 —— 实际值不是元素文本，而是匹配数量 / 可见性
+    COUNT_OPERATORS = {'$count', '$count_gte', '$count_lte', '$exists'}
+    VISIBILITY_OPERATORS = {'$visible'}
+    ELEMENT_OPERATORS = COUNT_OPERATORS | VISIBILITY_OPERATORS
+
+    SUPPORTED_OPERATORS = {'$gt', '$gte', '$lt', '$lte', '$contains'} | ELEMENT_OPERATORS
+
+    @staticmethod
+    def is_element_operator(value: Any) -> bool:
+        """是否为元素状态操作符字典（$count/$count_gte/$count_lte/$exists/$visible）。"""
+        return (AssertionEngine.is_operator_dict(value)
+                and next(iter(value)) in AssertionEngine.ELEMENT_OPERATORS)
 
     @staticmethod
     def is_operator_dict(value: Any) -> bool:
@@ -73,6 +87,10 @@ class AssertionEngine:
             return AssertionEngine._eval_lte(actual, expected)
         elif operator == '$contains':
             return AssertionEngine._eval_contains(actual, expected)
+        elif operator in AssertionEngine.COUNT_OPERATORS:
+            return AssertionEngine._eval_count(operator, actual, expected)
+        elif operator == '$visible':
+            return AssertionEngine._eval_visible(actual, expected)
         else:
             raise ValueError(f"不支持的操作符: {operator}")
 
@@ -175,3 +193,68 @@ class AssertionEngine:
             raise AssertionError(
                 f"$contains 需要字符串或数组，得到 {type(actual).__name__}: {actual}"
             )
+
+    # ── v11.6.0 元素状态操作符 ───────────────────────────────────────
+
+    @staticmethod
+    def _to_bool(value: Any, operator: str) -> bool:
+        if isinstance(value, bool):
+            return value
+        text = str(value).strip().lower()
+        if text in ('true', '1', 'yes', '是'):
+            return True
+        if text in ('false', '0', 'no', '否'):
+            return False
+        raise ValueError(f"{operator} 的期望值必须是 true/false，得到: {value!r}")
+
+    @staticmethod
+    def _to_count(value: Any, operator: str, role: str) -> int:
+        if isinstance(value, bool):
+            raise ValueError(f"{operator} 的{role}必须是非负整数，得到布尔值: {value!r}")
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            raise ValueError(f"{operator} 的{role}必须是非负整数，得到: {value!r}")
+        if number < 0 or number != int(number):
+            raise ValueError(f"{operator} 的{role}必须是非负整数，得到: {value!r}")
+        return int(number)
+
+    @staticmethod
+    def _eval_count(operator: str, actual: Any, expected: Any) -> bool:
+        """元素匹配数量断言。actual 为匹配数量（None 视为 0，绝不跳过）。"""
+        actual_n = 0 if actual is None else AssertionEngine._to_count(actual, operator, "实际值")
+        if operator == '$exists':
+            want = AssertionEngine._to_bool(expected, operator)
+            if (actual_n > 0) != want:
+                if want:
+                    raise AssertionError(
+                        f"$exists 断言失败: 期望元素存在，实际匹配 0 个元素"
+                    )
+                raise AssertionError(
+                    f"$exists 断言失败: 期望元素不存在，实际匹配 {actual_n} 个元素"
+                )
+            return True
+
+        expected_n = AssertionEngine._to_count(expected, operator, "期望值")
+        if operator == '$count':
+            ok, relation = actual_n == expected_n, "等于"
+        elif operator == '$count_gte':
+            ok, relation = actual_n >= expected_n, "至少"
+        else:  # $count_lte
+            ok, relation = actual_n <= expected_n, "至多"
+        if not ok:
+            raise AssertionError(
+                f"{operator} 断言失败: 期望匹配数量{relation} {expected_n}，实际 {actual_n}"
+            )
+        return True
+
+    @staticmethod
+    def _eval_visible(actual: Any, expected: Any) -> bool:
+        """元素可见性断言。actual 为是否可见（未匹配到元素视为不可见）。"""
+        want = AssertionEngine._to_bool(expected, '$visible')
+        got = bool(actual) if isinstance(actual, bool) or actual is None else AssertionEngine._to_bool(actual, '$visible')
+        if got != want:
+            raise AssertionError(
+                f"$visible 断言失败: 期望{'可见' if want else '不可见'}，实际{'可见' if got else '不可见'}"
+            )
+        return True

@@ -9,9 +9,10 @@
 | 根元素 | `<testresult>` |
 | 子元素顺序 | 先 `<summary>`（1 个），再 `<results>`（1 个） |
 | `<summary>` | `total` / `passed` / `failed` 必填；`skipped`、`errors` 等有默认值 |
+| `<summary>` 运行标注 | v11.6.0 新增可选属性 `evidence_mode`（`full` \| `concise`）与 `session_mode`（`isolated` \| `shared_browser` \| `shared_session`），记录本次运行实际生效的记录模式与会话模式；HTML 报告页眉同步显示 |
 | `<results>` 下 `<result>` | `case_id`、`status` 必填；`status` 只能是 `PASS` \| `FAIL` \| `SKIP` \| `ERROR`；`case_file`（v11.5.0 新增，可选）记录该用例所属文件相对 `case/` 的 POSIX 路径，跨文件同 `case_id` 时用于消歧，见 [§3.2.1](#321-用例-id-唯一性v11500)、[§9.8](#98-结果目录说明v11500) |
 
 ---
 
-**文档版本**: v11.5.0
-**最后更新**: 2026-09-28
+**文档版本**: v11.6.0
+**最后更新**: 2026-09-29
