@@ -1,6 +1,47 @@
 # Changelog
 
 
+## [11.6.0] - 2026-09-29
+
+AI 编写效率、断言可靠性与执行性能。不新增关键字（仍为 17 个），`case.xsd` 不变；新能力只通过 `verify` 操作符、`model.xsd`、数据表字段值、`run` 内置函数、`globalvalue` 配置和 CLI 参数提供。设计：`.pb/specs/v11.6.0-ai-authoring-and-performance-design.md`（v0.2）；迭代：`.pb/iterations/iteration-64/`。
+
+### Added
+
+- `verify` 新增元素级操作符 `$count` / `$count_gte` / `$count_lte` / `$exists` / `$visible`（JSON 写法，如 `{"$count": 10}`）。定位器匹配 0 个元素时按实际数量 0 判定，不会跳过；期望值格式错误报契约错误并给出示例，不重试。
+- UI 模型 `verify` 默认自动重试：每 200ms 轮询，直到全部字段匹配或超过自动等待 `DefaultValue.AutoWait`（毫秒，默认 5000 即 5 秒，`0` 关闭重试）。超时后按最后一次读到的值报错，并注明"已自动重试"。接口 / DB 模型的 `verify` 仍只比对一次；使用视觉定位器的字段不重试。
+- `model.xsd`：新增定位类型 `page`，取值 `url` / `title` / `path` / `dialog`；`<location>` 新增可选属性 `frame`（iframe 的 CSS 选择器，多层用 `>>` 串联）。`page` 定位器不能带 `frame`。
+- 原生弹窗：新增 `DefaultValue.DialogPolicy = accept | dismiss | fail`，默认 `fail`，即出现未预期弹窗时步骤立即失败并报告弹窗文本（`UnexpectedDialogError`，SKI325）。`page=dialog` 元素在 `type` 数据中填 `accept` / `dismiss` / `accept:文本`，为下一次弹窗注册一次性处理器；在 `verify` 中读取最近一次弹窗的文本。
+- iframe：`type` / `verify` / `get_text` 等可以操作 `location@frame` 指定的 iframe 内元素。
+- `evaluate` 的 `data` 支持 `file:<模块内相对路径>`，从模块目录读取脚本；越出模块目录或文件不存在时报错。
+- `run` 内置函数 `save_auth_state(name)` / `use_auth_state(name)`：登录态只保存在本次 run 的内存中，不写盘。`use_auth_state` 必须在当前用例 `navigate` 之前调用，否则报错；名称不存在时报错并说明需先执行保存该登录态的用例。
+- 会话模式 `DefaultValue.SessionMode` / `--session-mode`：`isolated`（默认，现状）、`shared_browser`（整个 run 复用一个浏览器进程，每个用例新建 BrowserContext，用例的 `close` 只关闭 context）、`shared_session`（用例间共用会话，run 结束时统一关闭）。
+- 简洁记录模式 `DefaultValue.EvidenceMode` / `--evidence full|concise`：默认 `full` 不变；`concise` 只在失败时截图，录像不受影响。`result.xml` 的 `<summary>` 新增可选属性 `evidence_mode` / `session_mode`（`result.xsd` 同步），HTML 报告页眉显示这两个模式。
+- `rodski run --workers N`：以用例文件为单位分给 N 个 worker 进程并行执行，同一文件内的用例在同一 worker 中顺序执行。结果合并到同一运行目录和同一个 `result.xml`；worker 异常退出时，为它负责的用例补 FAIL 结果。
+- `--report junit`：在运行目录生成 `junit.xml`（每个用例文件一个 `<testsuite>`，`classname=case_file`，`name=case_id`，失败信息附截图相对路径）；可写成 `--report html,junit`。`--workers` / `--session-mode` / `--evidence` / `--report` 不是执行范围 selector，可与 `@plan_id` 同时使用。
+- `rodski data set` / `data add-row` / `data delete-row`：直接修改 `data.sqlite` 中的数据行。新增行必须提供完整字段集合。
+- `rodski case lint` 新增 6 条 AI 编写契约规则：`evaluate` 断言模式（WARNING）、数字字面量 `wait`（WARNING，附估算耗时）、`WaitTime > 0`（WARNING）、strict 模式下 `_verify` 行 BLANK 占比 > 50%（INFO）、`sql` 为 BLANK 且没有有效 `query`（ERROR）、`evaluate` 中的 `window.confirm/alert/prompt` 垫片（WARNING）。
+- `rodski capabilities` 输出新增 `pitfalls` 字段（`rodski_cli/pitfalls.py`）；`rodski-skills` 的 case-writer / test-guide 新增"契约速查"一节，与 `pitfalls` 同源。
+- 验收模块 `rodski-demo/DEMO/demo_authoring_v116/`（`run_acceptance.py` 共 19 项，其中 V19–V21 为动态等待专项）、夹具 `demo_authoring_v116_pitfalls/` 和 `demo_authoring_v116_no_retry/`（`AutoWait=0`）。
+
+### Changed
+
+- 所有等待类配置统一为毫秒：`DefaultValue.WaitTime`、`<cases step_wait>` 与新增的自动等待 `DefaultValue.AutoWait`。
+- GUIDE 新增 §6.0「什么时候用全局变量」（该用 / 不该用 / 换环境只改 globalvalue 的示例），case-writer skill 同步补充对应规则。
+
+- **等待单位统一为毫秒**：`DefaultValue.WaitTime` 与 `<cases step_wait>` 都按毫秒解释。过渡期内 `WaitTime` 在 0 到 30（含 30，不含 0）之间时仍按秒解释，并在每次 run 打印一次弃用告警；大于 30 按毫秒解释。
+- `rodski init` 模板写 `WaitTime=0` 并注明单位为毫秒；GUIDE / CORE / skills 的示例同步改为毫秒。
+- rodski-demo 存量 `globalvalue.xml` 中的 `WaitTime` 已迁移为毫秒，迁移后每个模块的实际每步等待不变：`demo_load` 1→1000、`mobile_app` 2→2000；`demo_full` / `demo_v7_features` / `rodski_website` / 根 `rodski-demo/data` 保持 500 / 500 / 300 / 500（大于 30，按毫秒解释）；`qq_music` 删除 `Mobile` 组中从未生效的 `WaitTime`。兼容性夹具 `demo_authoring_v116_pitfalls` 保留 `WaitTime=1`。
+- `DefaultValue` 中 `WaitTime` / `AutoWait` 不是非负数，或 `DialogPolicy` / `SessionMode` / `EvidenceMode` 取值非法时，在启动驱动前报错，报错列出合法取值和修复写法，不再静默回落默认值。此前 `WaitTime` 写成非数字会被当作 0。
+- `verify` 不匹配时，错误信息附上每个字段的操作符失败原因。
+- 文档：CORE_DESIGN_CONSTRAINTS / TEST_CASE_WRITING_GUIDE / AGENT_INTEGRATION / SKILL_REFERENCE 覆盖以上能力（GUIDE §5.7 断言操作符与自动重试、§6.4 执行策略配置、§8.7–8.8、§9.9 CI 接入示例）。SKILL_REFERENCE 中与 CORE 矛盾的 `action="click"`、`switch_window` / `switch_frame` 写法已改正。
+
+### Fixed
+
+- 契约类报错附带修复提示（C4）：`action` 写成 `click` / `hover` / `select` 等 UI 原子动作或其他非关键字时，XSD 校验报错和 `UnknownKeywordError` 都会说明这些是 `type` 数据表的字段值，并给出最小示例。
+- XML 非良构（例如属性中写了裸 `&&` / `<`）时报 `XmlSyntaxError`（SKI200），附上出错行，并提示改写为 `&amp;&amp;` / `&lt;` 或改用 `evaluate` 的 `file:` 引用。
+- 两次 `rodski run` 在同一秒内先后启动时，会落进同一个 `result/rodski_<时间戳>/` 目录，后一次覆盖前一次的 `result.xml` / `execution.log`。现在目录已存在时，新目录名追加 `_2`、`_3` 等后缀；不冲突时目录名不变。
+
+
 ## [11.5.2] - 2026-09-29
 
 修复 AI 写用例对比实验暴露的 DB 契约缺陷，改进报错提示。设计：`.pb/specs/v11.6.0-ai-authoring-and-performance-design.md` §4。

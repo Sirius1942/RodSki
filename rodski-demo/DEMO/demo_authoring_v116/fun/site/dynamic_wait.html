@@ -1,0 +1,43 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>动态等待</title>
+<style>#hiddenBtn{display:none}</style>
+</head><body>
+<h1>动态等待验收页</h1>
+<!-- 各元素按固定时间线变化，用于验证 verify 自动重试（v11.6.0 A2）。时间单位 ms，从页面加载开始计时：
+     lateText   1500  出现文本「数据已加载」
+     status     0 → 2000  「处理中」变为「已完成」（验证读的是最新值，不是第一次读到的值）
+     items      每 250 逐条追加，2500 时满 10 条（中途读到 1~9 条都不应判通过）
+     fieldA     1000  变为 A-OK；fieldB 2500 变为 B-OK（两字段须在同一次读取中同时满足）
+     spinner    2000  从 DOM 移除（等待加载遮罩消失）
+     hiddenBtn  1500  由隐藏变为可见
+     veryLate   20000 才出现（超过 AutoWait，必须失败且不能卡死） -->
+<div id="lateText"></div>
+<div id="status">处理中</div>
+<ul id="list"></ul>
+<div id="fieldA">等待中</div>
+<div id="fieldB">等待中</div>
+<div id="spinner">加载中…</div>
+<button id="hiddenBtn">提交</button>
+<div id="veryLate"></div>
+<script>
+function at(ms, fn) { setTimeout(fn, ms); }
+function set(id, text) { document.getElementById(id).textContent = text; }
+at(1500, function () { set('lateText', '数据已加载'); });
+at(2000, function () { set('status', '已完成'); });
+for (var i = 1; i <= 10; i++) {
+  (function (n) {
+    at(n * 250, function () {
+      var li = document.createElement('li');
+      li.className = 'item';
+      li.textContent = '条目' + n;
+      document.getElementById('list').appendChild(li);
+    });
+  })(i);
+}
+at(1000, function () { set('fieldA', 'A-OK'); });
+at(2500, function () { set('fieldB', 'B-OK'); });
+at(2000, function () { var s = document.getElementById('spinner'); s.parentNode.removeChild(s); });
+at(1500, function () { document.getElementById('hiddenBtn').style.display = 'inline-block'; });
+at(20000, function () { set('veryLate', '超时才出现'); });
+</script>
+</body></html>

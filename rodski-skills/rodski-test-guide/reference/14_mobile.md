@@ -50,7 +50,6 @@
     <var name="AppActivity" value="com.example.app.MainActivity"/>
     <var name="AppTarget" value="app://android/com.example.app/com.example.app.MainActivity"/>
     <var name="NoReset" value="true"/>
-    <var name="WaitTime" value="3"/>
   </group>
 </globalvalue>
 ```
@@ -65,7 +64,8 @@
 | `BundleId` | iOS Bundle ID |
 | `AppTarget` | app:// URI（供 navigate 使用） |
 | `NoReset` | 是否保留应用状态（`true`/`false`） |
-| `WaitTime` | 步骤间等待秒数 |
+
+> 步骤固定等待统一由 `DefaultValue.WaitTime`（毫秒）控制，`Mobile` 组中不再写 `WaitTime`，见 [§6.4](#64-waittime-与执行策略配置v1160)。
 
 ### 14.4 视觉定位降级策略（v7.0.1）
 

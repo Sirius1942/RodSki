@@ -101,6 +101,15 @@ for result in root.findall(".//result[@status='FAIL']"):
 | `rodski run <path> --headless` | 无头模式执行 | JSON 结果 |
 | `rodski roam --case-file <case.xml> --case-id <case_id> --output-format json` | 定向执行一条合格用例并漫游；资格错误显式返回（v11.5.0 起，原 `--case <case_id>` 拆分为文件 + ID，见 [CORE §6.5/§7.7](../docs/CORE_DESIGN_CONSTRAINTS.md)） | JSON 结构化结果，含 `roam_summary` |
 | `rodski run <path> --roam --output-format json` | 批量执行，并对合格且通过的 UI 用例漫游 | JSON 结构化结果；不合格用例静默跳过漫游 |
+| `rodski capabilities` | 查询框架能力清单；v11.6.0 起含 `pitfalls` 字段（AI 编写契约速查，与 rodski-skills「契约速查」同源） | JSON |
+| `rodski case lint <module>` | 静态检查常见写法问题：固定 `wait`、`WaitTime > 0`、`evaluate` 断言模式、弹窗垫片、`sql`/`query` 均无效等（v11.6.0 规则见 GUIDE §5.7.4 / CORE §1.5） | 文本；有 ERROR 时非 0 退出 |
+| `rodski run <path> --report junit` | 额外生成 `result/{run}/junit.xml`，可与 `html` 逗号并列（v11.6.0） | JUnit XML |
+| `rodski run <path> --workers N` | 按用例文件并行执行，结果合并到同一运行目录（v11.6.0） | 同 `rodski run` |
+| `rodski run <path> --session-mode isolated\|shared_browser\|shared_session` | 浏览器会话复用方式（v11.6.0，覆盖 `DefaultValue.SessionMode`） | 同 `rodski run` |
+| `rodski run <path> --evidence full\|concise` | 截图证据模式；`concise` 只保留失败截图，录像不变（v11.6.0） | 同 `rodski run` |
+| `rodski data set <module> <table> <data_id> field=value ...` | 直接修改 `data.sqlite` 中的数据行（另有 `add-row` / `delete-row`，v11.6.0） | 文本 |
+
+> `--workers` / `--session-mode` / `--evidence` / `--report` 不是执行范围 selector，可与 `@plan_id` 同用（CORE §7.7）。
 
 ### 唯一输入格式
 
@@ -119,8 +128,9 @@ for result in root.findall(".//result[@status='FAIL']"):
 | 错误类型 | exit_code | Agent 处理策略 |
 |---------|-----------|---------------|
 | 元素未找到 | 1 | 重新探索页面，更新 model XML |
-| 超时 | 1 | 添加 wait 步骤或增加超时配置 |
-| 断言失败 | 1 | 检查预期值或页面状态 |
+| 超时 / 断言在异步页面上失败 | 1 | **不要添加 `wait` 步骤**：UI `verify` 已自动重试（v11.6.0，自动等待 `AutoWait` 默认 5000 毫秒），数据确实更慢时调大 `DefaultValue.AutoWait`；元素数量 / 存在 / URL 断言改用原生操作符（CORE §4.6） |
+| 断言失败 | 1 | 检查预期值或页面状态；错误信息逐字段给出期望 / 实际，元素级断言 0 匹配时报「实际 0」，通常意味着选择器已失效 |
+| 契约类错误（verify 缺字段、SQL 参数、XML 属性非法字符、非法 action、字段集合不一致） | 1 / 2 | 按错误信息中的修复提示（hint）修改；常见坑见 `rodski capabilities` 的 `pitfalls` |
 | XML 格式错误 | 2 | 校验并修复 XML |
 | 配置缺失 | 2 | 检查 config 文件 |
 | `SKI701` Hook 拒绝执行（`before_keyword` deny 或外部命令 hook exit code 2） | 1 | 检查 `hooks.json`/进程内回调的拒绝原因（`reason` 字段），确认是否为预期的高危操作拦截 |
@@ -437,13 +447,22 @@ SQL 数据表格式：
 
 ### 4.7 verify 与 _verify 表名推导
 
-`verify` 关键字的 data 属性 **只写 DataID**，框架自动从 `{模型名}_verify.xml` 查找验证数据。
+`verify` 关键字的 data 属性 **只写 DataID**，框架自动从 `data.sqlite` 的逻辑表 `{模型名}_verify` 查找验证数据。
 
 ```xml
 <!-- Case XML -->
 <test_step action="verify" model="Login" data="V001"/>
-<!-- 框架自动读取 data/Login_verify.xml 中 id="V001" 的行 -->
+<!-- 框架自动读取 data.sqlite 中逻辑表 Login_verify 的 V001 行 -->
 ```
+
+**Agent 生成断言时的优先级（v11.6.0）**：
+
+1. 元素数量 / 存在 / 可见：`_verify` 字段填 `{"$count": N}` / `{"$count_gte": N}` / `{"$exists": true}` / `{"$visible": true}`；0 匹配按实际 0 判定，不会静默通过。
+2. URL / 路径 / 标题 / 弹窗文本：模型中声明 `<location type="page">url|path|title|dialog</location>` 元素，用普通 `verify` 断言。
+3. iframe 内元素：`<location type="css" frame="#payFrame">#cardNo</location>`，不存在切换 frame 的步骤。
+4. 异步结果：直接 `verify`（UI 模型自动重试到期望值），**不要**生成 `wait` + `verify`。
+5. 只校验部分字段：步骤上加 `match_mode="subset"`，或在不校验的字段填 `BLANK`。
+6. 以上都表达不了时才用 `evaluate`；脚本含 `&&` / `<` 时放到 `fun/js/*.js`，`data="file:fun/js/x.js"` 引用。
 
 ### 4.8 三阶段容器与失败语义
 
@@ -499,10 +518,11 @@ SQL 数据表格式：
 | `type` | UI 模型名 | DataID | UI 批量输入 |
 | `verify` | 模型名 | DataID | 批量验证（自动查 _verify 表） |
 | `send` | 接口模型名 | DataID | 发送 HTTP 请求 |
-| `DB` | 连接组名 | SQL 表引用或 SQL | 执行数据库操作 |
-| `run` | fun/ 工程名 | 脚本路径 | 沙箱执行 Python |
+| `DB` | 数据库模型名（`type="database"`） | DataID | 执行数据库操作 |
+| `run` | fun/ 工程名；调用内置函数时必须为空 | 脚本路径 / 内置函数调用 | 沙箱执行 Python；内置函数如 `save_auth_state(name='admin')` / `use_auth_state(name='admin')`（v11.6.0） |
 | `set` | — | — | 设置变量 |
-| `wait` | — | 秒数 | 等待 |
+| `wait` | — | 秒数 | 固定等待（仅演示 / 确需固定时长；lint 会提示） |
+| `evaluate` | — | JS 表达式或 `file:fun/js/x.js` | 执行 JS（仅 Web，逃生舱） |
 | `get` / `get_text` | — | CSS 选择器 | 获取元素文本 |
 | `assert` | — | — | 断言 |
 | `clear` | — | CSS 选择器 | 清空输入框 |
@@ -558,7 +578,7 @@ def choose_locator(element_info):
 | 错误类型 | 原因 | Agent 处理策略 |
 |---------|------|---------------|
 | 元素未找到 | vision 描述不准确 | 重新探索，更新描述 |
-| 超时 | 页面加载慢 | 添加 wait 步骤 |
+| 超时 | 页面加载慢 | 调大 `DefaultValue.AutoWait`（自动等待，UI verify 自动重试上限，毫秒），不要添加 wait 步骤 |
 | 坐标偏移 | 窗口大小变化 | 使用 vision 替代 vision_bbox |
 | XML 格式错误 | 生成逻辑错误 | 验证 XML 格式 |
 
@@ -582,8 +602,8 @@ def execute_with_retry(case_xml, max_retries=3):
             # 重新探索并更新 XML
             update_model_xml(error["element"])
         elif error["type"] == "timeout":
-            # 增加等待时间
-            add_wait_step(case_xml)
+            # 调大 globalvalue 中 DefaultValue.AutoWait（毫秒），而不是插入 wait 步骤
+            raise_verify_timeout(case_xml)
 
     return result
 ```
@@ -603,6 +623,9 @@ def execute_with_retry(case_xml, max_retries=3):
 - 优先使用传统定位器（xpath/css）
 - vision_bbox 比 vision 快
 - 批量执行减少启动开销
+- `DefaultValue.WaitTime=0`（单位毫秒），不生成固定 `wait` 步骤，等待交给智能等待与 verify 自动重试
+- `SessionMode=shared_browser` + `save_auth_state` / `use_auth_state` 省去每个用例启动浏览器与重复登录
+- `--workers N` 按用例文件并行；`--evidence concise` 去掉逐步截图（录像不变）
 
 ### 7.3 调试技巧
 

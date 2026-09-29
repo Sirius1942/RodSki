@@ -21,6 +21,7 @@
       ├── DatabaseConnectionError (数据库连接错误)
       └── APIConnectionError (API连接错误)
 """
+import xml.etree.ElementTree as _ET
 from typing import Optional, Dict, Any
 
 
@@ -193,6 +194,31 @@ class XmlSchemaValidationError(ParseError):
         super().__init__(message, details=details, **kwargs)
 
 
+class XmlSyntaxError(ParseError, _ET.ParseError):
+    """v11.6.0 (C3)：XML 格式错误（非良构），附带修复提示。
+
+    同时继承 ``xml.etree.ElementTree.ParseError``，存量 ``except ET.ParseError`` 仍能捕获。
+    """
+
+    error_code = "SKI200"
+
+    def __init__(self, message: str, xml_path: Optional[str] = None,
+                 line: Optional[int] = None, column: Optional[int] = None,
+                 hint: Optional[str] = None, **kwargs):
+        details = kwargs.pop("details", {})
+        if xml_path:
+            details["xml_path"] = xml_path
+        if line is not None:
+            details["line"] = line
+        if column is not None:
+            details["column"] = column
+        if hint:
+            details["hint"] = hint
+        super().__init__(message, details=details, **kwargs)
+        self.position = (line, column) if line is not None else None
+        self.hint = hint
+
+
 # ── 错误码映射 ──────────────────────────────────────────────────
 
 ERROR_CODE_MAP = {
@@ -239,6 +265,16 @@ class UnknownKeywordError(KeywordError):
     
     def __init__(self, keyword: str, supported: list, **kwargs):
         message = f"未知关键字: '{keyword}'。支持的关键字: {', '.join(supported[:10])}..."
+        # v11.6.0 C4：UI 原子动作误写为关键字时附带修复提示（CORE §1.2）
+        ui_atomic = {"click", "double_click", "right_click", "hover", "select",
+                     "key_press", "drag", "scroll", "switch_frame", "switch_window"}
+        if str(keyword).lower() in ui_atomic:
+            hint = ("click/hover/select 等是 type 数据表里的字段值，不是关键字（CORE §1.2）。"
+                    "示例: action=\"type\" model=\"Login\" data=\"L001\"，数据表 loginBtn 字段填 click")
+            message += f" 提示: {hint}"
+            details = kwargs.pop("details", {}) or {}
+            details["hint"] = hint
+            kwargs["details"] = details
         super().__init__(message, keyword=keyword, **kwargs)
         self.supported = supported
 
@@ -327,6 +363,24 @@ class DriverStoppedError(DriverError):
             details["driver_type"] = driver_type
         super().__init__(message, **kwargs)
         self.driver_type = driver_type
+
+
+class UnexpectedDialogError(DriverError):
+    """v11.6.0 (C1)：DialogPolicy=fail 时出现未注册处理器的原生弹窗（不重试）"""
+    error_code = "SKI325"
+
+    def __init__(self, dialog_text: str, keyword: Optional[str] = None, **kwargs):
+        message = (
+            f"出现未预期的弹窗: {dialog_text}（DialogPolicy=fail，已自动关闭）。"
+            f"修复: 在 UI 模型中声明 <location type=\"page\">dialog</location> 元素并排在触发按钮之前，"
+            f"type 数据行填 accept / dismiss / accept:输入文本；或设置 DefaultValue.DialogPolicy=accept|dismiss"
+        )
+        details = kwargs.pop("details", {})
+        details["dialog_text"] = dialog_text
+        if keyword:
+            details["keyword"] = keyword
+        super().__init__(message, details=details, **kwargs)
+        self.dialog_text = dialog_text
 
 
 class DiagnosisTimeoutError(ExecutionError):

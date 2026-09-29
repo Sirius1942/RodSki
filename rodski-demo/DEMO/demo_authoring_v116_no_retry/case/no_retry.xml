@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- V21 AutoWait=0 关闭自动重试：文本 1s 后才出现，单次比对必须失败（expect_fail）。
+     若重试未被关闭，verify 会在 1s 后成功，本用例反而判为不通过。 -->
+<cases>
+  <case execute="是" id="TC001" title="AutoWait=0 时 verify 只比对一次" component_type="界面" expect_fail="是">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Page.LATE"/>
+    </pre_process>
+    <test_case>
+      <test_step action="verify" model="LatePage" data="V_LATE"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+</cases>

@@ -1,6 +1,6 @@
 # RodSki 核心设计约束
 
-**版本**: v11.5.2
+**版本**: v11.6.0
 **日期**: 2026-09-29
 
 本文档记录 RodSki 框架的核心设计决策与约束规则，所有后续开发必须遵循。
@@ -13,6 +13,7 @@
 
 | 版本 | 日期 | 主要变更 |
 |------|------|---------|
+| v11.6.0 | 2026-09-29 | AI 编写效率、断言可靠性与执行性能（不新增关键字，`case.xsd` 不变）：`verify` 新增 `$count` / `$count_gte` / `$count_lte` / `$exists` / `$visible` 元素级操作符，0 匹配按实际数量 0 判定（§4.6）；UI 模型 `verify` 默认自动重试到期望值（自动等待 `DefaultValue.AutoWait`，毫秒，默认 5000，§4.6.5）；`model.xsd` 新增定位类型 `page`（url/title/path/dialog）与 `<location frame="...">` 属性（§2.5.6）；原生 dialog 策略 `DialogPolicy`；`evaluate` 支持 `file:` 引用模块内脚本（§1.5）；`run` 内置函数 `save_auth_state` / `use_auth_state`（§1.4）；`WaitTime` 与 `step_wait` 统一为毫秒、`SessionMode` / `EvidenceMode` / `--workers` / `--report junit`（§7.4、§23） |
 | v11.5.0 | 2026-09-29 | `case/` 支持任意多级嵌套目录，递归发现用例（§6.5 新增）；用例完整标识改为 `case_file + case.id`，ID 只要求文件内唯一（§7.2）；`result.xsd` 新增 `case_file`（§7.6）；`plan.xsd` 的 `case@file` 必填（单文件模块兼容例外）、新增 `case_dir`，`--case-id` 加入 `@plan_id` 互斥 selector 清单（§7.7）；结果目录按 `case/` 目录结构镜像，截图/录像路径随之改变（Agent 契约摘要） |
 | v11.4.0 | 2026-09-27 | 业务模型场景法约束：Case 显式选择业务流、普通 SQLite Data/Verify 数据表、XML Schema 与 debug-only 独立执行边界 |
 | v11.3.0 | 2026-09-14 | iOS 真机纳入设备发现（devicectl）、真机+模拟器混跑约束（§11.5 追加）、移动端导航两条硬约束（§11.5 追加） |
@@ -101,13 +102,50 @@ key_press【按键】 / drag【目标】 / scroll / scroll【x,y】
 - `stop_js_coverage(output)` — 停止覆盖率收集并保存到文件
 - `reset_request_log()` — 清空请求日志
 - `get_request_log()` — 获取已记录的请求
+- `save_auth_state(name)` — 把当前浏览器 context 的 storage state（cookie + localStorage）以 `name` 保存到**本次 run 的内存**中（v11.6.0，仅 Playwright）
+- `use_auth_state(name)` — 为**当前用例的新 context** 加载已保存的 storage state，之后可直接 `navigate` 到登录后的页面（v11.6.0，仅 Playwright）
 
 用法示例：
 ```xml
 <test_step action="run" model="" data="mock_route(url_pattern='/api/users', status=200, body='{&quot;users&quot;:[]}')"/>
 ```
 
-**约束**：内置函数需要访问进程内 driver 实例，因此不走子进程。扩展新内置函数通过 `builtin_ops/` 模块注册。
+**约束**：内置函数需要访问进程内 driver 实例，因此不走子进程。扩展新内置函数通过 `builtin_ops/` 模块注册。调用内置函数时 `model` **必须为空**（`model=""`），否则 `model` 会被当作 `fun/` 下的工程名、按外部脚本处理。
+
+**登录态复用约束（v11.6.0，`save_auth_state` / `use_auth_state`）**：
+
+```xml
+<!-- 登录用例：UI 登录后保存 -->
+<test_step action="type" model="Login" data="L_ADMIN"/>
+<test_step action="run" model="" data="save_auth_state(name='admin')"/>
+
+<!-- 后续用例：pre_process 中先加载，再 navigate -->
+<pre_process>
+  <test_step action="run" model="" data="use_auth_state(name='admin')"/>
+  <test_step action="navigate" model="" data="GlobalValue.Site.URL/home.html"/>
+</pre_process>
+```
+
+1. 状态只保存在**本次 run 的内存**中，不写入结果目录、`data.sqlite` 或仓库，run 结束即失效，避免凭据残留。
+2. `use_auth_state` 必须写在该用例第一个 `navigate` **之前**：它作用于当前用例即将创建的新 context；当前用例已经打开页面后再调用会报错并提示调整顺序。
+3. 找不到命名状态时报错，提示需要先执行保存该状态的用例（配合 plan / 用例文件内顺序保证先后）。
+4. 保存的是 context 级 storage state，不共享页面或内存变量；它是 §22「RuntimeContext 不跨 case 共享」之外唯一允许跨用例传递的数据，且只能通过这两个内置函数显式传递。
+5. `--workers N` 并行时状态按 worker 进程隔离：保存与使用该状态的用例必须位于同一个用例文件中（同文件用例在同一 worker 内顺序执行，见 §23.3）。
+
+### 1.5 evaluate = 逃生舱（v11.6.0 明确）
+
+`evaluate` 在 Web 页面执行 JavaScript，是**逃生舱**而非常规断言手段：
+
+- 元素数量 / 存在 / 可见 / URL / 标题的断言**优先**使用 `verify` 原生断言（§4.6 操作符 + §2.5.6 `page` 定位类型）。`evaluate` 里写 `querySelectorAll(...).length`、`location.pathname` 做断言时，选择器失效往往静默通过，`rodski case lint` 会给出 WARNING。
+- 原生弹窗优先使用 `DialogPolicy` 与 `page=dialog` 元素（§2.5.6），不要在 `evaluate` 中写 `window.confirm = ...` / `window.alert = ...` 垫片（lint WARNING）。
+- **`file:` 引用脚本**：`data` 以 `file:` 开头时，从**模块目录**（`case/` 的上级）读取脚本文件内容执行，推荐放在 `fun/js/*.js`，从而绕开 XML 属性转义（`&&`、`<`、引号）：
+
+  ```xml
+  <test_step action="evaluate" model="" data="file:fun/js/check_rows.js"/>
+  ```
+
+  路径只允许位于模块目录内；绝对路径、`..` 越界或符号链接指向模块外时直接报错，不执行。脚本文件不存在时报错并给出解析后的路径。
+- XML 解析失败且错误位置位于属性值内、含 `&` / `<` 时，报错附带提示：「属性中请写成 `&amp;&amp;`，或把脚本移到 `fun/js/*.js` 用 `file:` 引用」。
 
 ---
 
@@ -161,12 +199,13 @@ Case XML 的 data 属性中，只需要写 DataID，不需要写表名前缀：
 - SQLite 中的同一逻辑表必须显式声明 schema，且所有数据行字段集合完全一致
 - 若 `data.xml` 或 `data_verify.xml` 存在，运行时立即报错，不加载任何数据
 - v6.7.6 起，缺字段不再静默跳过，而是直接报错。必须显式填写 BLANK/NULL/NONE 表示跳过。
+- **行级编辑（v11.6.0）**：`rodski data set <module> <table> <data_id> field=value [...]` 修改已有行的字段值；`rodski data add-row` / `rodski data delete-row` 增删行。`set` 只能修改 schema 中已声明的字段（未知字段报错并列出合法字段）；`add-row` 必须提供完整字段集合（缺字段报错并提示填 BLANK/NULL/NONE）。这些命令直接写 `data.sqlite`，不引入任何文本数据源，修改期望值后可直接重跑，无需 `rodski data import`。
 
 ---
 
 ### 2.5 定位器类型（完整）
 
-RodSki 支持 12 种定位器类型，分为传统定位器和视觉定位器两大类。
+RodSki 的定位器类型以 `rodski/schemas/model.xsd` 的 `LocatorType` 枚举为准，分为传统定位器、页面属性定位器（`page`，v11.6.0）和视觉定位器三类。
 
 ### 2.5.1 传统定位器
 
@@ -183,6 +222,7 @@ RodSki 支持 12 种定位器类型，分为传统定位器和视觉定位器两
 | `field` | 字段映射 | 接口请求字段 | 用于接口 body/query |
 | `predicate` | iOS NSPredicate 字符串 | **iOS 专用**，映射 Appium `IOS_PREDICATE` | `<location type="predicate" platform="ios">label == '登录'</location>` |
 | `class_chain` | iOS XCUITest Class Chain | **iOS 专用**，映射 Appium `IOS_CLASS_CHAIN` | `<location type="class_chain" platform="ios">**/XCUIElementTypeButton[`label == '登录'`]</location>` |
+| `page` | 页面属性名 | **Web 专用**（v11.6.0），值只能是 `url` / `title` / `path` / `dialog`，不定位 DOM 元素，见 §2.5.6 | `<location type="page">path</location>` |
 
 **iOS 专用定位器说明（v7.2.x，WI-55）**：
 
@@ -260,6 +300,7 @@ RodSki 支持 12 种定位器类型，分为传统定位器和视觉定位器两
 1. 所有定位器使用 `<location type="类型">值</location>` 格式
 2. `type` 属性必须为 LocatorType 枚举值之一
 3. 值写在 location 标签内容中
+4. `<location>` 可选属性：`priority`（§2.5.4）、`platform`（android/ios）、`item`、`frame`（v11.6.0，iframe 内定位，§2.5.6）。这些属性只修饰定位方式，不改变「`<location>` 子节点是唯一格式」这一约束
 
 **约束规则**：
 ```xml
@@ -362,6 +403,64 @@ RodSki 支持 12 种定位器类型，分为传统定位器和视觉定位器两
     <location type="vision_bbox">100,200,150,250</location>
 </element>
 ```
+
+### 2.5.6 页面属性定位器 `page` 与 iframe 属性 `frame`（v11.6.0）
+
+**`page` 定位类型**：在 UI 模型中声明「页面属性元素」，用普通 `verify` + 已有操作符断言页面状态，替代 `evaluate` 里的 `location.pathname` 等断言。
+
+| 值 | `verify` 读取的实际值 | `type` 中该字段的含义 |
+|----|------------------------|----------------------|
+| `url` | 当前页面完整 URL | 只读，必须填 `BLANK` |
+| `title` | `document.title` | 只读，必须填 `BLANK` |
+| `path` | URL 的 pathname（不含 origin、query、hash），如 `/login.html` | 只读，必须填 `BLANK` |
+| `dialog` | **最近一次**原生弹窗（alert / confirm / prompt / beforeunload）的文本；本用例尚未出现弹窗时为空字符串 | 为**下一次**出现的弹窗注册一次性处理器：`accept` / `dismiss` / `accept:输入文本`（prompt 用）；`BLANK` 表示不注册 |
+
+```xml
+<model name="PageInfo" type="ui">
+    <element name="currentPath" type="web">
+        <location type="page">path</location>
+    </element>
+    <element name="pageTitle" type="web">
+        <location type="page">title</location>
+    </element>
+</model>
+
+<!-- dialog 元素必须排在触发弹窗的元素之前（type 按模型元素顺序执行） -->
+<model name="DialogPage" type="ui">
+    <element name="dialog" type="web">
+        <location type="page">dialog</location>
+    </element>
+    <element name="deleteBtn" type="web">
+        <location type="id">deleteBtn</location>
+    </element>
+</model>
+```
+
+约束：
+
+1. `page` 的值只能是 `url` / `title` / `path` / `dialog`，其他值在 XSD / ModelParser 阶段报错。
+2. `page` 定位器不参与元素查找、智能等待和多定位器回退；同一 `<element>` 内不得与其他定位器混用，也不得带 `frame` 属性。
+3. `$count` / `$count_gte` / `$count_lte` / `$exists` / `$visible` 不适用于 `page` 元素（它们不是 DOM 元素）；`page` 元素使用等值或 `$contains` 等已有操作符。
+4. `dialog` 的一次性处理器只对下一次弹窗生效，用过即清除（用例结束时未被使用的处理器同样清除，不影响下一个用例）；未注册处理器时按全局 `DefaultValue.DialogPolicy`（`accept` | `dismiss` | `fail`，默认 `fail`，见 §7.4）处理。`fail` 时出现弹窗的步骤立即失败，错误信息包含弹窗文本，不会卡住等待，也不会静默吞掉。
+5. UI 原子动作仍只写在数据表字段值中（§1.2）：`accept` / `dismiss` / `accept:文本` 是 `page=dialog` 字段的取值，不是关键字，也不是新的动作语法。
+
+**`frame` 属性（iframe 内定位）**：
+
+```xml
+<element name="payBtn" type="web">
+    <location type="css" frame="#payFrame">button.pay</location>
+</element>
+
+<!-- 多层嵌套：用 >> 串联，从外到内 -->
+<element name="cardNo" type="web">
+    <location type="css" frame="#outerFrame >> #payFrame">#cardNo</location>
+</element>
+```
+
+1. `frame` 的值是定位 `<iframe>` 元素的 **CSS 选择器**；多层嵌套用 ` >> ` 从外到内串联。
+2. 只对 Web DOM 定位类型（`id` / `class` / `css` / `xpath` / `text` / `tag` / `name`）有效；视觉定位器与 `page` 不接受 `frame`。
+3. 读、写、计数（`$count` 等）都在该 frame 内进行；frame 本身找不到时按定位失败报错，并在错误信息中指出是哪一层 frame。
+4. 不存在「切换 frame」的关键字或步骤（`switch_frame` 不是关键字），frame 只作为定位器属性声明在模型中。
 
 ---
 
@@ -533,7 +632,7 @@ pip install rodski[perception-remote]
 | 值 | UI 行为（type） | 接口行为（send） | 验证行为（verify） |
 |----|----------------|-----------------|-------------------|
 | 空值 | 跳过 | — | — |
-| `BLANK` | 跳过 | 发送空字符串 | 期望空字符串 |
+| `BLANK` | 跳过 | 发送空字符串 | UI / DB 模型：跳过该字段；接口模型：期望空字符串 |
 | `NULL` | 跳过 | 发送 null | 期望 null |
 | `NONE` | 跳过 | 不发送该字段 | 跳过验证 |
 | `.Password` 后缀 | 输入，日志脱敏 | — | — |
@@ -756,11 +855,11 @@ test_${random(str, 6)}@example.com        → test_aB3kP9@example.com
 <test_step action="set" model="" data="value=${Return[-1].data[5]}"/>
 ```
 
-### 4.6 断言操作符（v11.0.0）
+### 4.6 断言操作符（v11.0.0，v11.6.0 扩展）
 
-`verify` 关键字支持断言操作符，用于非等值比较（数值比较、包含检查）。
+`verify` 关键字支持断言操作符，用于非等值比较（数值比较、包含检查）以及元素级原生断言（数量、存在、可见）。
 
-#### 4.6.1 支持的操作符（5 个）
+#### 4.6.1 支持的操作符（10 个）
 
 **数值比较**（4 个）：
 - `$gt` - 大于 (greater than)
@@ -770,6 +869,20 @@ test_${random(str, 6)}@example.com        → test_aB3kP9@example.com
 
 **包含检查**（1 个）：
 - `$contains` - 字符串包含或数组包含元素
+
+**元素级原生断言**（5 个，v11.6.0，仅适用于 UI 模型的 DOM 元素）：
+
+| 操作符 | 含义 | `_verify` 字段值示例 |
+|--------|------|------------------------|
+| `$count` | 定位器匹配的元素数量等于 N | `{"$count": 10}` |
+| `$count_gte` | 匹配数量 ≥ N | `{"$count_gte": 1}` |
+| `$count_lte` | 匹配数量 ≤ N | `{"$count_lte": 5}` |
+| `$exists` | 元素存在（`true`）/ 不存在（`false`） | `{"$exists": true}` |
+| `$visible` | 元素可见（`true`）/ 不可见或不存在（`false`） | `{"$visible": false}` |
+
+**防静默通过（硬约束）**：元素级断言在定位器匹配 0 个元素时，一律按「实际数量 0 / 不存在 / 不可见」判定，**不存在「没找到就跳过」的路径**。例如 `{"$count": 10}` 遇到改版后选择器失效，必须失败并报出「期望 10，实际 0」；`{"$exists": true}` 必须失败。元素级断言读取数量时**不触发**智能等待的逐元素重试（§13），等待只由 §4.6.5 的自动重试负责，避免 0 匹配时额外空等。
+
+元素级操作符的定位来自该字段对应模型元素的 `<location>`（支持 `frame` 属性，§2.5.6），不能用于 `page` 元素，也不能用于接口 / DB 模型；接口返回数组的长度仍用 `字段.length` + 数值操作符（§4.5）。
 
 #### 4.6.2 使用方式
 
@@ -811,7 +924,7 @@ INSERT INTO rs_field (row_id, field_name, field_value) VALUES
 #### 4.6.4 约束
 
 1. **单操作符限制** — 每个字段值只能包含一个操作符，不支持 `$and` / `$or` / `$not` 组合
-2. **类型要求** — 数值操作符要求可转数值类型，`$contains` 要求字符串或数组
+2. **类型要求** — 数值操作符要求可转数值类型，`$contains` 要求字符串或数组；`$count*` 的值为非负整数，`$exists` / `$visible` 的值为 JSON 布尔 `true` / `false`
 3. **不支持嵌套** — 操作符值必须是字面量，不支持嵌套操作符
 4. **字面量期望值** — 操作符右侧必须是具体值，不支持 `${Return[-1]}` 等引用（避免自引用）
 
@@ -829,6 +942,27 @@ INSERT INTO rs_field (row_id, field_name, field_value) VALUES
 <field name="count_gte">{"$gte": 10}</field>
 <field name="count_lte">{"$lte": 100}</field>
 ```
+
+#### 4.6.5 UI `verify` 自动重试到期望值（v11.6.0，Owner 决策 D1）
+
+**语义**：UI 模型（`type="ui"`）的 `verify` 在自动等待 `AutoWait` 毫秒内按 200ms 间隔轮询：每轮重新读取**全部**字段的实际值并比对，**全部字段**匹配即通过；超时后按**最后一次**读到的实际值判定失败，错误信息逐字段列出期望 / 实际。
+
+| 项 | 约定 |
+|----|------|
+| 配置 | `globalvalue.xml` → `DefaultValue.AutoWait`（自动等待），单位**毫秒**，默认 `5000`（5 秒）；开发期名称 `VerifyTimeout` 已废弃，出现即在执行前报错并提示改名 |
+| 关闭 | `AutoWait=0`：恢复单次比对（v11.5 及之前的行为） |
+| 适用范围 | 仅 UI 模型的 `verify`（含 `check`）；**接口 / DB 模型的 `verify` 始终单次比对**（结果是一次性的，重试没有意义） |
+| 读取失败 | 轮询期间元素暂时找不到、文本为空等视为「本轮未匹配」继续重试，不中断；超时后才报失败 |
+| 总等待上限 | 由 `AutoWait` 决定，单轮读取不叠加智能等待的 9 秒重试（§13） |
+| 与 `expect_fail` | 预期失败的用例同样要等到超时才判定失败，负向用例的耗时 ≈ `AutoWait` |
+
+**目的**：替代用例中「`wait 1` + `verify`」的固定等待写法。异步渲染的表格、提交后跳转的页面，直接写 `verify` 即可；要等元素消失，写 `{"$exists": false}` / `{"$visible": false}`。
+
+**约束**：
+
+1. 自动重试只重复「读取 + 比对」，不重复执行任何写操作，不产生额外的 Return 历史条目；一个 `verify` 步骤仍只写入一次 history（§22）。
+2. 自动重试不改变比对规则：strict / subset（§4.7）、控制值（§4.1）、操作符（§4.6.1）与单次比对完全一致。
+3. 失败信息必须包含每个不匹配字段的期望值与最后一次实际值；元素级断言 0 匹配时写明「实际 0」。
 
 ### 4.7 部分字段匹配（v11.0.0）
 
@@ -891,6 +1025,7 @@ INSERT INTO rs_field (row_id, field_name, field_value) VALUES
 2. **仅适用于 verify** — `match_mode` 属性只对 `verify` 关键字有效，其他关键字忽略
 3. **字段存在性检查** — `subset` 模式下，`_verify` 表中声明的字段必须在模型中存在（否则跳过该字段）
 4. **不改变比较逻辑** — 两种模式使用相同的比较逻辑（等值或断言操作符），只影响迭代策略
+5. **缺字段报错附带修复提示**（v11.6.0，C4） — strict 模式下 `_verify` 行缺少模型字段时，错误信息必须附带：「若只想校验部分字段，使用 `match_mode="subset"`；或在该字段填 `BLANK` 跳过」（UI / DB 模型中 `BLANK` 表示跳过该字段，见 §4.1）
 
 ---
 
@@ -910,6 +1045,8 @@ SUPPORTED = [
 **设计原则**：关键字数量应保持精简，新增关键字前需评估是否可以通过现有批量模式（数据表字段值）实现。
 
 **场景化关键字**：`navigate` 和 `launch` 功能完全相同，在计数中算作一个关键字（见 §1.3）。
+
+**v11.6.0 说明**：原生断言、自动重试、dialog、iframe、登录态复用、会话复用、并行、简洁记录模式**均未新增关键字**，只通过 `verify` 操作符（§4.6）、`model.xsd` 的 `page` 定位类型与 `location@frame`（§2.5.6）、数据表字段值、`run` 内置函数（§1.4）、`globalvalue` 配置（§7.4）和 CLI 参数（§23）实现。`action` 不在清单中时（如 `click`、`hover`、`switch_frame`），XSD / 解析报错必须附带提示：「`click/hover/select` 等是 `type` 数据表里的字段值，不是关键字（§1.2）」，并给出最小示例。
 
 ---
 
@@ -1158,7 +1295,7 @@ pre_process → test_case → roaming（可选）→ post_process
 <globalvalue>
   <group name="DefaultValue">
     <var name="URL" value="http://127.0.0.1:5555"/>
-    <var name="WaitTime" value="2"/>
+    <var name="WaitTime" value="0"/>
   </group>
 </globalvalue>
 ```
@@ -1169,9 +1306,25 @@ pre_process → test_case → roaming（可选）→ post_process
 | `var.name` | 是 | 变量名，组内唯一 |
 | `var.value` | 是 | 变量值 |
 
+**`DefaultValue` 执行策略键（v11.6.0）**：
+
+| 键 | 取值 | 默认 | 说明 |
+|----|------|------|------|
+| `WaitTime` | 非负数，单位**毫秒** | `0` | 每个步骤执行后的固定等待（`wait` / `close` 步骤除外）。`<cases step_wait="...">` 同为毫秒，存在时覆盖本值。**过渡兼容（D3）**：值 `≤ 30`（不含 0）按**秒**解释，并在本次 run 中打印一次含「WaitTime」与「毫秒」的弃用告警，提示改写为毫秒；`> 30` 按毫秒解释 |
+| `AutoWait` | 非负数，单位**毫秒** | `5000` | 自动等待：UI 模型 `verify` 自动重试的上限（§4.6.5）；`0` 关闭重试；不影响接口 / DB 模型 |
+| `DialogPolicy` | `accept` \| `dismiss` \| `fail` | `fail` | 未注册一次性处理器的原生弹窗如何处理（§2.5.6）；`fail` 时步骤失败并报告弹窗文本 |
+| `SessionMode` | `isolated` \| `shared_browser` \| `shared_session` | `isolated` | 浏览器会话复用方式（§23.1）；CLI `--session-mode` 覆盖 |
+| `EvidenceMode` | `full` \| `concise` | `full` | 截图证据模式（§23.4）；CLI `--evidence` 覆盖 |
+
+约束：
+
+- 非法取值（如 `DialogPolicy=yes`、`WaitTime=abc`）在启动驱动前报错，错误信息列出合法取值，不静默回落默认值。
+- 固定等待只用于演示或录屏；交互等待由智能等待（§13）与 `verify` 自动重试（§4.6.5）负责。新模块与 `rodski init` 模板一律写 `WaitTime=0`；`WaitTime > 0` 时 `rodski case lint` 给出 WARNING 并估算额外耗时（步数 × 等待时长）。
+- 优先级：CLI 参数 > `globalvalue.xml` > 默认值；`step_wait` 只覆盖 `WaitTime`。
+
 ### 7.5 Model XML 格式约束（不变）
 
-model.xml 格式与之前版本保持一致，仅支持完整格式（`<location>` 子节点）。简化格式已于 v5.4.0 移除。详见 `schemas/model.xsd`。
+model.xml 格式与之前版本保持一致，仅支持完整格式（`<location>` 子节点）。简化格式已于 v5.4.0 移除。v11.6.0 起 `LocatorType` 新增 `page`，`<location>` 新增可选属性 `frame`（§2.5.6）。详见 `schemas/model.xsd`。
 
 ### 7.6 Result XML 格式约束
 
@@ -1247,7 +1400,12 @@ rodski run @project_full --case-id TC001
 
 # ❌ 不支持：--case-id 与目录一起使用（跨文件同 ID 会有歧义，报 SKI208）
 rodski run case/order/ --case-id TC001
+
+# ✅ 执行方式参数不是执行范围 selector，可与 @plan_id 同用（v11.6.0）
+rodski run @project_full --workers 4 --session-mode shared_browser --evidence concise --report html,junit
 ```
+
+`--workers`、`--session-mode`、`--evidence`、`--report`、`--headless`、`--record*` 等只改变「怎么执行 / 产出什么」，不改变「执行哪些用例」，因此**不属于**执行范围 selector，不受上述互斥约束。
 
 若 selector 结果需要长期复用，必须先生成 plan XML，再以显式 plan 模式执行：
 
@@ -2014,15 +2172,18 @@ config.set("smart_wait_retry_interval", 0.5)
 | 机制 | 层级 | 职责 | 触发时机 |
 |------|------|------|---------|
 | **智能等待** | 驱动层 (BaseDriver) | 元素定位的自动重试 | 调用 `locate_element_with_retry()` 时 |
+| **verify 自动重试**（v11.6.0） | 关键字层 | UI `verify` 轮询到所有字段匹配或 `AutoWait` 超时（§4.6.5） | UI 模型 `verify` 比对未通过时 |
 | **KeywordEngine 重试** | 关键字层 | 关键字执行的重试（处理异常） | 关键字执行失败时 |
+| **步骤固定等待** | 执行器层 | `DefaultValue.WaitTime` / `step_wait`（毫秒）每步之后固定等待 | 每个步骤执行后（默认 `0`，不等待） |
 | **wait 关键字** | 用例层 | 显式等待固定时间 | 用例中使用 `<test_step action="wait">` |
 
 **职责分离：**
 - 智能等待：解决"元素尚未加载"问题
+- verify 自动重试：解决"值尚未变成期望值"问题（异步表格、跳转后的 URL、元素消失），替代 `wait` + `verify`
 - KeywordEngine 重试：解决"临时异常"问题（网络抖动、StaleElement 等）
-- wait 关键字：解决"需要明确等待"问题（动画完成、数据处理等）
+- wait 关键字 / 步骤固定等待：只用于演示、录屏或确实需要固定时长的场景（动画完成等）；用例中出现数字字面量 `wait` 时 `rodski case lint` 给出 WARNING
 
-三者互补，不冲突。
+四者互补，不冲突。
 
 ### 13.7 实现细节
 
@@ -2094,6 +2255,7 @@ Element not found after 30 retries (9.0s): id=submit-btn
 1. ❌ 将 `retry_interval` 设置过小（< 0.1s），可能导致 CPU 占用过高
 2. ❌ 将 `max_retries` 设置过大（> 100），可能导致测试执行时间过长
 3. ❌ 依赖智能等待替代所有显式 `wait` 关键字（某些场景仍需显式等待）
+4. ❌ 用 `wait` + `verify` 等待异步结果（v11.6.0 起直接写 `verify`，由自动重试负责，§4.6.5）
 
 ---
 
@@ -2118,13 +2280,15 @@ Element not found after 30 retries (9.0s): id=submit-btn
 
 **位置**：`rodski-demo/DEMO/`
 
-**包含项目**（23 个）：
+**包含项目**（25 个）：
 - `demo_full/` - 完整功能演示（UI、接口、数据库、Return引用等）
 - `demo_runtime_control/` - 运行时控制演示（暂停、插入、终止）
 - `demo_nested_case/` - 嵌套目录用例（v11.5.0，3 层嵌套 + 自动化验收）
 - `demo_nested_case_single/` - 单用例文件模块（v11.5.0，测试省略 `file` 的兼容规则）
 - `demo_nested_case_dup_id/` - 同一文件内 ID 重复（v11.5.0，测试 SKI205）
-- `demo_authoring_v116/` - AI 编写契约与断言可靠性（v11.5.2 起，DB 占位符/BLANK 回落；v11.6.0 扩展）
+- `demo_authoring_v116/` - AI 编写契约、断言可靠性与执行性能（v11.5.2 起；v11.6.0 扩展）
+- `demo_authoring_v116_pitfalls/` - 踩坑夹具：复现错误写法，供 lint 与兼容性验收（v11.6.0）
+- `demo_authoring_v116_no_retry/` - `AutoWait=0` 关闭 verify 自动重试的验收夹具（v11.6.0）
 - `demo_v11_enhancement/` - v11.x 增强特性演示
 - `demo_v7_features/` - v7.0 特性演示
 - `demo_business_model/` - 业务模型演示（v11.4.0）
@@ -2260,11 +2424,15 @@ python3 init_db.py
 test:
   script:
     - python3 rodski/selftest.py
-    - rodski run rodski-demo/DEMO/demo_full/case/
+    - rodski run rodski-demo/DEMO/demo_full/case/ --headless --report junit
   artifacts:
     paths:
       - rodski-demo/DEMO/*/result/
+    reports:
+      junit: rodski-demo/DEMO/*/result/*/junit.xml
 ```
+
+GitLab CI / GitHub Actions 的完整接入示例见 `TEST_CASE_WRITING_GUIDE.md` §9.9。
 
 ### 17.2 测试报告
 
@@ -2273,6 +2441,19 @@ test:
 **格式**：
 - XML 格式结果文件（默认）
 - HTML 报告（`rodski run case/ --report html` 或 `rodski report generate <result_dir>`）
+- JUnit XML（v11.6.0，`rodski run case/ --report junit`，可与 `html` 逗号并列：`--report html,junit`），在运行目录根生成 `junit.xml`
+
+**JUnit XML 约定**（v11.6.0）：
+
+| JUnit 元素 | 映射 |
+|------------|------|
+| `<testsuites>` | 本次运行 |
+| `<testsuite name>` | 用例文件 `case_file`（相对 `case/` 的 POSIX 路径） |
+| `<testcase classname name time>` | `classname = case_file`，`name = case_id`，`time` = 用例耗时（秒） |
+| `<failure message>` | 结果为 `FAIL` / `ERROR` 的用例，消息取自 `result.xml` 的错误信息，正文附失败截图相对运行目录的路径 |
+| `<skipped/>` | 结果为 `SKIP` 的用例 |
+
+`expect_fail="是"` 且确实失败的用例按 `PASS` 记（与 `result.xml` 一致）。`junit.xml` 必须能通过通用 JUnit XML schema 校验，由 `result.xml` 派生，不另行收集数据。
 
 **HTML 报告功能**（`rodski/report/`）：
 - 通过率进度条 + 执行时间线可视化
@@ -2383,7 +2564,10 @@ test:
 | 录像 | `result/{run}/case/{case_file 去 .xml}/recordings/`（同截图镜像规则） |
 | 日志 | `result/{run}/execution.log` |
 | HTML 报告 | `result/{run}/report.html`（可选，由报告生成器产生） |
+| JUnit XML | `result/{run}/junit.xml`（可选，`--report junit`，v11.6.0，见 §17.2） |
+| 记录模式标注 | `result.xml` 与 HTML 报告标注本次运行的 `EvidenceMode`（`full` / `concise`，v11.6.0，见 §23.4） |
 | Return 值 | 通过 `${Return[-1]}` 在数据表中引用 |
+| 契约速查 | `rodski capabilities` 的 JSON 输出含 `pitfalls` 字段（v11.6.0），与 rodski-skills「契约速查」同源 |
 
 #### 截图目录规则
 
@@ -2394,6 +2578,8 @@ test:
 | 非场景步骤（预处理/后处理/普通用例步骤） | `result/{run}/case/{case_file 去 .xml}/screenshots/` | `{caseid}_{stepindex}_{phase}_{timestamp}.png` |
 | 场景步骤（`test_case` 内 `<scenario>` 容器中的步骤） | `result/{run}/case/{case_file 去 .xml}/screenshots/{caseid}_{scenarioid}_{scenariotitle}/` | `{stepindex}_{timestamp}.png` |
 | 失败截图 | `result/{run}/case/{case_file 去 .xml}/screenshots/` | `{caseid}_{timestamp}_failure.png` |
+
+`EvidenceMode=concise`（v11.6.0）时不产生前两行的逐步截图，只保留失败截图（含失败发生在场景内时写入场景子目录的失败截图，文件名仍含 `failure`）；目录与文件名规则不变。
 
 例如 `case/order/refund/refund_apply.xml` 的截图落在 `result/rodski_{ts}/case/order/refund/refund_apply/screenshots/` 下。录像同理落在同目录的 `recordings/` 下。
 
@@ -2414,6 +2600,7 @@ test:
 | v5.7.0 | 文档叙事统一为执行引擎定位 |
 | v6.3.0 | 新增 `plan/*.xml` 测试计划；显式 plan 与 selector 固定互斥 |
 | v11.5.0 | `case/**/*.xml` 递归发现；用例标识 = `case_file + case.id`；截图/录像路径改为按 `case/` 目录镜像（不再是扁平 `result/screenshots/`）；`result.xsd` 新增 `case_file`；`--case-id` 加入 `@plan_id` 互斥 selector 清单 |
+| v11.6.0 | 关键字仍为 17 个、`case.xsd` 不变；`model.xsd` 新增定位类型 `page` 与 `location@frame`；`verify` 新增 5 个元素级操作符且 UI `verify` 默认自动重试（`AutoWait=5000` 毫秒）；`WaitTime` 单位改为毫秒（旧值 ≤30 按秒兼容 + 告警）；新增 `junit.xml`、`EvidenceMode` 标注、`capabilities.pitfalls`；`--workers` 并行时结果仍合并到同一运行目录 |
 
 ---
 
@@ -2456,10 +2643,19 @@ test:
 - [ ] `plan/*.xml` 的 `<case>` 已带必填 `file`（单文件模块兼容例外，即模块 `case/` 下递归只有一个用例文件时可省略，否则报 `SKI207`）；引用不存在的 ID 记为 stale 引用；`case_dir` 与 `case` 冲突时以 `case` 为准（§7.7）
 - [ ] `--case-id` 只能与单个用例文件路径一起使用（目录报 `SKI208`），且与 `@plan_id` 互斥（§7.7）
 - [ ] `result/{run}/` 下用例级截图/录像已按 `case/{case_file 去 .xml}/` 镜像存放，截图文件名规则未变，汇总产物仍在运行目录根（Agent 契约摘要 · 截图目录规则）
+- [ ] v11.6.0 新能力未新增关键字，`case.xsd` 未变；`model.xsd` 的 `LocatorType` 含 `page`，`<location>` 含可选 `frame` 属性，并已同步 GUIDE §4.3（§2.5.6）
+- [ ] 元素级操作符（`$count` / `$count_gte` / `$count_lte` / `$exists` / `$visible`）0 匹配按实际 0 判定，不存在跳过路径（§4.6.1）
+- [ ] UI `verify` 自动重试受 `AutoWait` 控制（毫秒，默认 5000、`0` 关闭；旧键 `VerifyTimeout` 报错），接口 / DB `verify` 仍为单次比对（§4.6.5）
+- [ ] `WaitTime` 与 `step_wait` 均按毫秒解释；`WaitTime ≤ 30` 按秒兼容并只告警一次（§7.4）
+- [ ] `save_auth_state` / `use_auth_state` 只存本次 run 内存、不落盘；`use_auth_state` 在 `navigate` 之前（§1.4）
+- [ ] `evaluate file:` 只允许读取模块目录内的脚本，越界拒绝（§1.5）
+- [ ] `SessionMode=shared_browser` 下每个用例独立 BrowserContext；`--workers` 以用例文件为调度单位、结果合并到同一运行目录（§23）
+- [ ] `--workers` / `--session-mode` / `--evidence` / `--report` 不作为执行范围 selector，可与 `@plan_id` 同用（§7.7）
+- [ ] `EvidenceMode=concise` 只去掉逐步截图，不影响失败截图与录像，结果中标注记录模式（§23.4）
 
 ---
 
-*文档版本: v11.5.0 | 最后更新: 2026-09-29*
+*文档版本: v11.6.0 | 最后更新: 2026-09-29*
 
 ## 21. 性能压测模式约束（v8.0）
 
@@ -2493,3 +2689,50 @@ kind=load 与 kind=suite 是完全独立的执行路径：
 - `auto_capture` 是模型能力，规则定义在模型文件中，不在 case 步骤中声明
 - 返回值来源优先级：auto_capture > get_named > evaluate > keyword_result
 - `evaluate` 仅支持 Web 驱动，是低优先级逃生舱，不替代主路径能力
+- 会话复用（§23.1）不改变上一条：无论 `SessionMode` 取何值，`RuntimeContext`（history / named / Return）都按 case 独立；`shared_browser` / `shared_session` 共享的只是浏览器进程或页面
+- 唯一的跨 case 数据通道是 `save_auth_state` / `use_auth_state`（§1.4），它只传递浏览器 storage state，且只存在于本次 run 内存中
+- 断言优先使用 `verify` 原生能力（§4.6、§2.5.6），`evaluate` 断言与弹窗垫片会被 `rodski case lint` 提示（§1.5）
+
+## 23. 执行性能与会话约束（v11.6.0）
+
+### 23.1 SessionMode：浏览器会话复用（Owner 决策 D5）
+
+| 模式 | 行为 | 隔离性 | 速度 |
+|------|------|--------|------|
+| `isolated`（默认） | 每个用例启动浏览器，`close` 关闭浏览器进程 | 完全隔离 | 慢 |
+| `shared_browser`（推荐） | 整个 run 复用同一个浏览器进程；**每个用例新建 BrowserContext** | cookie / localStorage / 页面按用例隔离 | 快（省去每用例启动浏览器） |
+| `shared_session` | 用例间共用同一 context 和页面（等价于以往「不写 `close`」的写法） | 不隔离 | 最快 |
+
+- 配置：`DefaultValue.SessionMode`；CLI `--session-mode isolated|shared_browser|shared_session` 覆盖。
+- `shared_browser` 下用例中的 `close` 关闭的是**当前用例的 context**，不关闭浏览器进程；run 结束时由执行器统一关闭浏览器。一次 run 内浏览器只启动一次（日志只出现一次浏览器启动记录）。
+- `shared_browser` 下未调用 `use_auth_state` 的用例拿到的是全新 context，不继承前一个用例的 cookie / storage。
+- 录像按 context 分段，与现有用例级录像分段一致，仍写入各用例文件的镜像目录（Agent 契约摘要 · 截图目录规则）。
+- 会话模式只作用于 Web（Playwright）驱动；移动端、桌面端与接口 / DB 用例不受影响。
+
+### 23.2 登录态复用
+
+见 §1.4「登录态复用约束」。典型组合：`SessionMode=shared_browser` + 登录用例 `save_auth_state` + 后续用例 `pre_process` 中 `use_auth_state`。
+
+### 23.3 run 级并行 `--workers N`
+
+- 以**用例文件**为调度单位分给 N 个 worker 进程，每个 worker 独立的浏览器与驱动实例；同一文件内的用例在同一 worker 中按书写顺序执行，保证文件内依赖（共享会话、scenario `depends`、登录态）不被打乱。
+- 结果合并到**同一个运行目录**：`result.xml` / `execution_summary.json` / `junit.xml` / HTML 报告汇总全部用例；用例级产物照常镜像到 `case/{case_file 去 .xml}/`，不同文件互不冲突。合并后的用例集合、状态与顺序执行一致，退出码规则不变。
+- 与 `@plan_id` 兼容（并行执行 plan 选中的文件）；`--workers` 不是执行范围 selector（§7.7）。
+- `SessionMode=shared_session` 与 `--workers` 同时使用时，共享只发生在每个 worker 内部。
+- 移动端多设备仍走现有队列机制（§11.5），`--workers` 只作用于 Web / 接口 / DB 用例；`--workers 1` 或不指定时为顺序执行。
+
+### 23.4 EvidenceMode：简洁记录模式（Owner 决策 D4）
+
+| 模式 | 截图行为 | 录像 |
+|------|----------|------|
+| `full`（默认） | 每步截图 + 失败截图（现状） | 不变 |
+| `concise` | **按失败截图方式处理**：只在步骤失败时截图（含失败截图与失败时的场景子目录截图），不产生逐步截图 | 不变 |
+
+- 配置：`DefaultValue.EvidenceMode`；CLI `--evidence full|concise` 覆盖。刻意不复用 `--record-mode`（它选择录像后端 auto/screen/playwright/off）。
+- 两种模式下录像行为都不变：是否录像仍由 `--record` / `recording` 配置决定，`concise` 不会关闭或缩短录像。
+- `result.xml` 与 HTML 报告标注本次运行使用的记录模式，避免排障时误以为截图缺失：`<summary evidence_mode="full|concise" session_mode="...">`（`result.xsd` 可选属性），HTML 报告页眉显示「记录模式 EvidenceMode / 会话模式 SessionMode」。
+- 默认值保持 `full`：瞬间发生的问题截图来不及捕获时，靠录像定位，证据链不能削弱。
+
+### 23.5 步骤固定等待
+
+`DefaultValue.WaitTime` 与 `<cases step_wait>` 统一为**毫秒**，默认 `0`；过渡兼容与告警规则见 §7.4。交互等待交给智能等待（§13）与 `verify` 自动重试（§4.6.5）。

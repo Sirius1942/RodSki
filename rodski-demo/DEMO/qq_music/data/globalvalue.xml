@@ -8,6 +8,7 @@
     <var name="AppActivity" value="com.tencent.qqmusic.activity.AppStarterActivity"/>
     <var name="AppTarget" value="app://android/com.tencent.qqmusic/com.tencent.qqmusic.activity.AppStarterActivity"/>
     <var name="NoReset" value="true"/>
-    <var name="WaitTime" value="3"/>
+    <!-- v11.6.0：移除原 WaitTime=3。它位于 Mobile 组，执行器只读取 DefaultValue.WaitTime，
+         该值从未生效（每步等待一直是 0），删除不改变行为，也避免被误当成毫秒迁移对象 -->
   </group>
 </globalvalue>

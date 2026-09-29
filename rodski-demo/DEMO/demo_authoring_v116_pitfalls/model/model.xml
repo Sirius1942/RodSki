@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<models>
+  <model name="OrderDB" type="database" connection="order_db" servicename="夹具库">
+    <query name="count_all"><sql>SELECT COUNT(*) AS n FROM orders</sql></query>
+    <element name="n" type="database"><location type="field">n</location></element>
+  </model>
+</models>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 可执行用例：用于验证旧 WaitTime=1 按秒兼容并打印弃用告警（V17），以及 data set 修改期望值后重跑（V15） -->
+<cases>
+  <case execute="是" id="TC001" title="计数查询" component_type="数据库">
+    <test_case>
+      <test_step action="DB" model="OrderDB" data="Q_OK"/>
+      <test_step action="verify" model="OrderDB" data="V_OK"/>
+    </test_case>
+  </case>
+</cases>

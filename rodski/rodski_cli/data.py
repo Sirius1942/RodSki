@@ -51,6 +51,25 @@ def setup_parser(subparsers):
     paf.add_argument("field", help="字段名")
     paf.add_argument("--default", default="BLANK", help="默认值（默认 BLANK）")
 
+    # v11.6.0 E2：行级编辑（修改期望值无需「改 XML → 重新 import」）
+    pst = sub.add_parser("set", help="修改已有数据行的字段值（field=value ...）")
+    pst.add_argument("module", help="测试模块目录")
+    pst.add_argument("table", help="逻辑表名")
+    pst.add_argument("data_id", help="DataID")
+    pst.add_argument("assignments", nargs="+", metavar="field=value", help="要修改的字段，可多个")
+
+    par = sub.add_parser("add-row", help="新增数据行（必须提供表的完整字段集合）")
+    par.add_argument("module", help="测试模块目录")
+    par.add_argument("table", help="逻辑表名")
+    par.add_argument("data_id", help="新行的 DataID")
+    par.add_argument("assignments", nargs="*", metavar="field=value", help="全部字段的值")
+    par.add_argument("--remark", default="", help="行备注")
+
+    pdr = sub.add_parser("delete-row", help="删除数据行")
+    pdr.add_argument("module", help="测试模块目录")
+    pdr.add_argument("table", help="逻辑表名")
+    pdr.add_argument("data_id", help="DataID")
+
 
 def _load(module: str):
     try:
@@ -69,7 +88,7 @@ def _load(module: str):
 def handle(args):
     cmd = getattr(args, "data_cmd", None)
     if not cmd:
-        print("用法: rodski data <list|schema|show|query|validate|import|dump|add-field> ...", file=sys.stderr)
+        print("用法: rodski data <list|schema|show|query|validate|import|dump|add-field|set|add-row|delete-row> ...", file=sys.stderr)
         return 1
 
     if cmd == "list":
@@ -143,6 +162,15 @@ def handle(args):
 
     elif cmd == "add-field":
         return _add_field(args.module, args.table, args.field, args.default)
+
+    elif cmd == "set":
+        return _set_row(args.module, args.table, args.data_id, args.assignments)
+
+    elif cmd == "add-row":
+        return _add_row(args.module, args.table, args.data_id, args.assignments, args.remark)
+
+    elif cmd == "delete-row":
+        return _delete_row(args.module, args.table, args.data_id)
 
     return 0
 
@@ -349,3 +377,205 @@ def _add_field(module: str, table: str, field: str, default: str) -> int:
     except Exception as e:
         print(f"错误: 操作失败: {e}", file=sys.stderr)
         return 1
+
+
+# ---------------------------------------------------------------- v11.6.0 E2 行级编辑
+_EMPTY_HINT = "不校验/不使用的字段请显式填 BLANK/NULL/NONE（v6.7.6 字段集合一致约束）"
+
+
+def _parse_assignments(assignments):
+    """解析 field=value 列表；返回 (dict, 错误信息或 None)。按第一个 '=' 切分，值里可以再含 '='。"""
+    values = {}
+    for item in assignments:
+        if "=" not in item:
+            return None, f"参数 '{item}' 不是 field=value 格式"
+        field, value = item.split("=", 1)
+        field = field.strip()
+        if not field:
+            return None, f"参数 '{item}' 缺少字段名"
+        if field in values:
+            return None, f"字段 '{field}' 重复赋值"
+        if value == "":
+            return None, f"字段 '{field}' 的值为空；{_EMPTY_HINT}"
+        values[field] = value
+    return values, None
+
+
+def _open_module_sqlite(module: str):
+    import sqlite3
+
+    sqlite_file = Path(module).resolve() / "data" / "data.sqlite"
+    if not sqlite_file.is_file():
+        print(f"错误: SQLite 文件不存在: {sqlite_file}", file=sys.stderr)
+        return None
+    return sqlite3.connect(str(sqlite_file))
+
+
+def _table_fields(cur, table: str):
+    """返回逻辑表字段列表（按 field_order）；表不存在返回 None。"""
+    cur.execute("SELECT COUNT(*) FROM rs_datatable WHERE table_name = ?", (table,))
+    if cur.fetchone()[0] == 0:
+        return None
+    cur.execute(
+        "SELECT field_name FROM rs_datatable_field WHERE table_name = ? ORDER BY field_order, field_name",
+        (table,),
+    )
+    return [r[0] for r in cur.fetchall()]
+
+
+def _missing_table_msg(cur, table: str) -> str:
+    cur.execute("SELECT table_name FROM rs_datatable ORDER BY table_name")
+    names = [r[0] for r in cur.fetchall()]
+    return f"错误: 逻辑表 '{table}' 不存在；现有逻辑表: {', '.join(names) or '(无)'}"
+
+
+def _check_return_self_ref(module: str, table: str, values) -> str:
+    """接口/DB 模型的 _verify 表禁止 ${Return[-1]}（v6.7.6）；UI 模型允许。返回错误信息或空串。"""
+    if not table.endswith("_verify"):
+        return ""
+    try:
+        from .case import _load_model_types
+    except ImportError:
+        from rodski_cli.case import _load_model_types
+    model = table[: -len("_verify")]
+    mtype = _load_model_types(Path(module).resolve()).get(model, "ui")
+    if mtype == "ui":
+        return ""
+    for field, value in values.items():
+        if "${Return[-1]" in value:
+            return (f"字段 '{field}': 接口/DB 模型的 _verify 期望值不能使用 ${{Return[-1]}}"
+                    f"（实际值已自动取自 Return[-1]），请写字面值或 GlobalValue")
+    return ""
+
+
+def _set_row(module: str, table: str, data_id: str, assignments) -> int:
+    """修改已有行的字段值：先校验（表/行/字段均存在、值非空）再写入。"""
+    values, err = _parse_assignments(assignments)
+    if err:
+        print(f"错误: {err}", file=sys.stderr)
+        return 1
+    conn = _open_module_sqlite(module)
+    if conn is None:
+        return 1
+    try:
+        cur = conn.cursor()
+        fields = _table_fields(cur, table)
+        if fields is None:
+            print(_missing_table_msg(cur, table), file=sys.stderr)
+            return 1
+        cur.execute("SELECT COUNT(*) FROM rs_row WHERE table_name = ? AND data_id = ?", (table, data_id))
+        if cur.fetchone()[0] == 0:
+            print(f"错误: '{table}' 中找不到 DataID='{data_id}'；新增行请用 rodski data add-row", file=sys.stderr)
+            return 1
+        unknown = [f for f in values if f not in fields]
+        if unknown:
+            print(f"错误: 表 '{table}' 没有字段 {', '.join(unknown)}；现有字段: {', '.join(fields)}"
+                  f"（新增字段请用 rodski data add-field）", file=sys.stderr)
+            return 1
+        err = _check_return_self_ref(module, table, values)
+        if err:
+            print(f"错误: {err}", file=sys.stderr)
+            return 1
+
+        for field, value in values.items():
+            cur.execute(
+                "UPDATE rs_field SET field_value = ? WHERE table_name = ? AND data_id = ? AND field_name = ?",
+                (value, table, data_id, field),
+            )
+            if cur.rowcount == 0:
+                cur.execute(
+                    "INSERT INTO rs_field (table_name, data_id, field_name, field_value) VALUES (?, ?, ?, ?)",
+                    (table, data_id, field, value),
+                )
+        cur.execute("UPDATE rs_datatable SET updated_at = CURRENT_TIMESTAMP WHERE table_name = ?", (table,))
+        conn.commit()
+        changes = ", ".join(f"{k}={v}" for k, v in values.items())
+        print(f"[OK] 已更新 {table}.{data_id}: {changes}")
+        return 0
+    except Exception as e:
+        conn.rollback()
+        print(f"错误: 操作失败: {e}", file=sys.stderr)
+        return 1
+    finally:
+        conn.close()
+
+
+def _add_row(module: str, table: str, data_id: str, assignments, remark: str = "") -> int:
+    """新增行：必须提供表的完整字段集合（v6.7.6），不允许未知字段。"""
+    values, err = _parse_assignments(assignments)
+    if err:
+        print(f"错误: {err}", file=sys.stderr)
+        return 1
+    if not data_id.strip():
+        print("错误: DataID 不能为空", file=sys.stderr)
+        return 1
+    conn = _open_module_sqlite(module)
+    if conn is None:
+        return 1
+    try:
+        cur = conn.cursor()
+        fields = _table_fields(cur, table)
+        if fields is None:
+            print(_missing_table_msg(cur, table), file=sys.stderr)
+            return 1
+        cur.execute("SELECT COUNT(*) FROM rs_row WHERE table_name = ? AND data_id = ?", (table, data_id))
+        if cur.fetchone()[0] > 0:
+            print(f"错误: '{table}' 中已存在 DataID='{data_id}'；修改请用 rodski data set", file=sys.stderr)
+            return 1
+        unknown = [f for f in values if f not in fields]
+        if unknown:
+            print(f"错误: 表 '{table}' 没有字段 {', '.join(unknown)}；现有字段: {', '.join(fields)}", file=sys.stderr)
+            return 1
+        missing = [f for f in fields if f not in values]
+        if missing:
+            print(f"错误: 新增行缺少字段 {', '.join(missing)}；{_EMPTY_HINT}", file=sys.stderr)
+            return 1
+        err = _check_return_self_ref(module, table, values)
+        if err:
+            print(f"错误: {err}", file=sys.stderr)
+            return 1
+
+        cur.execute("INSERT INTO rs_row (table_name, data_id, remark) VALUES (?, ?, ?)", (table, data_id, remark))
+        for field in fields:
+            cur.execute(
+                "INSERT INTO rs_field (table_name, data_id, field_name, field_value) VALUES (?, ?, ?, ?)",
+                (table, data_id, field, values[field]),
+            )
+        cur.execute("UPDATE rs_datatable SET updated_at = CURRENT_TIMESTAMP WHERE table_name = ?", (table,))
+        conn.commit()
+        print(f"[OK] 已新增 {table}.{data_id}（{len(fields)} 个字段）")
+        return 0
+    except Exception as e:
+        conn.rollback()
+        print(f"错误: 操作失败: {e}", file=sys.stderr)
+        return 1
+    finally:
+        conn.close()
+
+
+def _delete_row(module: str, table: str, data_id: str) -> int:
+    """删除行（字段值与行记录一并删除）。"""
+    conn = _open_module_sqlite(module)
+    if conn is None:
+        return 1
+    try:
+        cur = conn.cursor()
+        if _table_fields(cur, table) is None:
+            print(_missing_table_msg(cur, table), file=sys.stderr)
+            return 1
+        cur.execute("SELECT COUNT(*) FROM rs_row WHERE table_name = ? AND data_id = ?", (table, data_id))
+        if cur.fetchone()[0] == 0:
+            print(f"错误: '{table}' 中找不到 DataID='{data_id}'", file=sys.stderr)
+            return 1
+        cur.execute("DELETE FROM rs_field WHERE table_name = ? AND data_id = ?", (table, data_id))
+        cur.execute("DELETE FROM rs_row WHERE table_name = ? AND data_id = ?", (table, data_id))
+        cur.execute("UPDATE rs_datatable SET updated_at = CURRENT_TIMESTAMP WHERE table_name = ?", (table,))
+        conn.commit()
+        print(f"[OK] 已删除 {table}.{data_id}")
+        return 0
+    except Exception as e:
+        conn.rollback()
+        print(f"错误: 操作失败: {e}", file=sys.stderr)
+        return 1
+    finally:
+        conn.close()

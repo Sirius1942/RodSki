@@ -19,7 +19,7 @@ except ImportError:  # pragma: no cover
     xmlschema = None  # type: ignore
     _XsdValidationError = Exception  # type: ignore
 
-from .exceptions import XmlSchemaValidationError
+from .exceptions import XmlSchemaValidationError, XmlSyntaxError
 
 # 文档类型 -> XSD 文件名（位于 rodski/schemas/）
 SCHEMA_FILES: Dict[str, str] = {
@@ -79,6 +79,73 @@ def _format_validation_errors(schema: "xmlschema.XMLSchema", instance) -> List[s
     return errors
 
 
+# v11.6.0 C4：UI 原子动作误写为 action 时的修复提示（CORE §1.2 / §5）
+UI_ATOMIC_ACTIONS = (
+    "click", "double_click", "right_click", "hover", "select", "key_press",
+    "drag", "scroll", "switch_frame", "switch_window", "input", "fill",
+)
+UI_ACTION_HINT = (
+    "click/hover/select 等是 type 数据表里的字段值，不是关键字（CORE §1.2）。"
+    "最小示例: <test_step action=\"type\" model=\"Login\" data=\"L001\"/>，"
+    "数据表 Login 行 L001 的 loginBtn 字段填 click"
+)
+
+
+def action_hint_for(errors: List[str]) -> Optional[str]:
+    """从 XSD 错误中识别非法 action，返回修复提示（无关时返回 None）。"""
+    import re
+    for line in errors:
+        m = re.search(r"attribute action='([^']*)'", line)
+        if m:
+            bad = m.group(1)
+            if bad.lower() in UI_ATOMIC_ACTIONS:
+                return f"action='{bad}' 不是关键字：{UI_ACTION_HINT}"
+            return (f"action='{bad}' 不在 17 个关键字中（CORE §5）；"
+                    f"若是 UI 原子动作：{UI_ACTION_HINT}")
+    return None
+
+
+def _syntax_error(path: Path, kind: str, err: Exception) -> XmlSyntaxError:
+    """把 XML 非良构错误转换为带修复提示的 XmlSyntaxError（v11.6.0 C3）。
+
+    错误位置落在属性值里、且该属性值含裸 ``&`` / ``<`` 时，提示改写为实体或把脚本移出属性。
+    """
+    import re
+    line = col = None
+    pos = getattr(err, "position", None)
+    if isinstance(pos, tuple) and len(pos) == 2 and all(isinstance(v, int) for v in pos):
+        line, col = pos
+    else:
+        m = re.search(r"line (\d+), column (\d+)", str(err))
+        if m:
+            line, col = int(m.group(1)), int(m.group(2))
+    hint = None
+    source_line = ""
+    if line is not None:
+        try:
+            lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+            source_line = lines[line - 1] if 0 < line <= len(lines) else ""
+        except OSError:
+            source_line = ""
+    if source_line:
+        # 定位 column 所在的属性值：统计其前面未闭合的引号
+        before = source_line[: col or 0]
+        in_attr = before.count('"') % 2 == 1 or before.count("'") % 2 == 1
+        attr_vals = re.findall(r'=\s*"([^"]*)"|=\s*\'([^\']*)\'', source_line)
+        has_bad = any(re.search(r"&(?![A-Za-z]+;|#\d+;|#x[0-9A-Fa-f]+;)|<", a or b) for a, b in attr_vals)
+        if in_attr or has_bad:
+            hint = "XML 属性值中的 & 请写成 &amp;（&& 写成 &amp;&amp;），< 写成 &lt;"
+            if kind == "case":
+                hint += "；或把脚本移到模块内 fun/js/*.js，用 evaluate 的 data=\"file:fun/js/xxx.js\" 引用"
+    where = f"第 {line} 行第 {col} 列" if line is not None else "未知位置"
+    msg = f"XML 格式错误（非良构）: {path}（{where}）: {err}"
+    if source_line:
+        msg += f"\n  {source_line.strip()}"
+    if hint:
+        msg += f"\n  提示: {hint}"
+    return XmlSyntaxError(msg, xml_path=str(path), line=line, column=col, hint=hint)
+
+
 class RodskiXmlValidator:
     """RodSki 测试 XML 的公共 XSD 校验类。
 
@@ -120,6 +187,9 @@ class RodskiXmlValidator:
 
         try:
             schema.validate(str(path))
+        except ET.ParseError as e:
+            # 非良构 XML（如属性里写了裸 &&）：附带修复提示（v11.6.0 C3）
+            raise _syntax_error(path, kind, e) from e
         except _XsdValidationError as e:
             errs = _format_validation_errors(schema, str(path))
             if not errs:
@@ -128,12 +198,16 @@ class RodskiXmlValidator:
                 f"XML 不符合 Schema 约束 ({SCHEMA_FILES[kind]}): {path}\n"
                 + "\n".join(f"  - {line}" for line in errs[:40])
             )
+            hint = action_hint_for(errs) if kind == "case" else None
+            if hint:
+                msg += f"\n  提示: {hint}"
             raise XmlSchemaValidationError(
                 msg,
                 xml_path=str(path),
                 document_kind=kind,
                 schema_path=str(xsd_path),
                 validation_errors=errs,
+                **({"details": {"hint": hint}} if hint else {}),
             ) from e
 
     @classmethod

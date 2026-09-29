@@ -10,7 +10,7 @@ description: >
   business_call、场景法基本流/备选流/异常流）时触发。完整内容按章节拆分在 reference/*.md，
   Agent 命中后按需 Read 对应章节。
 type: reference
-version: 11.5.2
+version: 11.6.0
 source: rodski/docs/TEST_CASE_WRITING_GUIDE.md
 ---
 
@@ -36,6 +36,20 @@ source: rodski/docs/TEST_CASE_WRITING_GUIDE.md
 1. SKILL.md（本文件）只提供索引与速查
 2. 完整章节内容存放在 `reference/*.md`，按需 Read
 3. **不要一次性 Read 全部章节**，根据用户具体问题选取 1~2 个相关章节即可
+
+## 契约速查（v11.6.0，先读）
+
+与 `rodski capabilities` 的 `pitfalls` 字段同源（完整表格含 lint 级别见 `rodski-case-writer` SKILL.md「契约速查」）。写完跑 `rodski case lint <module>`。
+
+- `verify_strict_subset`：`verify` 默认 strict，`_verify` 行须含模型全部字段；只校验部分字段写 `match_mode="subset"` 或填 `BLANK`
+- `xml_attr_escape`：属性里 `&&` 写 `&amp;&amp;`；或 `evaluate data="file:fun/js/x.js"` 引用模块内脚本
+- `sql_placeholder`：`:name` 须以字母/下划线开头，引号内冒号与 `::int` 不算参数
+- `sql_blank_fallback`：`sql`/`query` 取 `BLANK/NULL/NONE/空` 视为未提供，先 `sql` 后 `query`，至少一个有效（lint ERROR）
+- `dialog`：不写 `window.confirm =` 垫片；用 `DefaultValue.DialogPolicy`（默认 `fail`）或 `<location type="page">dialog</location>` 元素，`type` 填 `accept`/`dismiss`/`accept:文本`
+- `db_assertion`：`DB` 后接 `verify 模型名 行ID`，列用 `<location type="field">`；DB `_verify` 不写 `${Return[-1]}`
+- `waittime_ms`：`WaitTime` 与 `step_wait` 单位**毫秒**、作用于每一步，新模块写 `0`（旧值 ≤30 暂按秒兼容并告警）
+- `native_assert_over_evaluate`：数量/存在/可见用 `{"$count": N}`/`{"$exists": true}`/`{"$visible": true}`，URL/标题用 `page` 定位类型，不用 `evaluate` 断言
+- `ui_atomic_in_data`：`click/hover/select` 是 `type` 数据字段值，不是关键字
 
 ## 章节索引
 

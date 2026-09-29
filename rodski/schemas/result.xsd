@@ -32,6 +32,9 @@
     <xs:attribute name="average_time" type="xs:string" use="optional"/>
     <xs:attribute name="start_time" type="xs:string" use="optional"/>
     <xs:attribute name="end_time" type="xs:string" use="optional"/>
+    <!-- v11.6.0：本次运行的记录模式（full|concise）与会话模式（isolated|shared_browser|shared_session） -->
+    <xs:attribute name="evidence_mode" type="xs:string" use="optional"/>
+    <xs:attribute name="session_mode" type="xs:string" use="optional"/>
   </xs:complexType>
 
   <!-- 结果集合类型 -->

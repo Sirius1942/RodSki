@@ -2,6 +2,7 @@
 <globalvalue>
     <group name="DefaultValue">
         <var name="URL" value="http://localhost:8000"/>
-        <var name="WaitTime" value="1"/>
+        <!-- WaitTime 单位毫秒（v11.6.0 起，与 <cases step_wait> 一致） -->
+        <var name="WaitTime" value="1000"/>
     </group>
 </globalvalue>

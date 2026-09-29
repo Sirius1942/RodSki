@@ -1,0 +1,10 @@
+<!doctype html><html><head><meta charset="utf-8"></head><body>
+<input id="cardNo">
+<button id="payBtn" onclick="pay()">支付</button>
+<div id="payResult"></div>
+<script>
+function pay() {
+  var c = document.getElementById('cardNo').value;
+  document.getElementById('payResult').textContent = '支付成功:' + c.slice(-4);
+}
+</script></body></html>

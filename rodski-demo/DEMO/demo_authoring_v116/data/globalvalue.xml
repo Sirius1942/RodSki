@@ -1,7 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <globalvalue>
   <group name="DefaultValue">
+    <!-- v11.6.0 起单位为毫秒（D3）；交互等待交给智能等待与 verify 自动重试 -->
     <var name="WaitTime" value="0"/>
+    <!-- 自动等待：UI 模型 verify 自动重试的上限，单位毫秒（默认 5000；0 关闭） -->
+    <var name="AutoWait" value="5000"/>
+    <var name="DialogPolicy" value="fail"/>
+    <var name="EvidenceMode" value="full"/>
+  </group>
+  <group name="Site">
+    <!-- 由 run_acceptance.py 以 fun/site 为根目录启动的本地服务 -->
+    <var name="URL" value="http://127.0.0.1:8766"/>
   </group>
   <group name="order_db">
     <var name="type" value="sqlite"/>

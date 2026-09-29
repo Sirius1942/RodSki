@@ -1,0 +1,17 @@
+<!doctype html><html><head><meta charset="utf-8"><title>订单列表</title></head><body>
+<h1>订单列表</h1>
+<table><tbody id="orderBody"></tbody></table>
+<div id="total"></div>
+<script>
+// 300~800ms 后异步渲染 10 行：验证 verify 自动重试，不需要固定 wait
+setTimeout(function () {
+  var body = document.getElementById('orderBody');
+  for (var i = 1; i <= 10; i++) {
+    var tr = document.createElement('tr');
+    tr.className = 'order-row';
+    tr.innerHTML = '<td>ORD' + i + '</td>';
+    body.appendChild(tr);
+  }
+  document.getElementById('total').textContent = '共 10 条';
+}, 300 + Math.floor(Math.random() * 500));
+</script></body></html>

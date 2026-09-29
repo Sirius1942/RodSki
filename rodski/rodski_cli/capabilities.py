@@ -61,7 +61,17 @@ def get_capabilities():
         "optional_dirs": ["fun", "result"],
         "component_types": ["界面", "接口", "数据库"],
         "execute_values": ["是", "否"],
+        # v11.6.0 C6：AI 编写契约速查，与 rodski-skills 的「契约速查」同源
+        "pitfalls": _load_pitfalls(),
     }
+
+
+def _load_pitfalls():
+    try:
+        from .pitfalls import get_pitfalls
+    except ImportError:
+        from rodski_cli.pitfalls import get_pitfalls
+    return get_pitfalls()
 
 
 def setup_parser(subparsers):

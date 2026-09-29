@@ -214,17 +214,58 @@ class PlaywrightDriver(BaseDriver):
         self._coverage_cached_entries: Optional[list] = None
         # 页面异常监控器（v0.1）：懒加载，仅在 inject_monitor() 后生效
         self._browser_monitor = None
+        # v11.6.0 SessionMode=shared_browser：run 级共享浏览器（由执行器挂接）
+        self._shared_browser = None
+        # v11.6.0 (C1) 原生弹窗：全局策略 accept|dismiss|fail、一次性处理器、最近弹窗文本
+        self._dialog_policy = "fail"
+        self._dialog_once: Optional[Tuple[str, Optional[str]]] = None
+        self._last_dialog_text: Optional[str] = None
+        self._unexpected_dialog: Optional[str] = None
+        self._dialog_hooked_page = None
 
     def _ensure_browser(self):
         """懒加载：首次需要浏览器时才启动 Playwright 和浏览器实例"""
         if self.browser is not None:
+            # v11.6.0 (C1)：录像等场景会重建 page，每次取用时确保弹窗处理器挂在当前 page 上
+            self._ensure_dialog_handler()
             return
         if self.attached:
             self._attach_cdp_browser()
+            self._ensure_dialog_handler()
             return
+        if getattr(self, "_shared_browser", None) is not None:
+            # v11.6.0 SessionMode=shared_browser：复用 run 级浏览器进程，本驱动只拥有自己的 context
+            self.browser = self._shared_browser.acquire(self._launch_browser)
+            context_kw = {"no_viewport": True} if not self.headless else {}
+            self.context = self.browser.new_context(**context_kw)
+            self.page = self.context.new_page()
+            self.inject_monitor()
+            self._ensure_dialog_handler()
+            return
+        self._pw, self.browser = self._launch_browser()
+        if not self.headless:
+            self.page = self.browser.new_page(no_viewport=True)
+        else:
+            self.page = self.browser.new_page()
+        # 浏览器启动后立即注入监控（若已初始化则重注入）
+        self.inject_monitor()
+        self._ensure_dialog_handler()
+
+    def attach_shared_browser(self, shared_browser) -> None:
+        """v11.6.0：挂接 run 级共享浏览器（SessionMode=shared_browser，须在浏览器懒启动前调用）。
+
+        挂接后本驱动在共享浏览器上新建独立 BrowserContext；close() 只关闭该 context，
+        浏览器进程由执行器在 run 结束时统一关闭。CDP 附加模式下忽略。
+        """
+        if self.attached or self.browser is not None:
+            return
+        self._shared_browser = shared_browser
+
+    def _launch_browser(self):
+        """启动 Playwright 与浏览器进程，返回 (playwright, browser)。"""
         from playwright.sync_api import sync_playwright
-        self._pw = sync_playwright().start()
-        browser_type = getattr(self._pw, self.browser_name, self._pw.chromium)
+        pw = sync_playwright().start()
+        browser_type = getattr(pw, self.browser_name, pw.chromium)
         _args = [
             "--disable-background-timer-throttling",
             "--disable-renderer-backgrounding",
@@ -241,13 +282,9 @@ class PlaywrightDriver(BaseDriver):
                 "可设环境变量 RODSKI_PLAYWRIGHT_CHANNEL 覆盖，置空则禁用）",
                 ch,
             )
-        self.browser = browser_type.launch(**launch_kw)
-        if not self.headless:
-            self.page = self.browser.new_page(no_viewport=True)
-        else:
-            self.page = self.browser.new_page()
-        # 浏览器启动后立即注入监控（若已初始化则重注入）
-        self.inject_monitor()
+        browser = browser_type.launch(**launch_kw)
+        logger.info("启动浏览器: %s（headless=%s）", self.browser_name, self.headless)
+        return pw, browser
 
     def _attach_cdp_browser(self):
         """CDP 附加模式：连接到已启动的远程调试浏览器，复用其默认 context 与页面。
@@ -612,7 +649,12 @@ class PlaywrightDriver(BaseDriver):
         """
         self._check_driver_alive()
         self._ensure_browser()
-        
+        frame = kwargs.pop("frame", None)
+        if frame:
+            # v11.6.0 (C2): iframe 内元素
+            return self._frame_action("点击", locator, frame,
+                                      lambda loc: loc.click(timeout=self._timeout, **kwargs))
+
         css_locator = self._convert_locator(locator)
         logger.debug(f"点击元素: {locator} -> {css_locator}")
         
@@ -697,6 +739,11 @@ class PlaywrightDriver(BaseDriver):
         """
         self._check_driver_alive()
         self._ensure_browser()
+        frame = kwargs.pop("frame", None)
+        if frame:
+            # v11.6.0 (C2): iframe 内元素
+            return self._frame_action("输入", locator, frame,
+                                      lambda loc: loc.fill(text, timeout=self._timeout, **kwargs))
 
         css_locator = self._convert_locator(locator)
         logger.debug(f"输入文本: {locator} -> {css_locator}")
@@ -820,10 +867,13 @@ class PlaywrightDriver(BaseDriver):
             self._handle_error("screenshot", path, e)
             return False
 
-    def select(self, locator: str, value: str) -> bool:
+    def select(self, locator: str, value: str, frame: Optional[str] = None) -> bool:
         """下拉选择"""
         self._check_driver_alive()
         self._ensure_browser()
+        if frame:
+            return self._frame_action("选择", locator, frame,
+                                      lambda loc: loc.select_option(value, timeout=self._timeout))
         
         try:
             self.page.select_option(locator, value)
@@ -833,10 +883,13 @@ class PlaywrightDriver(BaseDriver):
             self._handle_error("select", locator, e)
             raise DriverError(f"选择失败: {locator}", locator=locator, cause=e)
 
-    def hover_locator(self, locator: str) -> bool:
+    def hover_locator(self, locator: str, frame: Optional[str] = None) -> bool:
         """悬停（通过定位器）"""
         self._check_driver_alive()
         self._ensure_browser()
+        if frame:
+            return self._frame_action("悬停", locator, frame,
+                                      lambda loc: loc.hover(timeout=self._timeout))
 
         try:
             self.page.hover(locator)
@@ -893,11 +946,14 @@ class PlaywrightDriver(BaseDriver):
             self._handle_error("assert", locator, e)
             return False
 
-    def clear(self, locator: str) -> bool:
+    def clear(self, locator: str, frame: Optional[str] = None) -> bool:
         """清空输入框"""
         self._check_driver_alive()
         self._ensure_browser()
-        
+        if frame:
+            return self._frame_action("清空", locator, frame,
+                                      lambda loc: loc.fill("", timeout=self._timeout))
+
         css_locator = self._convert_locator(locator)
         try:
             self.page.fill(css_locator, "")
@@ -906,10 +962,13 @@ class PlaywrightDriver(BaseDriver):
             self._handle_error("clear", locator, e)
             raise DriverError(f"清空失败: {locator}", locator=locator, cause=e)
 
-    def double_click_locator(self, locator: str) -> bool:
+    def double_click_locator(self, locator: str, frame: Optional[str] = None) -> bool:
         """双击（通过定位器）"""
         self._check_driver_alive()
         self._ensure_browser()
+        if frame:
+            return self._frame_action("双击", locator, frame,
+                                      lambda loc: loc.dblclick(timeout=self._timeout))
 
         try:
             self.page.dblclick(locator)
@@ -918,10 +977,13 @@ class PlaywrightDriver(BaseDriver):
             self._handle_error("double_click_locator", locator, e)
             raise DriverError(f"双击失败: {locator}", locator=locator, cause=e)
 
-    def right_click_locator(self, locator: str) -> bool:
+    def right_click_locator(self, locator: str, frame: Optional[str] = None) -> bool:
         """右键点击（通过定位器）"""
         self._check_driver_alive()
         self._ensure_browser()
+        if frame:
+            return self._frame_action("右键点击", locator, frame,
+                                      lambda loc: loc.click(button="right", timeout=self._timeout))
 
         try:
             self.page.click(locator, button="right")
@@ -942,16 +1004,205 @@ class PlaywrightDriver(BaseDriver):
             self._handle_error("key_press", key, e)
             raise DriverError(f"按键失败: {key}", cause=e)
 
-    def get_text_locator(self, locator: str) -> str:
-        """获取元素文本（通过定位器）"""
+    def get_text_locator(self, locator: str, frame: Optional[str] = None) -> str:
+        """获取元素文本（通过定位器）；frame（v11.6.0）指定所在 iframe，">>" 串联多层"""
         self._check_driver_alive()
         self._ensure_browser()
 
         try:
+            if getattr(self, "_instant_reads", False):
+                # v11.6.0 (A2): verify 轮询期间无等待读取——元素不在 DOM 中立即返回 None，
+                # 总等待只由 DefaultValue.AutoWait（自动等待）控制（CORE §4.6.5），不叠加 Playwright 默认 30s 超时
+                loc = self._verify_scope(frame).locator(locator)
+                if loc.count() == 0:
+                    return None
+                return loc.first.text_content(timeout=self.INSTANT_READ_TIMEOUT_MS)
+            if frame:
+                return self._verify_scope(frame).locator(locator).first.text_content()
             return self.page.text_content(locator)
         except Exception as e:
             self._handle_error("get_text_locator", locator, e)
             return None
+
+    # v11.6.0 (A2): 无等待读取模式下，元素已计数存在后读取文本的兜底超时（毫秒；防止读取瞬间元素被移除时挂起）
+    INSTANT_READ_TIMEOUT_MS = 500
+
+    def set_instant_reads(self, enabled: bool) -> None:
+        """v11.6.0 (A2): 开/关无等待读取模式（verify 轮询期间开启，结束后关闭）。"""
+        self._instant_reads = bool(enabled)
+
+    # ── v11.6.0 (A1) 原生断言：元素数量 / 可见性 / 页面属性 ─────────────
+
+    def _verify_scope(self, frame: Optional[str] = None):
+        """返回断言读取的作用域：顶层 page，或按 frame（CSS，">>" 串联多层）进入 iframe。"""
+        scope = self.page
+        if frame:
+            for part in (p.strip() for p in str(frame).split(">>")):
+                if part:
+                    scope = scope.frame_locator(part)
+        return scope
+
+    def count_elements(self, locator: str, frame: Optional[str] = None) -> int:
+        """返回选择器当前匹配的元素数量（不等待；0 匹配返回 0，供 $count/$exists 判定）。"""
+        self._check_driver_alive()
+        self._ensure_browser()
+        try:
+            return int(self._verify_scope(frame).locator(locator).count())
+        except Exception as e:
+            # 选择器语法错误等不能按 0 处理（否则 {"$count": 0} 会假绿）
+            self._handle_error("count_elements", locator, e)
+            raise DriverError(f"统计元素数量失败: {locator}", locator=locator, cause=e)
+
+    def is_element_visible(self, locator: str, frame: Optional[str] = None) -> bool:
+        """元素是否可见（不等待；未匹配到元素视为不可见，多个匹配时任一可见即为可见）。"""
+        self._check_driver_alive()
+        self._ensure_browser()
+        try:
+            loc = self._verify_scope(frame).locator(locator)
+            return any(loc.nth(i).is_visible() for i in range(loc.count()))
+        except Exception as e:
+            self._handle_error("is_element_visible", locator, e)
+            raise DriverError(f"读取元素可见性失败: {locator}", locator=locator, cause=e)
+
+    def get_page_property(self, name: str) -> Optional[str]:
+        """读取页面级属性（<location type="page">）：url / title / path / dialog。
+
+        dialog 返回最近一次原生弹窗的文本（由弹窗处理逻辑写入 ``_last_dialog_text``），
+        从未出现弹窗时返回 None。
+        """
+        from urllib.parse import urlparse
+        self._check_driver_alive()
+        if name == "dialog":
+            getter = getattr(self, "get_last_dialog_text", None)
+            if callable(getter):
+                return getter()
+            return getattr(self, "_last_dialog_text", None)
+        self._ensure_browser()
+        if name == "url":
+            return self.page.url
+        if name == "path":
+            return urlparse(self.page.url).path
+        if name == "title":
+            return self.page.title()
+        raise DriverError(f"不支持的 page 属性: {name}（只能是 url / title / path / dialog）")
+
+    # ── v11.6.0 (C1) 原生弹窗 alert / confirm / prompt ─────────────────
+
+    DIALOG_POLICIES = ("accept", "dismiss", "fail")
+
+    def set_dialog_policy(self, policy: str) -> None:
+        """设置未注册一次性处理器时的全局弹窗策略（DefaultValue.DialogPolicy）。"""
+        value = str(policy or "fail").strip().lower()
+        if value not in self.DIALOG_POLICIES:
+            raise DriverError(
+                f"DialogPolicy 只能是 accept / dismiss / fail，得到: '{policy}'"
+            )
+        self._dialog_policy = value
+
+    def register_dialog_handler(self, action: str, prompt_text: Optional[str] = None) -> None:
+        """为下一次出现的弹窗注册一次性处理器（type 批量中 page=dialog 字段）。
+
+        action: accept / dismiss；prompt_text 仅对 accept 有效（prompt 输入值）。
+        """
+        action = str(action or "").strip().lower()
+        if action not in ("accept", "dismiss"):
+            raise DriverError(f"弹窗一次性处理只能是 accept / dismiss，得到: '{action}'")
+        if action == "dismiss":
+            prompt_text = None
+        self._check_driver_alive()
+        self._ensure_browser()
+        self._dialog_once = (action, prompt_text)
+        logger.debug(f"已为下一次弹窗注册一次性处理: {action}"
+                     + (f" (输入 '{prompt_text}')" if prompt_text is not None else ""))
+
+    def get_last_dialog_text(self) -> Optional[str]:
+        """最近一次出现的原生弹窗文本；从未出现弹窗时返回 None。"""
+        return self._last_dialog_text
+
+    def consume_unexpected_dialog(self) -> Optional[str]:
+        """取出并清除 DialogPolicy=fail 下出现的未预期弹窗文本（无则返回 None）。"""
+        text, self._unexpected_dialog = self._unexpected_dialog, None
+        return text
+
+    def reset_case_dialog_state(self) -> None:
+        """用例开始时清除上一个用例遗留的弹窗状态（CORE §2.5.6 第 4 条）：
+        未用上的一次性处理器、最近弹窗文本、未预期弹窗记录。驱动跨用例复用时必须调用。"""
+        self._dialog_once = None
+        self._last_dialog_text = None
+        self._unexpected_dialog = None
+
+    def _ensure_dialog_handler(self) -> None:
+        """在当前 page 上挂接弹窗监听（幂等；page 重建后重新挂接）。"""
+        page = self.page
+        if page is None or self._dialog_hooked_page is page:
+            return
+        try:
+            page.on("dialog", self._on_dialog)
+            self._dialog_hooked_page = page
+        except Exception as e:
+            logger.debug(f"挂接弹窗监听失败（忽略）: {e}")
+
+    def _on_dialog(self, dialog) -> None:
+        """弹窗事件：优先使用一次性处理器，否则按全局策略；fail 时关闭弹窗并记录，由步骤报错。"""
+        message = ""
+        dialog_type = ""
+        try:
+            message = dialog.message
+            dialog_type = dialog.type
+        except Exception:
+            pass
+        self._last_dialog_text = message
+        pending, self._dialog_once = self._dialog_once, None
+        if pending is not None:
+            action, prompt_text = pending
+        else:
+            action, prompt_text = self._dialog_policy, None
+        handled = False
+        try:
+            if action == "accept":
+                if prompt_text is not None:
+                    dialog.accept(prompt_text)
+                else:
+                    dialog.accept()
+                handled = True
+                logger.info(f"弹窗[{dialog_type}] '{message}' → accept")
+            elif action == "dismiss":
+                dialog.dismiss()
+                handled = True
+                logger.info(f"弹窗[{dialog_type}] '{message}' → dismiss")
+            else:
+                # DialogPolicy=fail：先关闭弹窗避免页面卡住，再由当前步骤报错
+                self._unexpected_dialog = f"[{dialog_type}] {message}" if dialog_type else message
+                logger.error(f"出现未预期的弹窗[{dialog_type}]: '{message}'（DialogPolicy=fail）")
+        except Exception as e:
+            # 事件回调里不能抛出（会打断 Playwright 事件分发）；兜底关闭弹窗
+            logger.warning(f"处理弹窗 '{message}' 失败，改为关闭: {e}")
+        finally:
+            if not handled:
+                try:
+                    dialog.dismiss()
+                except Exception as e:
+                    logger.debug(f"关闭弹窗失败（忽略）: {e}")
+
+    # ── v11.6.0 (C2) iframe 内元素动作 ─────────────────────────────────
+
+    def _frame_action(self, operation: str, locator: str, frame: str, fn) -> bool:
+        """在 frame（CSS，">>" 串联多层）内定位元素并执行 fn(locator)；Playwright 自动等待可操作。"""
+        css_locator = self._convert_locator(locator)
+        try:
+            fn(self._verify_scope(frame).locator(css_locator).first)
+            return True
+        except DriverStoppedError:
+            raise
+        except Exception as e:
+            if is_critical_error(e):
+                raise DriverStoppedError(str(e))
+            self._handle_error(operation, f"{locator} (frame={frame})", e)
+            raise DriverError(
+                f"{operation}失败: iframe 内元素未找到或不可操作 {locator}（frame={frame}）。"
+                f"请确认 frame 选择器指向 <iframe> 元素本身，多层 iframe 用 >> 串联",
+                locator=locator, cause=e,
+            )
 
     def upload_file(self, locator: str, file_path: str) -> bool:
         """上传文件"""
@@ -995,6 +1246,47 @@ class PlaywrightDriver(BaseDriver):
         except Exception as e:
             logger.warning(f"获取 cookies 失败: {e}")
             return {}
+
+    # ── v11.6.0 (P3) 登录态复用：save_auth_state / use_auth_state ──────────
+
+    def get_storage_state(self) -> dict:
+        """返回当前 context 的 storage state（cookies + 各 origin 的 localStorage）。"""
+        self._check_driver_alive()
+        if self.page is None:
+            raise DriverError("当前没有打开的页面，无法读取登录态（请在登录成功、close 之前调用 save_auth_state）")
+        return self.page.context.storage_state()
+
+    def apply_storage_state(self, state: dict) -> None:
+        """把已保存的 storage state 加载到当前用例的 context（须在 navigate 之前）。
+
+        cookie 直接写入 context；localStorage 通过 init script 在首次进入对应 origin 时写入
+        （每个标签页只写一次，不覆盖应用后续的修改）。不重建 context，因此与按 context
+        分段的用例录像兼容。
+        """
+        self._check_driver_alive()
+        self._ensure_browser()
+        url = ""
+        try:
+            url = self.page.url or ""
+        except Exception:
+            url = ""
+        if url and url != "about:blank":
+            raise DriverError(
+                f"use_auth_state 必须在本用例的 navigate 之前调用（当前页面已打开 {url}）。"
+                f"修复: 把 run use_auth_state(...) 放到 pre_process 的第一步，并确保上一用例已 close；"
+                f"SessionMode=shared_session 下用例间本就共用会话，无需 use_auth_state"
+            )
+        try:
+            from ..builtin_ops.auth_state_ops import build_local_storage_init_script
+        except ImportError:
+            from builtin_ops.auth_state_ops import build_local_storage_init_script
+        context = self.page.context
+        cookies = list((state or {}).get("cookies") or [])
+        if cookies:
+            context.add_cookies(cookies)
+        origins = list((state or {}).get("origins") or [])
+        if origins:
+            context.add_init_script(build_local_storage_init_script(origins))
 
     def start_case_recording(self, output_dir: str, case_id: str, target_path: str, video_size: str = None) -> Optional[str]:
         if self._is_closed:
@@ -1342,6 +1634,26 @@ class PlaywrightDriver(BaseDriver):
                     self._pw.stop()
             except Exception as e:
                 logger.debug(f"停止 Playwright 时出错: {e}")
+            return
+        if getattr(self, "_shared_browser", None) is not None:
+            # SessionMode=shared_browser：只关闭本用例的 context（cookie/storage/页面随之销毁），
+            # 浏览器进程由执行器在 run 结束时统一关闭（SharedBrowser.close）。
+            contexts = []
+            if self.context is not None:
+                contexts.append(self.context)
+            try:
+                if self.page is not None and self.page.context not in contexts:
+                    contexts.append(self.page.context)
+            except Exception:
+                pass
+            for ctx in contexts:
+                try:
+                    ctx.close()
+                except Exception as e:
+                    logger.debug(f"关闭浏览器上下文时出错: {e}")
+            self.page = None
+            self.context = None
+            self.browser = None
             return
         try:
             if self.context:

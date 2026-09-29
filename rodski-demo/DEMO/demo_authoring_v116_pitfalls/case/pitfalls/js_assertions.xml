@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 复现对比实验 B 臂写法，仅供 rodski case lint 扫描（execute=否，不执行）：
+     evaluate 断言（querySelectorAll().length / location.pathname）、固定 wait、window.confirm 垫片 -->
+<cases>
+  <case execute="否" id="TC001" title="evaluate 行数断言 + 固定等待 + confirm 垫片" component_type="界面">
+    <test_case>
+      <test_step action="wait" model="" data="1"/>
+      <test_step action="evaluate" model="" data="(() =&gt; { const n = document.querySelectorAll('#orderBody tr.order-row').length; if (n !== 10) { throw new Error('期望10行，实际 ' + n); } return n; })()"/>
+      <test_step action="evaluate" model="" data="(() =&gt; { if (location.pathname !== '/login') { throw new Error('bad'); } return 1; })()"/>
+      <test_step action="evaluate" model="" data="(() =&gt; { window.confirm = () =&gt; true; return 'confirm-shim'; })()"/>
+    </test_case>
+  </case>
+</cases>

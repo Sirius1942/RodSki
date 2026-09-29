@@ -1,0 +1,7 @@
+<!doctype html><html><head><meta charset="utf-8"><title>首页</title>
+<script>if (!localStorage.getItem('token')) { location.replace('/login.html'); }</script>
+</head><body>
+<h1>首页</h1>
+<span id="userName"></span>
+<script>document.getElementById('userName').textContent = localStorage.getItem('user') || '';</script>
+</body></html>

@@ -95,3 +95,7 @@ register_builtin("clear_routes", "builtin_ops.network_ops", "clear_routes")
 # ── 自动注册 coverage_ops 中的函数 ─────────────────────────────
 register_builtin("start_js_coverage", "builtin_ops.coverage_ops", "start_js_coverage")
 register_builtin("stop_js_coverage", "builtin_ops.coverage_ops", "stop_js_coverage")
+
+# ── v11.6.0 P3：登录态复用（只保存在本次 run 内存中，不落盘） ─────────
+register_builtin("save_auth_state", "builtin_ops.auth_state_ops", "save_auth_state")
+register_builtin("use_auth_state", "builtin_ops.auth_state_ops", "use_auth_state")

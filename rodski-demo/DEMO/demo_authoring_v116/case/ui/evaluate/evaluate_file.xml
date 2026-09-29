@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- V07 C3：evaluate file: 引用脚本（脚本内含 && ，无需 XML 转义）；先用原生断言等表格加载完 -->
+<cases tags="v116,evaluate">
+  <case execute="是" id="TC001" title="evaluate 引用 fun/js 脚本" component_type="界面" priority="P1">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/async_table.html"/>
+    </pre_process>
+    <test_case>
+      <test_step action="verify" model="AsyncTable" data="V_EXISTS"/>
+      <test_step action="evaluate" model="" data="file:fun/js/check_rows.js"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+</cases>

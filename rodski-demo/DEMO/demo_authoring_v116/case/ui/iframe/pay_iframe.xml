@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- V06 C2：location@frame 定位 iframe 内元素 -->
+<cases tags="v116,iframe">
+  <case execute="是" id="TC001" title="iframe 内填卡号并支付" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/iframe.html"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="PayFrame" data="P001"/>
+      <test_step action="verify" model="PayFrame" data="V001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+</cases>

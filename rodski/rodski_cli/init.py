@@ -11,7 +11,16 @@ except ImportError:
 
 
 _MODEL_XML = '<?xml version="1.0" encoding="UTF-8"?>\n<models>\n</models>\n'
-_GLOBALVALUE_XML = '<?xml version="1.0" encoding="UTF-8"?>\n<globalvalue>\n</globalvalue>\n'
+_GLOBALVALUE_XML = (
+    '<?xml version="1.0" encoding="UTF-8"?>\n'
+    '<globalvalue>\n'
+    '  <group name="DefaultValue">\n'
+    '    <!-- 步骤固定等待，单位毫秒（v11.6.0）；交互等待由智能等待与 verify 自动重试负责，\n'
+    '         固定等待只用于演示或录屏 -->\n'
+    '    <var name="WaitTime" value="0"/>\n'
+    '  </group>\n'
+    '</globalvalue>\n'
+)
 
 
 def setup_parser(subparsers):

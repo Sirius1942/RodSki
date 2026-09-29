@@ -3,6 +3,7 @@
     <group name="DefaultValue">
         <var name="URL" value="http://localhost:8000"/>
         <var name="BrowserType" value="chromium"/>
+        <!-- WaitTime 单位毫秒（v11.6.0 起，与 <cases step_wait> 一致） -->
         <var name="WaitTime" value="500"/>
         <var name="Headless" value="True"/>
     </group>

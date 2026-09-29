@@ -1,0 +1,16 @@
+<!doctype html><html><head><meta charset="utf-8"><title>订单列表</title></head><body>
+<h1>订单列表（改版：行 class 由 order-row 改为 row）</h1>
+<table><tbody id="orderBody"></tbody></table>
+<div id="total"></div>
+<script>
+setTimeout(function () {
+  var body = document.getElementById('orderBody');
+  for (var i = 1; i <= 10; i++) {
+    var tr = document.createElement('tr');
+    tr.className = 'row';
+    tr.innerHTML = '<td>ORD' + i + '</td>';
+    body.appendChild(tr);
+  }
+  document.getElementById('total').textContent = '共 10 条';
+}, 300);
+</script></body></html>

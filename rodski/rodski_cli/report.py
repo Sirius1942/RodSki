@@ -210,6 +210,10 @@ def _parse_result_xml(xml_path: Path) -> Optional[dict]:
                 "pass_rate": float(summary_elem.get("pass_rate", "0").rstrip("%")),
                 "duration": float(summary_elem.get("total_time", "0").rstrip("s")),
             }
+            # v11.6.0：运行级标注（记录模式 / 会话模式）
+            for meta_key in ("evidence_mode", "session_mode"):
+                if summary_elem.get(meta_key):
+                    summary[meta_key] = summary_elem.get(meta_key)
 
         results = []
         if results_elem is not None:
@@ -288,6 +292,7 @@ def generate_html_from_run_results(
     duration: float,
     metrics: Optional[dict] = None,
     output_dir: Optional[str] = None,
+    run_meta: Optional[dict] = None,
 ) -> str:
     """供 run.py 的 --report html 调用，返回生成的报告路径
 
@@ -297,6 +302,7 @@ def generate_html_from_run_results(
         output_dir: 报告输出目录。指定时报告写入该目录（通常是本次 run 结果目录），
                  使报告中 screenshots/ recordings/ 相对路径可正确解析；
                  未指定则写入当前工作目录（向后兼容）。
+        run_meta: 可选的运行级标注（v11.6.0：evidence_mode / session_mode），显示在报告页眉。
     """
     pass_rate = (passed / total * 100) if total > 0 else 0
 
@@ -307,6 +313,8 @@ def generate_html_from_run_results(
             "failed": failed,
             "pass_rate": pass_rate,
             "duration": round(duration, 2),
+            **{k: v for k, v in (run_meta or {}).items()
+               if k in ("evidence_mode", "session_mode") and v},
         },
         "results": _normalize_run_results(results),
         "metrics": metrics or {},
@@ -457,6 +465,14 @@ def _generate_html(
     failed = summary.get("failed", 0)
     pass_rate = summary.get("pass_rate", 0)
     duration = summary.get("duration", 0)
+    # v11.6.0：页眉标注记录模式 / 会话模式，避免 concise 模式下误以为截图丢失
+    meta_parts = []
+    if summary.get("evidence_mode"):
+        meta_parts.append(f"记录模式 EvidenceMode: {_html_escape(str(summary['evidence_mode']))}")
+    if summary.get("session_mode"):
+        meta_parts.append(f"会话模式 SessionMode: {_html_escape(str(summary['session_mode']))}")
+    run_meta_html = (f'<p class="run-meta" data-evidence-mode="{_html_escape(str(summary.get("evidence_mode", "")))}">'
+                     + " | ".join(meta_parts) + "</p>") if meta_parts else ""
 
     rows = ""
     timeline_segments = ""
@@ -703,6 +719,7 @@ def _generate_html(
         <header>
             <h1>RodSki Test Report</h1>
             <p>{timestamp}</p>
+            {run_meta_html}
         </header>
         <div class="summary-cards">
             <div class="card primary">

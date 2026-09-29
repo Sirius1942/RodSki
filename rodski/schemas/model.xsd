@@ -15,6 +15,8 @@
       5. 接口模型中 _method/_url/_header_* 为保留元素名
       6. 唯一支持的定位格式：&lt;location type="..."&gt;value&lt;/location&gt; 子元素
       7. 支持多定位器格式，按 priority 依次尝试，失败自动切换
+      8. v11.6.0：定位类型 page 声明页面级属性元素，值只能是 url / title / path / dialog
+      9. v11.6.0：location 可选属性 frame（iframe 的 CSS 选择器，多层用 &gt;&gt; 串联）
     </xs:documentation>
   </xs:annotation>
 
@@ -118,6 +120,14 @@
     <xs:attribute name="type" type="LocatorType" use="required"/>
     <xs:attribute name="item" type="xs:string" use="optional" default=""/>
     <xs:attribute name="priority" type="xs:positiveInteger" use="optional" default="1"/>
+    <!-- v11.6.0 (C2)：元素所在 iframe 的 CSS 选择器，多层 iframe 用 ">>" 串联，如 "#outer >> #inner" -->
+    <xs:attribute name="frame" use="optional">
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:pattern value=".*\S.*"/>
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:attribute>
     <xs:attribute name="platform" use="optional">
       <xs:simpleType>
         <xs:restriction base="xs:string">
@@ -140,6 +150,8 @@
       <xs:enumeration value="name"/>
       <xs:enumeration value="static"/>
       <xs:enumeration value="field"/>
+      <!-- v11.6.0 (A1/C1)：页面级属性，值为 url / title / path / dialog -->
+      <xs:enumeration value="page"/>
       <!-- 视觉定位类型 -->
       <xs:enumeration value="vision"/>
       <xs:enumeration value="ocr"/>

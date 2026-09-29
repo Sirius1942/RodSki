@@ -153,8 +153,9 @@ def setup_parser(subparsers):
     parser.add_argument("--output", help="报告输出路径")
     parser.add_argument("--output-format", choices=["text", "json"],
                         default="text", help="输出格式 (默认: text)")
-    parser.add_argument("--report", choices=["html"], default=None,
-                        help="执行完毕后自动生成报告 (可选值: html)")
+    parser.add_argument("--report", type=_parse_report_formats, default=None,
+                        help="执行完毕后自动生成报告，可选 html / junit，逗号分隔可同时指定"
+                             "（如 --report html,junit）；junit 在运行目录生成 junit.xml")
     parser.add_argument("--trace", action="store_true",
                         help="启用 observability，导出 trace.json（执行 trace 树 + 耗时/重试指标）")
     parser.add_argument("--coverage", action="store_true",
@@ -207,6 +208,54 @@ def setup_parser(subparsers):
     parser.add_argument("--roam-engine", dest="roam_engine_module", default=None,
                         metavar="MODULE_PATH",
                         help="漫游决策引擎模块路径（Python 文件），须导出 create_engine() 工厂函数")
+    # v11.6.0：会话模式 / 记录模式（不是执行范围 selector，可与 @plan_id 同用）
+    parser.add_argument("--session-mode", choices=["isolated", "shared_browser", "shared_session"],
+                        default=None, dest="session_mode",
+                        help="浏览器会话模式，覆盖 globalvalue DefaultValue.SessionMode（默认 isolated）："
+                             "isolated=用例 close 后重启浏览器；shared_browser=整个 run 复用浏览器进程、"
+                             "每用例新建 context（隔离不变，推荐）；shared_session=用例间共用同一会话")
+    parser.add_argument("--evidence", choices=["full", "concise"], default=None, dest="evidence_mode",
+                        help="证据记录模式，覆盖 globalvalue DefaultValue.EvidenceMode（默认 full）："
+                             "full=每步截图+失败截图；concise=只在失败时截图。录像不受影响（仍由 --record 决定）")
+    # v11.6.0 P4：run 级并行（不是执行范围 selector，可与 @plan_id 同用）
+    parser.add_argument("--workers", type=_parse_workers, default=None, dest="workers", metavar="N",
+                        help="按用例文件并行执行，N 个 worker 进程各自独立浏览器；同一文件内的用例在同一 "
+                             "worker 中顺序执行，结果合并到同一运行目录。仅作用于 Web / 接口 / DB 用例"
+                             "（默认 1 = 顺序执行）")
+
+
+REPORT_FORMATS = ("html", "junit")
+
+
+def _parse_report_formats(value: str) -> str:
+    """--report 取值：html / junit，逗号分隔可同时指定；返回归一化的逗号串（如 "html,junit"）。"""
+    items = [v.strip().lower() for v in str(value or "").split(",") if v.strip()]
+    bad = [v for v in items if v not in REPORT_FORMATS]
+    if not items or bad:
+        raise argparse.ArgumentTypeError(
+            f"无效的报告格式 '{value}'，可选: {' / '.join(REPORT_FORMATS)}，逗号分隔可同时指定（如 html,junit）"
+        )
+    return ",".join(dict.fromkeys(items))
+
+
+def _report_formats(args) -> set:
+    """读取本次运行要生成的报告格式集合（兼容直接赋值 args.report="html" 的旧调用）。"""
+    raw = getattr(args, "report", None)
+    if not raw:
+        return set()
+    if isinstance(raw, (list, tuple, set)):
+        raw = ",".join(raw)
+    return {v.strip().lower() for v in str(raw).split(",") if v.strip()}
+
+
+def _parse_workers(value: str) -> int:
+    try:
+        n = int(str(value).strip())
+    except (TypeError, ValueError):
+        n = 0
+    if n < 1:
+        raise argparse.ArgumentTypeError(f"--workers 需要正整数（如 --workers 4），收到 '{value}'")
+    return n
 
 
 def _get_plan_kind(plan_path) -> str:
@@ -762,6 +811,17 @@ def _apply_recording_args(config, args):
     return config
 
 
+def _apply_session_evidence_args(config, args):
+    """v11.6.0：把 --session-mode / --evidence 透传给执行器（经 ConfigManager，未指定则沿用 globalvalue）。"""
+    session_mode = getattr(args, "session_mode", None)
+    if session_mode:
+        config.config["session_mode"] = session_mode
+    evidence_mode = getattr(args, "evidence_mode", None)
+    if evidence_mode:
+        config.config["evidence_mode"] = evidence_mode
+    return config
+
+
 def _validate_record_resolution(value: str) -> None:
     """校验 --record-resolution 参数格式，无效时抛出 SystemExit。"""
     import re
@@ -997,12 +1057,25 @@ def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional
     # 使用已构建的 selector 过滤参数
     if selector_filters is None:
         selector_filters = _build_selector_filters(args)
+
+    # v11.6.0 P4：--workers N（N>1）按用例文件并行；不适用的场景回落顺序执行并说明原因
+    workers = getattr(args, "workers", None)
+    if isinstance(workers, int) and workers > 1:
+        parallel_tasks, fallback_reason = _plan_parallel(case_path, module_dir, args)
+        if fallback_reason:
+            print(f"提示: --workers {workers} 未生效（{fallback_reason}），按顺序执行")
+        else:
+            return _handle_parallel_execute(
+                case_path, module_dir, args, workers, parallel_tasks,
+                plan_path=plan_path, selector_filters=selector_filters, needs_browser=needs_browser,
+            )
+
     filter_tags = selector_filters["filter_tags"]
     filter_group = selector_filters["filter_group"]
     filter_priority = selector_filters["filter_priority"]
     exclude_tags = selector_filters["exclude_tags"]
 
-    config = _apply_recording_args(ConfigManager(), args)
+    config = _apply_session_evidence_args(_apply_recording_args(ConfigManager(), args), args)
 
     cdp_endpoint = getattr(args, "cdp_endpoint", None)
 
@@ -1038,7 +1111,7 @@ def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional
     runtime_control = RuntimeCommandQueue() if insert_steps else None
 
     # observability：--trace 显式开启，--report html 也顺带采集性能数据
-    enable_trace = bool(getattr(args, "trace", False)) or getattr(args, "report", None) == "html"
+    enable_trace = bool(getattr(args, "trace", False)) or "html" in _report_formats(args)
 
     try:
         executor = SKIExecutor(
@@ -1132,6 +1205,11 @@ def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional
         if enable_coverage:
             _export_coverage(executor, coverage_drivers, getattr(args, "coverage_output", None), output_format)
 
+        # v11.6.0 --report junit：由本次 result.xml 生成 junit.xml（文本 / JSON 输出都生成）
+        if "junit" in _report_formats(args):
+            _write_junit_report(getattr(getattr(executor, "result_writer", None), "current_run_dir", None),
+                                output_format)
+
         if output_format == "json":
             output = JSONFormatter.format_success(results, duration)
             output["compliance"] = getattr(
@@ -1166,15 +1244,16 @@ def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional
             print(f"报告已保存: {args.output}")
 
         # --report html: 执行完毕后自动生成 HTML 报告
-        report_format = getattr(args, "report", None)
-        if report_format == "html":
+        if "html" in _report_formats(args):
             perf_metrics = None
             if enable_trace and getattr(executor, "_metrics", None) is not None:
                 perf_metrics = executor._metrics.get_summary()
             # 报告写入本次 run 结果目录，使 screenshots/ recordings/ 相对路径可解析
             run_dir = getattr(getattr(executor, "result_writer", None), "current_run_dir", None)
+            run_meta = getattr(getattr(executor, "result_writer", None), "run_meta", None)
             _generate_post_run_report(results, total, passed, failed, duration, perf_metrics,
-                                      output_dir=str(run_dir) if run_dir else None)
+                                      output_dir=str(run_dir) if run_dir else None,
+                                      run_meta=run_meta if isinstance(run_meta, dict) else None)
 
         return 0 if failed == 0 else 1
 
@@ -1200,6 +1279,203 @@ def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional
                 driver.close()
             except Exception:
                 pass
+
+
+def _write_junit_report(run_dir, output_format: str = "text") -> Optional[Path]:
+    """v11.6.0 --report junit：由运行目录的 result.xml 生成 junit.xml；失败只告警，不影响退出码。"""
+    if not run_dir:
+        print("警告: 未找到本次运行目录，跳过 JUnit 报告", file=sys.stderr)
+        return None
+    try:
+        try:
+            from ..report.junit import write_junit_report
+        except ImportError:
+            from rodski.report.junit import write_junit_report
+        path = write_junit_report(run_dir)
+    except Exception as e:  # noqa: BLE001
+        print(f"警告: JUnit 报告生成失败: {e}", file=sys.stderr)
+        return None
+    if output_format == "text":
+        print(f"JUnit 报告已生成: {path}")
+    return path
+
+
+# 不能并行的场景：移动端 / 桌面端驱动共享一台设备或一块屏幕（多设备走 rodski queue）
+_PARALLEL_UNSUPPORTED_DRIVERS = {"android", "ios", "mobile", "windows", "macos", "other"}
+
+
+def _plan_parallel(case_path: Path, module_dir: Path, args):
+    """v11.6.0 --workers：列出可调度的用例文件；返回 (tasks, 回落顺序执行的原因或 None)。"""
+    for attr, flag in (("cdp_endpoint", "--cdp"), ("insert_steps", "--insert-step"), ("debug", "--debug"),
+                       ("roam", "--roam"), ("trace", "--trace"), ("coverage", "--coverage")):
+        if getattr(args, attr, None):
+            return [], f"{flag} 需要单进程执行，暂不支持与 --workers 同用"
+    # 进程内 hook（函数对象）无法带进 worker 进程；只有 on_case_failure 外部命令 hook 会在
+    # worker 内按配置重建，其余 hook 存在时回落顺序执行，避免静默失效
+    in_process_hooks = sorted(
+        k for k, v in (getattr(args, "_executor_hooks", None) or {}).items()
+        if v and k != "on_case_failure"
+    )
+    if in_process_hooks:
+        return [], f"进程内 hook（{', '.join(in_process_hooks)}）无法带进 worker 进程"
+    model_path = Path(args.model) if getattr(args, "model", None) else module_dir / "model" / "model.xml"
+    drivers = set(_model_driver_types(model_path).values()) & _PARALLEL_UNSUPPORTED_DRIVERS
+    if drivers:
+        return [], f"模块含 {'/'.join(sorted(drivers))} 驱动模型，--workers 只作用于 Web / 接口 / DB 用例"
+    try:
+        from ..core.parallel_runner import discover_case_file_tasks
+    except ImportError:
+        from rodski.core.parallel_runner import discover_case_file_tasks
+    tasks = discover_case_file_tasks(case_path, module_dir)
+    for t in tasks:
+        try:
+            text = Path(t["path"]).read_text(encoding="utf-8", errors="ignore").lower()
+        except OSError:
+            continue
+        if "app://android/" in text or "app://ios/" in text:
+            return [], f"{t['case_file']} 是移动端 App 用例，--workers 只作用于 Web / 接口 / DB 用例"
+    if len(tasks) <= 1:
+        return tasks, "只有 1 个用例文件，调度单位是用例文件"
+    return tasks, None
+
+
+def _handle_parallel_execute(case_path: Path, module_dir: Path, args, workers: int, tasks,
+                             plan_path: Optional[Path] = None,
+                             selector_filters: Optional[Dict[str, Any]] = None,
+                             needs_browser: bool = True) -> int:
+    """v11.6.0 P4：按用例文件分给 N 个 worker 进程并行执行，结果合并到同一个运行目录。"""
+    import json
+    import time
+    try:
+        from ..core.config_manager import ConfigManager
+        from ..core.global_value_parser import GlobalValueParser
+        from ..core.json_formatter import JSONFormatter
+        from ..core.parallel_runner import run_parallel
+        from ..core.result_writer import ResultWriter
+        from ..core.session_mode import resolve_evidence_mode, resolve_session_mode, validate_default_values
+    except ImportError:
+        from rodski.core.config_manager import ConfigManager
+        from rodski.core.global_value_parser import GlobalValueParser
+        from rodski.core.json_formatter import JSONFormatter
+        from rodski.core.parallel_runner import run_parallel
+        from rodski.core.result_writer import ResultWriter
+        from rodski.core.session_mode import resolve_evidence_mode, resolve_session_mode, validate_default_values
+
+    output_format = getattr(args, "output_format", "text")
+    start_time = time.time()
+    config = _apply_session_evidence_args(_apply_recording_args(ConfigManager(), args), args)
+
+    # 校验先于副作用：会话 / 记录模式取值非法时，在创建运行目录、启动任何 worker 之前报错
+    try:
+        global_vars = GlobalValueParser(str(module_dir / "data" / "globalvalue.xml")).parse()
+        validate_default_values(global_vars)
+        session_mode = resolve_session_mode(config.get("session_mode"), global_vars)
+        evidence_mode = resolve_evidence_mode(config.get("evidence_mode"), global_vars)
+    except ValueError as e:
+        print(f"执行错误: {e}", file=sys.stderr)
+        return 1
+
+    writer = ResultWriter(str(module_dir / "result"))
+    writer.run_meta = {"evidence_mode": evidence_mode, "session_mode": session_mode}
+    writer._init_run_dir()
+    run_dir = writer.current_run_dir
+
+    hooks_cfg = getattr(args, "_hooks_config", None) or {}
+    worker_options = json.loads(json.dumps({
+        "headless": bool(getattr(args, "headless", False)),
+        "browser": getattr(args, "browser", "chromium") or "chromium",
+        "needs_browser": needs_browser,
+        "config_overrides": {k: config.config[k] for k in ("recording", "session_mode", "evidence_mode")
+                             if k in config.config},
+        "plan_path": str(plan_path) if plan_path else None,
+        "selector_filters": selector_filters or {},
+        "on_case_failure_specs": hooks_cfg.get("on_case_failure"),
+        "hook_context": getattr(args, "_hook_context", {}) or {},
+    }, default=str))
+
+    n_workers = min(workers, len(tasks))
+    msg = (f"并行执行: {n_workers} 个 worker，{len(tasks)} 个用例文件（同一文件内顺序执行），"
+           f"结果目录 {run_dir}")
+    logger.info(msg)
+    if output_format == "text":
+        print(msg)
+        print("-" * 60)
+
+    def _on_worker_done(out: Dict[str, Any]) -> None:
+        res = out.get("results") or []
+        ok = sum(1 for r in res if str(r.get("status", "")).upper() == "PASS")
+        line = (f"[worker {out.get('worker_id')}] 完成 {len(out.get('case_files') or [])} 个文件，"
+                f"{ok}/{len(res)} 通过（{out.get('seconds', 0)}s）")
+        if out.get("error"):
+            line += f"，异常: {out['error']}"
+        logger.info(line)
+        if output_format == "text":
+            print(line)
+
+    try:
+        results, _outputs = run_parallel(case_path, module_dir, workers, run_dir, worker_options,
+                                         tasks=tasks, on_worker_done=_on_worker_done)
+        writer.write_results(results)
+    except Exception as e:  # noqa: BLE001
+        if output_format == "json":
+            error_output = JSONFormatter.format_error(e)
+            error_output["compliance"] = getattr(args, "_compliance_audit", _default_compliance_audit())
+            print(JSONFormatter.to_json(error_output, pretty=True), file=sys.stderr)
+            return error_output["exit_code"]
+        print(f"执行错误: {e}", file=sys.stderr)
+        return 1
+    duration = time.time() - start_time
+
+    total = len(results)
+    passed = sum(1 for r in results if str(r.get("status", "")).upper() == "PASS")
+    failed = sum(1 for r in results if str(r.get("status", "")).upper() == "FAIL")
+    skipped = sum(1 for r in results if str(r.get("status", "")).upper() == "SKIP")
+
+    if hooks_cfg.get("on_run_end"):
+        try:
+            from ..core.hooks_runner import run_external_hook
+        except ImportError:
+            from rodski.core.hooks_runner import run_external_hook
+        run_external_hook("on_run_end", {
+            **getattr(args, "_hook_context", {}),
+            "case_path": str(case_path), "total": total, "passed": passed, "failed": failed,
+            "skipped": skipped, "duration": duration,
+            "status": "passed" if failed == 0 else "failed",
+            "compliance": getattr(args, "_compliance_audit", _default_compliance_audit()),
+        }, hooks_cfg["on_run_end"])
+
+    if "junit" in _report_formats(args):
+        _write_junit_report(run_dir, output_format)
+
+    if output_format == "json":
+        output = JSONFormatter.format_success(results, duration)
+        output["compliance"] = getattr(args, "_compliance_audit", _default_compliance_audit())
+        print(JSONFormatter.to_json(output, pretty=True))
+        return output["exit_code"]
+
+    print("-" * 60)
+    print(f"执行完成: {passed}/{total} 通过, {failed} 失败" + (f", {skipped} 跳过" if skipped else "")
+          + f"（--workers {n_workers}，耗时 {duration:.1f}s）")
+    if failed > 0:
+        print("\n失败用例:")
+        for r in results:
+            if str(r.get("status", "")).upper() == "FAIL":
+                print(f"  - {r.get('case_file', '')}::{r.get('case_id')}: {r.get('error', '未知错误')}")
+
+    if getattr(args, "output", None):
+        output_path = Path(args.output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps({
+            "summary": {"total": total, "passed": passed, "failed": failed},
+            "results": results,
+        }, indent=2, ensure_ascii=False))
+        print(f"报告已保存: {args.output}")
+
+    if "html" in _report_formats(args):
+        _generate_post_run_report(results, total, passed, failed, duration, None, output_dir=str(run_dir),
+                                  run_meta=writer.run_meta)
+
+    return 0 if failed == 0 else 1
 
 
 def _export_trace(executor, output_format="text"):
@@ -1428,7 +1704,8 @@ def _handle_load_run(plan_path: Path, module_dir: Path, args) -> int:
     return 1 if error_rate > 5.0 else 0
 
 
-def _generate_post_run_report(results, total, passed, failed, duration, metrics=None, output_dir=None):
+def _generate_post_run_report(results, total, passed, failed, duration, metrics=None, output_dir=None,
+                              run_meta=None):
     """执行后自动生成 HTML 报告（--report html 触发）
 
     报告生成失败不影响 run 主流程的退出码。
@@ -1446,6 +1723,7 @@ def _generate_post_run_report(results, total, passed, failed, duration, metrics=
             duration=duration,
             metrics=metrics,
             output_dir=output_dir,
+            run_meta=run_meta,
         )
         print(f"HTML 报告已生成: {report_path}")
     except Exception as e:

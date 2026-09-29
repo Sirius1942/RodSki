@@ -64,13 +64,15 @@
 
 ---
 
-### 1.3 click - 点击元素
+### 1.3 click - 点击元素（数据表字段值，不是关键字）
 
 **用途**: 点击按钮、链接等元素
 
+> `click` / `double_click` / `right_click` / `hover` / `select【值】` / `key_press【键】` / `drag【目标】` / `scroll` **不是关键字**，不能写在 `action` 中（CORE §1.2）。它们写在数据表字段值里，由 `type` 批量执行。
+
 **语法**:
 ```xml
-<test_step action="click" model="PageModel" data="DataRowID"/>
+<test_step action="type" model="PageModel" data="DataRowID"/>
 ```
 
 **数据表结构**:
@@ -80,9 +82,10 @@
 
 **示例**:
 ```xml
-<test_step action="click" model="LoginPage" data="C001"/>
+<test_step action="type" model="LoginPage" data="C001"/>
 
 <row id="C001">
+  <field name="username">admin</field>
   <field name="loginBtn">click</field>
 </row>
 ```
@@ -114,11 +117,21 @@
 
 > 注意：接口/DB 模型的 _verify 数据表禁止使用 ${Return[-1]}，详见 CORE_DESIGN_CONSTRAINTS 4.3 节。
 
+**v11.6.0 起**：
+
+- UI 模型的 `verify` 在 自动等待 `DefaultValue.AutoWait`（单位毫秒，默认 5000）内自动重试到全部字段匹配，异步页面**不需要**先写 `wait`；接口 / DB 模型单次比对。
+- 字段值可写操作符：`{"$gt": 100}`、`{"$contains": "x"}`，以及元素级 `{"$count": 10}`、`{"$count_gte": 1}`、`{"$count_lte": 5}`、`{"$exists": true}`、`{"$visible": false}`；0 匹配按实际 0 判定。
+- URL / 路径 / 标题 / 弹窗文本：模型元素用 `<location type="page">url|path|title|dialog</location>`。
+- 只校验部分字段：`<test_step action="verify" ... match_mode="subset"/>`，或在不校验的字段填 `BLANK`。
+- 详见 TEST_CASE_WRITING_GUIDE §5.7、CORE §4.6。
+
 ---
 
 ### 1.5 wait - 等待
 
-**用途**: 等待指定时间或元素出现
+**用途**: 固定等待指定秒数
+
+> 等异步结果不要用 `wait`：UI `verify` 会自动重试到期望值（v11.6.0）。`wait` 只用于演示、录屏或确需固定时长的场景；用例中出现数字字面量 `wait` 时 `rodski case lint` 给出 WARNING。
 
 **语法**:
 ```xml
@@ -246,38 +259,30 @@ key 不存在会抛 `InvalidParameterError`。
 
 ## 3. 高级 Skill
 
-### 3.1 switch_window - 切换窗口
+### 3.1 switch_window - 切换窗口（不是关键字）
 
-**用途**: 在多窗口/标签页间切换
-
-**语法**:
-```xml
-<test_step action="switch_window" model="" data="窗口索引"/>
-```
-
-**示例**:
-```xml
-<test_step action="switch_window" model="" data="1"/>
-```
+> `switch_window` **不在** 17 个关键字中（CORE §5），不能写在 `action` 中，写了会在 XSD 校验阶段报错。
 
 ---
 
-### 3.2 switch_frame - 切换 iframe
+### 3.2 iframe 内元素（`location@frame`，v11.6.0）
 
-**用途**: 切换到 iframe 内部
+> `switch_frame` **不是关键字**。iframe 内的元素在模型的 `<location>` 上加 `frame` 属性（定位 iframe 的 CSS 选择器，多层用 ` >> ` 串联），`type` / `verify` 照常使用。
 
-**语法**:
+**模型**:
 ```xml
-<test_step action="switch_frame" model="PageModel" data="DataRowID"/>
+<element name="cardNo" type="web">
+    <location type="css" frame="#payFrame">#cardNo</location>
+</element>
+<element name="agree" type="web">
+    <location type="id" frame="#outerFrame >> #termsFrame">agree</location>
+</element>
 ```
 
-**示例**:
+**用例**:
 ```xml
-<test_step action="switch_frame" model="MainPage" data="F001"/>
-
-<row id="F001">
-  <field name="contentFrame">switch</field>
-</row>
+<test_step action="type" model="PayFrame" data="P001"/>
+<test_step action="verify" model="PayFrame" data="V001"/>
 ```
 
 ---
@@ -497,9 +502,9 @@ key 不存在会抛 `InvalidParameterError`。
 | 场景 | 推荐 Skill |
 |------|-----------|
 | 打开页面 | navigate |
-| 填写表单 | type + click |
+| 填写表单 | type（数据表中按钮字段填 `click`） |
 | 验证结果 | verify |
-| 等待加载 | wait |
+| 等待加载 | verify（UI 自动重试，v11.6.0）；不要用 wait |
 | 桌面应用 | launch + run |
 
 ### 6.2 常见错误
@@ -507,7 +512,7 @@ key 不存在会抛 `InvalidParameterError`。
 | 错误 | 原因 | 解决方案 |
 |------|------|---------|
 | 元素未找到 | 定位器错误 | 检查 vision 描述或坐标 |
-| 操作超时 | 页面加载慢 | 增加 wait 步骤 |
+| 操作超时 | 页面加载慢 | 调大 `DefaultValue.AutoWait`（毫秒），不要增加 wait 步骤 |
 | 验证失败 | 期望值不匹配 | 更新数据表中的期望值 |
 
 ---

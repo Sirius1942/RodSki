@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- V04 C1：confirm 接受/取消、prompt 输入，弹窗文本可 verify -->
+<cases tags="v116,dialog">
+  <case execute="是" id="TC001" title="confirm 接受后删除" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/dialog.html"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="DialogPage" data="D_ACCEPT"/>
+      <test_step action="verify" model="DialogPage" data="V_DELETED"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+  <case execute="是" id="TC002" title="confirm 取消" component_type="界面" priority="P1">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/dialog.html"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="DialogPage" data="D_DISMISS"/>
+      <test_step action="verify" model="DialogPage" data="V_CANCELLED"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+  <case execute="是" id="TC003" title="prompt 输入备注" component_type="界面" priority="P1">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/dialog.html"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="DialogPage" data="D_PROMPT"/>
+      <test_step action="verify" model="DialogPage" data="V_PROMPT"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+</cases>

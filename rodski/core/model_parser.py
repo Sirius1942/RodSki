@@ -34,7 +34,12 @@ VALID_LOCATOR_TYPES = [
     "id", "class", "css", "xpath", "text", "tag", "name", "static", "field",
     # 视觉定位器
     "vision", "ocr", "vision_bbox", "vision_image",
+    # v11.6.0 页面级属性（A1/C1）
+    "page",
 ]
+
+# v11.6.0: page 定位类型的合法取值
+PAGE_LOCATOR_VALUES = ("url", "title", "path", "dialog")
 
 # 视觉定位器类型集合
 VISION_LOCATOR_TYPES = {"vision", "ocr", "vision_bbox", "vision_image"}
@@ -200,17 +205,50 @@ class ModelParser:
                 loc_priority = int(loc_priority_attr) if loc_priority_attr is not None else 1
                 # platform 属性可选：android/ios，缺省为 None（通用，适用所有平台）
                 loc_platform = (loc.get('platform') or '').strip() or None
+                # v11.6.0 (C2): frame 属性可选，iframe 的 CSS 选择器（多层用 >> 串联）
+                loc_frame = (loc.get('frame') or '').strip() or None
                 has_explicit_priority.append(loc_priority_attr is not None)
+                if loc_type == 'page' and loc_value not in PAGE_LOCATOR_VALUES:
+                    raise ModelParseError(
+                        f"元素 '{element_name}' 的 <location type=\"page\"> 取值非法: '{loc_value}'。"
+                        f"page 定位类型只能是 {' / '.join(PAGE_LOCATOR_VALUES)}，"
+                        f"例如 <location type=\"page\">path</location>",
+                        model_file=str(self.xml_path),
+                    )
+                if loc_type == 'page' and loc_frame:
+                    raise ModelParseError(
+                        f"元素 '{element_name}' 的 <location type=\"page\"> 不能带 frame 属性"
+                        f"（页面级属性读取的是顶层页面）",
+                        model_file=str(self.xml_path),
+                    )
+                if loc_type in VISION_LOCATOR_TYPES and loc_frame:
+                    raise ModelParseError(
+                        f"元素 '{element_name}' 的视觉定位器 <location type=\"{loc_type}\"> 不能带 frame 属性"
+                        f"（视觉定位基于整页截图，不区分 iframe）。"
+                        f"提示: 去掉 frame，或改用 css/id/xpath 等 DOM 定位器配合 frame",
+                        model_file=str(self.xml_path),
+                    )
                 if loc_type in VALID_LOCATOR_TYPES and loc_value:
                     locations.append({
                         'type': loc_type,
                         'value': loc_value,
                         'priority': loc_priority,
                         'platform': loc_platform,
+                        'frame': loc_frame,
                         '_has_priority': loc_priority_attr is not None,
                     })
 
             locations.sort(key=lambda x: x['priority'])
+
+            # v11.6.0: CORE §2.5.6 page 约束第 2 条——page 不得与其他定位器混用
+            if len(location_nodes) > 1 and any(
+                    (loc.get('type', 'id') == 'page') for loc in location_nodes):
+                raise ModelParseError(
+                    f"元素 '{element_name}' 的 <location type=\"page\"> 不能与其他 <location> 混用。"
+                    f"提示: page 元素只能有一个 <location type=\"page\">，"
+                    f"DOM 元素请单独定义一个 element",
+                    model_file=str(self.xml_path),
+                )
 
             # Determine locator mode for multi-location elements
             locator_mode = "sequential"  # default (v6 behavior)
@@ -246,6 +284,8 @@ class ModelParser:
                     'interfacename': elem_node.get('interfacename', ''),
                     'locations': locations,
                     'locator_mode': locator_mode,
+                    # v11.6.0 (C2): 主定位器所在 iframe（None 表示顶层页面）
+                    'frame': primary.get('frame'),
                 }
 
         return None
@@ -313,6 +353,7 @@ class ModelParser:
             'model_type': element.get('model_type', self.get_model_type(model_name)),
             'element_type': element.get('element_type', ''),
             'locations': element.get('locations', []),
+            'frame': element.get('frame'),
         }
 
     def get_auto_capture(self, model_name: str, trigger: str) -> list:

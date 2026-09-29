@@ -5,6 +5,24 @@ description: 在任意 RodSki 用例仓库中编写、修改、调试或审查 R
 
 # RodSki 用例编写器
 
+## 契约速查（先读，v11.6.0）
+
+AI 首轮写 RodSki 用例最常踩的坑。本表与 `rodski capabilities` 输出的 `pitfalls` 字段同源（按 `id` 对应）；以当前 CLI 的 `pitfalls` 为准，两者不一致时报告差异。写完后跑 `rodski case lint <module>`，它会静态拦截带 lint 级别的条目。
+
+| id | 坑 | 正确写法 | lint |
+|----|----|----------|------|
+| `verify_strict_subset` | `verify` 默认 **strict**：`_verify` 行缺模型字段就报「字段缺失」 | 只校验部分字段时步骤上写 `match_mode="subset"`；或不校验的字段填 `BLANK` | INFO：strict 下 BLANK 字段占比 > 50% |
+| `xml_attr_escape` | XML 属性里直接写 `&&` / `<`，解析失败只报行列号 | 属性中写 `&amp;&amp;` / `&lt;`；或把脚本放到模块内 `fun/js/*.js`，`evaluate` 的 `data="file:fun/js/x.js"` 引用（只允许模块内路径） | — |
+| `sql_placeholder` | 以为 `'2026-01-01 00:00:00'` 里的 `:00` 需要传参 | 命名参数 `:name` 必须以字母或下划线开头；引号内冒号与 `::int` 不算参数（v11.5.2 起） | — |
+| `sql_blank_fallback` | 同表混用 `sql` / `query` 时两个都填了 `BLANK` | 每行带齐 `sql`/`query`/`operation`，不用的填 `BLANK`；先取有效 `sql`，没有再回落 `query`，两者至少一个有效 | ERROR |
+| `dialog` | 在 `evaluate` 里写 `window.confirm = () => true` 垫片 | `DefaultValue.DialogPolicy=accept\|dismiss\|fail`（默认 `fail`，未预期弹窗直接失败并报文本）；一次性处理：模型声明 `<location type="page">dialog</location>` 元素（排在触发按钮之前），`type` 数据填 `accept` / `dismiss` / `accept:文本`，`verify` 该字段读最近一次弹窗文本 | WARNING |
+| `db_assertion` | 查询后用 `evaluate` / `<if>` 判断结果；DB `_verify` 写 `${Return[-1]}` | DB 模型用 `<location type="field">列名</location>` 声明列，`DB` 步骤后接 `verify 模型名 行ID`（与第一行比较）；`_verify` 写字面值或 GlobalValue | — |
+| `waittime_ms` | `WaitTime=1` 当成 1 秒；用例到处写 `wait 1/2` 等异步数据 | `DefaultValue.WaitTime` 与 `<cases step_wait>` 单位都是**毫秒**、作用于每一步；新模块写 `0`，异步交给智能等待与 `verify` 自动重试（自动等待 `DefaultValue.AutoWait`，毫秒，默认 5000）。旧值 ≤30 暂按秒兼容并告警 | WARNING |
+| `native_assert_over_evaluate` | `evaluate` 里 `querySelectorAll(...).length` / `location.pathname` 断言，选择器失效时静默通过 | `_verify` 字段填 `{"$count": 10}` / `{"$count_gte": 1}` / `{"$exists": true}` / `{"$visible": true}`；URL/标题用 `<location type="page">url\|title\|path</location>` 元素 + 普通 `verify`；0 匹配按实际 0 判定 | WARNING |
+| `ui_atomic_in_data` | 写 `<test_step action="click">` | `click/hover/select` 等是 `type` 数据表字段值，不是关键字 | — |
+
+改期望值直接用 `rodski data set <module> <table> <data_id> field=value`（另有 `data add-row` / `data delete-row`，新增行须给全字段），不需要改 XML 再 `data import`。
+
 ## 范围与上下文
 
 在任意 RodSki 用例仓库中处理测试用例工作时使用本技能：`case/*.xml`、`model/*.xml`、`business/*.xml`、`data/globalvalue.xml`、`data/data.sqlite`、`plan/*.xml`、guide 合规、UI/API/DB 用例编写、审查、调试和 CLI 校验。处理 RodSki 框架源码或协议工作时，使用范围更广的 `rodski` 技能。
@@ -59,6 +77,10 @@ python3 scripts/sync_test_case_guide.py \
 
 - 将本地 `TEST_CASE_WRITING_GUIDE.md` 视为只读参考材料和用例编写核心约束：用例设计必须符合其要求。结合当前 CLI `--version`/`--help` 和目标模块现有风格，把它们作为实时事实来源。受支持关键字、定位器类型和特殊值的**权威清单以 `rodski capabilities` 为准**（当前 CLI 顶层 `--help` 列出 `capabilities` 时调用，取其 `supported_keywords`/`locator_types`/`special_values`）；本技能、`CLAUDE.md`/`AGENTS.md`、参考笔记和 guide 里出现的关键字名单只是示例和常见幻觉提示，不要当成完整白名单或硬编码事实来源。如果本技能、参考笔记、capabilities 输出、XSD 或 guide 相互冲突，不要静默猜测；运行最窄的 dry-run/help 检查并报告不一致。
 - 保持 RodSki 三元结构一致：Case 只编排动作，Model 定义 UI 元素/API 字段/DB 字段，输入和期望数据放在 `data/data.sqlite`；全局变量放在 `data/globalvalue.xml`。
+- **何时用全局变量**（`data/globalvalue.xml`，引用写 `GlobalValue.组名.变量名`，Case 的 `data`、数据表字段值、模型里都能用）：判断标准是"换一个环境就要改"或"整个模块共用、与单条用例无关"。
+  - 该用：站点 URL / API 基址、与环境绑定的测试账号、数据库连接组（与模型 `connection` 同名）、移动端 `Platform/UDID/AppPackage`、框架执行策略 `DefaultValue.WaitTime`（毫秒）/ `AutoWait`（毫秒，verify 自动等待上限，默认 5000）/ `DialogPolicy` / `SessionMode` / `EvidenceMode`。
+  - 不该用：单条用例的输入与期望值（放 `data.sqlite`）、运行时产生的值（订单号、token → `set/get`、`${Return[-N]}`、`auto_capture`）、只有一两条用例用到的常量、生产或个人真实凭据。
+  - 用例、模型、数据表里不要写死环境地址；写成 `GlobalValue.DefaultValue.URL/...`，换环境时只改 `globalvalue.xml`（与 `rodski-skill--switch-rodski-env` 的约定一致）。详见 GUIDE §6.0。
 - 导航使用 `navigate`。不要写 `open`。
 - 对于跨平台或跨角色 UI 流程，例如在不同门户、不同租户或不同权限角色之间切换，不要只在同一浏览器会话里用 `navigate` 跳到另一个 URL 来切换身份。当当前 guide/CLI/dry-run 确认支持的浏览器生命周期后，使用 `close -> navigate -> login -> verify`：切换平台/角色前关闭当前浏览器，让下一个 `navigate` 创建新浏览器，以新角色认证，并验证角色特定首页或身份标识。仅在同一平台、同一已认证角色内使用普通 `navigate`。
 - 对于 Desktop 启动或应用切换，仅当当前 CLI/guide/dry-run 确认目标环境支持时才使用 `launch`。
@@ -72,7 +94,7 @@ python3 scripts/sync_test_case_guide.py \
 - Case 文件名前缀应反映实际执行类型：纯界面用 `UI`，纯接口用 `API`，纯数据库用 `DB`；混合用例用组合前缀，如 `UI+DB`、`API+DB`、`UI+API+DB`。判定以实际 `test_step action` 为准：`navigate`/`type`/`evaluate`/`screenshot`/`get` 等归 UI，`send` 归 API，`DB` 或明确数据库检查脚本归 DB。纯 DB 用例的 `component_type` 应为 `数据库`。
 - 当存在 `send`、`type` 或 `verify` 的 model/data 路径时，不要用宽泛的 `evaluate` 代码伪造通过。特别是用 `querySelectorAll(...).length` 之类在 `evaluate` 里做断言时，选择器失效会返回空集合、用例"静默通过"；断言优先走 model + `_verify`。
 - `verify` 默认 **strict 模式**：`_verify` 行必须包含模型的**全部**字段，否则报"字段缺失"。只想校验部分字段时，在步骤上写 `match_mode="subset"`；或者在不校验的字段填 `BLANK`。
-- `globalvalue.xml` 的 `DefaultValue.WaitTime` 会作用于**每一步**（当前单位为秒）。新模块保持 `0`，交互等待交给框架的智能等待与状态 `verify`；设成 `1` 会让每个用例多出"步数 × 1 秒"的耗时。
+- `globalvalue.xml` 的 `DefaultValue.WaitTime` 会作用于**每一步**，单位为**毫秒**（v11.6.0 起与 `<cases step_wait>` 统一；旧值 ≤30 暂按秒兼容并打印弃用告警，请改写为毫秒）。新模块保持 `0`，交互等待交给框架的智能等待与 `verify` 自动重试；设成 `1000` 会让每个用例多出"步数 × 1 秒"的耗时。
 - DB 断言、`sql`/`query` 混用与 SQL 占位符规则见 `references/api-db-patterns.md`「DB 主路径」。
 - 业务模型：`<business_call>` 必须同时写 `ref`、`flow`、`input`、`expect`；它是 Case 元素不是关键字，不要写成 `test_step action="business_call"`。`flow` 只是断言目标，不要为了让用例通过去改边条件或伪造输出；一条 flow 对应一个 Case。模型 `B` 的数据放在普通表 `B`（data）和 `B_verify`（verify）。改动 `business/` 后先跑 `rodski business validate <module>`。细节见 `references/business-model.md`。
 
