@@ -1,7 +1,7 @@
 # RodSki 核心设计约束
 
 **版本**: v11.5.0
-**日期**: 2026-09-28
+**日期**: 2026-09-29
 
 本文档记录 RodSki 框架的核心设计决策与约束规则，所有后续开发必须遵循。
 
@@ -13,9 +13,9 @@
 
 | 版本 | 日期 | 主要变更 |
 |------|------|---------|
-| v11.5.0 | 2026-09-28 | `case/` 支持任意多级嵌套目录，递归发现用例（§6.5 新增）；用例完整标识改为 `case_file + case.id`，ID 只要求文件内唯一（§7.2）；`result.xsd` 新增 `case_file`（§7.6）；`plan.xsd` 的 `case@file` 必填（单文件模块兼容例外）、新增 `case_dir`，`--case-id` 加入 `@plan_id` 互斥 selector 清单（§7.7）；结果目录按 `case/` 目录结构镜像，截图/录像路径随之改变（Agent 契约摘要） |
-| v11.3.0 | 2026-09-14 | iOS 真机纳入设备发现（devicectl）、真机+模拟器混跑约束（§11.5 追加）、移动端导航两条硬约束（§11.5 追加） |
+| v11.5.0 | 2026-09-29 | `case/` 支持任意多级嵌套目录，递归发现用例（§6.5 新增）；用例完整标识改为 `case_file + case.id`，ID 只要求文件内唯一（§7.2）；`result.xsd` 新增 `case_file`（§7.6）；`plan.xsd` 的 `case@file` 必填（单文件模块兼容例外）、新增 `case_dir`，`--case-id` 加入 `@plan_id` 互斥 selector 清单（§7.7）；结果目录按 `case/` 目录结构镜像，截图/录像路径随之改变（Agent 契约摘要） |
 | v11.4.0 | 2026-09-27 | 业务模型场景法约束：Case 显式选择业务流、普通 SQLite Data/Verify 数据表、XML Schema 与 debug-only 独立执行边界 |
+| v11.3.0 | 2026-09-14 | iOS 真机纳入设备发现（devicectl）、真机+模拟器混跑约束（§11.5 追加）、移动端导航两条硬约束（§11.5 追加） |
 | v11.2.0 | 2026-09-10 | 移动端多设备并发约束（§11.5）：计划不可拆分、动态领取、`--udid` 覆盖顺序、并发端口分槽 |
 | v9.2.3 | 2026-08-14 | 探索式测试架构约束、ConfigManager 序列化规范、Playwright 驱动初始化规范 |
 | v7.1.1 | 2026-05-29 | 移动端测试能力、录像架构 |
@@ -97,6 +97,10 @@ key_press【按键】 / drag【目标】 / scroll / scroll【x,y】
 - `mock_route(url_pattern, status, body, content_type)` — Mock API 响应（仅 Playwright）
 - `wait_for_response(url_pattern, timeout)` — 等待网络请求完成
 - `clear_routes()` — 清除所有 mock route
+- `start_js_coverage()` — 启动 JavaScript 代码覆盖率收集（仅 Playwright）
+- `stop_js_coverage(output)` — 停止覆盖率收集并保存到文件
+- `reset_request_log()` — 清空请求日志
+- `get_request_log()` — 获取已记录的请求
 
 用法示例：
 ```xml
@@ -160,7 +164,7 @@ Case XML 的 data 属性中，只需要写 DataID，不需要写表名前缀：
 
 ---
 
-## 2.5 定位器类型（完整）
+### 2.5 定位器类型（完整）
 
 RodSki 支持 12 种定位器类型，分为传统定位器和视觉定位器两大类。
 
@@ -361,7 +365,7 @@ RodSki 支持 12 种定位器类型，分为传统定位器和视觉定位器两
 
 ---
 
-## 2.6 Perception 插件机制（v7.1.0）
+### 2.6 Perception 插件机制（v7.1.0）
 
 ### 2.6.1 设计原则
 
@@ -480,7 +484,7 @@ pip install rodski[perception-remote]
 
 ---
 
-## 2.7 业务模型（Business Model）约束
+### 2.7 业务模型（Business Model）约束
 
 业务模型是基于黑盒测试场景法的业务流程图，不是普通工作流执行器，也不是测试用例集合。必须遵守以下约束：
 
@@ -959,6 +963,7 @@ product/                           ← 产品根目录（顶层）
 | `data/` | 存放数据表和全局变量 | `data.sqlite`（必须）、`globalvalue.xml`（符合 globalvalue.xsd） |
 | `plan/` | 存放测试计划定义 | `*.xml`（符合 plan.xsd） |
 | `result/` | 存放测试执行结果 | `result_*.xml`（符合 result.xsd，框架自动生成） |
+| `business/` | 业务模型场景流，可选（v11.4.0 起，见 §2.7） | `*.xml`（符合 business.xsd） |
 | `perf/` | 性能压测功能专属的预编译产物目录，可选 | `{plan_id}.py`、`{plan_id}.py.meta` |
 | `knowledge/` | 漫游测试功能专属的知识目录，首次写入时自动创建，可选 | `test_map.json`、`test_map.json.lock` |
 
@@ -1005,7 +1010,6 @@ product/                           ← 产品根目录（顶层）
 | 读取时机 | 文档类型 | 不符合 Schema 时 |
 |---------|---------|------------------|
 | 解析 `case/**/*.xml`（递归发现的每个文件，见 §6.5） | 用例 | 抛出 `XmlSchemaValidationError`（错误码 `SKI204`） |
-| 解析 `data/*.xml`（不含 globalvalue） | 数据表 | 同上 |
 | 解析 `data/globalvalue.xml` | 全局变量 | 同上 |
 | 解析 `plan/*.xml` | 测试计划 | 同上 |
 | 加载 `model/model.xml` | 模型 | 同上 |
@@ -1027,7 +1031,6 @@ RodskiXmlValidator.validate_file("path/to/case.xml", RodskiXmlValidator.KIND_CAS
 |---------|------------|---------|------|
 | 用例 XML | `schemas/case.xsd` | `case/`（支持任意多级子目录，递归发现，见 §6.5） | 用例定义（三阶段容器 + test_step） |
 | 模型 XML | `schemas/model.xsd` | `model/` | 元素定位模型 |
-| 数据表 XML | `schemas/data.xsd` | `data/` | 输入数据表 + 验证数据表 |
 | 全局变量 XML | `schemas/globalvalue.xsd` | `data/` | 全局变量定义 |
 | 测试计划 XML | `schemas/plan.xsd` | `plan/` | 测试计划定义 |
 | 结果 XML | `schemas/result.xsd` | `result/` | 测试结果 + 测试摘要 |
@@ -1128,10 +1131,11 @@ pre_process → test_case → roaming（可选）→ post_process
       <field name="userType">select【admin】</field>
       <field name="loginBtn">click</field>
     </row>
-    <!-- 第2行：普通用户登录（3个字段） -->
+    <!-- 第2行：普通用户登录（4个字段） -->
     <row id="L002" remark="普通用户">
       <field name="username">testuser</field>
       <field name="password">test123</field>
+      <field name="userType">select【user】</field>
       <field name="loginBtn">click</field>
     </row>
   </datatable>
@@ -1211,10 +1215,10 @@ model.xml 格式与之前版本保持一致，仅支持完整格式（`<location
 - 不新增 `rs_testsuite`、`rs_test_plan`、`rs_execution_plan` 等 SQLite 计划表。
 - `rodski run` 未指定计划时，优先读取 `plan/project_full.xml`。
 - 若不存在 `project_full.xml` 但 `plan/*_full.xml` 只有一个，可使用该 full 计划；若存在多个 full 计划，必须提示用户显式指定 `@plan_id`。
-- **`<case>` 的 `file` 属性必填**（v11.5.0 起）：值为相对 `case/` 的 POSIX 路径。唯一兼容例外——模块 `case/` 下（递归）**只有一个用例文件**时可省略 `file`，自动指向该文件；存在多个用例文件而省略 `file` 时，解析报错 `SKI207 PlanCaseFileRequired`，提示为该 `id` 补充 `file` 并列出包含该 ID 的候选文件。
+- **`<case>` 的 `file` 属性必填**（v11.5.0 起）：值为相对 `case/` 的 POSIX 路径。唯一兼容例外——模块 `case/` 下（递归）**只有一个用例文件**时可省略 `file`，自动指向该文件；存在多个用例文件而省略 `file` 时，解析报错 `SKI207 PlanCaseFileRequired`，提示为该 `id` 补充 `file` 并列出包含该 ID 的候选文件。若引用的 `id` 在任何文件中都不存在，记为 stale 引用（不报 SKI207）。
 - **`<case>` 的 `id` 只需在其 `file` 指向的文件内唯一**，不再是模块内全局唯一键（见 §6.5）。
 - 新增可选元素 `<case_dir path="..." execute="是"/>`：`path` 为相对 `case/` 的目录（递归选入，空字符串表示整个 `case/`），选中该目录下所有 `execute="是"` 的用例；同一用例同时被 `case_dir` 与显式 `case` 命中时，以 `case` 的显式配置为准。
-- `file` / `id` / `case_dir.path` 指向不存在的文件、ID 或目录时记为 stale 引用，只记录不崩溃（不变）。
+- `file` 指向不存在的文件、`id` 在指定 `file` 内不存在、`case_dir.path` 指向不存在的目录或 `id` 引用的场景不存在时，均记为 stale 引用，只记录不崩溃（不变）。
 
 **执行入口约束**：
 
@@ -2114,28 +2118,44 @@ Element not found after 30 retries (9.0s): id=submit-btn
 
 **位置**：`rodski-demo/DEMO/`
 
-**包含项目**：
+**包含项目**（24 个）：
 - `demo_full/` - 完整功能演示（UI、接口、数据库、Return引用等）
 - `demo_runtime_control/` - 运行时控制演示（暂停、插入、终止）
+- `demo_nested_case/` - 嵌套目录用例（v11.5.0，3 层嵌套 + 自动化验收）
+- `demo_nested_case_single/` - 单用例文件模块（v11.5.0，测试省略 `file` 的兼容规则）
+- `demo_nested_case_dup_id/` - 跨文件同名 ID（v11.5.0，测试 SKI205）
+- `demo_v11_enhancement/` - v11.x 增强特性演示
+- `demo_v7_features/` - v7.0 特性演示
+- `demo_business_model/` - 业务模型演示（v11.4.0）
+- `demo_hooks/` - hook 机制演示
+- `demo_pause_takeover/` - CDP 共享浏览器暂停接管
+- `demo_roaming_test/` - 漫游测试演示
+- `demo_load/` - 性能压测演示
+- `demo_perception/` - 感知定位演示
+- `mobile_app/` - 移动端测试（Android/iOS）
+- `browser_plugin/` - 浏览器插件集成
+- `browser_plugin_baidu/` - 插件示例：百度搜索
+- `vision_web/` - 视觉定位（Web）
+- `vision_desktop/` - 视觉定位（桌面）
+- `iteration-01-vision/` - 早期视觉能力迭代
+- `vscode_plugin/` - VS Code 扩展集成
+- `qq_music/` - QQ 音乐 App 测试示例
+- `rodski_website/` - 官网测试用例
 
 **约束**：
 - Demo 项目必须简单易懂，代码量最小化
-- 每个 Demo 必须有独立的 README.md 说明
+- 每个 Demo 必须有独立的 README.md 说明（当前有 6 个缺失，见下方待补）
 - Demo 用例必须能够独立运行
 - 不依赖外部真实业务系统
 
+**待补 README**（6 个）：
+- `browser_plugin/`、`browser_plugin_baidu/`
+- `demo_v11_enhancement/`、`demo_v7_features/`
+- `qq_music/`、`vscode_plugin/`
+
 ### 14.3 业务测试项目
 
-**位置**：项目根目录下的独立目录（如 `cassmall/`）
-
-**特点**：
-- 独立于 Demo 项目
-- 包含真实业务逻辑
-- 可能依赖外部系统
-- 测试数据来自真实业务
-
-**当前项目**：
-- `cassmall/thdh/` - Cassmall 同行调货业务测试
+业务测试项目独立于 Demo，包含真实业务逻辑，可能依赖外部系统。当前仓库中无此类项目（历史上有 `cassmall/thdh/`，已移除）。
 
 ---
 
@@ -2153,10 +2173,10 @@ Element not found after 30 retries (9.0s): id=submit-btn
 2. **Demo 项目验证**
    ```bash
    # 运行完整功能 Demo
-   python3 -c "from rodski_cli import main; import sys; sys.argv = ['rodski', 'run', 'case.xml']; main()" -- case demo_case.xml
-
-   # 运行运行时控制 Demo（通过 --insert-step 插入动态步骤）
-   python3 -c "from rodski_cli import main; import sys; sys.argv = ['rodski', 'run', 'case.xml']; main()" -- case runtime_case.xml
+   rodski run rodski-demo/DEMO/demo_full/case/demo_case.xml
+   
+   # 运行运行时控制 Demo
+   rodski run rodski-demo/DEMO/demo_runtime_control/case/
    ```
 
 3. **验收标准**
@@ -2186,8 +2206,8 @@ Element not found after 30 retries (9.0s): id=submit-btn
 
 ```bash
 # 1. 运行所有 Demo 项目
-python3 -c "from rodski_cli import main; import sys; sys.argv = ['rodski', 'run', 'rodski-demo/DEMO/demo_full/case/']; main()"
-python3 -c "from rodski_cli import main; import sys; sys.argv = ['rodski', 'run', 'rodski-demo/DEMO/demo_runtime_control/case/']; main()"
+rodski run rodski-demo/DEMO/demo_full/case/
+rodski run rodski-demo/DEMO/demo_runtime_control/case/
 
 # 2. 检查结果
 ls -la rodski-demo/DEMO/*/result/
@@ -2244,7 +2264,7 @@ python3 init_db.py
 test:
   script:
     - python3 rodski/selftest.py
-    - python3 -c "from rodski_cli import main; import sys; sys.argv = ['rodski', 'run', 'rodski-demo/DEMO/demo_full/case/']; main()"
+    - rodski run rodski-demo/DEMO/demo_full/case/
   artifacts:
     paths:
       - rodski-demo/DEMO/*/result/
@@ -2356,15 +2376,17 @@ test:
 | 数据格式 | SQLite（`data/data.sqlite`，唯一数据文件） |
 | 测试计划格式 | XML（`plan/*.xml`，每个文件一个测试计划；`<case>` 的 `file` 属性必填，见 §7.7） |
 | 定位器格式 | `<location type="类型">值</location>`（唯一格式，v5.4.0 起） |
-| 关键字集合 | navigate / launch / type / send / verify / assert / run / DB / get / set / wait / clear / upload_file / screenshot / evaluate |
+| 关键字集合 | close / type / verify / wait / navigate / launch / assert / evaluate / screenshot / upload_file / clear / get_text / get / send / set / DB / run（共 17 个，见 §5） |
 
 ### 输出契约
 
 | 项目 | 规范 |
 |------|------|
-| 结果文件 | `execution_summary.json` |
+| 结果文件 | `result/{run}/result.xml`（主结果文件，符合 `result.xsd`）<br>`result/{run}/execution_summary.json`（JSON 格式摘要）<br>`result/{run}/trace.json`（可选，执行轨迹） |
 | 截图 | `result/{run}/case/{case_file 去 .xml}/screenshots/`（v11.5.0 起镜像 `case/` 目录结构；见下方截图目录规则） |
-| 日志 | `result/execution.log` |
+| 录像 | `result/{run}/case/{case_file 去 .xml}/recordings/`（同截图镜像规则） |
+| 日志 | `result/{run}/execution.log` |
+| HTML 报告 | `result/{run}/report.html`（可选，由报告生成器产生） |
 | Return 值 | 通过 `${Return[-1]}` 在数据表中引用 |
 
 #### 截图目录规则
@@ -2426,7 +2448,6 @@ test:
 - [ ] `directory_structure` 硬检查只要求 `case/model/data`；`fun/plan/result` 按能力需要，`perf/knowledge` 保持功能专属目录（§6）
 - [ ] 测试计划只存放在 `plan/*.xml`，不进入 `data.sqlite`（§7.7）
 - [ ] `@plan_id` 与 tag/group/priority/`--case-id` selector 固定互斥（§7.7）
-- [ ] 自检不使用 pytest（§9）
 - [ ] 数据表格式符合规范（§7.3）
 - [ ] 视觉定位器类型符合规范（§10）
 - [ ] `case.roam` 仅用于 UI case，三层开关、四阶段时序和基础 PASS/FAIL 语义符合 §7.2/§8.9
@@ -2436,7 +2457,7 @@ test:
 - [ ] `case/` 全部消费者（parser/metadata/scheduler/CLI/plan/lint）通过 `case_discovery.discover_case_files()` 递归发现，未见新的 `glob("*.xml")` 单层扫描（§6.5）
 - [ ] `case/` 子目录未使用保留名，违规触发 `SKI206`；同文件内 `case.id` 重复触发 `SKI205`（含 `execute="否"`），且在启动驱动前抛出（§6.5）
 - [ ] 用例标识按 `case_file + case.id` 处理，未把 `case.id` 当模块内全局唯一键（§6.5、§7.2）
-- [ ] `plan/*.xml` 的 `<case>` 已带必填 `file`（单文件模块兼容例外），省略且有歧义时报 `SKI207`；`case_dir` 与 `case` 冲突时以 `case` 为准（§7.7）
+- [ ] `plan/*.xml` 的 `<case>` 已带必填 `file`（单文件模块兼容例外，即模块 `case/` 下递归只有一个用例文件时可省略，否则报 `SKI207`）；引用不存在的 ID 记为 stale 引用；`case_dir` 与 `case` 冲突时以 `case` 为准（§7.7）
 - [ ] `--case-id` 只能与单个用例文件路径一起使用（目录报 `SKI208`），且与 `@plan_id` 互斥（§7.7）
 - [ ] `result/{run}/` 下用例级截图/录像已按 `case/{case_file 去 .xml}/` 镜像存放，截图文件名规则未变，汇总产物仍在运行目录根（Agent 契约摘要 · 截图目录规则）
 
@@ -2468,7 +2489,7 @@ kind=load 与 kind=suite 是完全独立的执行路径：
 ### 21.5 目录结构新增 perf/
 `perf/` 是 v8.0 新增的性能压测功能专属目录，仅在需要预编译压测计划时生成；它不改变 §6 定义的标准目录布局或 `case/model/data` 硬检查。漫游的 `knowledge/` 同样遵循这一可选/自动生成先例。
 
-## 统一运行时上下文约束（§10）
+## 22. 统一运行时上下文约束
 
 - 每个 case 独立一个 `RuntimeContext`，不跨 case 共享
 - 所有关键字执行后必须写入 `history`（步骤链连续约束）
