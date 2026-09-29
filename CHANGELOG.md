@@ -1,6 +1,33 @@
 # Changelog
 
 
+## [11.5.1] - 2026-09-29
+
+文档修正版本：修复 CORE_DESIGN_CONSTRAINTS.md 中的约束矛盾、与代码实现不一致、结构问题，补齐 6 个 demo README。
+
+### Fixed
+
+- 附录 A.2「自检不使用 pytest」与 §9.1/§9.2 矛盾，已删除该条（单元测试允许 pytest）
+- §7.0/§7.1 误将已废弃的 data.xsd 列为运行时校验对象，已删除（data.xml 自 v6.0.0 废弃）
+- §7.3 数据表示例字段数不一致（第 1 行 4 字段、第 2 行 3 字段），已统一为 4 字段
+- 附录 A.2 plan 省略 file 规则写成「有歧义时报 SKI207」，与决策 C2「多文件模块必报」不符，已修正
+- §7.7 缺少边界说明「ID 不存在时记为 stale 引用」，已补充
+- Agent 契约摘要：关键字集合漏 close/get_text（实际 17 个），已补齐
+- Agent 契约摘要：输出契约写成 `execution_summary.json` 和 `result/execution.log`，已改为实际路径 `result/{run}/result.xml` 等
+- §1.4 已注册内置函数只列网络拦截 3 个，漏 start_js_coverage/stop_js_coverage 等，已补齐（实际 7 个）
+- §15.1/§15.3/§17.1 示例命令使用 `from rodski_cli import main` 导致 ModuleNotFoundError，已改为 `rodski run ...`
+- §14.3 cassmall/thdh/ 示例在仓库中不存在，已删除
+- 补写 6 个缺失的 demo README：browser_plugin、browser_plugin_baidu、demo_v11_enhancement、demo_v7_features、qq_music、vscode_plugin
+
+### Changed
+
+- 版本更新记录按时间倒序排列（v11.5.0 → v11.4.0 → v11.3.0）
+- 章节编号：2.5/2.6/2.7 改为三级标题 `###`；§22 统一运行时上下文（原「§10」重复）
+- §6.3 固定文件夹职责表补 `business/` 行
+- §14.2 补全 24 个 demo 项目清单
+- 页眉日期统一为 2026-09-29
+
+
 ## [11.5.0] - 2026-09-29
 
 用例目录多级嵌套，面向大型产品的用例组织。设计：`.pb/specs/v11.5.0-nested-case-directory-design.md`；迭代：`.pb/iterations/iteration-63/`。
