@@ -4,7 +4,7 @@
            kind="suite"
            execute="是"
            default_execute="否">
-  <case id="TC040" execute="是">
+  <case file="tc040_scenario_basic.xml" id="TC040" execute="是">
     <scenario id="NONEXISTENT_SCENARIO" execute="是"/>
   </case>
   <case id="NONEXISTENT_CASE" execute="是"/>

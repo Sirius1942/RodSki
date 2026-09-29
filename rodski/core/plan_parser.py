@@ -66,6 +66,14 @@ class PlanParser:
                     "max": int(think_node.get("max") or 0),
                 }
 
+        cases = []
+        case_dirs = []
+        for child in root:
+            if child.tag == "case":
+                cases.append(self._parse_case(child))
+            elif child.tag == "case_dir":
+                case_dirs.append(self._parse_case_dir(child))
+
         result: Dict[str, Any] = {
             "id": plan_id,
             "title": (root.get("title") or "").strip(),
@@ -73,7 +81,8 @@ class PlanParser:
             "execute": (root.get("execute") or "是").strip(),
             "default_execute": (root.get("default_execute") or "否").strip(),
             "debug": debug,
-            "cases": [self._parse_case(case_node) for case_node in root.findall("case")],
+            "cases": cases,
+            "case_dirs": case_dirs,
         }
         # load_profile 只在非空时加入，避免影响 kind=suite 的测试期望
         if load_profile:
@@ -90,10 +99,22 @@ class PlanParser:
                 for scenario_node in case_node.findall("scenario")
             ],
         }
+        # file 属性：v11.5.0 新增，用于多级嵌套目录下定位用例
+        file_attr = case_node.get("file")
+        if file_attr is not None:
+            result["file"] = file_attr.strip()
         # weight 只在 load 计划中使用，仅当 XML 中显式声明时才加入，避免影响 suite 测试期望
         if case_node.get("weight") is not None:
             result["weight"] = int(case_node.get("weight") or 1)
         return result
+
+    @staticmethod
+    def _parse_case_dir(case_dir_node: ET.Element) -> Dict[str, Any]:
+        """解析 case_dir 元素（v11.5.0 新增）。"""
+        return {
+            "path": (case_dir_node.get("path") or "").strip(),
+            "execute": (case_dir_node.get("execute") or "是").strip(),
+        }
 
     @staticmethod
     def _parse_scenario(scenario_node: ET.Element) -> Dict[str, Any]:

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 第 3 层：order/refund/approve/ ；含 scenario，验证场景截图子目录也落在镜像目录内 -->
+<cases>
+  <case execute="是" id="TC001" title="退款审批流程" component_type="界面" priority="P1" tags="nested">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Page.REFUND_APPROVE"/>
+    </pre_process>
+    <test_case>
+      <scenario id="S01" title="审批页校验">
+        <test_step action="verify" model="Page" data="V_REFUND_APPROVE"/>
+      </scenario>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+</cases>

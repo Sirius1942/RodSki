@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 与 dup_in_file.xml 跨文件同 ID 是合法的；本模块失败只能由文件内重复导致 -->
+<cases>
+  <case execute="是" id="TC001" title="跨文件同 ID（合法）" component_type="界面">
+    <pre_process><test_step action="navigate" model="" data="GlobalValue.Page.ROOT"/></pre_process>
+    <test_case><test_step action="verify" model="Page" data="V_ROOT"/></test_case>
+    <post_process><test_step action="close" model="" data=""/></post_process>
+  </case>
+</cases>

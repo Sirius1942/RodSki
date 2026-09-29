@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- stale 引用：不存在的文件、文件内不存在的 ID、不存在的目录，均记录为 stale 不崩溃；有效引用正常执行（期望 1 个用例执行） -->
+<test_plan id="stale_reference" title="stale 引用" kind="suite" execute="是" default_execute="否">
+  <case file="order/not_exist.xml" id="TC001" execute="是"/>
+  <case file="order/order_basic.xml" id="TC999" execute="是"/>
+  <case_dir path="payment" execute="是"/>
+  <case file="smoke_root.xml" id="TC001" execute="是"/>
+</test_plan>

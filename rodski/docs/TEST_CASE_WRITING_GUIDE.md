@@ -1,6 +1,6 @@
 # RodSki 用例编写指南
 
-**版本**: v11.4.1
+**版本**: v11.5.0
 **日期**: 2026-09-28
 **适用框架**: RodSki v8.3.0+
 
@@ -65,8 +65,12 @@ v3.0+ 版本使用固定目录结构组织测试模块：
 product/                           ← 产品根目录（最顶层）
 └── {测试项目名}/                   ← 测试项目
     └── {测试模块名}/               ← 测试模块（业务）
-        ├── case/                  ← 测试用例 XML
-        │   └── demo_case.xml
+        ├── case/                  ← 测试用例 XML，支持任意多级子目录（v11.5.0 起，递归发现）
+        │   ├── smoke_root.xml
+        │   └── order/             ← 可继续嵌套，层级不限；子目录名不得使用保留目录名
+        │       ├── order_basic.xml
+        │       └── refund/
+        │           └── refund_apply.xml
         ├── model/                 ← 模型 XML
         │   └── model.xml
         ├── fun/                   ← 代码工程（run 关键字）
@@ -91,13 +95,15 @@ product/                           ← 产品根目录（最顶层）
 
 标准模块布局使用 `case/`、`model/`、`fun/`、`data/`、`plan/`、`result/` 这 6 个固定目录名，但当前目录合规硬检查只要求 `case/`、`model/`、`data/`。`fun/` 在使用 `run` 工程时需要，`plan/` 在按计划执行时需要，`result/` 由框架生成。`perf/`、`knowledge/` 与 `business/` 都按功能需要出现（`business/` 见[第 17 章](#17-业务模型business-modelv1140)）；`knowledge/` 不需要手工创建，也不参与 `REQUIRED_MODULE_DIRS` 检查。
 
+`case/` 支持**任意多级子目录**（v11.5.0 起）：执行、解析、`plan`、`dry-run`、`rodski case lint` 都会**递归**查找 `case/**/*.xml`，不再假设扁平一层。子目录名不得使用保留名（`case/model/fun/data/plan/result/business/perf/knowledge`），命名建议见 [§2.3](#23-推荐命名规范v1150)。
+
 ### 2.1 XML 文件与目录映射
 
 > 历史参考（已完成迁移）：早期版本使用单一文件格式，v3.0 起全面改用 XML 目录结构。
 
 | 文件 | 位置 | 说明 |
 |------|------|------|
-| case/*.xml | `case/` 目录 | 用例定义（三阶段容器 + test_step） |
+| case/**/*.xml | `case/` 目录（支持任意多级子目录，v11.5.0 起） | 用例定义（三阶段容器 + test_step） |
 | globalvalue.xml | `data/` 目录 | 全局变量 |
 | data.sqlite | `data/` 目录 | 所有测试数据表（唯一数据文件） |
 | plan/*.xml | `plan/` 目录 | 测试计划定义，每个文件一个计划 |
@@ -124,6 +130,41 @@ product/                           ← 产品根目录（最顶层）
 ```bash
 xmllint --noout --schema rodski/schemas/case.xsd product/DEMO/demo_site/case/demo_case.xml
 ```
+
+### 2.3 推荐命名规范（v11.5.0）
+
+`case/` 支持多级嵌套后，目录与文件命名不再强制，但推荐遵循以下规范（不强制，`rodski case lint` 会对违反项给 WARNING）：
+
+**原则**：目录表达"测什么"（业务结构）；`tag` / `priority` / `plan` 表达"怎么跑"。不要建 `smoke/`、`p0/` 这类目录，测试类型用 `tag` 表达。模块 ≠ 目录：共用同一套 `model.xml` / `data.sqlite` 的用例放同一模块内用子目录组织；页面或接口集合明显独立时应拆模块（`model.xml` 规模过大时，拆模块是唯一的扩容手段，见 §4）。
+
+推荐目录结构：
+
+```
+case/
+├── {业务域}/                     ← 如 order、payment、user
+│   ├── {功能}/                   ← 如 refund、checkout
+│   │   ├── {子功能}/             ← 按需继续嵌套，层级不限
+│   │   └── {功能}_{关注点}.xml
+│   └── README.md                ← 可选：该目录的中文说明
+```
+
+| 对象 | 规范 | 示例 |
+|------|------|------|
+| 目录名 | 小写 ASCII + 下划线，正则 `^[a-z][a-z0-9_]*$`；中文语义写在 `case@title` 和目录 README 中 | `order`、`refund` |
+| 用例文件名 | `{功能}_{关注点}.xml`，`snake_case`，正则 `^[a-z][a-z0-9_]*\.xml$`；关注点常用词 `basic / boundary / negative / flow / api / db / ui`；文件名不带测试类型（不写 `_smoke`）；一个文件推荐 1–20 个用例 | `refund_apply.xml`、`refund_boundary.xml` |
+| 用例 ID | ID 只需**文件内唯一**（见 [§3.2.1](#321-用例-id-唯一性v11500)），沿用"有规律编号" `TC001`、`TC002`… 文件内递增；需要跨文件检索时可选 `{功能缩写}_{序号}`，如 `REFUND_001`；已发布的 ID 不复用 | `TC001` |
+| data_id | 同一逻辑表被多个目录的用例共用时，推荐 `{功能缩写}_{用例ID}[_{序号}]`；共用数据用 `COMMON_{含义}` | `REFUND_TC001`、`COMMON_ADMIN_LOGIN` |
+
+**`rodski case lint <module>`**（v11.5.0 新增）：
+
+| 检查项 | 级别 |
+|--------|------|
+| 同一文件内用例 ID 重复 | ERROR |
+| 子目录使用保留名 | ERROR |
+| plan 中的 stale 引用（文件 / ID / 目录不存在） | WARNING |
+| 目录 / 文件名不符合 snake_case | WARNING |
+| 单文件用例数 > 30 | WARNING |
+| 跨文件同 ID | INFO（合法，只提示） |
 
 ---
 
@@ -172,7 +213,7 @@ xmllint --noout --schema rodski/schemas/case.xsd product/DEMO/demo_site/case/dem
 | 属性 | 必需 | 说明 | 取值规则 |
 |------|------|------|---------|
 | `execute` | 是 | 是否执行 | 只有 `是` 才执行，`否` 跳过 |
-| `id` | 是 | 用例编号 | 如 `c001`、`c002`，用于日志和结果回填 |
+| `id` | 是 | 用例编号 | 如 `c001`、`c002`，用于日志和结果回填；只要求**在所属用例文件内唯一**（v11.5.0 起，详见 [§3.2.1](#321-用例-id-唯一性v11500)） |
 | `title` | 是 | 用例标题 | 用于日志和报告显示 |
 | `description` | 否 | 用例描述 | 详细说明（可选） |
 | `component_type` | 否 | 测试类别 | `界面` / `接口` / `数据库`（与 `case.xsd` 一致），仅做分类标记 |
@@ -201,6 +242,17 @@ xmllint --noout --schema rodski/schemas/case.xsd product/DEMO/demo_site/case/dem
   </test_case>
 </case>
 ```
+
+#### 3.2.1 用例 ID 唯一性（v11.5.0）
+
+`case.id` 只要求在**所属用例文件内**唯一（`execute="否"` 的用例也参与检查）；同一文件内出现重复 ID 时，解析阶段报 `SKI205 DuplicateCaseIdInFile`，错误信息会指出文件与重复的 ID。
+
+**跨文件允许出现相同 ID**。用例的完整标识 = `case_file`（相对 `case/` 的 POSIX 路径）+ `case.id`，框架内部以 `{case_file}::{case_id}` 表示。这意味着：
+
+- `plan/*.xml` 中的 `<case>` 引用需要同时给出 `file` 与 `id`（见 [§10.3](#103-创建测试计划)）；
+- `result.xml` 中每条 `<result>` 会带上 `case_file`（见[附录：测试结果 XML](#附录测试结果-xmlresultxsd)），跨文件同 ID 的用例据此区分；
+- `rodski run <file> --case-id <id>` 按"文件 + ID"定位单个用例（见 [§9.7](#97-运行命令)）；
+- 命名建议见 [§2.3](#23-推荐命名规范v1150)。
 
 ### 3.3 三阶段执行顺序与失败语义
 
@@ -1423,11 +1475,17 @@ product/DEMO/demo_site/
 # 方式1：指定 case XML 文件
 rodski run rodski-demo/DEMO/demo_full/case/demo_case.xml
 
-# 方式2：指定 case 目录（执行所有 XML）
+# 方式2：指定 case 目录（递归执行该目录下所有 XML，任意层级，v11.5.0 起）
 rodski run rodski-demo/DEMO/demo_full/case/
+
+# 方式2b：指定 case 下的任意子目录（同样递归，v11.5.0 起）
+rodski run rodski-demo/DEMO/demo_full/case/order/
 
 # 方式3：指定测试模块目录
 rodski run rodski-demo/DEMO/demo_full/
+
+# 方式4：文件 + --case-id，只执行该文件中的指定用例（v11.5.0 起，可逗号分隔多个）
+rodski run rodski-demo/DEMO/demo_full/case/order/order_basic.xml --case-id TC002
 
 # 按标签过滤（OR 匹配，命中任一即可）
 rodski run case/ --tags smoke
@@ -1449,6 +1507,33 @@ rodski run case/ --report html
 # 无头模式
 rodski run case/ --headless
 ```
+
+> `--case-id` 必须与**单个用例文件**路径一起使用；传目录会报 `SKI208 CaseIdRequiresFile`。`--case-id` 与 `@plan_id` 固定互斥（见 §10.6），与 `--tags` / `--priority` 同用时只在指定用例内过滤。
+
+### 9.8 结果目录说明（v11.5.0）
+
+一次运行目录（`result/rodski_{ts}/`）下，**用例级产物**（步骤截图、失败截图、场景截图子目录、录像）按用例文件路径镜像存放在运行目录的 `case/` 子目录中，与 `case/` 的目录结构完全一致；用例文件对应的目录名为文件名去掉 `.xml`。**此规则适用于所有用例文件，包括位于 `case/` 根目录的文件**，没有特例：
+
+```
+case/                              result/rodski_20260928_100000/
+├── smoke_root.xml                 ├── result.xml               ← 汇总产物，位置不变
+├── order/                         ├── execution_summary.json   ← 汇总产物，位置不变
+│   ├── order_basic.xml            ├── execution.log            ← 汇总产物，位置不变
+│   └── refund/                    └── case/                    ← 镜像 case/ 目录结构
+│       └── refund_apply.xml           ├── smoke_root/
+                                        │   └── screenshots/
+                                        └── order/
+                                            ├── order_basic/
+                                            │   └── screenshots/
+                                            └── refund/
+                                                └── refund_apply/
+                                                    ├── screenshots/
+                                                    └── recordings/
+```
+
+截图**文件名格式不变**（`{caseid}_{stepindex}_{phase}_{timestamp}.png`、场景截图子目录 `{caseid}_{scenarioid}_{scenariotitle}/`、失败截图 `{caseid}_{timestamp}_failure.png`）。跨文件同 `case_id` 的用例分别写入各自文件的镜像目录，互不覆盖——这是引入镜像目录的主要动机之一。
+
+`result.xml`、`execution_summary.json`、`execution.log`、`trace.json`、HTML 报告等**汇总产物保持在运行目录根**，不随用例文件镜像；其中记录的截图/录像路径同步改为相对运行目录的新路径。消费方（HTML 报告、web、rodski-agent、browser-plugin、VSCode 插件）应优先读取结果中记录的路径，不要自行按旧的扁平规则拼接 `result/screenshots/...`。
 
 ---
 
@@ -1519,12 +1604,18 @@ rodski plan init
 # 创建冒烟计划
 rodski plan create invoice_smoke --kind suite --default-execute 否 --title "开票冒烟"
 
-# 向计划添加 case 和 scenario
-rodski plan add-case invoice_smoke TC040
+# 向计划添加 case 和 scenario（v11.5.0 起 add-case 为 3 个参数：计划、用例文件、用例 ID）
+rodski plan add-case invoice_smoke case/order/invoice_apply.xml TC040
 rodski plan add-scenario invoice_smoke TC040 INV-001
+
+# 按目录整体添加（v11.5.0 新增，递归选入该目录下 execute="是" 的用例）
+rodski plan add-dir invoice_smoke case/order/invoice
 
 # 从 tag 选择结果生成计划
 rodski plan create invoice_smoke --kind suite --from-tag smoke --title "开票冒烟"
+
+# 迁移存量 plan：为省略 file 的 <case> 自动补全（能唯一定位时），有歧义的列出待人工处理（v11.5.0 新增）
+rodski plan migrate invoice_module
 ```
 
 **plan XML 示例**（`plan/invoice_smoke.xml`）：
@@ -1536,11 +1627,17 @@ rodski plan create invoice_smoke --kind suite --from-tag smoke --title "开票�
            kind="suite"
            execute="是"
            default_execute="否">
-  <case id="TC040" execute="是">
+  <!-- file 为相对 case/ 的 POSIX 路径，v11.5.0 起必填 -->
+  <case file="order/invoice_apply.xml" id="TC040" execute="是">
     <scenario id="INV-001" execute="是"/>
   </case>
+
+  <!-- 按目录整体选入（递归），可选 -->
+  <case_dir path="order/refund" execute="是"/>
 </test_plan>
 ```
+
+> **`file` 必填的唯一兼容例外**：模块 `case/` 下（递归）只有一个用例文件时可以省略 `file`，框架自动指向该文件。存在多个用例文件却省略 `file` 时，解析 plan 报 `SKI207 PlanCaseFileRequired`，提示为该 `id` 补充 `file`，并列出包含该 ID 的候选文件。`case_dir` 与 `case` 同时命中同一用例时，以显式的 `case` 配置为准。
 
 ### 10.4 执行测试计划
 
@@ -1592,6 +1689,7 @@ rodski run @invoice_smoke --tag smoke
 rodski run @invoice_smoke --group negative
 rodski run @invoice_smoke --exclude-tag slow
 rodski run @invoice_smoke --priority P0
+rodski run @invoice_smoke --case-id TC040   # --case-id 同样属于执行范围 selector，与 @plan_id 固定互斥（v11.5.0 起）
 ```
 
 如果需要把 tag 选择结果长期保存，先生成 plan 再执行：
@@ -1710,14 +1808,17 @@ case XML 中 <case execute="否">（最高，硬关闭）
 
 ```bash
 # 定向执行一条用例并漫游；找不到或不满足条件会明确报 SKI801/SKI802
-rodski roam --case c001 product/DEMO/demo_site
+# v11.5.0 起 --case-file + --case-id 是推荐定位方式（case/ 支持多级嵌套后，
+# 单独的 --case 只在模块只有一个用例文件或 ID 全模块唯一时可用）
+rodski roam --case-file order/refund/refund_apply.xml --case-id c001 product/DEMO/demo_site
+rodski roam --case c001 product/DEMO/demo_site   # 旧模式，见上述限制
 
 # 正常批量执行，并只对合格且 test_case 通过的用例漫游
 rodski run product/DEMO/demo_site/case/ --roam
 rodski run product/DEMO/demo_site/case/ --tag smoke --roam
 ```
 
-`rodski roam --case` 表达对单条用例的明确意图，因此会报告资格错误；`rodski run --roam` 是批量模式，不合格用例只跳过漫游，正常用例执行不受影响。`roam="是"` 只适用于 `component_type="界面"` 或未填写类型的 UI 用例；接口/数据库用例声明漫游会抛 `SKI803`。
+`rodski roam --case-file/--case-id`（或旧模式 `--case`）表达对单条用例的明确意图，因此会报告资格错误；`rodski run --roam` 是批量模式，不合格用例只跳过漫游，正常用例执行不受影响。`roam="是"` 只适用于 `component_type="界面"` 或未填写类型的 UI 用例；接口/数据库用例声明漫游会抛 `SKI803`。
 
 执行顺序是 `pre_process → test_case → 漫游 → post_process`。漫游只在 `test_case` 成功后同步发生，`post_process` 仍恰好执行一次。漫游的失败或 finding 不会把基础用例从 PASS 改成 FAIL；不可逆动作或低置信度动作只记录、不执行。
 
@@ -2574,9 +2675,9 @@ rodski business debug     <module> --id login_flow --flow F_LOGIN_SUCCESS \
 | 根元素 | `<testresult>` |
 | 子元素顺序 | 先 `<summary>`（1 个），再 `<results>`（1 个） |
 | `<summary>` | `total` / `passed` / `failed` 必填；`skipped`、`errors` 等有默认值 |
-| `<results>` 下 `<result>` | `case_id`、`status` 必填；`status` 只能是 `PASS` \| `FAIL` \| `SKIP` \| `ERROR` |
+| `<results>` 下 `<result>` | `case_id`、`status` 必填；`status` 只能是 `PASS` \| `FAIL` \| `SKIP` \| `ERROR`；`case_file`（v11.5.0 新增，可选）记录该用例所属文件相对 `case/` 的 POSIX 路径，跨文件同 `case_id` 时用于消歧，见 [§3.2.1](#321-用例-id-唯一性v11500)、[§9.8](#98-结果目录说明v11500) |
 
 ---
 
-**文档版本**: v8.3.0
-**最后更新**: 2026-08-11
+**文档版本**: v11.5.0
+**最后更新**: 2026-09-28

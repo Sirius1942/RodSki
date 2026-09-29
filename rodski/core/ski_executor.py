@@ -27,6 +27,7 @@ from .model_parser import ModelParser
 from .business_model import BusinessModelParser, BusinessModelExecutor, BusinessModelError
 from .data_table_parser import DataTableParser
 from .global_value_parser import GlobalValueParser
+from .case_discovery import resolve_module_dir as _discovery_resolve_module_dir
 from .case_parser import CaseParser
 from .plan_parser import PlanParser
 from .test_plan_selection import TestPlanSelection
@@ -67,13 +68,14 @@ logger = logging.getLogger("rodski")
 def resolve_module_dir(case_path: Path) -> Path:
     """从 case 文件/目录路径推导测试模块目录
 
-    约束：case 文件位于 {module_dir}/case/ 下
+    约束：case 文件位于 {module_dir}/case/ 下（任意嵌套深度均可）。
+
+    v11.5.0：委托给 :func:`core.case_discovery.resolve_module_dir`（向上查找
+    最近的 ``case`` 祖先目录），不再是仅处理一层的 ``parent.parent`` 浅层实现
+    ——那样在多级嵌套 case 目录下会推导出错误的模块目录（设计文档 §3.2）。
+    此处保留同名函数与签名，供 ``ski_run.py`` 等既有导入方兼容。
     """
-    if case_path.is_file():
-        return case_path.parent.parent
-    elif case_path.is_dir() and case_path.name == 'case':
-        return case_path.parent
-    return case_path
+    return _discovery_resolve_module_dir(Path(case_path))
 
 
 class SKIExecutor:
@@ -323,6 +325,7 @@ class SKIExecutor:
         filter_tags: Optional[List[str]] = None,
         filter_priority: Optional[List[str]] = None,
         exclude_tags: Optional[List[str]] = None,
+        filter_case_ids: Optional[List[str]] = None,
     ):
         """执行所有用例，完成后批量回填结果
 
@@ -330,6 +333,7 @@ class SKIExecutor:
             filter_tags: 仅执行包含指定 tag 的用例（OR 匹配，任一命中即可）
             filter_priority: 仅执行指定优先级的用例（如 ['P0', 'P1']）
             exclude_tags: 排除包含指定 tag 的用例
+            filter_case_ids: v11.5.0 仅执行指定 ID 的用例（用于 --case-id）
         """
         cases = self.case_parser.parse_cases()
 
@@ -348,8 +352,13 @@ class SKIExecutor:
                 if reasons:
                     raise RoamNotEligibleError(case_id=roam_case_id, reasons=reasons)
 
+        # v11.5.0: filter by case_id if specified (from --case-id)
+        if filter_case_ids:
+            cases = [case for case in cases if case.get('case_id') in filter_case_ids]
+
         cases = self._filter_cases(cases, filter_tags, filter_priority, exclude_tags)
         plan_selection = self._compile_plan_selection(cases)
+        cases = self._filter_cases_by_plan_scope(cases, plan_selection)
         cases, plan_case_skips = self._apply_plan_selection(cases, plan_selection)
 
         # Debug mode: 如果启用了 --debug 且 plan kind 是 scenario_debug/step_debug，走调试执行路径
@@ -374,7 +383,9 @@ class SKIExecutor:
 
         for case in cases:
             case_count += 1
-            case_skip = plan_case_skips.get(case.get('case_id', ''))
+            # v11.5.0: plan_case_skips uses case_uid (case_file::case_id) as key
+            case_uid = f"{case.get('case_file', '')}::{case.get('case_id', '')}" if case.get('case_file') else case.get('case_id', '')
+            case_skip = plan_case_skips.get(case_uid)
             if case_skip:
                 results.append(self._case_result_skipped(case, case_skip))
                 logger.info(f"  SKIP ({case_skip})")
@@ -393,6 +404,7 @@ class SKIExecutor:
                         'execution_time': 0,
                         'error': f'驱动不可用: {str(e)}',
                         'screenshot_path': '',
+                        'case_file': case.get('case_file', ''),
                     })
                     continue
 
@@ -430,6 +442,7 @@ class SKIExecutor:
                     'execution_time': 0,
                     'error': f'驱动已停止: {str(e)}',
                     'screenshot_path': '',
+                    'case_file': case.get('case_file', ''),
                 })
 
         self.result_writer.write_results(results)
@@ -444,6 +457,46 @@ class SKIExecutor:
 
         return results
 
+    def _filter_cases_by_plan_scope(
+        self,
+        cases: List[Dict[str, Any]],
+        plan_selection: Optional[Dict[str, List[Dict[str, Any]]]],
+    ) -> List[Dict[str, Any]]:
+        """v11.5.0: plan 限定范围模式下，只保留 plan 实际触达（选中或显式跳过）的用例。
+
+        `@plan_id` 执行时 ``self.case_path`` 恒为整个模块 `case/` 目录（递归发现全树），
+        但当 plan 是 `default_execute="否"` 的限定范围计划时，plan 完全没有提到的用例
+        （既未被显式 `<case>` 命中，也未被 `<case_dir>` 命中）不应出现在 result.xml 中
+        （既不是 PASS/FAIL，也不是 SKIP —— 它们根本不在这次运行的范围内）。
+
+        当 plan 是 `kind="suite" and default_execute="是"` 的全量扫描计划时，
+        `TestPlanSelection.select()` 会把未提及的用例自动纳入 selected，因此这里是
+        no-op；selector 模式（--tag/--priority，没有真实 plan_path）也不受影响，
+        保持 `_apply_plan_selection` 现有的「未选中→SKIP」既有语义与单测契约不变。
+        """
+        if not plan_selection or not getattr(self, 'plan_path', None):
+            return cases
+
+        plan = getattr(self, 'plan', None) or {}
+        if plan.get('kind') == 'suite' and plan.get('default_execute', '否') == '是':
+            return cases
+
+        def _uid(entry: Dict[str, Any]) -> str:
+            case_file = entry.get('case_file', '')
+            case_id = entry.get('case_id', '')
+            return f"{case_file}::{case_id}" if case_file else case_id
+
+        touched: Set[str] = set()
+        for entry in plan_selection.get('selected', []) or []:
+            touched.add(_uid(entry))
+        for entry in plan_selection.get('skipped', []) or []:
+            touched.add(_uid(entry))
+
+        if not touched:
+            return cases
+
+        return [c for c in cases if _uid(c) in touched]
+
     def _compile_plan_selection(self, cases: List[Dict[str, Any]]) -> Optional[Dict[str, List[Dict[str, Any]]]]:
         """Parse ``self.plan_path`` or compile selector filters into plan selection metadata."""
         plan_path = getattr(self, 'plan_path', None)
@@ -451,7 +504,7 @@ class SKIExecutor:
             parser = PlanParser(str(plan_path))
             parse = getattr(parser, 'parse', None) or parser.parse_plan
             plan = parse()
-            selection = TestPlanSelection(cases, plan).select()
+            selection = TestPlanSelection(cases, plan, module_dir=self.module_dir).select()
             self.plan = plan
             self.plan_selection_result = selection
             return selection
@@ -830,51 +883,57 @@ class SKIExecutor:
         cases: List[Dict[str, Any]],
         selection: Optional[Dict[str, List[Dict[str, Any]]]],
     ) -> tuple[List[Dict[str, Any]], Dict[str, str]]:
-        """Annotate cases with plan scenario/step filters and return case-level skips."""
+        """Annotate cases with plan scenario/step filters and return case-level skips (v11.5.0: by case_uid)."""
         if not selection:
             return cases, {}
 
-        case_skips: Dict[str, str] = {}
-        case_has_selection: Dict[str, bool] = {}
-        selected_scenarios: Dict[str, Set[str]] = {}
-        selected_steps: Dict[str, Dict[str, Set[int]]] = {}
-        skipped_scenarios: Dict[str, Dict[str, str]] = {}
+        # Build case_uid from case_file and case_id
+        def _build_uid(entry_or_case: Dict[str, Any]) -> str:
+            case_file = entry_or_case.get('case_file', '')
+            case_id = entry_or_case.get('case_id', '')
+            return f"{case_file}::{case_id}" if case_file else case_id
+
+        case_skips: Dict[str, str] = {}  # case_uid -> reason
+        case_has_selection: Dict[str, bool] = {}  # case_uid -> bool
+        selected_scenarios: Dict[str, Set[str]] = {}  # case_uid -> Set[scenario_id]
+        selected_steps: Dict[str, Dict[str, Set[int]]] = {}  # case_uid -> scenario_id -> Set[step_no]
+        skipped_scenarios: Dict[str, Dict[str, str]] = {}  # case_uid -> scenario_id -> reason
 
         for entry in selection.get('selected', []):
-            case_id = entry.get('case_id', '')
-            case_has_selection[case_id] = True
+            case_uid = _build_uid(entry)
+            case_has_selection[case_uid] = True
             if entry.get('type') == 'case':
-                selected_scenarios.setdefault(case_id, set()).add('*')
+                selected_scenarios.setdefault(case_uid, set()).add('*')
             elif entry.get('type') == 'scenario':
-                selected_scenarios.setdefault(case_id, set()).add(entry.get('scenario_id', ''))
+                selected_scenarios.setdefault(case_uid, set()).add(entry.get('scenario_id', ''))
             elif entry.get('type') == 'step':
                 scenario_id = entry.get('scenario_id', '')
-                selected_scenarios.setdefault(case_id, set()).add(scenario_id)
-                selected_steps.setdefault(case_id, {}).setdefault(scenario_id, set()).add(entry.get('step_no'))
+                selected_scenarios.setdefault(case_uid, set()).add(scenario_id)
+                selected_steps.setdefault(case_uid, {}).setdefault(scenario_id, set()).add(entry.get('step_no'))
 
         for entry in selection.get('skipped', []):
-            case_id = entry.get('case_id', '')
+            case_uid = _build_uid(entry)
             reason = entry.get('reason', 'plan_skipped')
             if entry.get('type') == 'case':
-                case_skips[case_id] = reason
+                case_skips[case_uid] = reason
             elif entry.get('type') == 'scenario':
-                skipped_scenarios.setdefault(case_id, {})[entry.get('scenario_id', '')] = reason
+                skipped_scenarios.setdefault(case_uid, {})[entry.get('scenario_id', '')] = reason
 
         for case in cases:
-            case_id = case.get('case_id', '')
-            if case_id in case_skips:
+            case_uid = _build_uid(case)
+            if case_uid in case_skips:
                 continue
-            if not case_has_selection.get(case_id):
-                case_skips[case_id] = 'plan_not_selected'
+            if not case_has_selection.get(case_uid):
+                case_skips[case_uid] = 'plan_not_selected'
                 continue
 
-            scenario_ids = selected_scenarios.get(case_id, set())
+            scenario_ids = selected_scenarios.get(case_uid, set())
             if '*' in scenario_ids:
                 continue
 
             case['_selected_scenario_ids'] = scenario_ids
-            case['_selected_step_map'] = selected_steps.get(case_id, {})
-            case_skipped = dict(skipped_scenarios.get(case_id, {}))
+            case['_selected_step_map'] = selected_steps.get(case_uid, {})
+            case_skipped = dict(skipped_scenarios.get(case_uid, {}))
             for scenario in case.get('scenarios', []) or []:
                 scenario_id = scenario.get('id', '')
                 if scenario_id not in scenario_ids and scenario_id not in case_skipped:
@@ -902,15 +961,15 @@ class SKIExecutor:
             self.report_collector.start_run()
 
         for case in cases:
-            case_id = case.get('case_id', '')
-            if case_id in plan_case_skips:
-                results.append(self._case_result_skipped(case, plan_case_skips[case_id]))
+            case_uid = f"{case.get('case_file', '')}::{case.get('case_id', '')}" if case.get('case_file') else case.get('case_id', '')
+            if case_uid in plan_case_skips:
+                results.append(self._case_result_skipped(case, plan_case_skips[case_uid]))
                 continue
 
-            # 找到 plan selection 中该 case 对应的选中 scenario/step
+            # 找到 plan selection 中该 case 对应的选中 scenario/step (v11.5.0: 按 case_uid 匹配)
             selected_entries = [
                 e for e in selection.get('selected', [])
-                if e.get('case_id') == case_id
+                if (f"{e.get('case_file', '')}::{e.get('case_id', '')}" if e.get('case_file') else e.get('case_id', '')) == case_uid
             ]
             if not selected_entries:
                 results.append(self._case_result_skipped(case, 'plan_not_selected'))
@@ -1094,6 +1153,7 @@ class SKIExecutor:
             'execution_time': 0,
             'error': reason,
             'screenshot_path': '',
+            'case_file': case.get('case_file', ''),
         }
 
     @staticmethod
@@ -1102,21 +1162,29 @@ class SKIExecutor:
         filter_tags: Optional[List[str]] = None,
         filter_priority: Optional[List[str]] = None,
         exclude_tags: Optional[List[str]] = None,
+        filter_case_ids: Optional[List[str]] = None,
     ) -> List[Dict[str, Any]]:
-        """按 tags / priority / exclude_tags 过滤用例列表
+        """按 tags / priority / exclude_tags / case_ids 过滤用例列表
 
         - filter_tags: OR 匹配 -- 用例 tags 与 filter_tags 有交集即命中
         - filter_priority: 用例 priority 在列表中即命中
         - exclude_tags: 用例 tags 与 exclude_tags 有交集则排除
+        - filter_case_ids: 只保留 case_id 在列表中的用例（v11.5.0）
         - 所有参数均为空时返回原列表（向后兼容）
         """
-        if not filter_tags and not filter_priority and not exclude_tags:
+        if not filter_tags and not filter_priority and not exclude_tags and not filter_case_ids:
             return cases
 
         filtered = []
         for case in cases:
             case_tags = set(case.get('tags') or [])
             case_priority = (case.get('priority') or '').strip()
+            case_id = case.get('case_id', '')
+
+            # filter_case_ids 检查（优先：执行范围限定）
+            if filter_case_ids and case_id not in filter_case_ids:
+                logger.debug(f"用例 {case_id} 不在 --case-id 指定范围")
+                continue
 
             # exclude_tags 检查（优先排除）
             if exclude_tags and case_tags & set(exclude_tags):
@@ -1259,6 +1327,35 @@ class SKIExecutor:
         self._set_keyword_recording_path(None)
         return relative_path
 
+    def _ensure_case_result_dirs(self, case: Dict[str, Any]) -> None:
+        """v11.5.0: 为当前用例创建镜像结果目录（screenshots / recordings）。
+
+        设计文档 §5.4：结果目录镜像 case 目录结构，用例级产物按 case_file 分目录存放。
+        目录结构：result/{run}/case/{case_file 去 .xml}/screenshots|recordings/
+        """
+        if not self.result_writer.current_run_dir:
+            self.result_writer._init_run_dir()
+
+        current_run_dir = self.result_writer.current_run_dir
+        if not current_run_dir:
+            # 优雅降级：没有真实结果目录时（如无 result_writer 支撑的测试场景）
+            # 不构造镜像路径，避免 None / str 拼接抛出 TypeError
+            self._current_case_result_base = None
+            return
+
+        case_file = case.get('case_file', '')
+        if case_file:
+            # 移除 .xml 后缀，得到用例文件对应的目录名
+            case_rel_path = case_file.rsplit('.xml', 1)[0] if case_file.endswith('.xml') else case_file
+            self._current_case_result_base = current_run_dir / "case" / case_rel_path
+        else:
+            # 向后兼容：没有 case_file 时回退到根目录（旧行为）
+            self._current_case_result_base = current_run_dir
+
+        # 创建 screenshots 和 recordings 目录
+        (self._current_case_result_base / "screenshots").mkdir(parents=True, exist_ok=True)
+        (self._current_case_result_base / "recordings").mkdir(parents=True, exist_ok=True)
+
     def _start_case_recording(self, case_id: str) -> str:
         self._recording_segments = []
         self._recording_segment_index = 0
@@ -1275,7 +1372,15 @@ class SKIExecutor:
         try:
             if not self.result_writer.current_run_dir:
                 self.result_writer._init_run_dir()
-            output_dir = self.result_writer.current_run_dir / str(self._recording_option("output_dir", "recordings"))
+
+            # v11.5.0: 使用镜像目录（已在 _ensure_case_result_dirs 中创建）
+            case_result_base = getattr(self, '_current_case_result_base', None) or self.result_writer.current_run_dir
+            if not case_result_base:
+                # 优雅降级：无结果目录（如无 result_writer 支撑的测试场景）时不录制
+                self._current_recording_path = None
+                self._set_keyword_recording_path(None)
+                return ""
+            output_dir = case_result_base / "recordings"
             output_dir.mkdir(parents=True, exist_ok=True)
             safe_case_id = self._safe_recording_id(case_id)
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -1389,10 +1494,15 @@ class SKIExecutor:
 
         try:
             self._current_case_id = case['case_id']
+            self._current_case_file = case.get('case_file', '')
             self._step_index = 0
             self._runtime_stopped_graceful = False
             self._current_scenario_id = None
             self._current_scenario_title = None
+
+            # v11.5.0: 创建结果目录镜像结构（case/{case_file 去 .xml}/screenshots|recordings）
+            self._ensure_case_result_dirs(case)
+
             recording_path = self._start_case_recording(case['case_id'])
             self._current_plan_selected_scenario_ids = case.get('_selected_scenario_ids')
             self._current_plan_selected_step_map = case.get('_selected_step_map') or {}
@@ -1539,6 +1649,7 @@ class SKIExecutor:
                         'execution_time': round(time.time() - start, 3),
                         'error': f"[预期失败] {str(err)}",
                         'screenshot_path': screenshot_path or '',
+                        'case_file': case.get('case_file', ''),
                     })
 
                 return _finish({
@@ -1548,6 +1659,7 @@ class SKIExecutor:
                     'execution_time': round(time.time() - start, 3),
                     'error': str(err),
                     'screenshot_path': screenshot_path or '',
+                    'case_file': case.get('case_file', ''),
                 })
 
             if self._runtime_stopped_graceful:
@@ -1565,6 +1677,7 @@ class SKIExecutor:
                     'execution_time': round(time.time() - start, 3),
                     'error': 'runtime terminate (graceful)',
                     'screenshot_path': '',
+                    'case_file': case.get('case_file', ''),
                 })
 
             if self.result_writer.current_run_dir:
@@ -1585,6 +1698,7 @@ class SKIExecutor:
                     'status': 'FAIL',
                     'execution_time': round(time.time() - start, 3),
                     'error': '[预期失败但实际成功] 用例应该失败但通过了所有步骤',
+                    'case_file': case.get('case_file', ''),
                 })
 
             return _finish({
@@ -1592,6 +1706,7 @@ class SKIExecutor:
                 'title': case.get('title', ''),
                 'status': 'PASS',
                 'execution_time': round(time.time() - start, 3),
+                'case_file': case.get('case_file', ''),
             })
         finally:
             self._restore_runtime_resources(resources_snapshot)
@@ -1610,6 +1725,7 @@ class SKIExecutor:
             'execution_time': round(time.time() - start, 3),
             'error': str(exc),
             'screenshot_path': screenshot_path or '',
+            'case_file': case.get('case_file', ''),
         }
 
     def apply_insert_resources(
@@ -1967,7 +2083,11 @@ class SKIExecutor:
             if not self.result_writer.current_run_dir:
                 return None
 
-            screenshot_dir = self.result_writer.current_run_dir / "screenshots"
+            # v11.5.0: 使用镜像目录
+            case_result_base = getattr(self, '_current_case_result_base', None) or self.result_writer.current_run_dir
+            if not case_result_base:
+                return None
+            screenshot_dir = case_result_base / "screenshots"
             screenshot_dir.mkdir(parents=True, exist_ok=True)
 
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -1977,7 +2097,7 @@ class SKIExecutor:
             success = self.driver.screenshot(str(screenshot_path))
             if success:
                 logger.info(f"失败截图已保存: {screenshot_path}")
-                return f"screenshots/{filename}"
+                return self._relative_run_path(str(screenshot_path))
             else:
                 logger.warning(f"截图失败: {screenshot_path}")
                 return None
@@ -1992,14 +2112,19 @@ class SKIExecutor:
                 self.result_writer._init_run_dir()
             if not self.result_writer.current_run_dir:
                 return None
-            screenshot_dir = self.result_writer.current_run_dir / "screenshots"
+
+            # v11.5.0: 使用镜像目录
+            case_result_base = getattr(self, '_current_case_result_base', None) or self.result_writer.current_run_dir
+            if not case_result_base:
+                return None
+            screenshot_dir = case_result_base / "screenshots"
             screenshot_dir.mkdir(parents=True, exist_ok=True)
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"{case_id}_roam_{suffix}_{timestamp}.png"
             screenshot_path = screenshot_dir / filename
             success = self.driver.screenshot(str(screenshot_path))
             if success:
-                return f"screenshots/{filename}"
+                return self._relative_run_path(str(screenshot_path))
             return None
         except Exception as exc:
             logger.debug("漫游截图失败: %s", exc)
@@ -2200,18 +2325,23 @@ class SKIExecutor:
             scenario_id = getattr(self, '_current_scenario_id', None)
             scenario_title = getattr(self, '_current_scenario_title', None)
 
+            # v11.5.0: 使用镜像目录
+            case_result_base = getattr(self, '_current_case_result_base', None) or self.result_writer.current_run_dir
+            if not case_result_base:
+                return
+
             if scenario_id:
-                # 场景步骤：存入 screenshots/{caseid}_{scenarioid}_{scenariotitle}/
+                # 场景步骤：存入 {镜像目录}/screenshots/{caseid}_{scenarioid}_{scenariotitle}/
                 safe_title = re.sub(r'[^\w一-鿿-]', '_', scenario_title or '').strip('_')
                 folder_name = f"{case_id}_{scenario_id}"
                 if safe_title:
                     folder_name = f"{folder_name}_{safe_title}"
-                screenshot_dir = self.result_writer.current_run_dir / "screenshots" / folder_name
+                screenshot_dir = case_result_base / "screenshots" / folder_name
                 screenshot_dir.mkdir(parents=True, exist_ok=True)
                 filename = f"{self._step_index:02d}_{timestamp}.png"
             else:
-                # 非场景步骤：直接存 screenshots/
-                screenshot_dir = self.result_writer.current_run_dir / "screenshots"
+                # 非场景步骤：直接存 {镜像目录}/screenshots/
+                screenshot_dir = case_result_base / "screenshots"
                 screenshot_dir.mkdir(parents=True, exist_ok=True)
                 safe_phase = re.sub(r'[/\\]', '_', step_type)
                 filename = f"{case_id}_{self._step_index:02d}_{safe_phase}_{timestamp}.png"

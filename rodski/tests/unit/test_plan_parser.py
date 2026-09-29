@@ -74,6 +74,7 @@ class TestPlanParser:
                     ],
                 }
             ],
+            "case_dirs": [],
         }
 
     def test_debug_absent_defaults_to_empty_dict(self, tmp_path):

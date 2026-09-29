@@ -1,6 +1,6 @@
 """集成测试：API 工作流程"""
 import pytest
-from api.rest_helper import RestHelper
+from rodski.api.rest_helper import RestHelper
 
 
 @pytest.fixture

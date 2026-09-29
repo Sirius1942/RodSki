@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Dict, Optional
 
+from .case_discovery import discover_case_files
+
 
 @dataclass
 class CaseMetadata:
@@ -93,7 +95,7 @@ class CaseMetadataExtractor:
         if not case_path.exists():
             return result
 
-        for xml_file in case_path.glob('*.xml'):
+        for xml_file in discover_case_files(case_path):
             tree = ET.parse(xml_file)
             root = tree.getroot()
             for case_node in root.findall('case'):

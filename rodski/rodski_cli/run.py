@@ -98,9 +98,14 @@ def _resolve_globalvalue_for_browser_scan(module_dir: Path, value: str) -> str:
 
 def _needs_browser(case_path: Path, model_path: Optional[Path] = None) -> bool:
     """扫描 case XML，判断是否有需要浏览器的步骤"""
+    try:
+        from ..core.case_discovery import discover_case_files
+    except ImportError:
+        from rodski.core.case_discovery import discover_case_files
+
     xml_files: List[Path] = []
     if case_path.is_dir():
-        xml_files = list(case_path.glob("*.xml"))
+        xml_files = discover_case_files(case_path)
     elif case_path.is_file():
         xml_files = [case_path]
 
@@ -134,7 +139,10 @@ def _needs_browser(case_path: Path, model_path: Optional[Path] = None) -> bool:
 
 def setup_parser(subparsers):
     parser = subparsers.add_parser("run", help="执行测试用例")
-    parser.add_argument("case", nargs="?", help="用例路径（XML 文件、case/ 目录或测试模块目录）或计划引用 (@plan_id)")
+    parser.add_argument("case", nargs="?", help="用例路径（XML 文件、case/ 目录或其子目录、测试模块目录）或计划引用 (@plan_id)")
+    parser.add_argument("--case-id", type=str, default=None, dest="case_id",
+                        help="指定用例 ID（逗号分隔多个），必须与单个用例文件路径一起使用；"
+                             "与 @plan_id 互斥；与 --tag/--priority 同用时在指定用例内过滤")
     parser.add_argument("--model", help="模型文件路径 (model.xml)，不指定则自动推断")
     parser.add_argument("--browser", choices=["chromium", "firefox", "webkit"],
                         default="chromium", help="浏览器类型 (默认: chromium)")
@@ -231,12 +239,21 @@ def _split_csv_values(raw_values):
 
 
 def _build_selector_filters(args) -> Dict[str, Any]:
-    """构建 selector 相关过滤参数，供 executor 保留/后续编译使用。"""
+    """构建 selector 相关过滤参数，供 executor 保留/后续编译使用。
+
+    v11.5.0: 新增 filter_case_ids（从 --case-id 解析而来）。
+    """
+    case_id_filter = getattr(args, "case_id", None)
+    filter_case_ids = None
+    if case_id_filter:
+        filter_case_ids = [cid.strip() for cid in case_id_filter.split(",") if cid.strip()]
+
     return {
         "filter_tags": _split_csv_values(getattr(args, "tags", None)),
         "filter_group": getattr(args, "filter_group", None),
         "filter_priority": _split_csv_values(getattr(args, "priority", None)),
         "exclude_tags": _split_csv_values(getattr(args, "exclude_tags", None)),
+        "filter_case_ids": filter_case_ids,
     }
 
 
@@ -307,9 +324,22 @@ def _resolve_default_plan(module_dir: Path) -> Optional[Path]:
 
 
 def _resolve_module_dir_from_cwd(cwd: Optional[Path] = None) -> Path:
-    """从当前目录推导测试模块目录。"""
+    """从当前目录推导测试模块目录。
+
+    v11.5.0: 支持 cwd 位于 case/ 的任意嵌套子目录时定位模块根。
+    """
+    try:
+        from ..core.case_discovery import resolve_module_dir, RESERVED_CASE_SUBDIR_NAMES
+    except ImportError:
+        from rodski.core.case_discovery import resolve_module_dir, RESERVED_CASE_SUBDIR_NAMES
+
     current = cwd or Path.cwd()
-    if current.name in {"case", "model", "data", "plan"}:
+    # 优先用 case_discovery.resolve_module_dir（支持 case/ 任意嵌套子目录）
+    resolved = resolve_module_dir(current)
+    if resolved != current:
+        return resolved
+    # 兜底：cwd 直接位于 model/data/plan 等模块保留子目录时向上一级
+    if current.name in RESERVED_CASE_SUBDIR_NAMES:
         return current.parent
     return current
 
@@ -328,12 +358,12 @@ def _resolve_case_path(input_path: Path) -> Path:
 
 
 def _resolve_module_dir(case_path: Path) -> Path:
-    """从 case 路径推导测试模块目录"""
-    if case_path.is_file():
-        return case_path.parent.parent
-    elif case_path.is_dir() and case_path.name == 'case':
-        return case_path.parent
-    return case_path
+    """从 case 路径推导测试模块目录（v11.5.0: 支持嵌套目录）"""
+    try:
+        from ..core.case_discovery import resolve_module_dir
+    except ImportError:
+        from rodski.core.case_discovery import resolve_module_dir
+    return resolve_module_dir(case_path)
 
 
 def _apply_mobile_cli_overrides(executor, module_dir: Path, args) -> None:
@@ -479,7 +509,17 @@ def handle(args):
     dry_run = getattr(args, "dry_run", False)
 
     raw_case = getattr(args, "case", None)
+    case_id_filter = getattr(args, "case_id", None)
     plan_path = None
+
+    # v11.5.0: --case-id 与 @plan_id 固定互斥（CORE §7.7）
+    if case_id_filter and _is_plan_ref(raw_case):
+        try:
+            from ..core.exceptions import CaseIdRequiresFileError
+        except ImportError:
+            from rodski.core.exceptions import CaseIdRequiresFileError
+        print(f"错误: --case-id 不能与 @plan_id 同时使用（CORE §7.7 固定互斥）", file=sys.stderr)
+        return 1
 
     if _is_plan_ref(raw_case):
         module_dir = _resolve_module_dir_from_cwd()
@@ -508,6 +548,16 @@ def handle(args):
 
         case_path = _resolve_case_path(raw_path)
         module_dir = _resolve_module_dir(case_path)
+
+        # v11.5.0: --case-id 必须与单个用例文件路径一起使用
+        if case_id_filter:
+            if not case_path.is_file() or case_path.suffix.lower() != '.xml':
+                try:
+                    from ..core.exceptions import CaseIdRequiresFileError
+                except ImportError:
+                    from rodski.core.exceptions import CaseIdRequiresFileError
+                print(f"错误: --case-id 必须与单个用例文件路径一起使用（给定的是目录或非 XML 文件）", file=sys.stderr)
+                return 1
 
     # 执行层设备配置要求多设备时，自动转 `rodski queue`（复用同一条调度链路）。
     # 放在这里：module_dir 已定、任何执行副作用之前。`--udid` 一给即视为用户
@@ -679,7 +729,7 @@ def handle(args):
         logger.info("--roam-engine: 已注册引擎 %s", type(_engine).__name__)
 
     if dry_run:
-        return _handle_dry_run(case_path, model_path, verbose, plan_path=plan_path, selector_filters=selector_filters)
+        return _handle_dry_run(case_path, model_path, verbose, plan_path=plan_path, selector_filters=selector_filters, module_dir=module_dir)
 
     if plan_path is not None:
         _plan_kind = _get_plan_kind(plan_path)
@@ -736,6 +786,7 @@ def _handle_dry_run(
     verbose: bool,
     plan_path: Optional[Path] = None,
     selector_filters: Optional[Dict[str, Any]] = None,
+    module_dir: Optional[Path] = None,
 ) -> int:
     """验证用例可执行性但不实际执行"""
     try:
@@ -767,7 +818,7 @@ def _handle_dry_run(
             parser = PlanParser(str(plan_path))
             parse = getattr(parser, 'parse', None) or parser.parse_plan
             plan = parse()
-            selection = TestPlanSelection(cases, plan).select()
+            selection = TestPlanSelection(cases, plan, module_dir=module_dir).select()
         except Exception as e:
             print(f"Plan 解析失败: {e}", file=sys.stderr)
             return 1
@@ -856,16 +907,25 @@ def _print_plan_dry_run_selection(plan, selection) -> None:
     print(f"\n[Dry Run] 测试计划选择:")
     print(f"  Plan: {plan.get('id', '')} (kind={plan.get('kind', '')}, default_execute={plan.get('default_execute', '')})")
 
+    def _format_case_ref(entry):
+        """Format case reference with file path when available (v11.5.0)."""
+        case_file = entry.get('case_file', '')
+        case_id = entry.get('case_id', '')
+        if case_file:
+            return f"{case_file}::{case_id}"
+        return case_id
+
     print("  Selected:")
     for entry in selection.get('selected', []) or []:
         entry_type = entry.get('type')
+        case_ref = _format_case_ref(entry)
         if entry_type == 'case':
-            print(f"    case {entry.get('case_id')} ({entry.get('reason', '')})")
+            print(f"    case {case_ref} ({entry.get('reason', '')})")
         elif entry_type == 'scenario':
-            print(f"    case {entry.get('case_id')} scenario {entry.get('scenario_id')} ({entry.get('reason', '')})")
+            print(f"    case {case_ref} scenario {entry.get('scenario_id')} ({entry.get('reason', '')})")
         elif entry_type == 'step':
             print(
-                f"    case {entry.get('case_id')} scenario {entry.get('scenario_id')} "
+                f"    case {case_ref} scenario {entry.get('scenario_id')} "
                 f"step {entry.get('step_no')} ({entry.get('reason', '')})"
             )
     if not selection.get('selected'):
@@ -874,13 +934,14 @@ def _print_plan_dry_run_selection(plan, selection) -> None:
     print("  Skipped:")
     for entry in selection.get('skipped', []) or []:
         entry_type = entry.get('type')
+        case_ref = _format_case_ref(entry)
         if entry_type == 'case':
-            print(f"    case {entry.get('case_id')} ({entry.get('reason', '')})")
+            print(f"    case {case_ref} ({entry.get('reason', '')})")
         elif entry_type == 'scenario':
-            print(f"    case {entry.get('case_id')} scenario {entry.get('scenario_id')} ({entry.get('reason', '')})")
+            print(f"    case {case_ref} scenario {entry.get('scenario_id')} ({entry.get('reason', '')})")
         elif entry_type == 'step':
             print(
-                f"    case {entry.get('case_id')} scenario {entry.get('scenario_id')} "
+                f"    case {case_ref} scenario {entry.get('scenario_id')} "
                 f"step {entry.get('step_no')} ({entry.get('reason', '')})"
             )
     if not selection.get('skipped'):
@@ -888,15 +949,24 @@ def _print_plan_dry_run_selection(plan, selection) -> None:
 
     print("  Stale references:")
     for entry in selection.get('stale_references', []) or []:
-        if entry.get('type') == 'case':
-            print(f"    case {entry.get('case_id')} ({entry.get('reason', '')})")
-        elif entry.get('type') == 'scenario':
-            print(f"    case {entry.get('case_id')} scenario {entry.get('scenario_id')} ({entry.get('reason', '')})")
-        elif entry.get('type') == 'step':
-            print(
-                f"    case {entry.get('case_id')} scenario {entry.get('scenario_id')} "
-                f"step {entry.get('step_no')} ({entry.get('reason', '')})"
-            )
+        entry_type = entry.get('type')
+        if entry_type == 'case_dir':
+            # case_dir stale reference
+            print(f"    case_dir {entry.get('path', '')} ({entry.get('reason', '')})")
+        else:
+            # case/scenario/step stale reference
+            case_file = entry.get('case_file', '')
+            case_id = entry.get('case_id', '')
+            case_ref = f"{case_file}::{case_id}" if case_file else case_id
+            if entry_type == 'case':
+                print(f"    case {case_ref} ({entry.get('reason', '')})")
+            elif entry_type == 'scenario':
+                print(f"    case {case_ref} scenario {entry.get('scenario_id')} ({entry.get('reason', '')})")
+            elif entry_type == 'step':
+                print(
+                    f"    case {case_ref} scenario {entry.get('scenario_id')} "
+                    f"step {entry.get('step_no')} ({entry.get('reason', '')})"
+                )
     if not selection.get('stale_references'):
         print("    (none)")
 
@@ -991,6 +1061,7 @@ def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional
             "filter_group": filter_group,
             "filter_priority": filter_priority,
             "exclude_tags": exclude_tags,
+            "filter_case_ids": selector_filters.get("filter_case_ids"),
         }
         if plan_path is not None:
             executor.plan_path = str(plan_path)
@@ -1019,6 +1090,7 @@ def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional
             filter_tags=filter_tags,
             filter_priority=filter_priority,
             exclude_tags=exclude_tags,
+            filter_case_ids=selector_filters.get("filter_case_ids"),
         )
         duration = time.time() - start_time
 
@@ -1297,11 +1369,15 @@ def _handle_load_run(plan_path: Path, module_dir: Path, args) -> int:
     no_compile = getattr(args, "no_compile", False)
     if not no_compile:
         try:
+            from ..core.case_discovery import discover_case_files
+        except ImportError:
+            from rodski.core.case_discovery import discover_case_files
+        try:
             perf_dir = module_dir / "perf"
             compiler = LoadCompiler(shared_ctx, plan, perf_dir)
             compiler.compile_if_needed(
                 plan_path=plan_path,
-                case_paths=list((module_dir / "case").glob("*.xml")) if (module_dir / "case").is_dir() else [],
+                case_paths=discover_case_files(module_dir / "case"),
                 model_path=module_dir / "model" / "model.xml",
                 data_path=module_dir / "data" / "data.sqlite",
             )

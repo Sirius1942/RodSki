@@ -107,11 +107,24 @@ def _split(raw_values) -> Optional[List[str]]:
 
 
 def _resolve_module_dir(raw: Optional[str]) -> Path:
-    """解析模块目录：显式路径优先，否则从当前目录向上兼容 case/model/plan 子目录。"""
+    """解析模块目录：显式路径优先，否则从当前目录向上兼容 case/model/plan 子目录。
+
+    v11.5.0: 支持 cwd 位于 case/ 的任意嵌套子目录时定位模块根。
+    """
+    try:
+        from ..core.case_discovery import resolve_module_dir, RESERVED_CASE_SUBDIR_NAMES
+    except ImportError:
+        from rodski.core.case_discovery import resolve_module_dir, RESERVED_CASE_SUBDIR_NAMES
+
     if raw:
         return Path(raw).expanduser().resolve()
     current = Path.cwd()
-    if current.name in {"case", "model", "data", "plan"}:
+    # 优先用 case_discovery.resolve_module_dir（支持 case/ 任意嵌套子目录）
+    resolved = resolve_module_dir(current)
+    if resolved != current:
+        return resolved
+    # 兜底：cwd 直接位于 model/data/plan 等模块保留子目录时向上一级
+    if current.name in RESERVED_CASE_SUBDIR_NAMES:
         return current.parent
     return current
 

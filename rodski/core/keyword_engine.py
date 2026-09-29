@@ -30,6 +30,7 @@ from .assertion.image_matcher import ImageMatcher
 from .assertion.video_analyzer import VideoAnalyzer
 from .assertion_engine import AssertionEngine
 from .assertion_engine import AssertionError as AssertOpError
+from .case_discovery import resolve_module_dir
 from .model_parser import (
     ModelParser,
     MODEL_TYPE_UI,
@@ -2070,7 +2071,7 @@ class KeywordEngine:
 
         # 解析 reference 路径
         module_dir = self._module_dir or (
-            self._case_file.parent.parent if self._case_file else None
+            resolve_module_dir(self._case_file) if self._case_file else None
         )
         if module_dir is None:
             raise DriverError(
@@ -2887,7 +2888,7 @@ class KeywordEngine:
                 reason="run 需要知道测试模块目录以定位 fun/ 目录"
             )
 
-        base_dir = self._module_dir or (self._case_file.parent.parent if self._case_file else None)
+        base_dir = self._module_dir or (resolve_module_dir(self._case_file) if self._case_file else None)
         if base_dir is None:
             raise InvalidParameterError(
                 keyword="run", param_name="context",
@@ -3314,7 +3315,7 @@ class KeywordEngine:
             return str(p)
         base = self._module_dir
         if base is None and self._case_file is not None:
-            base = self._case_file.parent.parent
+            base = resolve_module_dir(self._case_file)
         if base is not None:
             return str((Path(base) / database).resolve())
         return str(p.resolve())

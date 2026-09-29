@@ -6,7 +6,10 @@
       <xs:sequence>
         <xs:element name="debug" type="DebugType" minOccurs="0" maxOccurs="1"/>
         <xs:element name="load_profile" type="LoadProfileType" minOccurs="0" maxOccurs="1"/>
-        <xs:element name="case" type="PlanCaseType" minOccurs="0" maxOccurs="unbounded"/>
+        <xs:choice minOccurs="0" maxOccurs="unbounded">
+          <xs:element name="case" type="PlanCaseType"/>
+          <xs:element name="case_dir" type="PlanCaseDirType"/>
+        </xs:choice>
       </xs:sequence>
       <xs:attribute name="id" type="xs:string" use="required"/>
       <xs:attribute name="title" type="xs:string" use="optional"/>
@@ -27,8 +30,14 @@
       <xs:element name="scenario" type="PlanScenarioType" minOccurs="0" maxOccurs="unbounded"/>
     </xs:sequence>
     <xs:attribute name="id" type="xs:string" use="required"/>
+    <xs:attribute name="file" type="xs:string" use="optional"/>
     <xs:attribute name="execute" type="ExecuteType" use="optional" default="是"/>
     <xs:attribute name="weight" type="xs:positiveInteger" use="optional" default="1"/>
+  </xs:complexType>
+
+  <xs:complexType name="PlanCaseDirType">
+    <xs:attribute name="path" type="xs:string" use="required"/>
+    <xs:attribute name="execute" type="ExecuteType" use="optional" default="是"/>
   </xs:complexType>
 
   <xs:complexType name="PlanScenarioType">

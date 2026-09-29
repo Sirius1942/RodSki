@@ -9,9 +9,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from core.ski_executor import SKIExecutor
-from core.diagnosis_engine import DiagnosisEngine, DiagnosisReport
-from report.collector import ReportCollector
+from rodski.core.ski_executor import SKIExecutor
+from rodski.core.diagnosis_engine import DiagnosisEngine, DiagnosisReport
+from rodski.report.collector import ReportCollector
 
 
 def _build_executor_with_report_collector(diagnosis_engine=None):

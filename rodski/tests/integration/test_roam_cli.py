@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from unittest.mock import patch
 
-from rodski_cli import roam
+from rodski.rodski_cli import roam
 
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent

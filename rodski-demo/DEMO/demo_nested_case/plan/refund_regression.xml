@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 文件 + 用例 ID 精确选择：两个文件中的同名 TC001 被分别选中（期望 2 个用例执行） -->
+<test_plan id="refund_regression" title="退款回归" kind="suite" execute="是" default_execute="否">
+  <case file="order/refund/refund_apply.xml" id="TC001" execute="是"/>
+  <case file="order/refund/approve/refund_approve_flow.xml" id="TC001" execute="是">
+    <scenario id="S01" execute="是"/>
+  </case>
+</test_plan>

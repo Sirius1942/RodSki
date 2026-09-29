@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 模块内唯一的用例文件（位于子目录），用于验证 plan 省略 file 的兼容规则 -->
+<cases>
+  <case execute="是" id="TC001" title="唯一文件-用例1" component_type="界面">
+    <pre_process><test_step action="navigate" model="" data="GlobalValue.Page.ROOT"/></pre_process>
+    <test_case><test_step action="verify" model="Page" data="V_ROOT"/></test_case>
+    <post_process><test_step action="close" model="" data=""/></post_process>
+  </case>
+  <case execute="是" id="TC002" title="唯一文件-用例2" component_type="界面">
+    <pre_process><test_step action="navigate" model="" data="GlobalValue.Page.LOGIN"/></pre_process>
+    <test_case><test_step action="verify" model="Page" data="V_LOGIN"/></test_case>
+    <post_process><test_step action="close" model="" data=""/></post_process>
+  </case>
+</cases>

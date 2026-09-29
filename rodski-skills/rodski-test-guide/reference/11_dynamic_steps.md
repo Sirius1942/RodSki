@@ -51,14 +51,17 @@
 
 ```bash
 # 定向执行一条用例并漫游；找不到或不满足条件会明确报 SKI801/SKI802
-rodski roam --case c001 product/DEMO/demo_site
+# v11.5.0 起 --case-file + --case-id 是推荐定位方式（case/ 支持多级嵌套后，
+# 单独的 --case 只在模块只有一个用例文件或 ID 全模块唯一时可用）
+rodski roam --case-file order/refund/refund_apply.xml --case-id c001 product/DEMO/demo_site
+rodski roam --case c001 product/DEMO/demo_site   # 旧模式，见上述限制
 
 # 正常批量执行，并只对合格且 test_case 通过的用例漫游
 rodski run product/DEMO/demo_site/case/ --roam
 rodski run product/DEMO/demo_site/case/ --tag smoke --roam
 ```
 
-`rodski roam --case` 表达对单条用例的明确意图，因此会报告资格错误；`rodski run --roam` 是批量模式，不合格用例只跳过漫游，正常用例执行不受影响。`roam="是"` 只适用于 `component_type="界面"` 或未填写类型的 UI 用例；接口/数据库用例声明漫游会抛 `SKI803`。
+`rodski roam --case-file/--case-id`（或旧模式 `--case`）表达对单条用例的明确意图，因此会报告资格错误；`rodski run --roam` 是批量模式，不合格用例只跳过漫游，正常用例执行不受影响。`roam="是"` 只适用于 `component_type="界面"` 或未填写类型的 UI 用例；接口/数据库用例声明漫游会抛 `SKI803`。
 
 执行顺序是 `pre_process → test_case → 漫游 → post_process`。漫游只在 `test_case` 成功后同步发生，`post_process` 仍恰好执行一次。漫游的失败或 finding 不会把基础用例从 PASS 改成 FAIL；不可逆动作或低置信度动作只记录、不执行。
 

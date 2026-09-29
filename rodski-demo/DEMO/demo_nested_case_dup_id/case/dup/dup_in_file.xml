@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 负向：同一文件内 TC001 重复（第二个 execute=否 也必须参与检查），执行前必须报错且不启动浏览器 -->
+<cases>
+  <case execute="是" id="TC001" title="重复-1" component_type="界面">
+    <pre_process><test_step action="navigate" model="" data="GlobalValue.Page.ROOT"/></pre_process>
+    <test_case><test_step action="verify" model="Page" data="V_ROOT"/></test_case>
+    <post_process><test_step action="close" model="" data=""/></post_process>
+  </case>
+  <case execute="否" id="TC001" title="重复-2" component_type="界面">
+    <test_case><test_step action="verify" model="Page" data="V_ROOT"/></test_case>
+  </case>
+</cases>

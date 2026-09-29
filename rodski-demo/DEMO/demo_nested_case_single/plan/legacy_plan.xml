@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 兼容：模块只有一个用例文件，省略 file 仍可执行（期望只执行 TC002） -->
+<test_plan id="legacy_plan" title="单文件兼容" kind="suite" execute="是" default_execute="否">
+  <case id="TC002" execute="是"/>
+</test_plan>
