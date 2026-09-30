@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- v11.7.0 AutoWait 正向：元素 d=2000ms 后才就绪，用例不写任何 wait；UI 动作只写在 type 数据表字段值中 -->
+<cases tags="v117,autowait">
+  <case execute="是" id="TC001" title="输入框 2s 后插入：type 输入" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/late_input.html?d=2000"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="LateInput" data="I001"/>
+      <test_step action="verify" model="LateInput" data="V001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+  <case execute="是" id="TC002" title="按钮 2s 后插入：click 且只点一次" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/late_button.html?d=2000"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="LateButton" data="C001"/>
+      <test_step action="verify" model="LateButton" data="V001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+  <case execute="是" id="TC003" title="按钮 2s 后由 disabled 变 enabled：click" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/disabled_button.html?d=2000"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="DisabledButton" data="C001"/>
+      <test_step action="verify" model="DisabledButton" data="V001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+  <case execute="是" id="TC004" title="遮罩 2s 后移除：click 真实落在按钮上" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/overlay.html?d=2000"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="Overlay" data="C001"/>
+      <test_step action="verify" model="Overlay" data="V001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+  <case execute="是" id="TC005" title="按钮 2s 后由隐藏变可见：click" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/hidden_button.html?d=2000"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="HiddenButton" data="C001"/>
+      <test_step action="verify" model="HiddenButton" data="V001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+  <case execute="是" id="TC006" title="select 选项 2s 后异步填充：select【华东】" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/async_select.html?d=2000"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="AsyncSelect" data="S001"/>
+      <test_step action="verify" model="AsyncSelect" data="V001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+  <case execute="是" id="TC007" title="悬停目标 2s 后出现：hover 展开菜单" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/late_hover.html?d=2000"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="LateHover" data="H001"/>
+      <test_step action="verify" model="LateHover" data="V001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+  <case execute="是" id="TC008" title="双击目标 2s 后出现：double_click" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/late_dblclick.html?d=2000"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="LateDblclick" data="D001"/>
+      <test_step action="verify" model="LateDblclick" data="V001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+  <case execute="是" id="TC009" title="右键目标 2s 后出现：right_click" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/late_contextmenu.html?d=2000"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="LateContextMenu" data="R001"/>
+      <test_step action="verify" model="LateContextMenu" data="V001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+  <case execute="是" id="TC010" title="iframe 2s 后插入：frame 内输入" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/late_iframe.html?d=2000"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="LateIframe" data="F001"/>
+      <test_step action="verify" model="LateIframe" data="V001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+</cases>

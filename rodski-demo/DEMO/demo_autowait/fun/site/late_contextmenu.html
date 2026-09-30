@@ -1,0 +1,14 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>late_contextmenu</title><script src="common.js"></script></head><body>
+<h1>右键目标延迟出现 <small id="delayInfo"></small></h1>
+<!-- 时间线：d 毫秒后插入 #ctxTarget；右键（contextmenu）次数记入 #ctxCount -->
+<div id="box"></div>
+<div>右键次数：<span id="ctxCount">0</span></div>
+<script>
+var n = 0;
+AW.at(AW.ms('d', 2000), function () {
+  var t = AW.add('box', 'div', { id: 'ctxTarget', style: 'display:inline-block;padding:8px;background:#fee' }, '右键我');
+  t.addEventListener('contextmenu', function (e) { e.preventDefault(); n += 1; AW.set('ctxCount', String(n)); });
+});
+</script>
+</body></html>

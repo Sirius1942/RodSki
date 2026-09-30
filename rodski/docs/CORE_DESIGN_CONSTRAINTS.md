@@ -1,7 +1,7 @@
 # RodSki 核心设计约束
 
-**版本**: v11.6.0
-**日期**: 2026-09-29
+**版本**: v11.7.1
+**日期**: 2026-09-30
 
 本文档记录 RodSki 框架的核心设计决策与约束规则，所有后续开发必须遵循。
 
@@ -13,6 +13,8 @@
 
 | 版本 | 日期 | 主要变更 |
 |------|------|---------|
+| v11.7.1 | 2026-09-30 | `AutoWait` 取消隐含默认时长：**不设置或 `0` = 不自动等待**，要自动等待必须在 `globalvalue.xml` 显式写时长（如 `5000`）；`rodski init` 模板默认写 `AutoWait=5000`；rodski-demo 全部模块显式配置 |
+| v11.7.0 | 2026-09-30 | 自动等待统一接管元素查找（不新增关键字，`case.xsd` / `model.xsd` 不变）：`DefaultValue.AutoWait`（毫秒）成为所有驱动、所有查找测试对象步骤（`type` 每个字段、`verify`、`get`、`clear`、`upload_file`、视觉定位）的唯一等待上限；§13 重写（原"智能等待"从未接通）；删除 `smart_wait_*` 等死配置；驱动禁止内部等待与 force/JS 降级；新增 SKI326 / SKI327 |
 | v11.6.0 | 2026-09-29 | AI 编写效率、断言可靠性与执行性能（不新增关键字，`case.xsd` 不变）：`verify` 新增 `$count` / `$count_gte` / `$count_lte` / `$exists` / `$visible` 元素级操作符，0 匹配按实际数量 0 判定（§4.6）；UI 模型 `verify` 默认自动重试到期望值（自动等待 `DefaultValue.AutoWait`，毫秒，默认 5000，§4.6.5）；`model.xsd` 新增定位类型 `page`（url/title/path/dialog）与 `<location frame="...">` 属性（§2.5.6）；原生 dialog 策略 `DialogPolicy`；`evaluate` 支持 `file:` 引用模块内脚本（§1.5）；`run` 内置函数 `save_auth_state` / `use_auth_state`（§1.4）；`WaitTime` 与 `step_wait` 统一为毫秒、`SessionMode` / `EvidenceMode` / `--workers` / `--report junit`（§7.4、§23） |
 | v11.5.0 | 2026-09-29 | `case/` 支持任意多级嵌套目录，递归发现用例（§6.5 新增）；用例完整标识改为 `case_file + case.id`，ID 只要求文件内唯一（§7.2）；`result.xsd` 新增 `case_file`（§7.6）；`plan.xsd` 的 `case@file` 必填（单文件模块兼容例外）、新增 `case_dir`，`--case-id` 加入 `@plan_id` 互斥 selector 清单（§7.7）；结果目录按 `case/` 目录结构镜像，截图/录像路径随之改变（Agent 契约摘要） |
 | v11.4.0 | 2026-09-27 | 业务模型场景法约束：Case 显式选择业务流、普通 SQLite Data/Verify 数据表、XML Schema 与 debug-only 独立执行边界 |
@@ -439,7 +441,7 @@ RodSki 的定位器类型以 `rodski/schemas/model.xsd` 的 `LocatorType` 枚举
 约束：
 
 1. `page` 的值只能是 `url` / `title` / `path` / `dialog`，其他值在 XSD / ModelParser 阶段报错。
-2. `page` 定位器不参与元素查找、智能等待和多定位器回退；同一 `<element>` 内不得与其他定位器混用，也不得带 `frame` 属性。
+2. `page` 定位器不参与元素查找、自动等待（§13）和多定位器回退；同一 `<element>` 内不得与其他定位器混用，也不得带 `frame` 属性。
 3. `$count` / `$count_gte` / `$count_lte` / `$exists` / `$visible` 不适用于 `page` 元素（它们不是 DOM 元素）；`page` 元素使用等值或 `$contains` 等已有操作符。
 4. `dialog` 的一次性处理器只对下一次弹窗生效，用过即清除（用例结束时未被使用的处理器同样清除，不影响下一个用例）；未注册处理器时按全局 `DefaultValue.DialogPolicy`（`accept` | `dismiss` | `fail`，默认 `fail`，见 §7.4）处理。`fail` 时出现弹窗的步骤立即失败，错误信息包含弹窗文本，不会卡住等待，也不会静默吞掉。
 5. UI 原子动作仍只写在数据表字段值中（§1.2）：`accept` / `dismiss` / `accept:文本` 是 `page=dialog` 字段的取值，不是关键字，也不是新的动作语法。
@@ -880,7 +882,7 @@ test_${random(str, 6)}@example.com        → test_aB3kP9@example.com
 | `$exists` | 元素存在（`true`）/ 不存在（`false`） | `{"$exists": true}` |
 | `$visible` | 元素可见（`true`）/ 不可见或不存在（`false`） | `{"$visible": false}` |
 
-**防静默通过（硬约束）**：元素级断言在定位器匹配 0 个元素时，一律按「实际数量 0 / 不存在 / 不可见」判定，**不存在「没找到就跳过」的路径**。例如 `{"$count": 10}` 遇到改版后选择器失效，必须失败并报出「期望 10，实际 0」；`{"$exists": true}` 必须失败。元素级断言读取数量时**不触发**智能等待的逐元素重试（§13），等待只由 §4.6.5 的自动重试负责，避免 0 匹配时额外空等。
+**防静默通过（硬约束）**：元素级断言在定位器匹配 0 个元素时，一律按「实际数量 0 / 不存在 / 不可见」判定，**不存在「没找到就跳过」的路径**。例如 `{"$count": 10}` 遇到改版后选择器失效，必须失败并报出「期望 10，实际 0」；`{"$exists": true}` 必须失败。元素级断言每轮读取数量时**不等待**（即时计数），只由 verify 的 AutoWait 轮询控制总时长（§4.6.5 / §13），等待只由 §4.6.5 的自动重试负责，避免 0 匹配时额外空等。
 
 元素级操作符的定位来自该字段对应模型元素的 `<location>`（支持 `frame` 属性，§2.5.6），不能用于 `page` 元素，也不能用于接口 / DB 模型；接口返回数组的长度仍用 `字段.length` + 数值操作符（§4.5）。
 
@@ -949,11 +951,11 @@ INSERT INTO rs_field (row_id, field_name, field_value) VALUES
 
 | 项 | 约定 |
 |----|------|
-| 配置 | `globalvalue.xml` → `DefaultValue.AutoWait`（自动等待），单位**毫秒**，默认 `5000`（5 秒）；开发期名称 `VerifyTimeout` 已废弃，出现即在执行前报错并提示改名 |
+| 配置 | `globalvalue.xml` → `DefaultValue.AutoWait`（自动等待），单位**毫秒**；不设置或 `0` = 不自动等待（单次比对），需显式设置如 `5000`（v11.7.1 起无默认时长）；开发期名称 `VerifyTimeout` 已废弃，出现即在执行前报错并提示改名 |
 | 关闭 | `AutoWait=0`：恢复单次比对（v11.5 及之前的行为） |
-| 适用范围 | 仅 UI 模型的 `verify`（含 `check`）；**接口 / DB 模型的 `verify` 始终单次比对**（结果是一次性的，重试没有意义） |
+| 适用范围 | 仅 UI 模型的 `verify`（含 `check`，含视觉定位字段，v11.7.0 起视觉字段按 1000ms 间隔轮询）；**接口 / DB 模型的 `verify` 始终单次比对**（结果是一次性的，重试没有意义） |
 | 读取失败 | 轮询期间元素暂时找不到、文本为空等视为「本轮未匹配」继续重试，不中断；超时后才报失败 |
-| 总等待上限 | 由 `AutoWait` 决定，单轮读取不叠加智能等待的 9 秒重试（§13） |
+| 总等待上限 | 由 `AutoWait` 决定；轮询期间驱动每轮即时读取（不叠加驱动自身等待），与元素查找同属自动等待机制（§13） |
 | 与 `expect_fail` | 预期失败的用例同样要等到超时才判定失败，负向用例的耗时 ≈ `AutoWait` |
 
 **目的**：替代用例中「`wait 1` + `verify`」的固定等待写法。异步渲染的表格、提交后跳转的页面，直接写 `verify` 即可；要等元素消失，写 `{"$exists": false}` / `{"$visible": false}`。
@@ -1311,7 +1313,7 @@ pre_process → test_case → roaming（可选）→ post_process
 | 键 | 取值 | 默认 | 说明 |
 |----|------|------|------|
 | `WaitTime` | 非负数，单位**毫秒** | `0` | 每个步骤执行后的固定等待（`wait` / `close` 步骤除外）。`<cases step_wait="...">` 同为毫秒，存在时覆盖本值。**过渡兼容（D3）**：值 `≤ 30`（不含 0）按**秒**解释，并在本次 run 中打印一次含「WaitTime」与「毫秒」的弃用告警，提示改写为毫秒；`> 30` 按毫秒解释 |
-| `AutoWait` | 非负数，单位**毫秒** | `5000` | 自动等待：UI 模型 `verify` 自动重试的上限（§4.6.5）；`0` 关闭重试；不影响接口 / DB 模型 |
+| `AutoWait` | 非负数，单位**毫秒** | 无（不设置 = 不自动等待） | 自动等待：**所有驱动、所有查找测试对象步骤**（type 每个字段、verify、get、clear、upload_file、视觉定位）的等待上限（§13）；不设置或 `0` = 不等待；推荐写 `5000`；不影响接口 / DB 模型 |
 | `DialogPolicy` | `accept` \| `dismiss` \| `fail` | `fail` | 未注册一次性处理器的原生弹窗如何处理（§2.5.6）；`fail` 时步骤失败并报告弹窗文本 |
 | `SessionMode` | `isolated` \| `shared_browser` \| `shared_session` | `isolated` | 浏览器会话复用方式（§23.1）；CLI `--session-mode` 覆盖 |
 | `EvidenceMode` | `full` \| `concise` | `full` | 截图证据模式（§23.4）；CLI `--evidence` 覆盖 |
@@ -1319,7 +1321,7 @@ pre_process → test_case → roaming（可选）→ post_process
 约束：
 
 - 非法取值（如 `DialogPolicy=yes`、`WaitTime=abc`）在启动驱动前报错，错误信息列出合法取值，不静默回落默认值。
-- 固定等待只用于演示或录屏；交互等待由智能等待（§13）与 `verify` 自动重试（§4.6.5）负责。新模块与 `rodski init` 模板一律写 `WaitTime=0`；`WaitTime > 0` 时 `rodski case lint` 给出 WARNING 并估算额外耗时（步数 × 等待时长）。
+- 固定等待只用于演示或录屏；交互等待由自动等待 AutoWait（§13，含 `verify` 自动重试 §4.6.5）负责。新模块与 `rodski init` 模板一律写 `WaitTime=0`；`WaitTime > 0` 时 `rodski case lint` 给出 WARNING 并估算额外耗时（步数 × 等待时长）。
 - 优先级：CLI 参数 > `globalvalue.xml` > 默认值；`step_wait` 只覆盖 `WaitTime`。
 
 ### 7.5 Model XML 格式约束（不变）
@@ -2105,159 +2107,89 @@ RodSki DSL 支持 `<if>/<else>` 条件分支。这是**声明式 DSL 的扩展�
 
 ---
 
-## 13. 智能等待机制
+## 13. 自动等待（AutoWait）机制（v11.7.0 重写）
 
-### 13.1 设计目标
+> v11.7.0 之前本节描述的"智能等待"（`smart_wait_*` 配置、BaseDriver 自动继承、30 × 0.3s = 9 秒）在代码中**从未接通**：
+> 配置无任何读取点，各驱动实际使用各自硬编码的超时（Playwright 10s/5s/3s/30s、Appium 10s、桌面 0）。
+> v11.7.0 以 `DefaultValue.AutoWait` 统一接管，并删除上述死配置。设计：`.pb/specs/v11.7.0-autowait-unified-design.md`。
 
-自动处理 UI 元素的加载延迟，提高测试用例的稳定性和容错性。
+### 13.1 定义与范围
 
-### 13.2 工作原理
+`globalvalue.xml` → `DefaultValue.AutoWait`（**自动等待**，单位毫秒）是
+**所有驱动（Web / Android / iOS / 桌面视觉）、所有"查找测试对象"步骤**的唯一等待上限：
 
-智能等待机制在 BaseDriver 层实现，所有驱动自动继承：
+| 步骤 | 受 AutoWait 控制的内容 |
+|------|----------------------|
+| `type` 单字段 / 批量 | **每一个字段**：文本输入、`click` / `double_click` / `right_click` / `hover` / `select【】`、`key_press【】` 的目标元素、`drag【】` 两端、`scroll` 目标 |
+| `verify` / `check`（UI 模型） | 轮询读取全部字段直到匹配（§4.6.5），含视觉定位字段 |
+| `get` / `get_text` / `type` 后自动取值 | 元素出现即读；AutoWait 内读不到 → 失败（不再静默返回空） |
+| `clear` / `upload_file` | 目标元素出现且可操作 |
+| 视觉定位（`vision` / `vision_image` / `ocr`） | 每轮新截图 + 一次匹配 |
 
-- **首次立即尝试**：定位元素时首次不等待，快速响应
-- **失败后自动重试**：如果失败，按配置间隔重试（默认 30 次，间隔 300ms）
-- **元素出现立即返回**：一旦元素出现，立即停止重试并执行后续操作
-- **超时后返回失败**：达到最大重试次数后返回 None
+**没有默认时长（v11.7.1，Owner 决策）**：不设置 `AutoWait` 或写 `0` 都表示**不自动等待**（每个定位器只尝试一次）；要自动等待必须显式写时长，推荐 `<var name="AutoWait" value="5000"/>`。`rodski init` 生成的模板默认写 `5000`。非数字取值（如 `default`）执行前报错。
 
-### 13.3 配置参数
+不受 AutoWait 控制：`navigate` / `launch` 的页面加载、`wait` 关键字、`WaitTime` / `step_wait`（步后固定等待）、接口 / DB `verify`（单次比对）、截图（固定 10s 超时）。
 
-| 参数 | 默认值 | 说明 |
-|------|--------|------|
-| `smart_wait_enabled` | `True` | 启用/禁用智能等待 |
-| `smart_wait_max_retries` | `30` | 最大重试次数 |
-| `smart_wait_retry_interval` | `0.3` | 重试间隔（秒）|
-| `smart_wait_log_retry` | `True` | 记录重试日志 |
+### 13.2 实现形态（硬约束）
 
-**配置方式 1：通过 config.json**
-```json
-{
-  "smart_wait_enabled": true,
-  "smart_wait_max_retries": 30,
-  "smart_wait_retry_interval": 0.3,
-  "smart_wait_log_retry": true
-}
-```
+自动等待的本质是：**try 查找并执行 → catch "未找到 / 不可操作" → 等待 → 再执行；成功即跳出，超过 AutoWait 即失败**。
+由公共层 `rodski/core/auto_wait.py` 的 `run_element` 唯一实现，关键字层与驱动共用：
 
-**配置方式 2：通过代码**
 ```python
-from rodski.core.config_manager import ConfigManager
-
-config = ConfigManager()
-config.set("smart_wait_max_retries", 50)
-config.set("smart_wait_retry_interval", 0.5)
+while True:
+    for 定位器 in 该元素的全部 <location>（按 priority）:
+        try:
+            hit = driver.probe(定位器)                  # 即时查找，不等待
+            if not hit: raise ElementNotFoundError
+            return act(定位器, timeout=剩余预算)          # 执行一次动作
+        except RETRYABLE_ERRORS:                       # 白名单
+            记录最后错误，试下一个定位器
+    if 超过 AutoWait: raise ElementWaitTimeoutError   # SKI326
+    sleep(200ms)                                       # 视觉定位 1000ms
 ```
 
-### 13.4 使用场景
+1. **白名单捕获**：只有 `ElementNotFoundError` / `ElementNotInteractableError`（SKI327）/ `StaleElementError` / `TimeoutError`（SKI322）被捕获后等待重试；其余一切异常（参数错误、驱动已停止、未预期弹窗、`PerceptionUnavailableError`、选择器语法错误……）立即抛出。**禁止 `except Exception` 吞异常。**
+2. **驱动以异常表示失败**：驱动方法不得返回 `False` 后内部降级；原生异常（Playwright TimeoutError、Selenium NoSuchElement / StaleElement / ElementNotInteractable、视觉未匹配）须转换为上述类型。动作返回 `False` 视为驱动契约违规（直接 DriverError）。
+3. **禁止驱动内部等待与降级**：不得有 `WebDriverWait(driver, 10)`、implicit wait、`wait_for_selector` 吞异常、硬编码超时、force 点击、JS 点击 / JS 赋值等。Appium 启动时显式 `implicitly_wait(0)`。
+4. **按元素计时**：`type` 批量中每个字段独立一份 AutoWait 预算；同一元素的多个 `<location>` **共享**这一份预算（失败耗时 ≈ 1 × AutoWait，不是 N ×）。
+5. **重试单位是一个元素的一次查找 + 动作**，不是整个步骤——已执行的字段不会被重复输入 / 点击。
+6. **驱动单次动作的超时 = 剩余预算**，下限 500ms（Playwright `timeout=0` 表示无限等待，严禁传 0；已找到的元素保底一次动作的执行时间）。
+7. **命中即走**：元素已就绪时不产生额外等待。
+8. 不设置 `AutoWait` 或 `AutoWait=0`：每个定位器恰好尝试一次（不自动等待）。
 
-- ✅ 页面加载较慢的 Web 应用
-- ✅ 动态渲染的 UI 元素（React、Vue 等前端框架）
-- ✅ 移动应用的异步加载
-- ✅ 桌面应用的窗口切换
-- ✅ 网络延迟导致的元素延迟出现
+### 13.3 错误信息
 
-### 13.5 性能说明
+超时抛 `ElementWaitTimeoutError`（SKI326，`ElementNotFoundError` 子类），格式：
 
-- **快速响应元素**：无额外延迟（首次立即尝试）
-- **慢速加载元素**：最多等待 9 秒（30 × 0.3s）
-- **总执行时间**：实际等待时间 = 元素出现时间（≤ 最大等待时间）
-
-**示例：**
-- 元素立即存在：0ms 延迟
-- 元素 1 秒后出现：约 1 秒等待
-- 元素不存在：9 秒超时
-
-### 13.6 与现有机制的关系
-
-| 机制 | 层级 | 职责 | 触发时机 |
-|------|------|------|---------|
-| **智能等待** | 驱动层 (BaseDriver) | 元素定位的自动重试 | 调用 `locate_element_with_retry()` 时 |
-| **verify 自动重试**（v11.6.0） | 关键字层 | UI `verify` 轮询到所有字段匹配或 `AutoWait` 超时（§4.6.5） | UI 模型 `verify` 比对未通过时 |
-| **KeywordEngine 重试** | 关键字层 | 关键字执行的重试（处理异常） | 关键字执行失败时 |
-| **步骤固定等待** | 执行器层 | `DefaultValue.WaitTime` / `step_wait`（毫秒）每步之后固定等待 | 每个步骤执行后（默认 `0`，不等待） |
-| **wait 关键字** | 用例层 | 显式等待固定时间 | 用例中使用 `<test_step action="wait">` |
-
-**职责分离：**
-- 智能等待：解决"元素尚未加载"问题
-- verify 自动重试：解决"值尚未变成期望值"问题（异步表格、跳转后的 URL、元素消失），替代 `wait` + `verify`
-- KeywordEngine 重试：解决"临时异常"问题（网络抖动、StaleElement 等）
-- wait 关键字 / 步骤固定等待：只用于演示、录屏或确实需要固定时长的场景（动画完成等）；用例中出现数字字面量 `wait` 时 `rodski case lint` 给出 WARNING
-
-四者互补，不冲突。
-
-### 13.7 实现细节
-
-**核心方法：**
-```python
-def locate_element_with_retry(
-    self,
-    locator_type: str,
-    locator_value: str
-) -> Optional[Tuple[int, int, int, int]]:
-    """定位元素（带智能等待）"""
-    # 读取配置
-    enabled = self.config.get("smart_wait_enabled", True)
-    max_retries = self.config.get("smart_wait_max_retries", 30)
-    retry_interval = self.config.get("smart_wait_retry_interval", 0.3)
-    
-    # 首次立即尝试
-    bbox = self.locate_element(locator_type, locator_value)
-    if bbox is not None:
-        return bbox
-    
-    # 重试循环
-    for attempt in range(1, max_retries + 1):
-        time.sleep(retry_interval)
-        bbox = self.locate_element(locator_type, locator_value)
-        if bbox is not None:
-            return bbox
-    
-    return None
+```
+元素 Login.submitBtn 在 AutoWait=5000ms 内未找到；尝试定位器: id=submit, text=提交；最后错误: ...
 ```
 
-**便捷方法自动使用：**
-- `click_element()` → 调用 `locate_element_with_retry()`
-- `type_at_element()` → 调用 `locate_element_with_retry()`
-- `get_element_text()` → 调用 `locate_element_with_retry()`
-- `get_element_center()` → 调用 `locate_element_with_retry()`
+元素已找到但始终不可操作（被遮挡、disabled、不可见）时为"内不可操作"。
 
-### 13.8 日志输出
+### 13.4 与其他机制的关系
 
-**DEBUG 级别（重试过程）：**
-```
-Element not found, starting smart wait: id=submit-btn, max_retries=30, interval=0.3s
-Element found after 5 retries: id=submit-btn
-```
+| 机制 | 层级 | 作用 | 关系 |
+|------|------|------|------|
+| **AutoWait** | 公共层 `core/auto_wait.py` | 查找测试对象 | 唯一的元素等待 |
+| `verify` 自动重试 | 关键字层 | 值匹配轮询（§4.6.5） | 同一 AutoWait 预算与间隔 |
+| 步骤级重试 `retry_config` | KeywordEngine | 整步重跑，默认 0 次 | 与 AutoWait 是乘法关系；`ElementWaitTimeoutError` 不再步骤级重试 |
+| `WaitTime` / `step_wait` | 执行器 | 每步之后固定等待 | 与 AutoWait 独立；推荐 0 |
+| `wait` 关键字 | 关键字层 | 显式固定等待 | 仅用于演示 / 录屏 / 非元素类异步 |
 
-**WARNING 级别（最终失败）：**
-```
-Element not found after 30 retries (9.0s): id=submit-btn
-```
+### 13.5 已删除的死配置
 
-### 13.9 约束规则
+`config.json` 的 `smart_wait_enabled` / `smart_wait_max_retries` / `smart_wait_retry_interval` / `smart_wait_log_retry` /
+`element_wait_timeout` / `element_retry_interval` / `retry` / `retry_delay` / `retry_on_errors` 从未生效，v11.7.0 删除；
+用户配置中仍存在时打印一次废弃警告，不报错。`BaseDriver.locate_element_with_retry` 改为按 AutoWait 走同一循环。
 
-- ❌ 不修改 `locate_element()` 接口（保持向后兼容）
-- ✅ 新增 `locate_element_with_retry()` 方法
-- ✅ 便捷方法（`click_element` 等）自动使用智能等待
-- ✅ 直接调用 `locate_element()` 不触发智能等待（用于特殊场景）
-- ✅ 所有驱动（Playwright、Appium、Desktop 等）自动继承智能等待能力
-- ✅ 配置参数可在运行时动态调整
+### 13.6 约束规则
 
-### 13.10 最佳实践
-
-**推荐做法：**
-1. 保持默认配置（30 次 × 0.3s = 9 秒）适用于大多数场景
-2. 对于特别慢的页面，可增加 `max_retries` 或 `retry_interval`
-3. 对于性能敏感场景，可减少重试次数或禁用智能等待
-4. 使用 `log_retry: false` 减少日志噪音（生产环境）
-
-**不推荐做法：**
-1. ❌ 将 `retry_interval` 设置过小（< 0.1s），可能导致 CPU 占用过高
-2. ❌ 将 `max_retries` 设置过大（> 100），可能导致测试执行时间过长
-3. ❌ 依赖智能等待替代所有显式 `wait` 关键字（某些场景仍需显式等待）
-4. ❌ 用 `wait` + `verify` 等待异步结果（v11.6.0 起直接写 `verify`，由自动重试负责，§4.6.5）
-
----
+- ✅ 新增驱动必须实现 `probe(locator, frame=None)`（即时探测）与带 `timeout_ms` 的动作方法，失败抛 13.2 规定的异常类型
+- ✅ 新增"查找测试对象"的步骤必须经 `core/auto_wait.run_element`，不得自建等待循环
+- ❌ 驱动内部等待 / 降级 / 吞异常（13.2 第 3 条）
+- ❌ 在用例中用 `wait` 等待元素出现（调大 AutoWait）
+- 验收：`rodski-demo/DEMO/demo_autowait*`（Web 30 项）+ `mobile_app/case/autowait.xml`（Android 模拟器）；桌面视觉以单元测试覆盖
 
 ## 14. 项目结构说明
 
@@ -2289,6 +2221,7 @@ Element not found after 30 retries (9.0s): id=submit-btn
 - `demo_authoring_v116/` - AI 编写契约、断言可靠性与执行性能（v11.5.2 起；v11.6.0 扩展）
 - `demo_authoring_v116_pitfalls/` - 踩坑夹具：复现错误写法，供 lint 与兼容性验收（v11.6.0）
 - `demo_authoring_v116_no_retry/` - `AutoWait=0` 关闭 verify 自动重试的验收夹具（v11.6.0）
+- `demo_autowait/`（`AutoWait=5000`）、`demo_autowait_zero/`（不设置 = 不自动等待）、`demo_autowait_long/`（`12000`）- 自动等待验收（v11.7.x，`run_acceptance.py` 30 项）
 - `demo_v11_enhancement/` - v11.x 增强特性演示
 - `demo_v7_features/` - v7.0 特性演示
 - `demo_business_model/` - 业务模型演示（v11.4.0）
@@ -2645,7 +2578,8 @@ GitLab CI / GitHub Actions 的完整接入示例见 `TEST_CASE_WRITING_GUIDE.md`
 - [ ] `result/{run}/` 下用例级截图/录像已按 `case/{case_file 去 .xml}/` 镜像存放，截图文件名规则未变，汇总产物仍在运行目录根（Agent 契约摘要 · 截图目录规则）
 - [ ] v11.6.0 新能力未新增关键字，`case.xsd` 未变；`model.xsd` 的 `LocatorType` 含 `page`，`<location>` 含可选 `frame` 属性，并已同步 GUIDE §4.3（§2.5.6）
 - [ ] 元素级操作符（`$count` / `$count_gte` / `$count_lte` / `$exists` / `$visible`）0 匹配按实际 0 判定，不存在跳过路径（§4.6.1）
-- [ ] UI `verify` 自动重试受 `AutoWait` 控制（毫秒，默认 5000、`0` 关闭；旧键 `VerifyTimeout` 报错），接口 / DB `verify` 仍为单次比对（§4.6.5）
+- [ ] 所有查找测试对象的步骤经 `core/auto_wait.run_element`，驱动无内部等待 / force / JS 降级，失败抛白名单异常（§13）
+- [ ] UI `verify` 自动重试受 `AutoWait` 控制（毫秒；不设置或 `0` = 不重试；旧键 `VerifyTimeout` 报错），接口 / DB `verify` 仍为单次比对（§4.6.5）
 - [ ] `WaitTime` 与 `step_wait` 均按毫秒解释；`WaitTime ≤ 30` 按秒兼容并只告警一次（§7.4）
 - [ ] `save_auth_state` / `use_auth_state` 只存本次 run 内存、不落盘；`use_auth_state` 在 `navigate` 之前（§1.4）
 - [ ] `evaluate file:` 只允许读取模块目录内的脚本，越界拒绝（§1.5）
@@ -2735,4 +2669,4 @@ kind=load 与 kind=suite 是完全独立的执行路径：
 
 ### 23.5 步骤固定等待
 
-`DefaultValue.WaitTime` 与 `<cases step_wait>` 统一为**毫秒**，默认 `0`；过渡兼容与告警规则见 §7.4。交互等待交给智能等待（§13）与 `verify` 自动重试（§4.6.5）。
+`DefaultValue.WaitTime` 与 `<cases step_wait>` 统一为**毫秒**，默认 `0`；过渡兼容与告警规则见 §7.4。交互等待交给自动等待 AutoWait（§13）。

@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <globalvalue>
   <group name="DefaultValue">
-    <!-- WaitTime 单位毫秒（v11.6.0 起，与 <cases step_wait> 一致） -->
-    <var name="WaitTime" value="2000"/>
+    <!-- WaitTime 单位毫秒（v11.6.0 起，与 <cases step_wait> 一致）；0 = 不做步后固定等待 -->
+    <var name="WaitTime" value="0"/>
+    <!-- 自动等待（v11.7.0）：每次查找测试对象（type 每个字段 / verify / get 等）最多等 5000ms，元素出现即继续 -->
+    <var name="AutoWait" value="5000"/>
     <var name="Headless" value="False"/>
   </group>
 
@@ -15,7 +17,6 @@
     <var name="AppActivity" value=".LoginActivity"/>
     <var name="AppTarget" value="app://android/com.rodski.demo/.LoginActivity"/>
     <var name="NoReset" value="true"/>
-    <var name="NewCommandTimeout" value="120"/>
 
     <!-- 设备选择（用例执行层配置，v11.3.0）
          这些变量不属于被测应用，而属于「这次执行用几台什么设备」：

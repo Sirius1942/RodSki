@@ -17,7 +17,8 @@ AI 首轮写 RodSki 用例最常踩的坑。本表与 `rodski capabilities` 输�
 | `sql_blank_fallback` | 同表混用 `sql` / `query` 时两个都填了 `BLANK` | 每行带齐 `sql`/`query`/`operation`，不用的填 `BLANK`；先取有效 `sql`，没有再回落 `query`，两者至少一个有效 | ERROR |
 | `dialog` | 在 `evaluate` 里写 `window.confirm = () => true` 垫片 | `DefaultValue.DialogPolicy=accept\|dismiss\|fail`（默认 `fail`，未预期弹窗直接失败并报文本）；一次性处理：模型声明 `<location type="page">dialog</location>` 元素（排在触发按钮之前），`type` 数据填 `accept` / `dismiss` / `accept:文本`，`verify` 该字段读最近一次弹窗文本 | WARNING |
 | `db_assertion` | 查询后用 `evaluate` / `<if>` 判断结果；DB `_verify` 写 `${Return[-1]}` | DB 模型用 `<location type="field">列名</location>` 声明列，`DB` 步骤后接 `verify 模型名 行ID`（与第一行比较）；`_verify` 写字面值或 GlobalValue | — |
-| `waittime_ms` | `WaitTime=1` 当成 1 秒；用例到处写 `wait 1/2` 等异步数据 | `DefaultValue.WaitTime` 与 `<cases step_wait>` 单位都是**毫秒**、作用于每一步；新模块写 `0`，异步交给智能等待与 `verify` 自动重试（自动等待 `DefaultValue.AutoWait`，毫秒，默认 5000）。旧值 ≤30 暂按秒兼容并告警 | WARNING |
+| `autowait_all_lookups` | 元素晚出现就在 `type` 前插 `wait 2`；以为自动等待只管 `verify`；globalvalue 不写 `AutoWait` 却指望自动等待 | `AutoWait` 没有默认值：不设置 = 不自动等待，新模块必须写 `<var name="AutoWait" value="5000"/>`。它作用于**所有**查找测试对象的步骤（`type` 每个字段的输入 / click / select / hover、`verify`、`get`、`clear`、`upload_file`），元素出现即继续；超时报 `SKI326 元素 X 在 AutoWait=Nms 内未找到`。慢页面调大 `AutoWait`，不要写 `wait`。 |
+| `waittime_ms` | `WaitTime=1` 当成 1 秒；用例到处写 `wait 1/2` 等异步数据 | `DefaultValue.WaitTime` 与 `<cases step_wait>` 单位都是**毫秒**、作用于每一步；新模块写 `0`，异步交给自动等待 `DefaultValue.AutoWait`（毫秒，**须显式写**如 `5000`，不设置 = 不自动等待；作用于 `type` 每个字段、`verify`、`get`、`clear` 等所有查找测试对象的步骤，元素出现即继续）。旧值 ≤30 暂按秒兼容并告警 | WARNING |
 | `native_assert_over_evaluate` | `evaluate` 里 `querySelectorAll(...).length` / `location.pathname` 断言，选择器失效时静默通过 | `_verify` 字段填 `{"$count": 10}` / `{"$count_gte": 1}` / `{"$exists": true}` / `{"$visible": true}`；URL/标题用 `<location type="page">url\|title\|path</location>` 元素 + 普通 `verify`；0 匹配按实际 0 判定 | WARNING |
 | `ui_atomic_in_data` | 写 `<test_step action="click">` | `click/hover/select` 等是 `type` 数据表字段值，不是关键字 | — |
 
@@ -78,7 +79,7 @@ python3 scripts/sync_test_case_guide.py \
 - 将本地 `TEST_CASE_WRITING_GUIDE.md` 视为只读参考材料和用例编写核心约束：用例设计必须符合其要求。结合当前 CLI `--version`/`--help` 和目标模块现有风格，把它们作为实时事实来源。受支持关键字、定位器类型和特殊值的**权威清单以 `rodski capabilities` 为准**（当前 CLI 顶层 `--help` 列出 `capabilities` 时调用，取其 `supported_keywords`/`locator_types`/`special_values`）；本技能、`CLAUDE.md`/`AGENTS.md`、参考笔记和 guide 里出现的关键字名单只是示例和常见幻觉提示，不要当成完整白名单或硬编码事实来源。如果本技能、参考笔记、capabilities 输出、XSD 或 guide 相互冲突，不要静默猜测；运行最窄的 dry-run/help 检查并报告不一致。
 - 保持 RodSki 三元结构一致：Case 只编排动作，Model 定义 UI 元素/API 字段/DB 字段，输入和期望数据放在 `data/data.sqlite`；全局变量放在 `data/globalvalue.xml`。
 - **何时用全局变量**（`data/globalvalue.xml`，引用写 `GlobalValue.组名.变量名`，Case 的 `data`、数据表字段值、模型里都能用）：判断标准是"换一个环境就要改"或"整个模块共用、与单条用例无关"。
-  - 该用：站点 URL / API 基址、与环境绑定的测试账号、数据库连接组（与模型 `connection` 同名）、移动端 `Platform/UDID/AppPackage`、框架执行策略 `DefaultValue.WaitTime`（毫秒）/ `AutoWait`（毫秒，verify 自动等待上限，默认 5000）/ `DialogPolicy` / `SessionMode` / `EvidenceMode`。
+  - 该用：站点 URL / API 基址、与环境绑定的测试账号、数据库连接组（与模型 `connection` 同名）、移动端 `Platform/UDID/AppPackage`、框架执行策略 `DefaultValue.WaitTime`（毫秒）/ `AutoWait`（毫秒，所有查找测试对象步骤的自动等待上限，无默认值：不设置 = 不自动等待，新模块写 `5000`）/ `DialogPolicy` / `SessionMode` / `EvidenceMode`。
   - 不该用：单条用例的输入与期望值（放 `data.sqlite`）、运行时产生的值（订单号、token → `set/get`、`${Return[-N]}`、`auto_capture`）、只有一两条用例用到的常量、生产或个人真实凭据。
   - 用例、模型、数据表里不要写死环境地址；写成 `GlobalValue.DefaultValue.URL/...`，换环境时只改 `globalvalue.xml`（与 `rodski-skill--switch-rodski-env` 的约定一致）。详见 GUIDE §6.0。
 - 导航使用 `navigate`。不要写 `open`。
@@ -94,7 +95,7 @@ python3 scripts/sync_test_case_guide.py \
 - Case 文件名前缀应反映实际执行类型：纯界面用 `UI`，纯接口用 `API`，纯数据库用 `DB`；混合用例用组合前缀，如 `UI+DB`、`API+DB`、`UI+API+DB`。判定以实际 `test_step action` 为准：`navigate`/`type`/`evaluate`/`screenshot`/`get` 等归 UI，`send` 归 API，`DB` 或明确数据库检查脚本归 DB。纯 DB 用例的 `component_type` 应为 `数据库`。
 - 当存在 `send`、`type` 或 `verify` 的 model/data 路径时，不要用宽泛的 `evaluate` 代码伪造通过。特别是用 `querySelectorAll(...).length` 之类在 `evaluate` 里做断言时，选择器失效会返回空集合、用例"静默通过"；断言优先走 model + `_verify`。
 - `verify` 默认 **strict 模式**：`_verify` 行必须包含模型的**全部**字段，否则报"字段缺失"。只想校验部分字段时，在步骤上写 `match_mode="subset"`；或者在不校验的字段填 `BLANK`。
-- `globalvalue.xml` 的 `DefaultValue.WaitTime` 会作用于**每一步**，单位为**毫秒**（v11.6.0 起与 `<cases step_wait>` 统一；旧值 ≤30 暂按秒兼容并打印弃用告警，请改写为毫秒）。新模块保持 `0`，交互等待交给框架的智能等待与 `verify` 自动重试；设成 `1000` 会让每个用例多出"步数 × 1 秒"的耗时。
+- `globalvalue.xml` 的 `DefaultValue.WaitTime` 会作用于**每一步**，单位为**毫秒**（v11.6.0 起与 `<cases step_wait>` 统一；旧值 ≤30 暂按秒兼容并打印弃用告警，请改写为毫秒）。新模块保持 `0`，交互等待交给框架的自动等待 `AutoWait`（type 每个字段 / verify / get 等都会等元素出现）；设成 `1000` 会让每个用例多出"步数 × 1 秒"的耗时。
 - DB 断言、`sql`/`query` 混用与 SQL 占位符规则见 `references/api-db-patterns.md`「DB 主路径」。
 - 业务模型：`<business_call>` 必须同时写 `ref`、`flow`、`input`、`expect`；它是 Case 元素不是关键字，不要写成 `test_step action="business_call"`。`flow` 只是断言目标，不要为了让用例通过去改边条件或伪造输出；一条 flow 对应一个 Case。模型 `B` 的数据放在普通表 `B`（data）和 `B_verify`（verify）。改动 `business/` 后先跑 `rodski business validate <module>`。细节见 `references/business-model.md`。
 

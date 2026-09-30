@@ -146,11 +146,13 @@ class TestPlaywrightInstantRead:
         assert d.get_text_locator("#a") == "ok"
         loc.first.text_content.assert_called_once_with(timeout=PlaywrightDriver.INSTANT_READ_TIMEOUT_MS)
 
-    def test_default_mode_unchanged(self):
+    def test_default_mode_waits_up_to_auto_wait(self):
+        """v11.7.0: 非 verify 轮询读取等待元素出现，上限为 AutoWait（不再是 Playwright 默认 30s）"""
         d = self._driver()
-        d.page.text_content.return_value = "t"
+        d.set_auto_wait(2500)
+        d.page.locator.return_value.first.text_content.return_value = "t"
         assert d.get_text_locator("#a") == "t"
-        d.page.text_content.assert_called_once_with("#a")
+        d.page.locator.return_value.first.text_content.assert_called_once_with(timeout=2500)
 
 
 # ───────────────────────── ModelParser ─────────────────────────

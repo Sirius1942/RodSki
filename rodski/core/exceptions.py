@@ -307,7 +307,11 @@ class RetryExhaustedError(KeywordError):
         last_error: Exception,
         **kwargs
     ):
-        message = f"关键字 '{keyword}' 重试 {attempts} 次后仍失败: {last_error}"
+        # attempts 是总尝试次数；未配置步骤级重试时只执行了 1 次，不能写成"重试 1 次"（v11.7.0）
+        if attempts <= 1:
+            message = f"关键字 '{keyword}' 执行失败: {last_error}"
+        else:
+            message = f"关键字 '{keyword}' 共尝试 {attempts} 次（步骤级重试 {attempts - 1} 次）后仍失败: {last_error}"
         super().__init__(message, keyword=keyword, **kwargs)
         self.attempts = attempts
         self.last_error = last_error
@@ -344,6 +348,12 @@ class TimeoutError(DriverError):
 class StaleElementError(DriverError):
     """元素失效"""
     error_code = "SKI323"
+    error_level = "WARNING"
+
+
+class ElementNotInteractableError(DriverError):
+    """v11.7.0：元素已找到但暂不可操作（不可见 / disabled / 被遮挡 / 动作单次超时），自动等待内重试"""
+    error_code = "SKI327"
     error_level = "WARNING"
 
 

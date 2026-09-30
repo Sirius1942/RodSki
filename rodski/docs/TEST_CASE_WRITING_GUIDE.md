@@ -1037,7 +1037,7 @@ Case XML 写法（验证写在 `<test_case>` 内，作为一条 `test_step`）�
 
 #### 5.7.2 UI verify 自动重试（替代 `wait`）
 
-UI 模型的 `verify` 会在自动等待 `DefaultValue.AutoWait` 毫秒内（默认 `5000`，即 5 秒；每 200ms 一轮）反复读取**全部**字段并比对，全部匹配立即通过；超时后按最后一次读到的值报失败，逐字段列出期望 / 实际。
+UI 模型的 `verify` 会在自动等待 `DefaultValue.AutoWait` 毫秒内（例如 `5000` 即 5 秒；不设置 = 单次比对；每 200ms 一轮，视觉定位字段每 1000ms 一轮）反复读取**全部**字段并比对，全部匹配立即通过；超时后按最后一次读到的值报失败，逐字段列出期望 / 实际。它与 `type` 等步骤查找元素用的是同一个自动等待（[§6.4.2](#642-autowait--自动等待单位毫秒)）。
 
 - 因此异步加载、跳转后的页面**直接写 `verify`**，不要在前面插 `wait 1`/`wait 2`。等元素消失写 `{"$exists": false}` 或 `{"$visible": false}`。
 - 接口 / DB 模型的 `verify` 不重试（结果是一次性的）。
@@ -1103,7 +1103,7 @@ UI 模型的 `verify` 会在自动等待 `DefaultValue.AutoWait` 毫秒内（默
   <group name="DefaultValue">
     <var name="URL" value="https://beta.example.com"/>
     <var name="WaitTime" value="0"/>          <!-- 毫秒 -->
-    <var name="AutoWait" value="5000"/>       <!-- 毫秒：verify 自动等待上限 -->
+    <var name="AutoWait" value="5000"/>       <!-- 毫秒：查找测试对象的自动等待上限；不设置 = 不自动等待 -->
   </group>
   <group name="Account">
     <var name="Admin" value="qa_admin"/>
@@ -1135,7 +1135,7 @@ UI 模型的 `verify` 会在自动等待 `DefaultValue.AutoWait` 毫秒内（默
     <var name="URL" value="http://127.0.0.1:5555"/>
     <var name="BrowserType" value="chromium"/>
     <var name="WaitTime" value="0"/>           <!-- 毫秒；0 = 不做固定等待 -->
-    <var name="AutoWait" value="5000"/>        <!-- 毫秒；自动等待：UI verify 自动重试上限 -->
+    <var name="AutoWait" value="5000"/>        <!-- 毫秒；自动等待：所有查找测试对象步骤的等待上限 -->
     <var name="DialogPolicy" value="fail"/>
     <var name="SessionMode" value="shared_browser"/>
     <var name="EvidenceMode" value="full"/>
@@ -1175,7 +1175,7 @@ GlobalValue.DefaultValue.WaitTime     → "0"
 | DefaultValue | URL | 测试环境地址 | http://127.0.0.1:5555 |
 | DefaultValue | BrowserType | 浏览器类型 | chromium / firefox / webkit |
 | DefaultValue | WaitTime | 每步执行后的固定等待，单位**毫秒**（v11.6.0 起；旧值 ≤30 暂按秒兼容并告警） | 0 |
-| DefaultValue | AutoWait | **自动等待**：UI `verify` 自动重试的上限，单位**毫秒**；`0` 关闭（v11.6.0） | 5000 |
+| DefaultValue | AutoWait | **自动等待**：所有驱动、所有查找测试对象步骤（`type` 每个字段、`verify`、`get`、`clear`、`upload_file`、视觉定位）的等待上限，单位**毫秒**；不设置或 `0` = 不自动等待（v11.7.1） | 无（推荐 5000） |
 | DefaultValue | DialogPolicy | 未注册处理器的原生弹窗：`accept` / `dismiss` / `fail`（v11.6.0） | fail |
 | DefaultValue | SessionMode | 浏览器会话：`isolated` / `shared_browser` / `shared_session`（v11.6.0） | isolated |
 | DefaultValue | EvidenceMode | 截图证据：`full` / `concise`（v11.6.0） | full |
@@ -1199,7 +1199,7 @@ GlobalValue.DefaultValue.WaitTime     → "0"
 | wait | 否（wait 自身已包含等待） |
 | close | 否（浏览器已关闭） |
 
-**推荐 `WaitTime=0`**：交互等待由智能等待（元素出现即继续）和 `verify` 自动重试（[§5.7.2](#572-ui-verify-自动重试替代-wait)）负责，固定等待只用于演示或录屏。固定等待会按步数线性累加：20 步 × 1000ms = 每个用例多 20 秒。`WaitTime > 0` 或用例里出现数字字面量 `wait` 时，`rodski case lint` 会给出 WARNING 并估算耗时。
+**推荐 `WaitTime=0`**：交互等待由自动等待 `AutoWait`（元素出现即继续，含 `verify` 自动重试，见 [§6.4.2](#642-autowait--自动等待单位毫秒)）负责，固定等待只用于演示或录屏。固定等待会按步数线性累加：20 步 × 1000ms = 每个用例多 20 秒。`WaitTime > 0` 或用例里出现数字字面量 `wait` 时，`rodski case lint` 会给出 WARNING 并估算耗时。
 
 **单位迁移（v11.6.0 之前 WaitTime 按秒解析）**：
 
@@ -1213,10 +1213,30 @@ GlobalValue.DefaultValue.WaitTime     → "0"
 
 #### 6.4.2 AutoWait — 自动等待（单位：毫秒）
 
-UI 模型的 `verify` 在 `AutoWait` 毫秒内反复读取、比对，直到全部字段匹配或超时（默认 `5000`，即 5 秒）。`0` 关闭重试（单次比对）。接口 / DB 的 `verify` 不受影响。单位与 `WaitTime`、`step_wait` 一致，都是毫秒。
+**所有驱动（Web / Android / iOS / 桌面视觉）的所有查找测试对象的步骤**都自动等待，上限就是 `AutoWait`。**没有默认时长**（v11.7.1）：要自动等待，必须在 `globalvalue.xml` 显式写时长。
 
+| 写法 | 含义 |
+|------|------|
+| 不设置 / `0` | **不自动等待**：每个定位器只尝试一次，找不到立即失败 |
+| 正整数，如 `5000` | 最多等待 5000 毫秒（推荐值；`rodski init` 模板默认写这个） |
+单位与 `WaitTime`、`step_wait` 一致，都是毫秒。
+
+| 步骤 | 自动等待什么 |
+|------|-------------|
+| `type`（单字段 / 批量） | **每一个字段**的目标元素出现并可操作后再输入 / `click` / `select【】` / `hover` / `double_click` / `right_click`；每个字段独立计时 |
+| `verify` / `check`（UI） | 反复读取直到全部字段匹配（[§5.7.2](#572-ui-verify-自动重试替代-wait)） |
+| `get` / `get_text` | 元素出现即读；读不到则失败 |
+| `clear` / `upload_file` | 目标元素出现并可操作 |
+| 视觉定位 `vision` / `ocr` / `vision_image` | 每轮重新截图匹配（间隔 1 秒） |
+
+- **命中即走**：元素已经就绪时不会多等；只有找不到时才等待。
+- **多个 `<location>` 共享一份预算**：第 1 个定位器找不到会立即试第 2 个，失败耗时 ≈ 1 × `AutoWait`。
+- **不掩盖失败**：元素一直被遮挡、disabled 或不出现时，约 `AutoWait` 后失败，报错形如
+  `元素 Login.submitBtn 在 AutoWait=5000ms 内未找到；尝试定位器: id=submit；最后错误: ...`。
+- 不受影响：`navigate` 的页面加载、`wait` 关键字、`WaitTime` / `step_wait`、接口 / DB `verify`。
+- 页面确实慢（如报表 8 秒才出来）时调大：`<var name="AutoWait" value="12000"/>`；**不要**在用例里插 `wait`。
 - 11.6.0 开发期曾叫 `VerifyTimeout`（单位秒）；配置里如果还写着 `VerifyTimeout`，执行前会报错并提示改为 `AutoWait`。
-- 作用范围：只控制 `verify` 的自动重试；元素出现前的智能等待（§13）仍用原有配置。详见 [§5.7.2](#572-ui-verify-自动重试替代-wait)。
+- `config.json` 中的 `smart_wait_*` / `element_wait_timeout` 从未生效，v11.7.0 已删除（仍存在时打印一次废弃警告）。
 
 #### 6.4.3 DialogPolicy — 未预期的原生弹窗
 
@@ -2686,7 +2706,6 @@ v7.3.0 新增两个 iOS 高性能定位器（必须标 `platform="ios"`）：
     <var name="BundleId"          value="com.rodski.demo"/>
     <var name="AppTarget"         value="app://ios/com.rodski.demo"/>
     <var name="NoReset"           value="true"/>
-    <var name="NewCommandTimeout" value="120"/>
   </group>
 </globalvalue>
 ```
@@ -2909,7 +2928,7 @@ Return 引用只应写在**数据表 XML 的 field 值中**，不要直接写在
 
 ### Q11: 异步加载的数据 verify 偶尔失败，要加 wait 吗？
 
-不要加。v11.6.0 起 UI `verify` 会自动重试到期望值（默认最多 5 秒）；数据确实更慢时调大 `DefaultValue.AutoWait`（单位毫秒，见 [§5.7.2](#572-ui-verify-自动重试替代-wait)）。
+不要加。v11.6.0 起 UI `verify` 会自动重试到期望值（最多 `AutoWait` 毫秒，需在 globalvalue 显式设置）；数据确实更慢时调大 `DefaultValue.AutoWait`（单位毫秒，见 [§5.7.2](#572-ui-verify-自动重试替代-wait)）。
 
 ### Q12: SQL 报「未提供参数 :00」？
 

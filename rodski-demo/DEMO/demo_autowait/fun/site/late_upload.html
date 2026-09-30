@@ -1,0 +1,15 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>late_upload</title><script src="common.js"></script></head><body>
+<h1>文件输入框延迟出现 <small id="delayInfo"></small></h1>
+<!-- 时间线：d 毫秒后插入 <input type="file" id="fileInput">；选择文件后文件名显示在 #fileName -->
+<div id="box"></div>
+<div>文件：<span id="fileName">(未选择)</span></div>
+<script>
+AW.at(AW.ms('d', 2000), function () {
+  var el = AW.add('box', 'input', { id: 'fileInput', type: 'file' });
+  el.addEventListener('change', function () {
+    AW.set('fileName', el.files.length ? el.files[0].name : '(未选择)');
+  });
+});
+</script>
+</body></html>

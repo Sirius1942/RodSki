@@ -288,9 +288,10 @@ class TestVerifyAutoRetry:
             engine.execute("verify", {"model": "Table", "data": "V1"})
         assert driver.count_elements.call_count == 1
 
-    def test_default_timeout_is_5_seconds(self, parser):
+    def test_unset_timeout_means_no_retry(self, parser):
+        """v11.7.1: 未设置 AutoWait = 不自动等待（verify 单次比对）"""
         engine = _engine(parser, {}, verify_timeout=None)
-        assert engine._resolve_verify_timeout() == 5.0
+        assert engine._resolve_verify_timeout() == 0.0
 
     @pytest.mark.parametrize("bad", ["-1", "abc"])
     def test_invalid_timeout(self, parser, bad):

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  v11.7.0 移动端自动等待（AutoWait）验收用例（设计 .pb/specs/v11.7.0-autowait-unified-design.md §4.3）。
+
+  规则：本文件不含任何固定 wait 步骤，step_wait="0"；页面异步由 mock 后端延迟响应产生
+  （scripts/mock_server.py 的 MOCK_DELAY_MS），每一次元素查找只能依赖 AutoWait
+  （globalvalue 未显式配置 → 默认 5000ms）。
+
+  AW001（execute="是"）：MOCK_DELAY_MS=2500 下
+      登录 → 点「查看订单」（等主页出现）→ 点首条订单（等订单接口返回）→ verify 详情，全部通过。
+  AW_F01（execute="否"，由 scripts/run_autowait_acceptance.py 临时启用）：
+      MOCK_DELAY_MS=20000 + MOCK_LOGIN_DELAY_MS=0 下订单列表始终为空，
+      点首条订单必须在 ≈AutoWait(5s) 失败，而不是驱动硬编码的 10s。
+
+  前置与执行：见同目录 README.md「自动等待验收」，一条命令：
+      /usr/local/bin/python3 rodski-demo/DEMO/mobile_app/scripts/run_autowait_acceptance.py
+-->
+<cases step_wait="0" tags="mobile,android,autowait">
+  <case execute="是" id="AW001" title="Android 登录到订单详情全链路仅依赖自动等待"
+        description="mock 延迟 2.5s：无固定 wait、step_wait=0，所有元素查找由 AutoWait 等到"
+        component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Mobile.AppTarget"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="LoginScreen" data="AWL001"/>
+      <test_step action="type" model="HomeScreen" data="AWH001"/>
+      <test_step action="type" model="OrderListScreen" data="AWO001"/>
+      <test_step action="verify" model="OrderDetailScreen" data="AWVD001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+
+  <case execute="否" id="AW_F01" title="订单项始终不出现时点击在 AutoWait 内失败"
+        description="负向：mock 订单接口延迟 20s（超过 App 10s 读超时，列表始终为空），点首条订单应在约 5s 失败"
+        component_type="界面" priority="P1">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Mobile.AppTarget"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="LoginScreen" data="AWL001"/>
+      <test_step action="type" model="HomeScreen" data="AWH001"/>
+      <test_step action="type" model="OrderListScreen" data="AWO001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+</cases>

@@ -1,10 +1,20 @@
 """Appium 移动端自动化驱动基类"""
 from appium import webdriver
 from appium.webdriver.common.appiumby import AppiumBy
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from typing import Optional, Tuple
+from typing import Any, Callable, Dict, Optional, Tuple
 from .base_driver import BaseDriver
+try:
+    from ..core import auto_wait as _aw
+    from ..core.exceptions import (
+        DriverError, DriverStoppedError, ElementNotFoundError, ElementNotInteractableError,
+        StaleElementError, TimeoutError as DriverTimeoutError, is_critical_error,
+    )
+except ImportError:  # pragma: no cover - 以 rodski/ 为根运行
+    from core import auto_wait as _aw
+    from core.exceptions import (
+        DriverError, DriverStoppedError, ElementNotFoundError, ElementNotInteractableError,
+        StaleElementError, TimeoutError as DriverTimeoutError, is_critical_error,
+    )
 import time
 import logging
 
@@ -31,6 +41,7 @@ _LOCATOR_MAP = {
     "xpath": AppiumBy.XPATH,
     "text":  None,  # 特殊处理：构造 XPath
     "css":   AppiumBy.CSS_SELECTOR,  # 仅 WebView 上下文
+    "accessibility_id": AppiumBy.ACCESSIBILITY_ID,
 }
 
 # Android keycode 映射
@@ -51,7 +62,12 @@ class AppiumDriver(BaseDriver):
             self.driver = webdriver.Remote(server_url, options=options)
         else:
             self.driver = webdriver.Remote(server_url, capabilities)
-        self.wait = WebDriverWait(self.driver, 10)
+        # v11.7.0: 元素等待统一由 DefaultValue.AutoWait（公共层 core/auto_wait.py）控制。
+        # 显式关闭 implicit wait，避免与自动等待叠加（每次查找都额外阻塞）。
+        try:
+            self.driver.implicitly_wait(0)
+        except Exception as e:  # pragma: no cover - 个别 server 不支持
+            logger.debug(f"implicitly_wait(0) 设置失败（忽略）: {e}")
         # 目标设备标识（Android = adb serial，iOS = UDID）。Appium 自己用它选设备，
         # 但驱动内的 adb 直调（start_app）必须自己带上，否则多设备时 adb 直接拒绝执行。
         self.udid = udid
@@ -181,19 +197,12 @@ class AppiumDriver(BaseDriver):
         return by, locator_value
 
     def get_element_text_by_locator(self, locator_type: str, locator_value: str) -> str:
-        """通过定位器找到元素，按优先级读取文本属性（移动端 verify 专用）"""
+        """通过定位器找到元素（即时，不等待），按优先级读取文本属性（移动端 verify / get 读取）"""
+        locator = f"{locator_type}={locator_value}"
         try:
-            from ..core.exceptions import ElementNotFoundError
-        except ImportError:
-            from core.exceptions import ElementNotFoundError
-        try:
-            by, value = self._resolve_locator(locator_type, locator_value)
-            element = self.driver.find_element(by, value)
+            element = self._find(locator)
         except Exception as e:
-            raise ElementNotFoundError(
-                f"元素未找到: {locator_type}={locator_value}",
-                locator=locator_value
-            ) from e
+            raise self._translate_error("读取文本", locator, e) from e
 
         # 按优先级读取文本属性（Android: text/content-desc，iOS: label/value/name）
         for attr in ["text", "value", "label", "name", "content-desc"]:
@@ -206,46 +215,135 @@ class AppiumDriver(BaseDriver):
             locator=locator_value
         )
 
-    def type_locator(self, locator: str, text: str, **kwargs) -> bool:
-        """输入文本（通过定位器）— 供 keyword_engine 调用"""
+    # ── v11.7.0 自动等待（AutoWait）驱动契约 ─────────────────────────
+    # 公共层（core/auto_wait.py）负责 "try 查找+执行 → catch 未找到/不可操作 → 等待 → 再执行"；
+    # 本驱动每次调用只做一次即时查找 + 一次动作，失败按 _translate_error 抛异常（不返回 False，
+    # 不内部等待，不设 implicit wait）。外部代码直接调用（未传 timeout_ms）时，驱动自己按
+    # AutoWait 走同一个公共循环。
+
+    def _split(self, locator: str) -> Tuple[str, str]:
+        if "=" in locator:
+            strategy, value = locator.split("=", 1)
+            return strategy.strip().lower(), value
+        return "id", locator
+
+    def _translate_error(self, operation: str, locator: str, error: Exception) -> Exception:
+        """Selenium / Appium 原生异常 → rodski 异常（决定自动等待是否重试）。"""
+        if isinstance(error, DriverError):
+            return error
+        name = type(error).__name__
+        msg = str(error).strip().splitlines()[0] if str(error).strip() else name
+        if is_critical_error(error) or "session" in msg.lower() and ("terminated" in msg.lower()
+                                                                     or "not started" in msg.lower()):
+            return DriverStoppedError(f"{operation}失败: {msg}", driver_type="Appium")
+        if name == "NoSuchElementException":
+            return ElementNotFoundError(f"{operation}: 元素 {locator} 未找到", locator=locator, cause=error)
+        if name == "StaleElementReferenceException":
+            return StaleElementError(f"{operation}: 元素 {locator} 已失效", locator=locator, cause=error)
+        if name in ("ElementNotInteractableException", "ElementClickInterceptedException",
+                    "InvalidElementStateException", "ElementNotVisibleException"):
+            return ElementNotInteractableError(f"{operation}: 元素 {locator} 不可操作: {msg}",
+                                               locator=locator, cause=error)
+        if name == "TimeoutException":
+            return DriverTimeoutError(f"{operation}: {locator} 超时: {msg}", locator=locator, cause=error)
+        return DriverError(f"{operation}失败: {locator}: {msg}", locator=locator, cause=error)
+
+    def _find(self, locator: str):
+        """即时查找一次（不等待）；未找到抛 ElementNotFoundError。"""
+        strategy, value = self._split(locator)
+        by, val = self._resolve_locator(strategy, value)
+        elements = self.driver.find_elements(by, val)
+        if not elements:
+            raise ElementNotFoundError(f"元素 {locator} 未找到", locator=locator)
+        return elements[0]
+
+    def _vision_center(self, locator: str) -> Tuple[int, int]:
+        strategy, value = self._split(locator)
+        bbox = self._locate_with_vision(strategy, value)
+        if not bbox:
+            raise ElementNotFoundError(f"视觉定位未匹配: {locator}", locator=locator)
+        return (bbox[0] + bbox[2]) // 2, (bbox[1] + bbox[3]) // 2
+
+    def _attempt(self, operation: str, locator: str, fn: Callable[[], Any],
+                 timeout_ms: Optional[float] = None) -> Any:
+        """执行一次 fn()（原生异常转换后抛出）。
+
+        timeout_ms 为 None（外部直接调用、未经关键字层）时，按 AutoWait 走公共自动等待循环。
+        """
+        def once():
+            try:
+                return fn()
+            except Exception as e:
+                raise self._translate_error(operation, locator, e) from e
+
+        if timeout_ms is not None:
+            return once()
+        _, result = _aw.run_element(
+            locator, [locator], probe=lambda _l: True, act=lambda _l, _h, _d: once(),
+            deadline=_aw.Deadline(self.get_auto_wait()),
+            interval_s=_aw.poll_interval_for([self._split(locator)[0]]),
+        )
+        return result
+
+    def probe(self, locator: str, frame: Optional[str] = None) -> bool:
+        """即时探测元素当前是否存在（find_elements，不等待；视觉定位器每次新截图）。"""
+        strategy, value = self._split(locator)
         try:
-            strategy, value = locator.split("=", 1) if "=" in locator else ("id", locator)
-            if strategy.lower() in _VISION_TYPES:
-                bbox = self._locate_with_vision(strategy, value)
-                if bbox:
-                    x, y = (bbox[0] + bbox[2]) // 2, (bbox[1] + bbox[3]) // 2
-                    self.type_text(x, y, text)
-                    return True
-                return False
+            if strategy in _VISION_TYPES:
+                return self._locate_with_vision(strategy, value) is not None
             by, val = self._resolve_locator(strategy, value)
-            element = self.wait.until(EC.presence_of_element_located((by, val)))
-            element.clear()
-            element.send_keys(text)
+            return len(self.driver.find_elements(by, val)) > 0
+        except Exception as e:
+            err = self._translate_error("查找", locator, e)
+            if isinstance(err, (ElementNotFoundError, StaleElementError)):
+                return False
+            raise err from e
+
+    def set_instant_reads(self, enabled: bool) -> None:
+        """verify 轮询期间的无等待读取开关（本驱动读取本就不等待，仅记录状态）。"""
+        self._instant_reads = bool(enabled)
+
+    def type_locator(self, locator: str, text: str, timeout_ms: Optional[float] = None, **kwargs) -> bool:
+        """输入文本（通过定位器）：一次查找 + clear + send_keys；失败抛异常。"""
+        def do():
+            if self._split(locator)[0] in _VISION_TYPES:
+                x, y = self._vision_center(locator)
+                self.type_text(x, y, text)
+            else:
+                element = self._find(locator)
+                element.clear()
+                element.send_keys(text)
             logger.debug(f"type_locator 成功: {locator} <- '{text}'")
             return True
-        except Exception as e:
-            logger.warning(f"type_locator 失败: {locator}, error={e}")
-            return False
+        return self._attempt("输入", locator, do, timeout_ms)
 
-    def click_locator(self, locator: str, **kwargs) -> bool:
-        """点击元素（通过定位器）— 供 keyword_engine 调用"""
-        try:
-            strategy, value = locator.split("=", 1) if "=" in locator else ("id", locator)
-            if strategy.lower() in _VISION_TYPES:
-                bbox = self._locate_with_vision(strategy, value)
-                if bbox:
-                    x, y = (bbox[0] + bbox[2]) // 2, (bbox[1] + bbox[3]) // 2
-                    self.driver.tap([(x, y)])
-                    return True
-                return False
-            by, val = self._resolve_locator(strategy, value)
-            element = self.wait.until(EC.presence_of_element_located((by, val)))
-            element.click()
+
+
+    def clear_locator(self, locator: str, timeout_ms: Optional[float] = None, **kwargs) -> bool:
+        """清空输入框（通过定位器）。"""
+        def do():
+            self._find(locator).clear()
+            return True
+        return self._attempt("清空", locator, do, timeout_ms)
+
+    def get_text_locator(self, locator: str, frame: Optional[str] = None,
+                         timeout_ms: Optional[float] = None) -> Optional[str]:
+        """读取元素文本（text / value / label / name / content-desc 依次取第一个非空）。"""
+        strategy, value = self._split(locator)
+        return self._attempt("读取文本", locator,
+                             lambda: self.get_element_text_by_locator(strategy, value), timeout_ms)
+
+    def click_locator(self, locator: str, timeout_ms: Optional[float] = None, **kwargs) -> bool:
+        """点击元素（通过定位器）：一次查找 + click；失败抛异常。"""
+        def do():
+            if self._split(locator)[0] in _VISION_TYPES:
+                x, y = self._vision_center(locator)
+                self.driver.tap([(x, y)])
+            else:
+                self._find(locator).click()
             logger.debug(f"click_locator 成功: {locator}")
             return True
-        except Exception as e:
-            logger.warning(f"click_locator 失败: {locator}, error={e}")
-            return False
+        return self._attempt("点击", locator, do, timeout_ms)
 
     # ── BaseDriver 坐标接口（两阶段 API）───────────────────────────
 
@@ -257,16 +355,8 @@ class AppiumDriver(BaseDriver):
         - click(x, y)            → BaseDriver 坐标 API
         """
         if y is None and isinstance(locator_or_x, str):
-            # 旧 API: click("id=test") → 定位器点击
-            try:
-                by, value = self._parse_locator(locator_or_x)
-                element = self.wait.until(EC.presence_of_element_located((by, value)))
-                element.click()
-                logger.debug(f"点击成功: {locator_or_x}")
-                return True
-            except Exception as e:
-                logger.error(f"点击失败: {locator_or_x}, error={e}")
-                return False
+            # 旧 API: click("id=test") → 定位器点击（按 AutoWait 自动等待）
+            return self.click_locator(locator_or_x)
         else:
             # BaseDriver API: click(x, y) → 坐标点击
             x = locator_or_x
@@ -383,13 +473,7 @@ class AppiumDriver(BaseDriver):
         - hover(x, y)         → BaseDriver 坐标 API（移动端不支持，直接 pass）
         """
         if y is None and isinstance(locator_or_x, str):
-            try:
-                by, value = self._parse_locator(locator_or_x)
-                element = self.wait.until(EC.presence_of_element_located((by, value)))
-                self.driver.execute_script("mobile: longClick", {"element": element.id})
-                return True
-            except Exception:
-                return False
+            return self.hover_locator(locator_or_x)
         # 移动端悬停不支持，直接 pass
 
     def scroll(self, x: int, y: int) -> bool:
@@ -420,94 +504,52 @@ class AppiumDriver(BaseDriver):
     # ── 旧 API（定位器接口，保留用于兼容性和测试）───────────────────
 
     def _parse_locator(self, locator: str) -> tuple:
-        """解析定位符"""
-        if "=" not in locator:
-            return AppiumBy.ID, locator
+        """解析 "type=value" 定位符（v11.7.0 起与 _resolve_locator 同一套映射）"""
+        strategy, value = self._split(locator)
+        return self._resolve_locator(strategy, value)
 
-        strategy, value = locator.split("=", 1)
-        mapping = {
-            "id": AppiumBy.ID,
-            "xpath": AppiumBy.XPATH,
-            "accessibility_id": AppiumBy.ACCESSIBILITY_ID,
-            "class": AppiumBy.CLASS_NAME,
-            "name": AppiumBy.NAME
-        }
-        return mapping.get(strategy.lower(), AppiumBy.ID), value
-
-    def hover_locator(self, locator: str) -> bool:
-        """通过定位器悬停（旧 API）"""
-        try:
-            by, value = self._parse_locator(locator)
-            element = self.wait.until(EC.presence_of_element_located((by, value)))
-            # 移动端用 longPress 模拟悬停
-            self.driver.execute_script("mobile: longClick", {"element": element.id})
+    def hover_locator(self, locator: str, timeout_ms: Optional[float] = None, **kwargs) -> bool:
+        """通过定位器悬停（移动端用 longClick 模拟）"""
+        def do():
+            element = self._find(locator)
+            self.driver.execute_script("mobile: longClick", {"elementId": element.id})
             return True
-        except Exception:
-            return False
+        return self._attempt("悬停", locator, do, timeout_ms)
 
-    def drag(self, from_locator: str, to_locator: str) -> bool:
-        """拖拽（Appium 2.x W3C Actions — mobile: dragGesture）"""
-        try:
-            from_type, from_val = from_locator.split("=", 1)
-            to_type, to_val = to_locator.split("=", 1)
-
-            from_bbox = self.locate_element(from_type, from_val)
-            to_bbox = self.locate_element(to_type, to_val)
-
-            if not from_bbox or not to_bbox:
-                return False
-
-            fx = (from_bbox[0] + from_bbox[2]) // 2
-            fy = (from_bbox[1] + from_bbox[3]) // 2
-            tx = (to_bbox[0] + to_bbox[2]) // 2
-            ty = (to_bbox[1] + to_bbox[3]) // 2
-
+    def drag(self, from_locator: str, to_locator: str, timeout_ms: Optional[float] = None) -> bool:
+        """拖拽（Appium 2.x W3C Actions — mobile: dragGesture）；两端元素一次查找，失败抛异常"""
+        def do():
+            fr = self._find(from_locator).rect
+            to = self._find(to_locator).rect
             self.driver.execute_script("mobile: dragGesture", {
-                "startX": fx, "startY": fy,
-                "endX": tx, "endY": ty
+                "startX": fr['x'] + fr['width'] // 2, "startY": fr['y'] + fr['height'] // 2,
+                "endX": to['x'] + to['width'] // 2, "endY": to['y'] + to['height'] // 2,
             })
             return True
-        except Exception as e:
-            logger.warning(f"drag 失败: {e}")
-            return False
+        return self._attempt("拖拽", f"{from_locator} -> {to_locator}", do, timeout_ms)
 
-    def assert_element(self, locator: str, expected: str) -> bool:
-        """断言元素文本（旧 API）"""
-        try:
-            by, value = self._parse_locator(locator)
-            element = self.driver.find_element(by, value)
-            return expected in (element.text or "")
-        except Exception:
-            return False
+    def assert_element(self, locator: str, expected: str, timeout_ms: Optional[float] = None) -> bool:
+        """断言元素文本（旧 API；元素出现等待上限 AutoWait）"""
+        text = self._attempt("断言", locator, lambda: self._find(locator).text or "", timeout_ms)
+        return expected in text
 
     def click_element(self, locator: str) -> bool:
         """通过定位器点击元素（旧 API）"""
-        try:
-            by, value = self._parse_locator(locator)
-            element = self.wait.until(EC.presence_of_element_located((by, value)))
-            element.click()
-            return True
-        except Exception:
-            return False
+        return self.click_locator(locator)
 
     def type(self, locator: str, text: str) -> bool:
         """通过定位器输入文字（旧 API）"""
-        try:
-            by, value = self._parse_locator(locator)
-            element = self.wait.until(EC.presence_of_element_located((by, value)))
-            element.clear()
-            element.send_keys(text)
-            return True
-        except Exception:
-            return False
+        return self.type_locator(locator, text)
 
-    def check(self, locator: str) -> bool:
-        """检查元素是否可见（旧 API）"""
+    def check(self, locator: str, timeout_ms: Optional[float] = None) -> bool:
+        """检查元素是否可见（旧 API；等待上限 AutoWait）"""
+        def do():
+            if not self._find(locator).is_displayed():
+                raise ElementNotInteractableError(f"元素 {locator} 不可见", locator=locator)
+            return True
         try:
-            by, value = self._parse_locator(locator)
-            element = self.wait.until(EC.visibility_of_element_located((by, value)))
-            return element.is_displayed()
-        except Exception:
+            return self._attempt("检查", locator, do, timeout_ms)
+        except (ElementNotFoundError, ElementNotInteractableError, StaleElementError):
             return False
 
     def swipe(self, start_x: int, start_y: int, end_x: int, end_y: int, duration: int = 500) -> bool:
@@ -545,26 +587,21 @@ class AppiumDriver(BaseDriver):
         except Exception:
             return False
 
-    def select(self, locator: str, value: str) -> bool:
-        """下拉选择（旧 API）"""
-        try:
+    def select(self, locator: str, value: str, timeout_ms: Optional[float] = None, **kwargs) -> bool:
+        """下拉选择（仅 WebView 上下文的 <select>）"""
+        def do():
             from selenium.webdriver.support.ui import Select
-            by, val = self._parse_locator(locator)
-            element = self.wait.until(EC.presence_of_element_located((by, val)))
-            Select(element).select_by_value(value)
+            Select(self._find(locator)).select_by_value(value)
             return True
-        except Exception:
-            return False
+        return self._attempt("选择", locator, do, timeout_ms)
 
-    def long_press(self, locator: str) -> bool:
+    def long_press(self, locator: str, timeout_ms: Optional[float] = None) -> bool:
         """长按元素（旧 API）"""
-        try:
-            by, value = self._parse_locator(locator)
-            element = self.wait.until(EC.presence_of_element_located((by, value)))
-            self.driver.execute_script("mobile: longClick", {"element": element.id})
+        def do():
+            element = self._find(locator)
+            self.driver.execute_script("mobile: longClick", {"elementId": element.id})
             return True
-        except Exception:
-            return False
+        return self._attempt("长按", locator, do, timeout_ms)
 
     def hide_keyboard(self) -> bool:
         """隐藏键盘（旧 API）"""

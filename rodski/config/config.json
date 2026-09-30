@@ -3,13 +3,6 @@
   "browser": "chromium",
   "headless": false,
   "timeout": 60,
-  "retry": 0,
-  "retry_delay": 1.0,
-  "retry_on_errors": [
-    "ElementNotFound",
-    "Timeout",
-    "StaleElement"
-  ],
   "log_level": "INFO",
   "log_dir": "logs",
   "report_format": "html",
@@ -31,12 +24,6 @@
     "monitor_id": null,
     "video_size": "screen"
   },
-  "smart_wait_enabled": true,
-  "smart_wait_max_retries": 30,
-  "smart_wait_retry_interval": 0.3,
-  "smart_wait_log_retry": true,
   "session_mode": null,
-  "evidence_mode": null,
-  "element_wait_timeout": 0.5,
-  "element_retry_interval": 0.1
+  "evidence_mode": null
 }

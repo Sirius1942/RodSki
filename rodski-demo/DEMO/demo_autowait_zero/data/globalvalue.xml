@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<globalvalue>
+  <!-- 刻意不设置 DefaultValue.AutoWait：验证"不设置 = 不自动等待"，每个定位器只尝试一次（v11.7.1）。
+       显式写 <var name="AutoWait" value="0"/> 效果相同（单元测试覆盖） -->
+  <group name="Site">
+    <!-- 与 demo_autowait 共用站点（../demo_autowait/fun/site），由其 run_acceptance.py 启动 -->
+    <var name="URL" value="http://127.0.0.1:8767"/>
+  </group>
+</globalvalue>

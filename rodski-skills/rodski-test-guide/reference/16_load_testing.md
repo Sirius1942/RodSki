@@ -190,7 +190,7 @@ Return 引用只应写在**数据表 XML 的 field 值中**，不要直接写在
 
 ### Q11: 异步加载的数据 verify 偶尔失败，要加 wait 吗？
 
-不要加。v11.6.0 起 UI `verify` 会自动重试到期望值（默认最多 5 秒）；数据确实更慢时调大 `DefaultValue.AutoWait`（单位毫秒，见 [§5.7.2](#572-ui-verify-自动重试替代-wait)）。
+不要加。v11.6.0 起 UI `verify` 会自动重试到期望值（最多 `AutoWait` 毫秒，需在 globalvalue 显式设置）；数据确实更慢时调大 `DefaultValue.AutoWait`（单位毫秒，见 [§5.7.2](#572-ui-verify-自动重试替代-wait)）。
 
 ### Q12: SQL 报「未提供参数 :00」？
 

@@ -40,6 +40,7 @@ mobile_app/
 │   └── build_ios_device_app.sh # 构建并安装到**真机**（需有效开发证书 + 开发者模式）
 ├── case/
 │   ├── login.xml              # 真机验收用例（execute="是"，APP001/002/003）
+│   ├── autowait.xml           # v11.7.0 自动等待验收（AW001 / AW_F01，无固定 wait）
 │   └── mobile_login.xml       # 准备性 scenario 示例（execute="否"）
 ├── data/
 │   ├── data.sqlite            # 唯一测试数据文件
@@ -61,7 +62,8 @@ mobile_app/
 │   ├── run_dual_device_demo.sh   # 双模拟器并行验收（v11.2.0）
 │   ├── run_mixed_device_demo.sh  # iOS 真机 + 模拟器混跑验收（v11.3.0）
 │   ├── run_android_mixed_demo.sh # Android 真机 + 模拟器混跑验收（v11.3.0）
-│   ├── mock_server.py            # mock 后端（/api/login + /api/orders）
+│   ├── mock_server.py            # mock 后端（/api/login + /api/orders，MOCK_DELAY_MS 延迟）
+│   ├── run_autowait_acceptance.py # v11.7.0 自动等待验收（模拟器实跑）
 │   ├── setup_ios.sh              # 单设备 iOS 环境准备
 │   ├── check_device.py
 │   └── init_data.py
@@ -515,6 +517,35 @@ UiAutomator2 会话端口，表现为偶发的建会话失败。
 > **不是**裸的 `"Error"` —— 目标 Activity 已在最前时 `am start` 会打
 > `Warning: Activity not started, intent has been delivered to currently top Activity`
 > 且 `exit=0`，那是重复导航的常态，不能判成失败。
+
+## 自动等待验收（v11.7.0）
+
+验证 `DefaultValue.AutoWait`（`globalvalue.xml` 显式配置 5000ms）接管移动端每一次元素查找。
+用例 `case/autowait.xml` **不含任何固定 `wait`、`step_wait="0"`**，页面异步由
+mock 后端延迟响应产生：
+
+| 环境变量（mock_server.py） | 作用 |
+|---------------------------|------|
+| `MOCK_DELAY_MS` | 登录与订单接口响应前 sleep 的毫秒数，默认 0（行为不变） |
+| `MOCK_LOGIN_DELAY_MS` / `MOCK_ORDERS_DELAY_MS` | 单独覆盖某个接口的延迟（未设置时取 `MOCK_DELAY_MS`） |
+
+> App 的 OkHttp 默认读超时 10s：延迟 >10s 时请求失败，登录页显示「网络错误」、
+> 订单列表保持为空 —— 即目标元素永远不会出现。
+
+| 用例 | mock 延迟 | 预期 |
+|------|----------|------|
+| `AW001`（execute="是"） | `MOCK_DELAY_MS=2500` | 登录 → 点「查看订单」→ 点首条订单 → verify 详情，全部依赖 AutoWait 通过 |
+| `AW_F01`（execute="否"，脚本临时启用） | `MOCK_DELAY_MS=20000`、`MOCK_LOGIN_DELAY_MS=0` | 点首条订单失败，失败步骤耗时 ∈ [4.5s, 7.5s]，错误信息含 `AutoWait=5000ms` 与 `firstOrderItem` |
+
+一条命令（前置：模拟器 `emulator-5554` 已 boot 且已装 `com.rodski.demo`、Appium 在 4723）：
+
+```bash
+/usr/local/bin/python3 rodski-demo/DEMO/mobile_app/scripts/run_autowait_acceptance.py
+# 可选：UDID=emulator-5554 MOCK_PORT=18000（本机 mock 端口；8000 常被 demosite 占用）
+```
+
+脚本自行拉起 mock（2500 / 20000 两轮）、`adb reverse tcp:8000 tcp:$MOCK_PORT`、
+调用 `rodski run --udid ... --trace`，从 `trace.json` 取每步耗时断言；结束时移除 reverse。
 
 ## RodSki 数据与校验
 

@@ -1,7 +1,7 @@
 """BaseDriver 单元测试
 
 测试 drivers/base_driver.py 中的驱动基类。
-覆盖：抽象方法定义（不可实例化）、smart_wait 机制（§13）、
+覆盖：抽象方法定义（不可实例化）、自动等待 AutoWait（v11.7.0，原 smart_wait §13）、
       type_locator 定位器解析、screenshot 路径处理。
 """
 from typing import Optional, Tuple
@@ -211,6 +211,7 @@ class TestSmartWait:
         """测试重试后找到元素"""
         # 前两次返回 None，第三次返回坐标
         self.driver.locate_results = [None, None, (100, 200, 300, 400)]
+        self.driver.set_auto_wait(3000)
 
         bbox = self.driver.locate_element_with_retry("css", "#button")
 
@@ -222,8 +223,7 @@ class TestSmartWait:
     def test_element_not_found_after_max_retries(self):
         """测试达到最大重试次数后仍未找到"""
         # 设置超时时间为 1 秒，重试间隔 0.2 秒
-        self.driver.config.set('element_wait_timeout', 1)
-        self.driver.config.set('element_retry_interval', 0.2)
+        self.driver.set_auto_wait(1000)
 
         # 始终返回 None
         self.driver.locate_result = None
@@ -235,10 +235,9 @@ class TestSmartWait:
         locate_calls = [a for a in self.driver.actions if a[0] == "locate_element"]
         assert len(locate_calls) >= 4  # 至少 1 次初始 + 3 次重试
 
-    def test_smart_wait_disabled(self):
-        """测试禁用智能等待（超时设为 0）"""
-        # 设置超时为 0，相当于禁用智能等待
-        self.driver.config.set('element_wait_timeout', 0)
+    def test_auto_wait_zero(self):
+        """AutoWait=0：只定位一次，不重试"""
+        self.driver.set_auto_wait(0)
 
         # 元素未找到
         self.driver.locate_result = None
@@ -254,9 +253,8 @@ class TestSmartWait:
         """测试自定义重试配置"""
         import time
 
-        # 设置较短的超时和重试间隔
-        self.driver.config.set('element_wait_timeout', 0.5)
-        self.driver.config.set('element_retry_interval', 0.1)
+        # 设置较短的 AutoWait（不再写 config.json：v11.6.0 前此处 config.set 会把 0.5/0.1 写回入库配置）
+        self.driver.set_auto_wait(500)
 
         # 始终返回 None
         self.driver.locate_result = None

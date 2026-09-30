@@ -1,0 +1,11 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>late_iframe</title><script src="common.js"></script></head><body>
+<h1>iframe 延迟插入 <small id="delayInfo"></small></h1>
+<!-- 时间线：d 毫秒后插入 <iframe id="lateFrame" src="frame_inner.html">，内部有输入框 #frameInput 与回显 #frameEcho -->
+<div id="box"></div>
+<script>
+AW.at(AW.ms('d', 2000), function () {
+  AW.add('box', 'iframe', { id: 'lateFrame', src: 'frame_inner.html', width: '420', height: '120' });
+});
+</script>
+</body></html>

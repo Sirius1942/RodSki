@@ -1,0 +1,9 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>frame_inner</title></head><body>
+<input id="frameInput" type="text" placeholder="iframe 内输入框">
+<div>回显：<span id="frameEcho">(空)</span></div>
+<script>
+var el = document.getElementById('frameInput');
+el.addEventListener('input', function () { document.getElementById('frameEcho').textContent = el.value || '(空)'; });
+</script>
+</body></html>

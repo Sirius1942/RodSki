@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- v11.7.0 G4 命中即走：全部元素立即就绪，10 字段 type + verify 不得产生额外等待 -->
+<cases tags="v117,autowait">
+  <case execute="是" id="TC001" title="就绪页面 10 字段 type + verify" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/ready.html"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="ReadyForm" data="R001"/>
+      <test_step action="verify" model="ReadyForm" data="V001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+</cases>

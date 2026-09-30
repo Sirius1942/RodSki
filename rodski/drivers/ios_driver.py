@@ -85,8 +85,19 @@ class IOSDriver(AppiumDriver):
 
     # ── iOS 手势 / 按键（mobile: 系列命令）─────────────────────────
 
-    def scroll(self, direction: str = "down") -> bool:
-        """滚动（iOS: mobile: scroll，direction = up/down/left/right）"""
+    def scroll(self, direction="down", y=None) -> bool:
+        """滚动（iOS: mobile: scroll，direction = up/down/left/right）
+
+        v11.7.0: 兼容 type 批量的 ``scroll`` / ``scroll【x,y】``（调用形式 scroll(x, y)）：
+        按位移符号换算方向（与 AppiumDriver.scroll 一致：y>0 向下）。
+        """
+        if not isinstance(direction, str):
+            x = int(direction or 0)
+            y = int(y or 0)
+            if abs(y) >= abs(x):
+                direction = "down" if y > 0 else "up"
+            else:
+                direction = "right" if x > 0 else "left"
         try:
             self.driver.execute_script("mobile: scroll", {"direction": direction})
             return True

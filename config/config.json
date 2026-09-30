@@ -3,13 +3,6 @@
   "browser": "chromium",
   "headless": false,
   "timeout": 60,
-  "retry": 0,
-  "retry_delay": 1.0,
-  "retry_on_errors": [
-    "ElementNotFound",
-    "Timeout",
-    "StaleElement"
-  ],
   "log_level": "INFO",
   "log_dir": "logs",
   "report_format": "html",
@@ -29,11 +22,5 @@
     "capture_input": false,
     "event_timeline": false,
     "monitor_id": null
-  },
-  "smart_wait_enabled": true,
-  "smart_wait_max_retries": 30,
-  "smart_wait_retry_interval": 0.3,
-  "smart_wait_log_retry": true,
-  "element_wait_timeout": 0.5,
-  "element_retry_interval": 0.1
+  }
 }

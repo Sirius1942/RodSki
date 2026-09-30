@@ -213,8 +213,8 @@
         </test_case>
     </case>
 
-    <!-- TC014A: AC12-002 type Auto Capture失败 -->
-    <case execute="是" id="TC014A" title="type Auto Capture失败测试" component_type="界面">
+    <!-- TC014A: AC12-002 type Auto Capture失败（取值元素不存在 → AutoCaptureError；v11.7.0 前 get_text 吞异常返回 None 导致静默通过，现按 .pb/specs/rodski-demo-issues.md 标为预期失败） -->
+    <case execute="是" id="TC014A" title="type Auto Capture失败测试" component_type="界面" expect_fail="是">
         <pre_process>
             <test_step action="navigate" model="" data="http://localhost:8000"/>
             <test_step action="type" model="LoginForm" data="L001"/>

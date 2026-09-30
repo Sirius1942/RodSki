@@ -16,6 +16,7 @@ from .exceptions import (
     InvalidParameterError,
     RetryExhaustedError,
     ElementNotFoundError,
+    ElementNotInteractableError,
     TimeoutError,
     StaleElementError,
     DriverStoppedError,
@@ -41,6 +42,8 @@ from .model_parser import (
     LEGACY_DRIVER_TYPE_INTERFACE,
 )
 from .runtime_context import RuntimeContext
+from . import auto_wait as _aw
+from .auto_wait import AutoWaitConfigError, Deadline, ElementWaitTimeoutError
 
 logger = logging.getLogger("rodski")
 
@@ -244,6 +247,8 @@ class KeywordEngine:
         self._case_file = Path(case_file) if case_file else None
         self._module_dir = Path(module_dir) if module_dir else None
         self._current_recording_path: Optional[str] = None
+        # v11.7.0: 最近一次 UI 步骤所用驱动类型（无 model 的 clear/upload_file/get 选择器模式据此选驱动）
+        self._last_ui_driver_type: Optional[str] = None
 
         # 初始化重试配置
         self._retry_config = {**self.DEFAULT_RETRY_CONFIG, **(retry_config or {})}
@@ -276,6 +281,16 @@ class KeywordEngine:
     DESKTOP_DRIVER_TYPES = NON_WEB_DRIVER_TYPES  # 向后兼容别名
 
     def _get_driver_for_type(self, driver_type: str) -> BaseDriver:
+        """根据 driver_type 返回对应的驱动实例（v11.7.0: 新建驱动时下发 AutoWait）。"""
+        created_before = set(self._desktop_drivers)
+        drv = self._resolve_driver_for_type(driver_type)
+        resolved = self._resolve_mobile_platform() if driver_type == "mobile" else driver_type
+        self._last_ui_driver_type = resolved if resolved in self.NON_WEB_DRIVER_TYPES else "web"
+        if set(self._desktop_drivers) != created_before:
+            self._push_auto_wait(drv)
+        return drv
+
+    def _resolve_driver_for_type(self, driver_type: str) -> BaseDriver:
         """根据 driver_type 返回对应的驱动实例
 
         遵循设计约束：驱动类型由模型元素的 type 属性决定。
@@ -480,6 +495,8 @@ class KeywordEngine:
 
         # v11.6.0 (C1): 把 DefaultValue.DialogPolicy 同步到 Web 驱动（校验先于副作用）
         self._sync_dialog_policy()
+        # v11.7.0: 把 DefaultValue.AutoWait 下发到所有已创建驱动（校验先于副作用）
+        self._sync_auto_wait()
 
         # 打印关键字执行日志
         self._log_keyword_start(keyword, resolved_params)
@@ -536,6 +553,12 @@ class KeywordEngine:
                 except UnexpectedDialogError as e:
                     # 未预期弹窗不重试（重试会再次触发同一弹窗）
                     logger.error(f"❌ {e}")
+                    raise
+
+                except ElementWaitTimeoutError as e:
+                    # v11.7.0: 已等满 AutoWait，步骤级重试不再重试（二者是乘法关系）
+                    self._raise_on_unexpected_dialog(keyword)
+                    logger.error(f"❌ {e.message}")
                     raise
 
                 except DriverError as e:
@@ -648,6 +671,182 @@ class KeywordEngine:
         if isinstance(text, str) and text:
             raise UnexpectedDialogError(text, keyword=keyword)
 
+    # ── v11.7.0 自动等待（AutoWait）──────────────────────────────────
+
+    def _auto_wait_ms(self) -> float:
+        """DefaultValue.AutoWait（毫秒；不设置或 0 = 不自动等待）；非法 / 旧键 VerifyTimeout → InvalidParameterError。"""
+        try:
+            return _aw.resolve_auto_wait_ms(self._global_vars)
+        except AutoWaitConfigError as e:
+            raise InvalidParameterError(keyword="(config)", param_name=e.param_name, reason=e.message)
+
+    def _new_deadline(self) -> Deadline:
+        """为一个元素新建等待预算（按元素计时）。"""
+        return Deadline(self._auto_wait_ms())
+
+    def _push_auto_wait(self, driver, ms: Optional[float] = None) -> None:
+        if driver is None:
+            return
+        setter = getattr(driver, 'set_auto_wait', None)
+        if not callable(setter):
+            return
+        try:
+            value = self._auto_wait_ms() if ms is None else ms
+            if getattr(driver, '_auto_wait_ms', None) == value:
+                return
+            setter(value)
+        except InvalidParameterError:
+            raise
+        except Exception as e:  # 驱动下发失败不影响执行（关键字层总会显式传 timeout_ms）
+            logger.debug(f"下发 AutoWait 到 {type(driver).__name__} 失败（忽略）: {e}")
+
+    def _sync_auto_wait(self) -> None:
+        """每次 execute() 前把 AutoWait 下发给当前所有已创建驱动（仿照 _sync_dialog_policy）。"""
+        ms = self._auto_wait_ms()
+        for drv in [self.driver, *self._desktop_drivers.values()]:
+            self._push_auto_wait(drv, ms)
+
+    @staticmethod
+    def _accepts_timeout_ms(fn) -> bool:
+        """驱动方法是否显式声明了 timeout_ms 参数（**kwargs 不算：Playwright 会把未知参数透传给 page.click）。"""
+        import inspect
+        try:
+            params = inspect.signature(fn).parameters
+        except (TypeError, ValueError):
+            return False
+        p = params.get('timeout_ms')
+        return p is not None and p.kind in (p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY)
+
+    def _call_driver(self, fn, *args, timeout_ms: Optional[int] = None, **kwargs):
+        """调用驱动动作；驱动支持时传入 timeout_ms（剩余预算，≥1ms，永不为 0）。"""
+        if timeout_ms is not None and self._accepts_timeout_ms(fn):
+            kwargs['timeout_ms'] = max(_aw.MIN_ACTION_TIMEOUT_MS, int(timeout_ms))
+        return fn(*args, **kwargs)
+
+    @staticmethod
+    def _driver_probe(driver, locator: str, frame: Optional[str] = None):
+        """即时探测（不等待）。驱动没有 probe（旧式/鸭子类型驱动）时视为命中，交给带 timeout 的动作。"""
+        probe = getattr(driver, 'probe', None)
+        if not callable(probe):
+            return True
+        return probe(locator, frame=frame) if frame else probe(locator)
+
+    @staticmethod
+    def _describe_location(loc: Dict[str, Any]) -> str:
+        text = f"{loc.get('type')}={loc.get('value')}"
+        if loc.get('frame'):
+            text += f"(frame={loc['frame']})"
+        return text
+
+    _COORD_LOCATOR_TYPES = ("vision", "vision_image")
+
+    def _probe_location(self, target_driver, loc: Dict[str, Any]):
+        """即时探测一个 location：vision/vision_image 由核心截图匹配（返回 bbox 或 None，每轮新截图）；
+        其余交给驱动 probe（返回 bool）。"""
+        loc_type, loc_value = loc["type"], loc["value"]
+        if loc_type == "vision_image":
+            return self._locate_by_vision_image(loc_value, driver=target_driver)
+        if loc_type == "vision":
+            return self._locate_by_perception(loc_value, loc, driver=target_driver)
+        return self._driver_probe(target_driver, f"{loc_type}={loc_value}", loc.get("frame"))
+
+    def _ui_candidates(self, model_name: str, element_info: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """元素的全部 location（平台过滤后按 priority 排序）；旧格式回退到主定位器。"""
+        locations = element_info.get('locations') or []
+        if not locations:
+            loc_type = element_info.get('locator_type') or element_info.get('type')
+            loc_value = element_info.get('locator_value') or element_info.get('value')
+            locations = [{"type": loc_type, "value": loc_value, "priority": 1,
+                          "frame": element_info.get('frame')}]
+        else:
+            _platform = self._current_locator_platform(model_name) if model_name else None
+            if _platform is not None:
+                locations = self.model_parser.select_locations(locations, _platform) or locations
+        return sorted(locations, key=lambda x: x.get("priority", 1))
+
+    def _raw_locator_driver(self):
+        """无 model 的元素步骤（clear / upload_file / get 选择器模式）所用驱动：最近一次 UI 步骤的驱动。"""
+        dtype = self._last_ui_driver_type
+        if dtype and dtype in self._desktop_drivers:
+            return self._desktop_drivers[dtype]
+        return self.driver
+
+    def _read_locator(self, target_driver, loc_type: str, loc_value: str) -> str:
+        """读取文本时传给驱动的定位器：Web 沿用 v11.6.0 写法（id→#v、css→v），其他驱动统一 type=value。"""
+        if target_driver is self.driver:
+            if loc_type == 'id':
+                return f"#{loc_value}"
+            if loc_type == 'css':
+                return loc_value
+        return f"{loc_type}={loc_value}"
+
+    def _read_text_once(self, target_driver, locator: str, frame: Optional[str], timeout_ms: int,
+                        loc_type: str = "", loc_value: str = ""):
+        """元素已命中后读取一次文本。"""
+        mobile_reader = getattr(target_driver, 'get_element_text_by_locator', None)
+        if callable(mobile_reader) and target_driver is not self.driver and loc_type:
+            return mobile_reader(loc_type, loc_value)
+        getter = getattr(target_driver, 'get_text_locator', None)
+        if callable(getter):
+            kw = {'frame': frame} if frame else {}
+            return self._call_driver(getter, locator, timeout_ms=timeout_ms, **kw)
+        return target_driver.get_text(locator)
+
+    def _wait_and_read(self, target_driver, qualified: str, candidates: List[Dict[str, Any]],
+                       read_locator=None):
+        """get / get_text / type 后自动取值：元素出现即读；AutoWait 内读不到 → ElementWaitTimeoutError。
+
+        ``read_locator(loc)`` 返回传给驱动读取的定位器（默认 :meth:`_read_locator`）。
+        """
+        def act(loc, hit, dl):
+            if loc["type"] in self._COORD_LOCATOR_TYPES:
+                x1, y1, x2, y2 = hit
+                text = target_driver.get_text(x1, y1, x2, y2)
+            else:
+                locator = read_locator(loc) if read_locator else self._read_locator(
+                    target_driver, loc["type"], loc["value"])
+                text = self._read_text_once(target_driver, locator, loc.get("frame"),
+                                            dl.action_timeout_ms(), loc["type"], loc["value"])
+            # None = 驱动读取失败（元素瞬时消失等）：按"未找到"抛出，由自动等待捕获后重试
+            if text is None:
+                raise ElementNotFoundError(f"{self._describe_location(loc)} 读取不到文本")
+            return ("ok", text)
+
+        _, (_, text) = _aw.run_element(
+            qualified, candidates,
+            probe=lambda loc: self._probe_location(target_driver, loc),
+            act=act, deadline=self._new_deadline(), describe=self._describe_location,
+            interval_s=_aw.poll_interval_for(l["type"] for l in candidates),
+        )
+        return text
+
+    def _wait_and_act_raw(self, target_driver, locator: str, action, element: Optional[str] = None):
+        """单定位器元素步骤（clear / upload_file / 单字段 type）：probe 轮询，命中后 action(timeout_ms)。"""
+        _, result = _aw.run_element(
+            element or locator, [locator],
+            probe=lambda loc: self._driver_probe(target_driver, loc),
+            act=lambda loc, _hit, dl: action(loc, dl.action_timeout_ms()),
+            deadline=self._new_deadline(),
+            interval_s=_aw.poll_interval_for([self._locator_type_of(locator)]),
+        )
+        return result
+
+    @staticmethod
+    def _split_raw_locator(locator: str) -> Tuple[str, str]:
+        """裸定位器 → (type, value)：``id=x`` → (id, x)；``#x`` / ``.c`` → (css, 原值)；``//a`` → (xpath, 原值)。"""
+        text = str(locator or "")
+        if "=" in text:
+            head, value = text.split("=", 1)
+            if head and head.replace("_", "").isalnum():
+                return head.strip().lower(), value
+        if text.startswith("//") or text.startswith("(/"):
+            return "xpath", text
+        return "css", text
+
+    @classmethod
+    def _locator_type_of(cls, locator: str) -> str:
+        return cls._split_raw_locator(locator)[0]
+
     def _log_keyword_start(self, keyword: str, params: Dict) -> None:
         param_str = ", ".join(f"{k}={v}" for k, v in params.items() if v)
         logger.info(f"执行关键字: {keyword}({param_str})" if param_str else f"执行关键字: {keyword}()")
@@ -756,19 +955,49 @@ class KeywordEngine:
 
     def _try_locators(
         self,
-        element_info: Dict[str, Any]
+        element_info: Dict[str, Any],
+        deadline: Optional[Deadline] = None,
+        driver=None,
     ) -> Optional[Tuple[int, int, int, int]]:
-        """尝试多个定位器，按 priority 依次尝试或融合裁决
+        """尝试多个定位器（按 priority 顺序或融合裁决），在 AutoWait 内轮询直到命中。
+
+        v11.7.0: 所有 location 共享同一个 deadline（不是 N × AutoWait）；
+        ``deadline`` 为空时按 DefaultValue.AutoWait 新建。
 
         Args:
             element_info: 元素信息，包含 locations 列表
+            deadline: 共享的等待预算
+            driver: 目标驱动（默认 self.driver）
 
         Returns:
-            边界框坐标 (x1, y1, x2, y2)，所有定位器都失败返回 None
+            边界框坐标 (x1, y1, x2, y2)，AutoWait 内所有定位器都未命中返回 None
         """
+        try:
+            return self._wait_bbox(element_info, driver or self.driver,
+                                   deadline or self._new_deadline(),
+                                   element_info.get("name") or "element")
+        except ElementWaitTimeoutError as e:
+            logger.warning(str(e.message))
+            return None
+
+    def _locate_bbox_once(self, driver, loc: Dict[str, Any]) -> Optional[Tuple[int, int, int, int]]:
+        """对一个 location 做一次即时坐标定位（不等待）。"""
+        locator_type = loc["type"]
+        locator_value = loc["value"]
+        if locator_type == "vision_image":
+            # vision_image 由 rodski 核心实现（OpenCV 模板匹配），不经过 driver.locate_element
+            return self._locate_by_vision_image(locator_value, driver=driver)
+        if locator_type == "vision":
+            # vision (VLM 语义定位) 通过 PerceptionRegistry 取 backend 路由（v7.1.0）；
+            # backend 不可用时抛 PerceptionUnavailableError（立即失败，不重试）
+            return self._locate_by_perception(locator_value, loc, driver=driver)
+        return driver.locate_element(locator_type, locator_value)
+
+    def _wait_bbox(self, element_info: Dict[str, Any], driver, deadline: Deadline,
+                   element_name: str) -> Tuple[int, int, int, int]:
+        """在 deadline 内轮询元素的全部 location，返回首个命中的 bbox；超时 → ElementWaitTimeoutError。"""
         locations = element_info.get("locations", [])
         locator_mode = element_info.get("locator_mode", "sequential")
-
         if not locations:
             # 兼容旧格式：使用主定位器
             loc_type = element_info.get("type")
@@ -776,64 +1005,36 @@ class KeywordEngine:
             if loc_type and loc_value:
                 locations = [{"type": loc_type, "value": loc_value, "priority": 1}]
 
-        # 融合裁决模式：多 hint 并行，由 perception backend 共识裁决
+        # 融合裁决模式：多 hint 并行，由 perception backend 共识裁决（每轮新截图）
         if locator_mode == "fused" and len(locations) > 1:
-            return self._try_fused_locators(locations, element_info)
+            _, bbox = _aw.run_element(
+                element_name, [locations],
+                probe=lambda locs: self._try_fused_locators(locs, element_info, driver=driver),
+                act=lambda _c, hit, _d: hit, deadline=deadline,
+                describe=lambda locs: "fused[" + ", ".join(self._describe_location(l) for l in locs) + "]",
+                interval_s=_aw.VISION_POLL_INTERVAL_S,
+            )
+            return bbox
 
-        # 顺序回退模式（v6 行为）
         sorted_locations = sorted(locations, key=lambda x: x.get("priority", 1))
-
-        for loc in sorted_locations:
-            locator_type = loc["type"]
-            locator_value = loc["value"]
-
-            try:
-                if locator_type == "vision_image":
-                    # vision_image 由 rodski 核心实现（OpenCV 模板匹配），
-                    # 不经过 driver.locate_element（driver 不知道如何识别图片）。
-                    bbox = self._locate_by_vision_image(locator_value)
-                elif locator_type == "vision":
-                    # vision (VLM 语义定位) 通过 PerceptionRegistry 取 backend
-                    # 路由（v7.1.0）。backend 不可用时抛 PerceptionUnavailableError，
-                    # 用例需要看到清晰的安装指引而不是模糊的"元素未找到"。
-                    bbox = self._locate_by_perception(locator_value, loc)
-                else:
-                    bbox = self.driver.locate_element(locator_type, locator_value)
-                if bbox:
-                    logger.info(f"定位成功: {locator_type}={locator_value}")
-                    return bbox
-            except NotImplementedError:
-                # 驱动不支持该定位器类型，跳过
-                logger.debug(f"驱动不支持定位器类型: {locator_type}")
-                continue
-            except FileNotFoundError as e:
-                # vision_image 参考图不存在：明确报错而非静默跳过
-                logger.error(f"定位器 {locator_type}={locator_value} 文件错误: {e}")
-                raise
-            except Exception as e:
-                # PerceptionUnavailableError 必须向上传播，否则用例只能看到
-                # 一句模糊的"元素定位失败"，违反 v7.1.0 错误处理契约
-                try:
-                    from ..vision.perception_interface import (
-                        PerceptionUnavailableError,
-                    )
-                except ImportError:
-                    from vision.perception_interface import (  # type: ignore
-                        PerceptionUnavailableError,
-                    )
-                if isinstance(e, PerceptionUnavailableError):
-                    raise
-                logger.warning(f"定位器 {locator_type}={locator_value} 失败: {e}")
-                continue
-
-        return None
+        loc, bbox = _aw.run_element(
+            element_name, sorted_locations,
+            probe=lambda l: self._locate_bbox_once(driver, l),
+            act=lambda _l, hit, _d: hit, deadline=deadline,
+            describe=self._describe_location,
+            interval_s=_aw.poll_interval_for(l["type"] for l in sorted_locations),
+        )
+        logger.info(f"定位成功: {self._describe_location(loc)}")
+        return bbox
 
     def _try_fused_locators(
         self,
         locations: List[Dict[str, Any]],
         element_info: Dict[str, Any],
+        driver=None,
     ) -> Optional[Tuple[int, int, int, int]]:
-        """融合裁决模式：调用 perception backend.locate_fused。"""
+        """融合裁决模式：调用 perception backend.locate_fused（一次，不等待；轮询由调用方负责）。"""
+        driver = driver or self.driver
         try:
             from ..vision.perception_interface import (
                 LocatorHint,
@@ -852,8 +1053,8 @@ class KeywordEngine:
         if backend is None or not backend.is_available():
             raise PerceptionUnavailableError()
 
-        # 截图
-        screenshot_path = self.driver.take_screenshot()
+        # 截图（v11.7.0: 用目标驱动截图，每轮新截图）
+        screenshot_path = driver.take_screenshot()
         element_type = element_info.get("element_type", None)
 
         # 构建 hints（解析参考图路径）
@@ -888,11 +1089,12 @@ class KeywordEngine:
             result.confidence, result.consensus_count, result.bbox,
         )
         # DPR 校正
-        return self._scale_bbox_to_viewport(result.bbox, screenshot_path)
+        return self._scale_bbox_to_viewport(result.bbox, screenshot_path, driver=driver)
 
     def _locate_by_vision_image(
         self,
         template_value: str,
+        driver=None,
     ) -> Optional[Tuple[int, int, int, int]]:
         """vision_image 定位：截图 + OpenCV 模板匹配。
 
@@ -933,8 +1135,9 @@ class KeywordEngine:
             global_vars=self._global_vars,
         )
 
-        # 2. 截图
-        screenshot_path = self.driver.take_screenshot()
+        # 2. 截图（v11.7.0: 目标驱动截图，而不是固定用 Web 驱动）
+        driver = driver or self.driver
+        screenshot_path = driver.take_screenshot()
 
         # 3. 模板匹配
         matcher = ImageTemplateMatcher()
@@ -951,13 +1154,14 @@ class KeywordEngine:
         # 4. 截图像素 → viewport 逻辑像素（DPR 校正）
         # Playwright 在 Retina/headed 模式下截图分辨率 = viewport × devicePixelRatio。
         # click()/type_text() 接收 viewport 逻辑坐标，因此 bbox 需要按比例缩放。
-        scaled = self._scale_bbox_to_viewport(bbox, screenshot_path)
+        scaled = self._scale_bbox_to_viewport(bbox, screenshot_path, driver=driver)
         return scaled
 
     def _locate_by_perception(
         self,
         description: str,
         loc: Dict[str, Any],
+        driver=None,
     ) -> Optional[Tuple[int, int, int, int]]:
         """vision (VLM 语义定位) 通过 PerceptionRegistry 取 backend 路由。
 
@@ -996,8 +1200,9 @@ class KeywordEngine:
         # 2. 取 backend（PerceptionUnavailableError 会自然抛出）
         backend = PerceptionRegistry.get_backend(cfg)
 
-        # 3. 截图
-        screenshot_path = self.driver.take_screenshot()
+        # 3. 截图（v11.7.0: 目标驱动截图）
+        driver = driver or self.driver
+        screenshot_path = driver.take_screenshot()
 
         # 4. 调 backend
         element_type = loc.get("element_type") or loc.get("type_hint")
@@ -1018,19 +1223,20 @@ class KeywordEngine:
 
         bbox = tuple(result.bbox)  # type: ignore[assignment]
         # 同 vision_image：DPR 校正使 click/type_text 直接可用
-        return self._scale_bbox_to_viewport(bbox, screenshot_path)
+        return self._scale_bbox_to_viewport(bbox, screenshot_path, driver=driver)
 
     def _scale_bbox_to_viewport(
         self,
         bbox: Tuple[int, int, int, int],
         screenshot_path: str,
+        driver=None,
     ) -> Tuple[int, int, int, int]:
         """将截图像素坐标 bbox 转换为 viewport 逻辑像素。
 
         非 web 驱动或无法获取 viewport 时原样返回。
         """
         try:
-            page = getattr(self.driver, "page", None)
+            page = getattr(driver or self.driver, "page", None)
             if page is None:
                 return bbox
             # 优先 viewport_size；headed `no_viewport=True` 时 viewport_size 为 None，
@@ -1082,61 +1288,57 @@ class KeywordEngine:
         self,
         element_info: Dict[str, Any],
         action: str,
-        value: str = None
+        value: str = None,
+        driver=None,
     ) -> bool:
         """在元素位置执行操作（支持多定位器自动切换）
+
+        v11.7.0: 定位阶段在 AutoWait 内轮询全部 location（共享一个预算）；坐标动作无可操作阶段。
 
         Args:
             element_info: 元素信息，包含 locations 列表
             action: 操作类型 ('click', 'type', 'get_text', 'double_click', 'right_click', 'hover')
             value: 输入值（仅 action='type' 时使用）
+            driver: 目标驱动（默认 self.driver）
 
         Returns:
             操作是否成功
 
         Raises:
-            ElementNotFoundError: 所有定位器都失败时抛出
+            ElementWaitTimeoutError: AutoWait 内所有定位器都未命中（ElementNotFoundError 子类）
         """
-        bbox = self._try_locators(element_info)
-
-        if not bbox:
-            raise ElementNotFoundError(
-                f"无法定位元素，所有定位器均失败",
-                locator=str(element_info.get("locations", []))
+        if action == "type" and value is None:
+            raise InvalidParameterError(
+                keyword="type",
+                param_name="value",
+                reason="type 操作需要提供 value 参数"
             )
-
-        x1, y1, x2, y2 = bbox
-        cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
-
-        if action == "click":
-            self.driver.click(cx, cy)
-            return True
-        elif action == "double_click":
-            self.driver.double_click(cx, cy)
-            return True
-        elif action == "right_click":
-            self.driver.right_click(cx, cy)
-            return True
-        elif action == "hover":
-            self.driver.hover(cx, cy)
-            return True
-        elif action == "type":
-            if value is None:
-                raise InvalidParameterError(
-                    keyword="type",
-                    param_name="value",
-                    reason="type 操作需要提供 value 参数"
-                )
-            self.driver.type_text(cx, cy, value)
-            return True
-        elif action == "get_text":
-            return self.driver.get_text(x1, y1, x2, y2)
-        else:
+        if action not in ("click", "double_click", "right_click", "hover", "type", "get_text"):
             raise InvalidParameterError(
                 keyword="action",
                 param_name="action",
                 reason=f"不支持的操作类型: {action}"
             )
+        drv = driver or self.driver
+        bbox = self._wait_bbox(element_info, drv, self._new_deadline(),
+                               element_info.get("name") or "element")
+
+        x1, y1, x2, y2 = bbox
+        cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+
+        if action == "click":
+            drv.click(cx, cy)
+        elif action == "double_click":
+            drv.double_click(cx, cy)
+        elif action == "right_click":
+            drv.right_click(cx, cy)
+        elif action == "hover":
+            drv.hover(cx, cy)
+        elif action == "type":
+            drv.type_text(cx, cy, value)
+        else:  # get_text
+            return drv.get_text(x1, y1, x2, y2)
+        return True
 
     # ── UI 操作关键字 ─────────────────────────────────────────────
 
@@ -1153,6 +1355,8 @@ class KeywordEngine:
                 self.driver = self._driver_factory()
                 # v11.6.0 (C1): 新建的驱动同样遵循 DialogPolicy
                 self._sync_dialog_policy()
+                # v11.7.0: 新建的驱动同样下发 AutoWait
+                self._push_auto_wait(self.driver)
             else:
                 raise DriverStoppedError(
                     "浏览器未启动且未提供 driver_factory，无法自动创建"
@@ -1202,10 +1406,12 @@ class KeywordEngine:
             )
         
         logger.info(f"输入: {locator} <- '{text}'")
-        result = self.driver.type_locator(locator, text)
-        if not result:
-            raise DriverError(f"输入失败: {locator}")
-        return result
+        # v11.7.0: 定位阶段在 AutoWait 内轮询，命中后以剩余预算执行输入
+        driver = self.driver
+        return self._wait_and_act_raw(
+            driver, locator,
+            lambda loc, tmo: self._call_driver(driver.type_locator, loc, text, timeout_ms=tmo),
+        )
 
     # ── 数据表动作值支持 ─────────────────────────────────────────
     # 数据表单元格中可写入 UI 动作关键字，type 批量模式会自动识别并执行。
@@ -1298,33 +1504,45 @@ class KeywordEngine:
         return result
 
     def _execute_element_action(self, value: str, locator: str, element_name: str, driver=None,
-                                frame: Optional[str] = None):
+                                frame: Optional[str] = None, deadline: Optional[Deadline] = None):
         """检查数据表值是否为 UI 动作关键字，是则执行对应操作。
 
         Args:
             driver: 指定驱动实例，默认使用 self.driver
             frame: v11.6.0 (C2) 元素所在 iframe（location@frame），None 为顶层页面
+            deadline: v11.7.0 该元素的等待预算；动作 timeout_ms 取其剩余（≥1ms）。
+                元素的定位阶段由调用方（_batch_type）完成，这里只执行动作；
+                drag 的目标端在同一 deadline 内等待出现。
         """
         target_driver = driver or self.driver
         value_lower = value.strip().lower()
 
+        def tmo() -> Optional[int]:
+            return deadline.action_timeout_ms() if deadline is not None else None
+
+        def call(fn, *args, **kwargs):
+            return self._call_driver(fn, *args, timeout_ms=tmo(), **kwargs)
+
         if frame:
-            return self._execute_frame_element_action(value, locator, element_name, target_driver, frame)
+            return self._execute_frame_element_action(value, locator, element_name, target_driver, frame,
+                                                      deadline=deadline)
 
         # 简单动作：值恰好等于关键字名
         if value_lower in self.ELEMENT_ACTIONS:
-            action_map = {
+            if value_lower == 'scroll':
+                logger.debug(f"{element_name}: scroll {locator}")
+                return ('scroll', element_name, target_driver.scroll(0, 300))
+            fallback = target_driver.click_locator
+            fn = {
                 'click': target_driver.click_locator,
-                'double_click': target_driver.double_click_locator if hasattr(target_driver, 'double_click_locator') else target_driver.click_locator,
-                'right_click': target_driver.right_click_locator if hasattr(target_driver, 'right_click_locator') else target_driver.click_locator,
-                'hover': target_driver.hover_locator if hasattr(target_driver, 'hover_locator') else target_driver.click_locator,
-                'scroll': lambda loc: target_driver.scroll(0, 300),
-            }
-            fn = action_map[value_lower]
+                'double_click': getattr(target_driver, 'double_click_locator', fallback),
+                'right_click': getattr(target_driver, 'right_click_locator', fallback),
+                'hover': getattr(target_driver, 'hover_locator', fallback),
+            }[value_lower]
             logger.debug(f"{element_name}: {value_lower} {locator}")
-            return (value_lower, element_name, fn(locator))
+            return (value_lower, element_name, call(fn, locator))
 
-        # 带参数的动作：key_press【按键】
+        # 带参数的动作：key_press【按键】（按键发往当前焦点元素；目标元素已在定位阶段等到）
         if value_lower.startswith('key_press'):
             key = self._extract_bracket_value(value)
             if not key:
@@ -1339,15 +1557,21 @@ class KeywordEngine:
             if not select_value:
                 return None
             logger.debug(f"{element_name}: 选择 {locator} = '{select_value}'")
-            return ('select', element_name, target_driver.select(locator, select_value))
+            return ('select', element_name, call(target_driver.select, locator, select_value))
 
-        # 带参数的动作：drag【目标定位器】
+        # 带参数的动作：drag【目标定位器】（两端都在同一 deadline 内等待）
         if value_lower.startswith('drag'):
             target = self._extract_bracket_value(value)
             if not target:
                 return None
+            if deadline is not None:
+                _aw.wait_until(
+                    f"{element_name}→{target}",
+                    lambda: self._driver_probe(target_driver, target),
+                    deadline, locators=[target],
+                )
             logger.debug(f"{element_name}: 拖拽 {locator} -> {target}")
-            return ('drag', element_name, target_driver.drag(locator, target))
+            return ('drag', element_name, call(target_driver.drag, locator, target))
 
         # 带参数的动作：scroll【x,y】
         if value_lower.startswith('scroll'):
@@ -1367,18 +1591,20 @@ class KeywordEngine:
     }
 
     def _execute_frame_element_action(self, value: str, locator: str, element_name: str,
-                                      target_driver, frame: str):
+                                      target_driver, frame: str, deadline: Optional[Deadline] = None):
         """iframe 内元素的数据表动作值；非动作值返回 None（由调用方按文本输入处理）。"""
         value_lower = value.strip().lower()
+        tmo = deadline.action_timeout_ms() if deadline is not None else None
         if value_lower in self._FRAME_ACTION_METHODS:
             fn = getattr(target_driver, self._FRAME_ACTION_METHODS[value_lower])
             logger.debug(f"{element_name}: {value_lower} {locator} (frame={frame})")
-            return (value_lower, element_name, fn(locator, frame=frame))
+            return (value_lower, element_name, self._call_driver(fn, locator, timeout_ms=tmo, frame=frame))
         if value_lower.startswith('select'):
             select_value = self._extract_bracket_value(value)
             if not select_value:
                 return None
-            return ('select', element_name, target_driver.select(locator, select_value, frame=frame))
+            return ('select', element_name,
+                    self._call_driver(target_driver.select, locator, select_value, timeout_ms=tmo, frame=frame))
         if value_lower.startswith('key_press'):
             # 键盘事件发往当前焦点元素，与 frame 无关
             return self._execute_element_action(value, locator, element_name, driver=target_driver)
@@ -1423,6 +1649,70 @@ class KeywordEngine:
             )
         target_driver.register_dialog_handler(action, prompt_text if sep else None)
         return ('dialog', element_name, True)
+
+    def _act_at_bbox(self, target_driver, bbox, value: str, element_name: str, via: str) -> tuple:
+        """视觉命中（bbox）后的坐标动作：click 类动作或"点击聚焦 → 全选清空 → 输入"。"""
+        x1, y1, x2, y2 = bbox
+        cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+        v_lower = value.strip().lower()
+        if v_lower in {"click", "double_click", "right_click", "hover"}:
+            logger.debug(f"{element_name}: {v_lower} @({cx},{cy}) via {via}")
+            getattr(target_driver, v_lower)(cx, cy)
+            return (v_lower, element_name, True)
+        input_value = value
+        display_value = value
+        if input_value.endswith('.Password'):
+            input_value = input_value[:-9]
+            display_value = '***'
+        logger.debug(f"{element_name}: {via} @({cx},{cy}) <- '{display_value}'")
+        # 1) 点击聚焦
+        target_driver.click(cx, cy)
+        # 2) 全选 + 删除（兼容 Mac/Windows/Linux）
+        page = getattr(target_driver, "page", None)
+        if page is not None:
+            try:
+                select_combo = "Meta+A" if sys.platform == "darwin" else "Control+A"
+                page.keyboard.press(select_combo)
+                page.keyboard.press("Delete")
+            except Exception as _exc:
+                logger.debug(f"{via} 清空已有内容失败（忽略）: {_exc}")
+        # 3) 输入新文本
+        target_driver.type_text(cx, cy, input_value)
+        return ('type', element_name, True)
+
+    def _act_on_location(self, target_driver, loc: Dict[str, Any], hit, value: str,
+                         element_name: str, deadline: Deadline):
+        """type 批量中已命中的 location 上执行动作（可操作阶段，timeout = deadline 剩余）。
+
+        Returns:
+            操作元组 (action, element_name, True)；动作失败返回 False（run_element 视为该定位器本轮不可用）。
+        """
+        locator_type = loc["type"]
+        if locator_type in self._COORD_LOCATOR_TYPES:
+            return self._act_at_bbox(target_driver, hit, value, element_name, locator_type)
+        locator = f"{locator_type}={loc['value']}"
+        loc_frame = loc.get("frame")
+        action_result = self._execute_element_action(
+            value, locator, element_name, driver=target_driver, frame=loc_frame, deadline=deadline,
+        )
+        if action_result is not None:
+            if not action_result[2]:
+                # 旧式驱动以返回 False 表示失败：转换为"不可操作"异常，交给自动等待捕获重试
+                raise ElementNotInteractableError(f"{locator} {action_result[0]} 未成功")
+            return action_result
+
+        input_value = value
+        display_value = value
+        if input_value.endswith('.Password'):
+            input_value = input_value[:-9]
+            display_value = '***'
+        logger.debug(f"{element_name}: {locator} <- '{display_value}'")
+        kw = {'frame': loc_frame} if loc_frame else {}
+        result = self._call_driver(target_driver.type_locator, locator, input_value,
+                                   timeout_ms=deadline.action_timeout_ms(), **kw)
+        if result is False:
+            raise ElementNotInteractableError(f"{locator} 输入未成功")
+        return ('type', element_name, True)
 
     def _batch_type(self, model_name: str, data_ref: str) -> bool:
         """批量输入：遍历模型元素，匹配数据表字段
@@ -1521,222 +1811,34 @@ class KeywordEngine:
                 continue
 
             locator_mode = element_info.get('locator_mode', 'sequential')
+            qualified = f"{model_name}.{element_name}"
+            # v11.7.0: 每个字段独立一个 AutoWait 预算；同一元素的全部 location 共享这一个预算
+            deadline = self._new_deadline()
 
-            op_done = False
-            last_error = None
-
-            # 融合裁决模式：通过 _try_fused_locators 获取 bbox，然后执行动作
+            # 融合裁决模式：每轮新截图做一次 locate_fused，命中后坐标动作
             if locator_mode == "fused" and len(locations) > 1:
-                bbox = self._try_fused_locators(locations, element_info)
-                if bbox:
-                    x1, y1, x2, y2 = bbox
-                    cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
-                    v_lower = value.strip().lower()
-                    if v_lower in {"click", "double_click", "right_click", "hover"}:
-                        logger.debug(f"{element_name}: {v_lower} @({cx},{cy}) via fused")
-                        if v_lower == "click":
-                            target_driver.click(cx, cy)
-                        elif v_lower == "double_click":
-                            target_driver.double_click(cx, cy)
-                        elif v_lower == "right_click":
-                            target_driver.right_click(cx, cy)
-                        elif v_lower == "hover":
-                            target_driver.hover(cx, cy)
-                        operations.append((v_lower, element_name, True))
-                    else:
-                        input_value = value
-                        display_value = value
-                        if input_value.endswith('.Password'):
-                            input_value = input_value[:-9]
-                            display_value = '***'
-                        logger.debug(f"{element_name}: fused @({cx},{cy}) <- '{display_value}'")
-                        target_driver.click(cx, cy)
-                        page = getattr(target_driver, "page", None)
-                        if page is not None:
-                            try:
-                                import sys as _sys
-                                select_combo = "Meta+A" if _sys.platform == "darwin" else "Control+A"
-                                page.keyboard.press(select_combo)
-                                page.keyboard.press("Delete")
-                            except Exception as _exc:
-                                logger.debug(f"fused 清空已有内容失败（忽略）: {_exc}")
-                        target_driver.type_text(cx, cy, input_value)
-                        operations.append(('type', element_name, True))
-                    op_done = True
-                if op_done:
-                    continue
-                # fused failed, fall through to raise error below
+                _, op = _aw.run_element(
+                    qualified, [locations],
+                    probe=lambda locs: self._try_fused_locators(locs, element_info, driver=target_driver),
+                    act=lambda _c, bbox, _d: self._act_at_bbox(target_driver, bbox, value, element_name, "fused"),
+                    deadline=deadline,
+                    describe=lambda locs: "fused[" + ", ".join(self._describe_location(l) for l in locs) + "]",
+                    interval_s=_aw.VISION_POLL_INTERVAL_S,
+                )
+                operations.append(op)
+                continue
 
             sorted_locations = sorted(locations, key=lambda x: x.get("priority", 1))
-
-            for loc in sorted_locations:
-                locator_type = loc["type"]
-                locator_value = loc["value"]
-                locator = f"{locator_type}={locator_value}"
-
-                try:
-                    # ── vision (VLM 语义定位) 也走坐标路径 ──
-                    # 与 vision_image 一样，命中后通过 coord-based 驱动 API
-                    # 完成动作。未装 backend → PerceptionUnavailableError 直接抛出。
-                    if locator_type == "vision":
-                        bbox = self._locate_by_perception(locator_value, loc)
-                        if not bbox:
-                            logger.debug(f"  ↳ 定位器 {locator} 未命中，尝试下一个...")
-                            continue
-                        x1, y1, x2, y2 = bbox
-                        cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
-                        v_lower = value.strip().lower()
-                        if v_lower in {"click", "double_click", "right_click", "hover"}:
-                            logger.debug(f"{element_name}: {v_lower} @({cx},{cy}) via vision")
-                            if v_lower == "click":
-                                target_driver.click(cx, cy)
-                            elif v_lower == "double_click":
-                                target_driver.double_click(cx, cy)
-                            elif v_lower == "right_click":
-                                target_driver.right_click(cx, cy)
-                            elif v_lower == "hover":
-                                target_driver.hover(cx, cy)
-                            operations.append((v_lower, element_name, True))
-                            op_done = True
-                            logger.debug(f"  ↳ 定位器 {locator} 成功 (priority={loc.get('priority',1)})")
-                            break
-                        else:
-                            input_value = value
-                            display_value = value
-                            if input_value.endswith('.Password'):
-                                input_value = input_value[:-9]
-                                display_value = '***'
-                            logger.debug(f"{element_name}: vision @({cx},{cy}) <- '{display_value}'")
-                            target_driver.click(cx, cy)
-                            page = getattr(target_driver, "page", None)
-                            if page is not None:
-                                try:
-                                    import sys as _sys
-                                    select_combo = "Meta+A" if _sys.platform == "darwin" else "Control+A"
-                                    page.keyboard.press(select_combo)
-                                    page.keyboard.press("Delete")
-                                except Exception as _exc:
-                                    logger.debug(f"vision 清空已有内容失败（忽略）: {_exc}")
-                            target_driver.type_text(cx, cy, input_value)
-                            operations.append(('type', element_name, True))
-                            op_done = True
-                            logger.debug(f"  ↳ 定位器 {locator} 成功 (priority={loc.get('priority',1)})")
-                            break
-
-                    # ── vision_image (以及未来的视觉定位器) 走坐标路径 ──
-                    # vision_image 由 ImageTemplateMatcher 处理，不能用 CSS 选择器路径。
-                    # 命中后通过 coord-based 驱动 API (click/type_text) 完成动作。
-                    if locator_type == "vision_image":
-                        try:
-                            bbox = self._locate_by_vision_image(locator_value)
-                        except FileNotFoundError as ferr:
-                            # 参考图文件缺失：致命，向上抛
-                            raise DriverError(
-                                f"vision_image 参考图文件不存在: {locator_value}",
-                                locator=locator,
-                                cause=ferr,
-                            )
-                        if not bbox:
-                            logger.debug(f"  ↳ 定位器 {locator} 未命中模板，尝试下一个...")
-                            continue
-                        x1, y1, x2, y2 = bbox
-                        cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
-                        v_lower = value.strip().lower()
-                        if v_lower in {"click", "double_click", "right_click", "hover"}:
-                            display = v_lower
-                            logger.debug(f"{element_name}: {v_lower} @({cx},{cy}) via vision_image")
-                            if v_lower == "click":
-                                target_driver.click(cx, cy)
-                            elif v_lower == "double_click":
-                                target_driver.double_click(cx, cy)
-                            elif v_lower == "right_click":
-                                target_driver.right_click(cx, cy)
-                            elif v_lower == "hover":
-                                target_driver.hover(cx, cy)
-                            operations.append((v_lower, element_name, True))
-                            op_done = True
-                            logger.debug(f"  ↳ 定位器 {locator} 成功 (priority={loc.get('priority',1)})")
-                            break
-                        else:
-                            # 文本输入：先点击聚焦 → 全选清空 → 输入新文本
-                            display_value = value
-                            input_value = value
-                            if input_value.endswith('.Password'):
-                                input_value = input_value[:-9]
-                                display_value = '***'
-                            logger.debug(f"{element_name}: vision_image @({cx},{cy}) <- '{display_value}'")
-                            # 1) 点击聚焦
-                            target_driver.click(cx, cy)
-                            # 2) 全选 + 删除（兼容 Mac/Windows/Linux）
-                            page = getattr(target_driver, "page", None)
-                            if page is not None:
-                                try:
-                                    import sys as _sys
-                                    select_combo = "Meta+A" if _sys.platform == "darwin" else "Control+A"
-                                    page.keyboard.press(select_combo)
-                                    page.keyboard.press("Delete")
-                                except Exception as _exc:
-                                    logger.debug(f"vision_image 清空已有内容失败（忽略）: {_exc}")
-                            # 3) 输入新文本
-                            target_driver.type_text(cx, cy, input_value)
-                            operations.append(('type', element_name, True))
-                            op_done = True
-                            logger.debug(f"  ↳ 定位器 {locator} 成功 (priority={loc.get('priority',1)})")
-                            break
-
-                    loc_frame = loc.get("frame")
-                    action_result = self._execute_element_action(
-                        value, locator, element_name, driver=target_driver, frame=loc_frame,
-                    )
-                    if action_result is not None:
-                        if action_result[2]:  # 操作成功
-                            operations.append(action_result)
-                            op_done = True
-                            logger.debug(f"  ↳ 定位器 {locator} 成功 (priority={loc.get('priority',1)})")
-                            break
-                        else:
-                            logger.debug(f"  ↳ 定位器 {locator} 动作失败，尝试下一个...")
-                            continue
-
-                    display_value = value
-                    input_value = value
-                    if input_value.endswith('.Password'):
-                        input_value = input_value[:-9]
-                        display_value = '***'
-                    logger.debug(f"{element_name}: {locator} <- '{display_value}'")
-                    if loc_frame:
-                        # v11.6.0 (C2): iframe 内元素
-                        result = target_driver.type_locator(locator, input_value, frame=loc_frame)
-                    else:
-                        result = target_driver.type_locator(locator, input_value)
-                    if result:
-                        operations.append(('type', element_name, True))
-                        op_done = True
-                        logger.debug(f"  ↳ 定位器 {locator} 成功 (priority={loc.get('priority',1)})")
-                        break
-                    else:
-                        logger.debug(f"  ↳ 定位器 {locator} 失败，尝试下一个...")
-                except Exception as e:
-                    # PerceptionUnavailableError 必须向上传播（v7.1.0 §2.6.8 契约）
-                    try:
-                        from ..vision.perception_interface import (
-                            PerceptionUnavailableError,
-                        )
-                    except ImportError:
-                        from vision.perception_interface import (  # type: ignore
-                            PerceptionUnavailableError,
-                        )
-                    if isinstance(e, (PerceptionUnavailableError, InvalidParameterError)):
-                        raise
-                    last_error = e
-                    logger.debug(f"  ↳ 定位器 {locator} 异常: {e}，尝试下一个...")
-                    continue
-
-            if not op_done:
-                tried = ", ".join(f"{l['type']}={l['value']}" for l in sorted_locations)
-                if last_error:
-                    raise DriverError(f"元素 '{element_name}' 所有定位器均失败 [{tried}]: {last_error}")
-                raise DriverError(f"元素 '{element_name}' 所有定位器均失败 [{tried}]")
+            hit_loc, op = _aw.run_element(
+                qualified, sorted_locations,
+                probe=lambda loc: self._probe_location(target_driver, loc),
+                act=lambda loc, hit, dl: self._act_on_location(target_driver, loc, hit, value, element_name, dl),
+                deadline=deadline,
+                describe=self._describe_location,
+                interval_s=_aw.poll_interval_for(l["type"] for l in sorted_locations),
+            )
+            logger.debug(f"  ↳ 定位器 {self._describe_location(hit_loc)} 成功 (priority={hit_loc.get('priority', 1)})")
+            operations.append(op)
 
         failed_ops = [op for op in operations if not op[2]]
         if failed_ops:
@@ -1754,20 +1856,28 @@ class KeywordEngine:
         return True
 
     def _run_auto_capture_ui(self, model_name: str, fields: list) -> dict:
+        """type 后自动取值（v11.7.0: 用模型对应的目标驱动；元素出现即读，AutoWait 内读不到 → 失败）。"""
         result = {}
+        target_driver = self.driver
+        if self.model_parser:
+            try:
+                target_driver = self._get_driver_for_type(
+                    self.model_parser.get_model_driver_type(model_name))
+            except InvalidParameterError:
+                raise
+            except Exception as e:
+                logger.debug(f"自动取值解析目标驱动失败，回退 Web 驱动: {e}")
         for f in fields:
             loc_type = f.get('type', 'id')
             loc_value = f.get('value', '')
             name = f['name']
             try:
-                if loc_type == 'id':
-                    locator = f"#{loc_value}"
-                elif loc_type == 'css':
-                    locator = loc_value
-                else:
-                    locator = f"{loc_type}={loc_value}"
-                text = self.driver.get_text_locator(locator) if hasattr(self.driver, 'get_text_locator') else self.driver.get_text(locator)
-                result[name] = text
+                result[name] = self._wait_and_read(
+                    target_driver, f"{model_name}.{name}",
+                    [{"type": loc_type, "value": loc_value, "priority": 1, "frame": f.get('frame')}],
+                )
+            except (InvalidParameterError, DriverStoppedError):
+                raise
             except Exception as e:
                 raise AutoCaptureError(field=name, source=f"{loc_type}={loc_value}", reason=str(e))
         return result
@@ -2437,16 +2547,15 @@ class KeywordEngine:
                                if not name.startswith('__')]
             logger.debug(f"match_mode=strict: 验证 {len(fields_to_verify)} 个模型字段")
 
-        # v11.6.0 (A2): UI 模型 verify 在 AutoWait（自动等待）内每 200ms 重试，直到全部字段匹配或超时；
+        # v11.6.0 (A2) / v11.7.0: UI 模型 verify 在 AutoWait（自动等待）内轮询，直到全部字段匹配或超时；
+        # DOM 字段间隔 200ms，含视觉字段时每轮新截图、最小间隔 1s（v11.7.0 起视觉字段不再关闭重试）；
         # 接口/DB 结果是一次性的，保持单次比对
-        verify_timeout = self._resolve_verify_timeout() if model_type == MODEL_TYPE_UI else 0.0
-        if verify_timeout > 0 and any(
-            info and self._is_vision_locator(info.get('locator_type', ''))
-            for _n, info in fields_to_verify
-        ):
-            logger.debug("verify 含视觉定位字段，关闭自动重试（单次比对）")
-            verify_timeout = 0.0
-        deadline = time.monotonic() + verify_timeout
+        auto_wait_ms = self._auto_wait_ms() if model_type == MODEL_TYPE_UI else 0.0
+        verify_timeout = auto_wait_ms / 1000.0
+        deadline = Deadline(auto_wait_ms)
+        poll_interval = _aw.poll_interval_for(
+            (info or {}).get('locator_type', '') for _n, info in fields_to_verify
+        ) if model_type == MODEL_TYPE_UI else self.VERIFY_RETRY_INTERVAL
         attempts = 0
         last_error: Optional[BaseException] = None
         # 轮询期间驱动使用无等待读取（元素不在 DOM 中立即返回），总等待只由 AutoWait 控制
@@ -2458,6 +2567,7 @@ class KeywordEngine:
         try:
             while True:
                 attempts += 1
+                round_start = deadline.now()
                 try:
                     results, mismatches = self._verify_fields_once(
                         model_name, data_id, data_row, fields_to_verify, match_mode,
@@ -2472,10 +2582,9 @@ class KeywordEngine:
                     last_error = e
                     results, mismatches = {}, []
                     logger.debug(f"verify 第 {attempts} 次读取失败，视为本轮未匹配继续重试: {e}")
-                remaining = deadline - time.monotonic()
-                if (not mismatches and last_error is None) or remaining <= 0:
+                if (not mismatches and last_error is None) or deadline.expired():
                     break
-                time.sleep(min(self.VERIFY_RETRY_INTERVAL, remaining))
+                deadline.sleep_round(round_start, poll_interval)
         finally:
             if callable(instant_toggle):
                 try:
@@ -2485,12 +2594,12 @@ class KeywordEngine:
         if last_error is not None:
             # 超时时最后一轮仍读取失败：按最后一次的错误报告
             logger.error(
-                f"verify 自动重试 {attempts} 次（AutoWait={verify_timeout * 1000:g}ms）后仍读取失败: {last_error}"
+                f"verify 自动重试 {attempts} 次（AutoWait={_aw.format_ms(auto_wait_ms)}ms）后仍读取失败: {last_error}"
             )
             raise last_error
         if mismatches and attempts > 1:
             logger.info(
-                f"verify 自动重试 {attempts} 次（AutoWait={verify_timeout * 1000:g}ms）后仍不匹配，"
+                f"verify 自动重试 {attempts} 次（AutoWait={_aw.format_ms(auto_wait_ms)}ms）后仍不匹配，"
                 f"按最后一次读取的实际值报告失败"
             )
         elif attempts > 1:
@@ -2509,7 +2618,7 @@ class KeywordEngine:
                 for m in mismatches
             )
             if attempts > 1:
-                detail += f"（已自动重试等待 {verify_timeout * 1000:g}ms，DefaultValue.AutoWait）"
+                detail += f"（已自动重试等待 {_aw.format_ms(auto_wait_ms)}ms，DefaultValue.AutoWait）"
             logger.error(f"批量验证失败: {detail}")
             raise AssertionFailedError(
                 message=f"批量验证失败: {detail}",
@@ -2529,10 +2638,10 @@ class KeywordEngine:
         logger.info(f"批量验证通过: {len(results)} 个字段全部匹配")
         return True
 
-    # v11.6.0 (A2): verify 自动重试的轮询间隔（秒）
-    VERIFY_RETRY_INTERVAL = 0.2
+    # v11.6.0 (A2): verify 自动重试的轮询间隔（秒）；v11.7.0 起统一取自 core.auto_wait
+    VERIFY_RETRY_INTERVAL = _aw.DOM_POLL_INTERVAL_S
     # v11.6.0 (A2): 未配置 DefaultValue.AutoWait（自动等待）时的默认值（毫秒）
-    DEFAULT_AUTO_WAIT_MS = 5000
+    DEFAULT_AUTO_WAIT_MS = _aw.DEFAULT_AUTO_WAIT_MS
 
     @staticmethod
     def _is_transient_verify_error(exc: BaseException) -> bool:
@@ -2548,38 +2657,15 @@ class KeywordEngine:
         return type(exc).__module__.startswith('playwright')
 
     def _resolve_verify_timeout(self) -> float:
-        """读取 DefaultValue.AutoWait（自动等待，毫秒）并换算为秒。
+        """读取 DefaultValue.AutoWait（自动等待，毫秒）并换算为秒（兼容 v11.6.0 接口）。
 
-        未配置时为 5000 毫秒；0 表示关闭 verify 自动重试（单次比对）。
-        旧键 VerifyTimeout（v11.6.0 开发期名称）已更名，出现时报错而不是静默忽略。
+        解析规则见 :func:`core.auto_wait.resolve_auto_wait_ms`：未配置或 0 = 不自动等待；
+        负数 / 非数字 / 旧键 VerifyTimeout → InvalidParameterError。
         """
-        defaults = (self._global_vars or {}).get('DefaultValue', {}) or {}
-        if 'VerifyTimeout' in defaults:
-            raise InvalidParameterError(
-                keyword="verify",
-                param_name="VerifyTimeout",
-                reason=(
-                    "DefaultValue.VerifyTimeout 已更名为 DefaultValue.AutoWait（自动等待，单位毫秒）。"
-                    "修复: 改写为 <var name=\"AutoWait\" value=\"5000\"/>；填 0 关闭 verify 自动重试"
-                ),
-            )
-        raw = defaults.get('AutoWait')
-        if raw is None or str(raw).strip() == '':
-            return self.DEFAULT_AUTO_WAIT_MS / 1000.0
         try:
-            value = float(str(raw).strip())
-        except ValueError:
-            value = -1.0
-        if value < 0:
-            raise InvalidParameterError(
-                keyword="verify",
-                param_name="AutoWait",
-                reason=(
-                    f"DefaultValue.AutoWait 必须是非负数（毫秒），得到: '{raw}'。"
-                    f"提示: 默认 5000（5 秒）；填 0 关闭 verify 自动重试"
-                ),
-            )
-        return value / 1000.0
+            return _aw.resolve_auto_wait_ms(self._global_vars) / 1000.0
+        except AutoWaitConfigError as e:
+            raise InvalidParameterError(keyword="verify", param_name=e.param_name, reason=e.message)
 
     @staticmethod
     def _web_selector(locator_type: str, locator_value: str) -> str:
@@ -2758,7 +2844,7 @@ class KeywordEngine:
                     # 找到模板 → 视为"actual 与 expected 一致"（presence check）
                     # 找不到 → actual 设为明确标识，触发不匹配
                     try:
-                        bbox = self._locate_by_vision_image(locator_value)
+                        bbox = self._locate_by_vision_image(locator_value, driver=target_driver)
                     except FileNotFoundError as ferr:
                         raise AssertionFailedError(
                             message=f"vision_image 参考图文件不存在: {locator_value}",
@@ -2780,6 +2866,7 @@ class KeywordEngine:
                     bbox = self._locate_by_perception(
                         locator_value,
                         {"type": locator_type, "value": locator_value},
+                        driver=target_driver,
                     )
                     if bbox is not None:
                         actual_str = expected
@@ -3031,30 +3118,27 @@ class KeywordEngine:
         raise InvalidParameterError(keyword="get", param_name="data", reason="缺少必需参数")
 
     def _get_model_mode(self, model_name: str, data_ref: str) -> bool:
-        """模型模式：按模型元素定位，读取各元素文本，返回 dict"""
+        """模型模式：按模型元素定位，读取各元素文本，返回 dict
+
+        v11.7.0: 每个元素独立 AutoWait 预算，元素出现即读；AutoWait 内读不到 → ElementWaitTimeoutError
+        （v11.6.0 为"静默 None + warning"）。使用模型对应的目标驱动。
+        """
         if self.model_parser.get_model_type(model_name) != MODEL_TYPE_UI:
             raise InvalidParameterError(keyword="get", param_name="model", reason=f"get 模型模式仅支持 UI 模型: '{model_name}'")
         model = self.model_parser.get_model(model_name) or {}
+        target_driver = self._get_driver_for_type(self.model_parser.get_model_driver_type(model_name))
         result = {}
         for name, elem in model.items():
             if name.startswith('__'):
                 continue
-            locator_type = elem.get("locator_type", "")
-            locator_value = elem.get("locator_value", "")
-            try:
-                if hasattr(self.driver, "get_text_locator"):
-                    if locator_type == 'id':
-                        text = self.driver.get_text_locator(f"#{locator_value}")
-                    elif locator_type == 'css':
-                        text = self.driver.get_text_locator(locator_value)
-                    else:
-                        text = self.driver.get_text_locator(f"{locator_type}={locator_value}")
-                else:
-                    text = self.driver.get_text(f"{locator_type}={locator_value}")
-                result[name] = text
-            except Exception as e:
-                logger.warning(f"get 模型模式: 元素 {name} 读取失败: {e}")
-                result[name] = None
+            candidates = self._ui_candidates(model_name, elem)
+            page_loc = next((l for l in candidates if l.get("type") == "page"), None)
+            if page_loc is not None:
+                # 页面级属性无查找阶段
+                getter = getattr(target_driver, 'get_page_property', None)
+                result[name] = getter(page_loc["value"]) if callable(getter) else None
+                continue
+            result[name] = self._wait_and_read(target_driver, f"{model_name}.{name}", candidates)
         logger.info(f"get 模型模式: {model_name} -> {result}")
         self.store_return(result)
         return True
@@ -3062,7 +3146,14 @@ class KeywordEngine:
     def _get_selector_mode(self, locator: str, var_name: str = "") -> bool:
         """UI 选择器模式（低级补充）：直接用选择器读取元素文本"""
         logger.info(f"get UI选择器: {locator}")
-        text = self.driver.get_text_locator(locator) if hasattr(self.driver, "get_text_locator") else self.driver.get_text(locator)
+        # v11.7.0: 元素出现即读，AutoWait 内读不到 → ElementWaitTimeoutError
+        target_driver = self._raw_locator_driver()
+        loc_type, loc_value = self._split_raw_locator(locator)
+        text = self._wait_and_read(
+            target_driver, locator,
+            [{"type": loc_type, "value": loc_value, "priority": 1}],
+            read_locator=lambda _loc: locator,
+        )
         if var_name:
             self._variables[var_name] = text
         self.store_return(text)
@@ -3081,9 +3172,16 @@ class KeywordEngine:
         """清空输入框"""
         locator = params.get("locator", "") or params.get("data", "")
         logger.info(f"清空: {locator}")
-        result = self.driver.clear(locator)
-        if not result:
-            raise DriverError(f"清空失败: {locator}")
+        # v11.7.0: 纳入 AutoWait；使用当前 UI 上下文的目标驱动
+        target_driver = self._raw_locator_driver()
+        # 驱动类上显式实现了 clear_locator（v11.7.0 契约）优先，否则沿用 clear(locator)
+        clear_fn = (target_driver.clear_locator
+                    if callable(getattr(type(target_driver), 'clear_locator', None))
+                    else target_driver.clear)
+        result = self._wait_and_act_raw(
+            target_driver, locator,
+            lambda loc, tmo: self._call_driver(clear_fn, loc, timeout_ms=tmo),
+        )
         self.store_return(True)
         return result
 
@@ -3207,9 +3305,12 @@ class KeywordEngine:
         locator = params.get("locator", "") or params.get("model", "")
         file_path = params.get("file_path", "") or params.get("data", "")
         logger.info(f"上传文件: {file_path} -> {locator}")
-        result = self.driver.upload_file(locator, file_path)
-        if not result:
-            raise DriverError(f"上传文件失败: {file_path}")
+        # v11.7.0: file input 纳入 AutoWait；使用当前 UI 上下文的目标驱动
+        target_driver = self._raw_locator_driver()
+        result = self._wait_and_act_raw(
+            target_driver, locator,
+            lambda loc, tmo: self._call_driver(target_driver.upload_file, loc, file_path, timeout_ms=tmo),
+        )
         self.store_return(True)
         return result
 

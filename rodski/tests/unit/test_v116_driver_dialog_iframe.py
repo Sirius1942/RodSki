@@ -181,7 +181,8 @@ class TestDriverFrame:
 
     def test_frame_failure_has_hint(self):
         drv = _driver_with_page()
-        drv.page.frame_locator.return_value.locator.return_value.first.click.side_effect = RuntimeError("Timeout 10000ms")
+        drv.page.frame_locator.return_value.locator.return_value.first.click.side_effect = RuntimeError("Timeout 10000ms exceeded")
+        drv.page.frame_locator.return_value.locator.return_value.count.return_value = 0
         with pytest.raises(DriverError) as ei:
             drv.click_locator("id=payBtn", frame="#payFrame")
         assert "frame=#payFrame" in str(ei.value) and ">>" in str(ei.value)

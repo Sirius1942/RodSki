@@ -1,0 +1,35 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>chain_form</title><script src="common.js"></script></head><body>
+<h1>链式表单 <small id="delayInfo"></small></h1>
+<!-- 时间线（d 默认 3000）：
+       页面加载 d 后出现 #fieldA；
+       #fieldA 首次输入后再过 d 出现 #btnB；
+       点击 #btnB 后再过 d 出现 #btnC；点击 #btnC 后 #chainResult =「链路完成」。
+     一行 type 批量 A/B/C：总耗时 > 3d，但每个字段各自只等 d（< AutoWait），用于证明逐字段独立计时。 -->
+<div id="box"></div>
+<div>结果：<span id="chainResult">未完成</span></div>
+<div>B 点击：<span id="bCount">0</span> / C 点击：<span id="cCount">0</span></div>
+<script>
+var d = AW.ms('d', 3000), bShown = false, nb = 0, nc = 0;
+AW.at(d, function () {
+  var a = AW.add('box', 'input', { id: 'fieldA', type: 'text', placeholder: '字段 A' });
+  a.addEventListener('input', function () {
+    if (bShown || !a.value) return;
+    bShown = true;
+    AW.at(d, function () {
+      var b = AW.add('box', 'button', { id: 'btnB', type: 'button' }, '按钮 B');
+      b.addEventListener('click', function () {
+        nb += 1; AW.set('bCount', String(nb));
+        if (nb > 1) return;
+        AW.at(d, function () {
+          var c = AW.add('box', 'button', { id: 'btnC', type: 'button' }, '按钮 C');
+          c.addEventListener('click', function () {
+            nc += 1; AW.set('cCount', String(nc)); AW.set('chainResult', '链路完成');
+          });
+        });
+      });
+    });
+  });
+});
+</script>
+</body></html>

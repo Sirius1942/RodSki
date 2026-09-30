@@ -1,0 +1,14 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>late_button</title><script src="common.js"></script></head><body>
+<h1>按钮延迟插入 <small id="delayInfo"></small></h1>
+<!-- 时间线：d 毫秒后插入 #lateBtn；每次点击 #clickCount +1（证明框架只点了一次） -->
+<div id="box"></div>
+<div>点击次数：<span id="clickCount">0</span></div>
+<script>
+var n = 0;
+AW.at(AW.ms('d', 2000), function () {
+  var b = AW.add('box', 'button', { id: 'lateBtn', type: 'button' }, '延迟按钮');
+  b.addEventListener('click', function () { n += 1; AW.set('clickCount', String(n)); });
+});
+</script>
+</body></html>

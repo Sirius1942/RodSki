@@ -1,0 +1,15 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>late_clear</title><script src="common.js"></script></head><body>
+<h1>预填输入框延迟出现 <small id="delayInfo"></small></h1>
+<!-- 时间线：d 毫秒后插入 #prefilled（预填「预填内容」）；值变化实时回显到 #clearEcho，格式「值:[...]」 -->
+<div id="box"></div>
+<div id="clearEcho">值:[未出现]</div>
+<script>
+AW.at(AW.ms('d', 2000), function () {
+  var el = AW.add('box', 'input', { id: 'prefilled', type: 'text' });
+  el.value = '预填内容';
+  AW.set('clearEcho', '值:[' + el.value + ']');
+  el.addEventListener('input', function () { AW.set('clearEcho', '值:[' + el.value + ']'); });
+});
+</script>
+</body></html>

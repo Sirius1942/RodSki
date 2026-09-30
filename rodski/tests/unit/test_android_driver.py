@@ -98,29 +98,3 @@ class TestAndroidDriver:
         result = driver.press_keycode(999)
 
         assert result == False
-
-    @patch('drivers.appium_driver.webdriver.Remote')
-    def test_inherited_click(self, mock_remote):
-        driver = AndroidDriver()
-        driver.driver = Mock()
-        driver.wait = Mock()
-        element = Mock()
-        driver.wait.until.return_value = element
-
-        result = driver.click("id=button")
-
-        assert result == True
-        element.click.assert_called_once()
-
-    @patch('drivers.appium_driver.webdriver.Remote')
-    def test_inherited_type(self, mock_remote):
-        driver = AndroidDriver()
-        driver.driver = Mock()
-        driver.wait = Mock()
-        element = Mock()
-        driver.wait.until.return_value = element
-
-        result = driver.type("id=input", "text")
-
-        assert result == True
-        element.send_keys.assert_called_once_with("text")

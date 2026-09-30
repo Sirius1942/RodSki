@@ -26,9 +26,23 @@ class PywinautoDriver(BaseDriver):
         if self.app:
             self.app.kill()
 
+    # v11.7.0: 控件定位尚未实现。显式报"不支持"而不是静默返回 None——否则自动等待会把
+    # "驱动没实现"当成"控件暂未出现"，白白等满 AutoWait 后才给出含糊的超时错误。
+    _NOT_IMPLEMENTED = ("PywinautoDriver 尚未实现控件定位（Windows 原生控件）；"
+                        "请在模型中使用视觉定位器（vision / ocr / vision_bbox），由 DesktopDriver 执行")
+
     def locate_element(self, locator_type: str, locator_value: str) -> Optional[Tuple[int, int, int, int]]:
-        """定位元素"""
-        return None
+        """定位元素（未实现）"""
+        raise NotImplementedError(self._NOT_IMPLEMENTED)
+
+    def probe(self, locator: str, frame: Optional[str] = None) -> bool:
+        raise NotImplementedError(self._NOT_IMPLEMENTED)
+
+    def click_locator(self, locator: str, **kwargs) -> bool:
+        raise NotImplementedError(self._NOT_IMPLEMENTED)
+
+    def type_locator(self, locator: str, text: str, **kwargs) -> bool:
+        raise NotImplementedError(self._NOT_IMPLEMENTED)
 
     def click(self, x: int, y: int) -> None:
         """点击坐标"""
@@ -42,8 +56,8 @@ class PywinautoDriver(BaseDriver):
         pyautogui.typewrite(text)
 
     def get_text(self, x1: int, y1: int, x2: int, y2: int) -> str:
-        """获取文字"""
-        return ""
+        """获取文字（未实现）"""
+        raise NotImplementedError("PywinautoDriver 尚未实现区域文字读取")
 
     def take_screenshot(self) -> str:
         """截图"""

@@ -319,7 +319,7 @@ def _lint_authoring(module_path: Path, case_dir: Path, case_files: List[Path],
         warnings.append(
             f"[WARNING] globalvalue.xml DefaultValue.WaitTime={raw_wait.strip()} > 0，{unit_note}；"
             f"每步固定等待约 {per_step:g}s，可执行用例共 {total_steps} 步，估算额外耗时 {per_step * total_steps:g}s。"
-            f"新模块请设 0，交互等待交给智能等待与 verify 自动重试"
+            f"新模块请设 0，交互等待交给自动等待 DefaultValue.AutoWait（所有查找测试对象的步骤）"
         )
 
     # 数据行 sql 为空且没有有效 query

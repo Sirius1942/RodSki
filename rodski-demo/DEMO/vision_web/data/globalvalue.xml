@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <globalvalue>
+  <group name="DefaultValue">
+    <!-- 自动等待（毫秒）：查找测试对象（type 每个字段 / verify / get 等）最多等 5000ms，元素出现即继续；不设置 = 不自动等待 -->
+    <var name="AutoWait" value="5000"/>
+  </group>
   <group name="VisionConfig">
     <!-- Claude 配置 -->
     <var name="ANTHROPIC_API_KEY" value="your_anthropic_key_here"/>

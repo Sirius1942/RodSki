@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- v11.7.0 负向（expect_fail）：遮罩永不移除 → click 必须失败（证明没有 force / JS 点击降级），耗时 ≈ AutoWait -->
+<cases tags="v117,autowait,negative">
+  <case execute="是" id="TC001" title="遮罩永不移除：click 必须失败" component_type="界面" priority="P0" expect_fail="是">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/overlay.html?d=-1"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="Overlay" data="C001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+</cases>

@@ -1,0 +1,23 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>AutoWait 验收站点</title></head><body>
+<h1>AutoWait 验收站点（v11.7.0）</h1>
+<p>每个页面用 <code>?d=毫秒</code> 控制延迟，<code>d&lt;0</code> 表示永不发生。</p>
+<ul>
+  <li><a href="late_input.html?d=2000">late_input</a> 输入框 d 后插入</li>
+  <li><a href="late_button.html?d=2000">late_button</a> 按钮 d 后插入，点击计数</li>
+  <li><a href="disabled_button.html?d=2000">disabled_button</a> 按钮 d 后 enabled</li>
+  <li><a href="overlay.html?d=2000">overlay</a> 遮罩 d 后移除（d=-1 永不移除）</li>
+  <li><a href="hidden_button.html?d=2000">hidden_button</a> 按钮 d 后显示</li>
+  <li><a href="async_select.html?d=2000">async_select</a> 选项 d 后异步填充</li>
+  <li><a href="late_hover.html?d=2000">late_hover</a> 悬停目标 d 后出现</li>
+  <li><a href="late_dblclick.html?d=2000">late_dblclick</a> 双击目标 d 后出现</li>
+  <li><a href="late_contextmenu.html?d=2000">late_contextmenu</a> 右键目标 d 后出现</li>
+  <li><a href="late_iframe.html?d=2000">late_iframe</a> iframe d 后插入</li>
+  <li><a href="chain_form.html?d=3000">chain_form</a> A/B/C 链式出现</li>
+  <li><a href="multi_locator.html?d=2000">multi_locator</a> 第 1 个定位器永不命中</li>
+  <li><a href="late_get.html?d=2000">late_get</a> 文本 d 后出现</li>
+  <li><a href="late_clear.html?d=2000">late_clear</a> 预填输入框 d 后出现</li>
+  <li><a href="late_upload.html?d=2000">late_upload</a> file input d 后出现</li>
+  <li><a href="ready.html">ready</a> 全部元素立即就绪</li>
+</ul>
+</body></html>

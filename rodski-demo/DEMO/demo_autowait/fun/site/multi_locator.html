@@ -1,0 +1,14 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>multi_locator</title><script src="common.js"></script></head><body>
+<h1>多定位器 <small id="delayInfo"></small></h1>
+<!-- 时间线：d 毫秒后插入 #realBtn；模型第 1 个 location（#neverExists）永不命中，第 2 个命中 #realBtn -->
+<div id="box"></div>
+<div>点击次数：<span id="mlCount">0</span></div>
+<script>
+var n = 0;
+AW.at(AW.ms('d', 2000), function () {
+  var b = AW.add('box', 'button', { id: 'realBtn', type: 'button' }, '真实按钮');
+  b.addEventListener('click', function () { n += 1; AW.set('mlCount', String(n)); });
+});
+</script>
+</body></html>

@@ -184,10 +184,17 @@ class TestUIKeywords:
         engine.execute("get_text", {"locator": "#heading", "var_name": "heading_text"})
         assert engine._variables["heading_text"] == "Hello World"
 
-    def test_get_text_returns_false_on_none(self, engine, mock_driver):
-        mock_driver.get_text_locator.return_value = None
-        result = engine.execute("get_text", {"locator": "#missing", "var_name": "v"})
-        assert result is True
+    def test_get_text_missing_element_fails_after_auto_wait(self, mock_driver):
+        """v11.7.0 (D4): 读不到元素不再静默 None，AutoWait 内未出现 → ElementWaitTimeoutError。"""
+        try:
+            from rodski.core.auto_wait import ElementWaitTimeoutError
+        except ImportError:
+            from core.auto_wait import ElementWaitTimeoutError
+        mock_driver.probe.return_value = False
+        engine = KeywordEngine(mock_driver, global_vars={"DefaultValue": {"AutoWait": "0"}})
+        with pytest.raises(ElementWaitTimeoutError, match="AutoWait=0ms"):
+            engine.execute("get_text", {"locator": "#missing", "var_name": "v"})
+        mock_driver.get_text_locator.assert_not_called()
 
     def test_upload_file_failure(self, engine, mock_driver):
         try:
@@ -195,6 +202,7 @@ class TestUIKeywords:
         except ImportError:
             from core.exceptions import DriverError, RetryExhaustedError
         mock_driver.upload_file.return_value = False
+        engine._global_vars = {"DefaultValue": {"AutoWait": "0"}}  # v11.7.0: 不必等满默认 5s
         with pytest.raises((DriverError, RetryExhaustedError)):
             engine.execute(
                 "upload_file", {"locator": "#file", "file_path": "/nonexistent"}
@@ -344,7 +352,7 @@ class TestAdvancedKeywords:
 
 
 class TestRetryMechanism:
-    """重试机制测试"""
+    """重试机制测试（v11.7.0: clear 等元素步骤已纳入 AutoWait，步骤级重试改用 navigate 验证）"""
 
     def test_retry_success_on_second_attempt(self, mock_driver):
         """测试第二次尝试成功"""
@@ -360,12 +368,12 @@ class TestRetryMechanism:
                 raise RuntimeError("ElementNotFound: #input")
             return True
         
-        mock_driver.clear = flaky_clear
-        result = engine.execute("clear", {"locator": "#input"})
+        mock_driver.navigate = flaky_clear
+        result = engine.execute("navigate", {"url": "http://x/"})
         
         assert result is True
         assert call_count[0] == 2
-        assert engine.get_retry_stats()["clear"] == [1]
+        assert engine.get_retry_stats()["navigate"] == [1]
 
     def test_retry_exhausted(self, mock_driver):
         """测试重试次数耗尽"""
@@ -377,12 +385,12 @@ class TestRetryMechanism:
         def always_fail(locator):
             raise RuntimeError("ElementNotFound: #input")
         
-        mock_driver.clear = always_fail
+        mock_driver.navigate = always_fail
         
         with pytest.raises(RetryExhaustedError) as exc_info:
-            engine.execute("clear", {"locator": "#input"})
+            engine.execute("navigate", {"url": "http://x/"})
 
-        assert exc_info.value.details.get("keyword") == "clear"
+        assert exc_info.value.details.get("keyword") == "navigate"
         assert exc_info.value.attempts == 3  # 1 original + 2 retries
         assert "ElementNotFound" in str(exc_info.value.last_error)
 
@@ -397,15 +405,15 @@ class TestRetryMechanism:
         def fail_with_invalid_param(locator):
             call_count[0] += 1
             raise InvalidParameterError(
-                keyword="clear", 
+                keyword="navigate", 
                 param_name="locator", 
                 reason="测试参数错误"
             )
         
-        mock_driver.clear = fail_with_invalid_param
+        mock_driver.navigate = fail_with_invalid_param
         
         with pytest.raises(InvalidParameterError):
-            engine.execute("clear", {"locator": "#input"})
+            engine.execute("navigate", {"url": "http://x/"})
         
         # InvalidParameterError 不应该触发重试
         assert call_count[0] == 1
@@ -422,10 +430,10 @@ class TestRetryMechanism:
             call_count[0] += 1
             raise RuntimeError("ElementNotFound: #input")
 
-        mock_driver.clear = fail_once
+        mock_driver.navigate = fail_once
 
         with pytest.raises(RetryExhaustedError):
-            engine.execute("clear", {"locator": "#input"})
+            engine.execute("navigate", {"url": "http://x/"})
 
         assert call_count[0] == 1
 
@@ -445,10 +453,10 @@ class TestRetryMechanism:
             call_count[0] += 1
             raise RuntimeError("ElementNotFound: #input")
         
-        mock_driver.clear = fail_with_element_not_found
+        mock_driver.navigate = fail_with_element_not_found
         
         with pytest.raises(RuntimeError):
-            engine.execute("clear", {"locator": "#input"})
+            engine.execute("navigate", {"url": "http://x/"})
         
         assert call_count[0] == 1
 
@@ -478,12 +486,12 @@ class TestRetryMechanism:
                 raise RuntimeError("ElementNotFound: #input")
             return True
         
-        mock_driver.clear = flaky_clear
-        engine.execute("clear", {"locator": "#input"})
+        mock_driver.navigate = flaky_clear
+        engine.execute("navigate", {"url": "http://x/"})
         
         stats = engine.get_retry_stats()
-        assert "clear" in stats
-        assert stats["clear"][0] == 2
+        assert "navigate" in stats
+        assert stats["navigate"][0] == 2
 
 
 class TestRunKeyword:

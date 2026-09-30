@@ -1,0 +1,15 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>disabled_button</title><script src="common.js"></script></head><body>
+<h1>按钮先 disabled 后 enabled <small id="delayInfo"></small></h1>
+<!-- 时间线：#disBtn 立即存在但 disabled；d 毫秒后 enabled。点击时若仍 disabled 记入 #earlyClicks（不应发生） -->
+<button id="disBtn" type="button" disabled>提交</button>
+<div>结果：<span id="disResult">未点击</span></div>
+<div>次数：<span id="disCount">0</span></div>
+<script>
+var n = 0;
+AW.$('disBtn').addEventListener('click', function () {
+  n += 1; AW.set('disCount', String(n)); AW.set('disResult', '已提交');
+});
+AW.at(AW.ms('d', 2000), function () { AW.$('disBtn').disabled = false; });
+</script>
+</body></html>

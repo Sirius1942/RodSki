@@ -1,0 +1,14 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>hidden_button</title><script src="common.js"></script>
+<style>#hidBtn { display: none; }</style>
+</head><body>
+<h1>按钮先隐藏后显示 <small id="delayInfo"></small></h1>
+<!-- 时间线：#hidBtn 在 DOM 中但 display:none，d 毫秒后显示 -->
+<button id="hidBtn" type="button">隐藏按钮</button>
+<div>次数：<span id="hidCount">0</span></div>
+<script>
+var n = 0;
+AW.$('hidBtn').addEventListener('click', function () { n += 1; AW.set('hidCount', String(n)); });
+AW.at(AW.ms('d', 2000), function () { AW.$('hidBtn').style.display = 'inline-block'; });
+</script>
+</body></html>

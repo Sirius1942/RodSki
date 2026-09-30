@@ -87,7 +87,7 @@ class TestAppiumGetElementText:
         mock_el = MagicMock()
         mock_el.text = "欢迎，admin"
         mock_el.get_attribute = Mock(return_value="")
-        driver.driver.find_element.return_value = mock_el
+        driver.driver.find_elements.return_value = [mock_el]
         result = driver.get_element_text_by_locator("id", "com.rodski.demo:id/welcomeText")
         assert result == "欢迎，admin"
 
@@ -98,7 +98,7 @@ class TestAppiumGetElementText:
         mock_el.get_attribute.side_effect = lambda attr: {
             "value": "", "label": "", "name": "", "content-desc": "欢迎按钮"
         }.get(attr, "")
-        driver.driver.find_element.return_value = mock_el
+        driver.driver.find_elements.return_value = [mock_el]
         result = driver.get_element_text_by_locator("id", "btn")
         assert result == "欢迎按钮"
 
@@ -108,14 +108,14 @@ class TestAppiumGetElementText:
         mock_el = MagicMock()
         mock_el.text = ""
         mock_el.get_attribute = Mock(return_value="")
-        driver.driver.find_element.return_value = mock_el
+        driver.driver.find_elements.return_value = [mock_el]
         with pytest.raises(ElementNotFoundError):
             driver.get_element_text_by_locator("id", "emptyField")
 
     def test_get_text_element_not_found_raises_error(self, mock_remote):
         from core.exceptions import ElementNotFoundError
         driver = _make_driver(mock_remote)
-        driver.driver.find_element.side_effect = Exception("No such element")
+        driver.driver.find_elements.return_value = []
         with pytest.raises(ElementNotFoundError):
             driver.get_element_text_by_locator("id", "nonexistent")
 
