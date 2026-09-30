@@ -67,33 +67,26 @@ class TestAppiumScroll:
 
 @patch('drivers.appium_driver.webdriver.Remote')
 class TestAppiumDrag:
-    """T48-002: drag 使用 mobile: dragGesture"""
+    """T48-002 / v11.7.0: drag 使用 mobile: dragGesture；元素未找到抛 ElementNotFoundError"""
+
+    @staticmethod
+    def _el(x, y, w, h):
+        el = Mock()
+        el.rect = {"x": x, "y": y, "width": w, "height": h}
+        return el
 
     def test_drag_uses_mobile_drag_gesture(self, mock_remote):
-        """drag 使用 mobile: dragGesture"""
         driver = _make_driver(mock_remote)
-        # mock locate_element 返回两个 bbox
-        driver.locate_element = Mock(side_effect=[
-            (10, 20, 60, 70),    # 源元素
-            (200, 300, 250, 350) # 目标元素
-        ])
-        driver.drag("id=source", "id=target")
+        driver.driver.find_elements.side_effect = [[self._el(10, 20, 50, 50)], [self._el(200, 300, 50, 50)]]
+        assert driver.drag("id=source", "id=target", timeout_ms=100) is True
         call_args = driver.driver.execute_script.call_args
         assert call_args[0][0] == "mobile: dragGesture"
-        params = call_args[0][1]
-        assert params["startX"] == 35   # (10+60)//2
-        assert params["startY"] == 45   # (20+70)//2
-        assert params["endX"] == 225    # (200+250)//2
-        assert params["endY"] == 325    # (300+350)//2
+        assert call_args[0][1] == {"startX": 35, "startY": 45, "endX": 225, "endY": 325}
 
-    def test_drag_source_not_found_returns_false(self, mock_remote):
+    def test_drag_source_not_found_raises(self, mock_remote):
+        from core.exceptions import ElementNotFoundError
         driver = _make_driver(mock_remote)
-        driver.locate_element = Mock(return_value=None)
-        result = driver.drag("id=source", "id=target")
-        assert result is False
+        driver.driver.find_elements.return_value = []
+        with pytest.raises(ElementNotFoundError):
+            driver.drag("id=source", "id=target", timeout_ms=100)
 
-    def test_drag_target_not_found_returns_false(self, mock_remote):
-        driver = _make_driver(mock_remote)
-        driver.locate_element = Mock(side_effect=[(10, 20, 60, 70), None])
-        result = driver.drag("id=source", "id=target")
-        assert result is False

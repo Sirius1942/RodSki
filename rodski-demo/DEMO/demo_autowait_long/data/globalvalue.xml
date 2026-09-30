@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<globalvalue>
+  <group name="DefaultValue">
+    <!-- AutoWait=12000：证明等待上限可配置（v11.7.0 边界） -->
+    <var name="AutoWait" value="12000"/>
+  </group>
+  <group name="Site">
+    <!-- 与 demo_autowait 共用站点（../demo_autowait/fun/site），由其 run_acceptance.py 启动 -->
+    <var name="URL" value="http://127.0.0.1:8767"/>
+  </group>
+</globalvalue>

@@ -113,17 +113,11 @@ class TestPywinautoDriver:
 
     # ── get_text 测试 ─────────────────────────────────────────────────
 
-    def test_get_text(self):
-        """get_text(x1, y1, x2, y2) 应返回空字符串（当前实现）"""
+    def test_get_text_not_implemented(self):
+        """v11.7.0: 未实现的能力显式报错，而不是静默返回空字符串"""
         driver = PywinautoDriver()
-        result = driver.get_text(0, 0, 100, 100)
-        assert result == ""
-
-    def test_get_text_returns_str(self):
-        """get_text 始终返回 str 类型"""
-        driver = PywinautoDriver()
-        result = driver.get_text(10, 20, 30, 40)
-        assert isinstance(result, str)
+        with pytest.raises(NotImplementedError):
+            driver.get_text(0, 0, 100, 100)
 
     # ── take_screenshot 测试 ──────────────────────────────────────────
 
@@ -263,11 +257,13 @@ class TestPywinautoDriver:
 
     # ── locate_element 测试 ───────────────────────────────────────────
 
-    def test_locate_element(self):
-        """locate_element 当前实现始终返回 None"""
+    def test_locate_element_not_implemented(self):
+        """v11.7.0: 控件定位未实现 → NotImplementedError（自动等待据此立即报"不支持"，不会等满 AutoWait）"""
         driver = PywinautoDriver()
-        result = driver.locate_element("id", "some_element")
-        assert result is None
+        with pytest.raises(NotImplementedError, match="视觉定位器"):
+            driver.locate_element("id", "some_element")
+        with pytest.raises(NotImplementedError):
+            driver.probe("id=some_element")
 
     # ── wait 测试（继承自 BaseDriver）────────────────────────────────
 

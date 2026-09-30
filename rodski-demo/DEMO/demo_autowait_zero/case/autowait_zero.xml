@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- v11.7.0 边界 AutoWait=0：元素 1.5s 后才出现 → 立即失败（< 1.5s，expect_fail）；就绪元素正常通过 -->
+<cases tags="v117,autowait,boundary">
+  <case execute="是" id="TC001" title="AutoWait=0：1.5s 后出现的按钮 click 立即失败" component_type="界面" priority="P0" expect_fail="是">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/late_button.html?d=1500"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="LateButton" data="C001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+  <case execute="是" id="TC002" title="AutoWait=0：1.5s 后出现的输入框输入立即失败" component_type="界面" priority="P0" expect_fail="是">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/late_input.html?d=1500"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="LateInput" data="I001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+  <case execute="是" id="TC003" title="AutoWait=0：就绪页面正常通过" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/ready.html"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="ReadyForm" data="R001"/>
+      <test_step action="verify" model="ReadyForm" data="V001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+</cases>

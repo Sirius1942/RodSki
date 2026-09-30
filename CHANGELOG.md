@@ -1,6 +1,61 @@
 # Changelog
 
 
+## [11.7.1] - 2026-09-30
+
+`AutoWait` 取消隐含默认时长，规则更简单（Owner 决策）。
+
+### Changed
+
+- **不设置 `DefaultValue.AutoWait` 或写 `0` = 不自动等待**：每个定位器只尝试一次，找不到立即失败；UI `verify` 单次比对。要自动等待必须在 `globalvalue.xml` 显式写时长，推荐 `<var name="AutoWait" value="5000"/>`。11.6.0 / 11.7.0 开发期的"不设置 = 5000ms"不再成立。
+- 非数字取值（如 `default`）执行前报错并给出 `value="5000"` 示例。
+- `rodski init` 生成的 `globalvalue.xml` 默认写 `AutoWait=5000`。
+- rodski-demo 全部模块显式配置 `AutoWait=5000`（`demo_autowait_zero` 刻意不设置，验证不自动等待；`demo_authoring_v116_no_retry` 保持 `0`；`demo_autowait_long` 保持 `12000`）；原先没有 `globalvalue.xml` 的 5 个模块补建。
+- 文档：CORE §4.6.5 / §7.4 / §13、GUIDE §5.7.2 / §6.4.2、SKILL_REFERENCE、AGENT_INTEGRATION、README、rodski-skills 同步。
+
+### 升级须知
+
+- **升级到 11.7.1 后，globalvalue 没写 `AutoWait` 的模块不再自动等待**（包括 11.6.0 的 UI `verify` 自动重试）。请在每个模块的 `globalvalue.xml` → `DefaultValue` 组加入 `<var name="AutoWait" value="5000"/>`。
+
+## [11.7.0] - 2026-09-30（未单独发布，随 11.7.1 一起发布）
+
+自动等待统一接管元素查找。不新增关键字（仍为 17 个），`case.xsd` / `model.xsd` 不变。设计：`.pb/specs/v11.7.0-autowait-unified-design.md`；迭代：`.pb/iterations/iteration-65/`。
+
+### Changed
+
+- `DefaultValue.AutoWait`（自动等待，毫秒）成为**所有驱动（Web / Android / iOS / 桌面视觉）、所有查找测试对象步骤**的唯一等待上限：`type` 单字段与批量的**每一个字段**（输入、`click` / `double_click` / `right_click` / `hover` / `select【】`、`key_press【】` 目标、`drag【】` 两端）、UI `verify` / `check`（含视觉定位字段）、`get` / `get_text`、`type` 后自动取值、`clear`、`upload_file`、视觉定位（每轮新截图）。
+- 实现形态：公共层 `rodski/core/auto_wait.py` 的 `run_element` —— try 查找并执行 → 只捕获"未找到 / 不可操作 / 已失效 / 单次超时"（白名单）→ 等待 200ms（视觉 1000ms）→ 再执行；成功即继续，超过 AutoWait 抛 `ElementWaitTimeoutError`（SKI326），信息含元素名、尝试过的定位器与 `AutoWait=Nms`。其余异常立即抛出，不等待。
+- 按元素计时：每个字段独立一份预算；同一元素的多个 `<location>` 共享这一份预算（失败耗时 ≈ 1 × AutoWait，不再是 N × 驱动超时）。
+- PlaywrightDriver：删除 `wait_for_selector` 吞异常、硬编码 5000/3000ms、force 点击、JS 点击、JS 赋值降级；select / hover / dblclick / 右键 / drag / clear / upload / get_text 统一定位器转换并使用剩余预算；原生异常转换为 `ElementNotFoundError` / `ElementNotInteractableError`（SKI327）/ `StaleElementError` / `DriverStoppedError`。
+- AppiumDriver：删除 `WebDriverWait(driver, 10)`（它还遮蔽了 `BaseDriver.wait()`），启动时 `implicitly_wait(0)`；每次调用一次即时查找 + 一次动作；`hover` / `select` / `long_press` 与 `click` / `type` 使用同一套定位器解析；新增 `clear_locator` / `get_text_locator`；`clear` / `get` / 自动取值改用模型对应的移动端驱动。
+- DesktopDriver：视觉定位每轮强制新截图（绕过 0.5s 截图缓存），未匹配抛异常；补 `double_click_locator` / `right_click_locator` / `hover_locator` / `key_press`，`drag【】` 支持定位器；`select【】` 明确报不支持。PywinautoDriver 未实现的定位显式报错。
+- 视觉定位截图改用模型对应的目标驱动（之前固定截 Web 页面）。
+- 截图统一 10s 超时（修复 full 模式逐步截图偶发阻塞 30s）。
+- `RetryExhaustedError` 文案：未配置步骤级重试时不再显示"重试 1 次"。
+
+### Removed
+
+- 从未生效的配置：`smart_wait_enabled` / `smart_wait_max_retries` / `smart_wait_retry_interval` / `smart_wait_log_retry` / `element_wait_timeout` / `element_retry_interval` / `retry` / `retry_delay` / `retry_on_errors`（`config.json` 与 `ConfigManager.DEFAULTS`）。用户配置中仍存在时打印一次废弃警告。CORE §13"智能等待机制"（所述机制在代码中从未接通）重写为"自动等待（AutoWait）机制"。
+
+### Fixed
+
+- `get` 模型模式 / `type` 后自动取值读不到元素时静默返回空值 → 现在 AutoWait 后失败。`demo_full` TC014A 因此暴露，按 `.pb/specs/rodski-demo-issues.md` 标为 `expect_fail`。
+- 桌面端 `verify` 调用 4 参数 `get_text(locator)` 导致 TypeError。
+- iOS `scroll` 与 `type` 批量 `scroll【x,y】` 调用签名不匹配。
+
+### 兼容性影响
+
+1. 元素查找不再使用驱动内置超时（Web 10s / 30s、移动端 10s），统一由 `AutoWait` 决定（11.7.1 起须显式设置）。
+2. force 点击 / JS 点击 / JS 赋值降级已删除：被遮挡且遮挡不消失的元素现在会失败（正确行为）。
+3. `get` 读不到元素由"静默空值 + warning"改为失败。
+4. UI `verify` 含视觉字段时也会在 AutoWait 内重试。
+
+### 验收
+
+- `rodski-demo/DEMO/demo_autowait`（5000）/ `demo_autowait_zero`（不设置）/ `demo_autowait_long`（12000）：`run_acceptance.py` 30 项（15 个延迟测试页 × 各类动作、逐字段计时、多定位器共享预算、20s 元素 ≈5s 失败、遮罩不消失必须失败、AutoWait=0 立即失败、调大后可等到）。
+- `mobile_app/case/autowait.xml` + `scripts/run_autowait_acceptance.py`（Android 模拟器，mock 延迟 `MOCK_DELAY_MS`）；`mobile_app/case/login.xml` 删除全部固定 `wait`。
+- 桌面视觉：单元测试（mock 截图序列）覆盖，本机无感知服务未做 demo 实跑。
+
 ## [11.6.0] - 2026-09-29
 
 AI 编写效率、断言可靠性与执行性能。不新增关键字（仍为 17 个），`case.xsd` 不变；新能力只通过 `verify` 操作符、`model.xsd`、数据表字段值、`run` 内置函数、`globalvalue` 配置和 CLI 参数提供。设计：`.pb/specs/v11.6.0-ai-authoring-and-performance-design.md`（v0.2）；迭代：`.pb/iterations/iteration-64/`。

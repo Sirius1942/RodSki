@@ -22,6 +22,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Callable, Mapping, Optional, Tuple
 
+from .auto_wait import AutoWaitConfigError, resolve_auto_wait_ms
+
 logger = logging.getLogger("rodski")
 
 SESSION_ISOLATED = "isolated"
@@ -94,23 +96,21 @@ def validate_default_values(global_vars: Optional[Mapping[str, Any]]) -> None:
     Raises:
         ValueError: 取值非法，信息含合法取值与修复提示。
     """
-    if _default_value(global_vars, "VerifyTimeout"):
-        raise ValueError(
-            "globalvalue.xml DefaultValue.VerifyTimeout 已更名为 DefaultValue.AutoWait（自动等待，单位毫秒，默认 5000）。"
-            "修复: 改写为 <var name=\"AutoWait\" value=\"5000\"/>；填 0 关闭 verify 自动重试"
-        )
-    for key, unit, default in (("WaitTime", "毫秒", "0"), ("AutoWait", "毫秒", "5000")):
-        raw = _default_value(global_vars, key)
-        if not raw:
-            continue
+    # v11.7.0: AutoWait / 旧键 VerifyTimeout 与 KeywordEngine 共用 core.auto_wait 的解析
+    try:
+        resolve_auto_wait_ms(global_vars)
+    except AutoWaitConfigError as e:
+        raise ValueError(f"globalvalue.xml {e.message}") from None
+    raw = _default_value(global_vars, "WaitTime")
+    if raw:
         try:
             ok = float(raw) >= 0
         except ValueError:
             ok = False
         if not ok:
             raise ValueError(
-                f"globalvalue.xml DefaultValue.{key} 取值 '{raw}' 非法，必须是非负数（单位{unit}，默认 {default}）。"
-                f"修复: 写 <var name=\"{key}\" value=\"{default}\"/>"
+                f"globalvalue.xml DefaultValue.WaitTime 取值 '{raw}' 非法，必须是非负数（单位毫秒，默认 0）。"
+                f"修复: 写 <var name=\"WaitTime\" value=\"0\"/>"
             )
     raw = _default_value(global_vars, "DialogPolicy")
     if raw and raw.lower() not in DIALOG_POLICIES:
@@ -151,7 +151,7 @@ def resolve_wait_time(raw: Any) -> Tuple[float, Optional[str]]:
             f"[弃用] DefaultValue.WaitTime={text} 按旧单位「秒」兼容解释（每步等待 {value:g} 秒）。"
             f"v11.6.0 起 WaitTime 单位统一为毫秒（与 <cases step_wait> 一致），"
             f"≤30 的旧值将在后续版本按毫秒解释。请改写为 WaitTime={ms}（毫秒），"
-            f"或写 0 把交互等待交给智能等待与 verify 自动重试"
+            f"或写 0 把交互等待交给自动等待 DefaultValue.AutoWait"
         )
         return value, warning
     return value / 1000.0, None

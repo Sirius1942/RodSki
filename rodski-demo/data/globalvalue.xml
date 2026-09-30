@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <globalvalue>
     <group name="DefaultValue">
+    <!-- 自动等待（毫秒）：查找测试对象（type 每个字段 / verify / get 等）最多等 5000ms，元素出现即继续；不设置 = 不自动等待 -->
+    <var name="AutoWait" value="5000"/>
         <var name="URL" value="http://localhost:8000"/>
         <var name="BrowserType" value="chromium"/>
         <!-- WaitTime 单位毫秒（v11.6.0 起，与 <cases step_wait> 一致） -->

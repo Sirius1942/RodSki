@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- v11.7.0 逐字段独立计时：A 3s 出现、输入 A 后 3s 出现 B、点 B 后 3s 出现 C；一行 type 批量总耗时 >9s，但每字段 <5s → 必须通过 -->
+<cases tags="v117,autowait">
+  <case execute="是" id="TC001" title="链式表单一行 type 批量 A/B/C" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/chain_form.html?d=3000"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="ChainForm" data="A001"/>
+      <test_step action="verify" model="ChainForm" data="V001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+</cases>

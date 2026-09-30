@@ -18,10 +18,19 @@
 真机连通（USB，推荐，免局域网 IP 漂移）：
   adb reverse tcp:8000 tcp:8000
   # APK 的 API_BASE_URL 指向 http://127.0.0.1:8000 即可命中本机服务
+
+响应延迟（v11.7.0 自动等待验收，让 App 端呈现真实异步）：
+  MOCK_DELAY_MS          登录与订单接口在响应前 sleep 的毫秒数（默认 0 = 立即响应，行为不变）
+  MOCK_LOGIN_DELAY_MS    仅覆盖 /api/login 的延迟（未设置时取 MOCK_DELAY_MS）
+  MOCK_ORDERS_DELAY_MS   仅覆盖 /api/orders 的延迟（未设置时取 MOCK_DELAY_MS）
+  注意：App 的 OkHttp 默认 readTimeout=10s，延迟 >10s 时 App 侧表现为请求失败
+  （登录页显示"网络错误"、订单列表保持为空），即元素永远不会出现。
 """
 from __future__ import annotations
 
 import argparse
+import os
+import time
 
 from flask import Flask, jsonify, request
 
@@ -36,8 +45,26 @@ ORDERS = [
 ]
 
 
+def _delay_ms(specific_env: str) -> int:
+    """读取接口延迟（毫秒）：专用变量优先，否则取 MOCK_DELAY_MS，默认 0。"""
+    raw = os.environ.get(specific_env)
+    if raw is None or raw.strip() == "":
+        raw = os.environ.get("MOCK_DELAY_MS", "0")
+    try:
+        return max(0, int(raw))
+    except ValueError:
+        return 0
+
+
+def _sleep_before_response(specific_env: str) -> None:
+    ms = _delay_ms(specific_env)
+    if ms > 0:
+        time.sleep(ms / 1000.0)
+
+
 @app.post("/api/login")
 def login():
+    _sleep_before_response("MOCK_LOGIN_DELAY_MS")
     payload = request.get_json(silent=True) or {}
     username = payload.get("username", "")
     password = payload.get("password", "")
@@ -58,6 +85,7 @@ def login():
 
 @app.get("/api/orders")
 def orders():
+    _sleep_before_response("MOCK_ORDERS_DELAY_MS")
     return jsonify({"success": True, "data": ORDERS})
 
 
@@ -71,8 +99,13 @@ def main() -> None:
     parser.add_argument("--host", default="0.0.0.0", help="监听地址（默认 0.0.0.0）")
     parser.add_argument("--port", type=int, default=8000, help="监听端口（默认 8000）")
     args = parser.parse_args()
-    print(f"mock backend 启动: http://{args.host}:{args.port}  有效账号 demo/demo123")
-    app.run(host=args.host, port=args.port, debug=False)
+    print(
+        f"mock backend 启动: http://{args.host}:{args.port}  有效账号 demo/demo123  "
+        f"延迟 login={_delay_ms('MOCK_LOGIN_DELAY_MS')}ms orders={_delay_ms('MOCK_ORDERS_DELAY_MS')}ms",
+        flush=True,
+    )
+    # threaded=True：延迟响应期间 /health 等请求不被阻塞
+    app.run(host=args.host, port=args.port, debug=False, threaded=True)
 
 
 if __name__ == "__main__":

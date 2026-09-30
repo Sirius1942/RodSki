@@ -1,0 +1,14 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>late_dblclick</title><script src="common.js"></script></head><body>
+<h1>双击目标延迟出现 <small id="delayInfo"></small></h1>
+<!-- 时间线：d 毫秒后插入 #dblTarget；双击次数记入 #dblCount -->
+<div id="box"></div>
+<div>双击次数：<span id="dblCount">0</span></div>
+<script>
+var n = 0;
+AW.at(AW.ms('d', 2000), function () {
+  var t = AW.add('box', 'div', { id: 'dblTarget', style: 'display:inline-block;padding:8px;background:#efe' }, '双击我');
+  t.addEventListener('dblclick', function () { n += 1; AW.set('dblCount', String(n)); });
+});
+</script>
+</body></html>

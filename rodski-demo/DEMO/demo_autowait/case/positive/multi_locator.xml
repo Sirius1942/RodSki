@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- v11.7.0 多定位器共享一个 AutoWait 预算：第 1 个 location 永不命中，第 2 个 2s 后命中 → 耗时 ≈ 2s（不是 AutoWait + 2s） -->
+<cases tags="v117,autowait">
+  <case execute="是" id="TC001" title="第 1 个定位器永不命中、第 2 个 2s 后命中" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/multi_locator.html?d=2000"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="MultiLocator" data="M001"/>
+      <test_step action="verify" model="MultiLocator" data="V001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+</cases>

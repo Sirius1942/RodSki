@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- v11.7.0 负向（expect_fail）：元素 20s 后才出现，超过默认 AutoWait=5000ms → 步骤必须失败，
+     失败耗时 ∈ [4.5, 7.5]s（不是 10s / 30s），错误信息须含 "AutoWait=5000" 与元素名 -->
+<cases tags="v117,autowait,negative">
+  <case execute="是" id="TC001" title="按钮 20s 才出现：click 失败" component_type="界面" priority="P0" expect_fail="是">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/late_button.html?d=20000"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="LateButton" data="C001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+  <case execute="是" id="TC002" title="输入框 20s 才出现：输入失败" component_type="界面" priority="P0" expect_fail="是">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/late_input.html?d=20000"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="LateInput" data="I001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+  <case execute="是" id="TC003" title="select 20s 才出现：select 失败" component_type="界面" priority="P0" expect_fail="是">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/async_select.html?sd=20000&amp;d=0"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="AsyncSelect" data="S001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+  <case execute="是" id="TC004" title="悬停目标 20s 才出现：hover 失败" component_type="界面" priority="P0" expect_fail="是">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/late_hover.html?d=20000"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="LateHover" data="H001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+  <case execute="是" id="TC005" title="文本 20s 才出现：get 失败（不再静默返回 None）" component_type="界面" priority="P0" expect_fail="是">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/late_get.html?d=20000"/>
+    </pre_process>
+    <test_case>
+      <test_step action="get" model="LateGet" data="G001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+  <case execute="是" id="TC006" title="输入框 20s 才出现：clear 失败" component_type="界面" priority="P0" expect_fail="是">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/late_clear.html?d=20000"/>
+    </pre_process>
+    <test_case>
+      <test_step action="clear" model="" data="#prefilled"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+</cases>

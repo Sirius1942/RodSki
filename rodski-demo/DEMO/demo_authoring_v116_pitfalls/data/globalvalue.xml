@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <globalvalue>
   <group name="DefaultValue">
+    <!-- 自动等待（毫秒）：查找测试对象（type 每个字段 / verify / get 等）最多等 5000ms，元素出现即继续；不设置 = 不自动等待 -->
+    <var name="AutoWait" value="5000"/>
     <!-- 故意保留旧写法：WaitTime=1（旧单位为秒）。v11.6.0 起按毫秒，≤30 的旧值按秒兼容并告警（V17） -->
     <var name="WaitTime" value="1"/>
   </group>

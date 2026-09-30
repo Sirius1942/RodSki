@@ -22,6 +22,7 @@ from ..core.exceptions import (
     DriverError,
     DriverStoppedError,
     ElementNotFoundError,
+    InvalidParameterError,
 )
 
 logger = logging.getLogger("rodski")
@@ -501,12 +502,13 @@ class DesktopDriver(BaseDriver):
 
     def drag(
         self,
-        from_x: int,
-        from_y: int,
-        to_x: int,
-        to_y: int,
-        duration: float = 0.5
-    ) -> None:
+        from_x,
+        from_y=None,
+        to_x: int = None,
+        to_y: int = None,
+        duration: float = 0.5,
+        timeout_ms: Optional[float] = None,
+    ) -> Any:
         """拖拽操作
 
         Args:
@@ -517,6 +519,11 @@ class DesktopDriver(BaseDriver):
             duration: 拖拽持续时间（秒）
         """
         self._check_driver_alive()
+        if isinstance(from_x, str):
+            # type 批量 drag【目标】：drag(源 locator, 目标 locator)，两端各新截图定位一次
+            (fx, fy), (tx, ty) = self._locator_to_center(from_x), self._locator_to_center(from_y)
+            self.move_to(fx, fy)
+            return self.drag(fx, fy, tx, ty, duration)
         pyautogui = self._get_pyautogui()
         pyautogui.drag(
             to_x - from_x,
@@ -612,8 +619,13 @@ class DesktopDriver(BaseDriver):
             return loc_type.strip(), loc_value.strip()
         raise DriverError(f"无法解析 locator 格式: {locator}")
 
-    def _locator_to_center(self, locator: str) -> Optional[Tuple[int, int]]:
-        """将 locator 解析并定位，返回中心坐标 (x, y)"""
+    # ── v11.7.0 自动等待（AutoWait）驱动契约 ─────────────────────────
+    # 公共层（core/auto_wait.py）负责 "try 查找+执行 → catch 未找到 → 等待 → 再执行"；
+    # 本驱动每次调用：**新截图**（绕过 0.5s 截图缓存）+ 一次视觉匹配 + 一次坐标动作，
+    # 未匹配抛 ElementNotFoundError（不返回 False）。vision_bbox 是固定坐标，无查找阶段。
+
+    def _locator_to_center(self, locator: str) -> Tuple[int, int]:
+        """将 locator 解析并定位（新截图），返回中心坐标 (x, y)；未匹配抛 ElementNotFoundError"""
         loc_type, loc_value = self._parse_locator(locator)
 
         # vision_bbox 可以直接从坐标计算，不需要截图定位
@@ -623,34 +635,77 @@ class DesktopDriver(BaseDriver):
                 x1, y1, x2, y2 = int(parts[0]), int(parts[1]), int(parts[2]), int(parts[3])
                 return ((x1 + x2) // 2, (y1 + y2) // 2)
 
-        # 其他类型通过 locate_element 定位
+        # 自动等待的每一轮都必须看到最新画面
+        self._invalidate_screenshot_cache()
         bbox = self.locate_element(loc_type, loc_value)
-        if bbox:
-            x1, y1, x2, y2 = bbox
-            return ((x1 + x2) // 2, (y1 + y2) // 2)
-        return None
+        if not bbox:
+            raise ElementNotFoundError(f"视觉定位未匹配: {locator}", locator=locator)
+        x1, y1, x2, y2 = bbox
+        return ((x1 + x2) // 2, (y1 + y2) // 2)
 
-    def click_locator(self, locator: str, **kwargs) -> bool:
-        """点击元素（通过 locator 字符串）
+    def probe(self, locator: str, frame: Optional[str] = None) -> bool:
+        """即时探测（新截图 + 一次匹配，不等待）；vision_bbox 恒为 True。"""
+        loc_type, loc_value = self._parse_locator(locator)
+        if loc_type not in self.SUPPORTED_LOCATORS:
+            raise NotImplementedError(f"DesktopDriver 不支持定位器类型: {loc_type}")
+        if loc_type == 'vision_bbox':
+            return True
+        self._invalidate_screenshot_cache()
+        return self.locate_element(loc_type, loc_value) is not None
 
-        兼容 KeywordEngine._batch_type 的 click 操作调用。
-        """
-        center = self._locator_to_center(locator)
-        if center is None:
-            return False
-        self.click(center[0], center[1])
+    def get_text_locator(self, locator: str, frame: Optional[str] = None,
+                         timeout_ms: Optional[float] = None) -> Optional[str]:
+        """定位（新截图）后读取区域文字；未匹配返回 None（由公共层按"未找到"处理）。"""
+        loc_type, loc_value = self._parse_locator(locator)
+        if loc_type == 'vision_bbox':
+            bbox = tuple(int(p) for p in loc_value.split(','))
+        else:
+            self._invalidate_screenshot_cache()
+            bbox = self.locate_element(loc_type, loc_value)
+        if not bbox:
+            return None
+        return self.get_text(*bbox)
+
+    def click_locator(self, locator: str, timeout_ms: Optional[float] = None, **kwargs) -> bool:
+        """点击元素（通过 locator 字符串）：新截图定位一次 + 点击；未匹配抛 ElementNotFoundError"""
+        x, y = self._locator_to_center(locator)
+        self.click(x, y)
         return True
 
-    def type_locator(self, locator: str, text: str, **kwargs) -> bool:
-        """输入文本（通过 locator 字符串）
-
-        兼容 KeywordEngine._batch_type 的文本输入调用。
-        """
-        center = self._locator_to_center(locator)
-        if center is None:
-            return False
-        self.type_text(center[0], center[1], text)
+    def double_click_locator(self, locator: str, timeout_ms: Optional[float] = None, **kwargs) -> bool:
+        x, y = self._locator_to_center(locator)
+        self.double_click(x, y)
         return True
+
+    def right_click_locator(self, locator: str, timeout_ms: Optional[float] = None, **kwargs) -> bool:
+        x, y = self._locator_to_center(locator)
+        self.right_click(x, y)
+        return True
+
+    def hover_locator(self, locator: str, timeout_ms: Optional[float] = None, **kwargs) -> bool:
+        x, y = self._locator_to_center(locator)
+        self.hover(x, y)
+        return True
+
+    def type_locator(self, locator: str, text: str, timeout_ms: Optional[float] = None, **kwargs) -> bool:
+        """输入文本（通过 locator 字符串）：新截图定位一次 + 点击聚焦输入；未匹配抛 ElementNotFoundError"""
+        x, y = self._locator_to_center(locator)
+        self.type_text(x, y, text)
+        return True
+
+    def key_press(self, key: str) -> bool:
+        """type 批量 key_press【按键】：发往当前焦点（pyautogui 按键名）"""
+        if '+' in key:
+            self.hotkey(*[k.strip().lower() for k in key.split('+') if k.strip()])
+        else:
+            self.press_key(key.strip().lower())
+        return True
+
+    def select(self, locator: str, value: str, timeout_ms: Optional[float] = None, **kwargs) -> bool:
+        raise InvalidParameterError(
+            keyword="type", param_name=locator,
+            reason="桌面驱动（视觉定位）不支持 select【值】：请改为 click 展开后再 click 目标选项",
+        )
 
     def screenshot(self, path: str, **kwargs) -> bool:
         """截图并保存到指定路径"""

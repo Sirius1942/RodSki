@@ -1,0 +1,21 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>overlay</title><script src="common.js"></script>
+<style>
+  #overlay { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh;
+             background: rgba(0,0,0,.35); z-index: 1000; pointer-events: auto; }
+</style>
+</head><body>
+<h1>遮罩覆盖按钮 <small id="delayInfo"></small></h1>
+<!-- 时间线：全屏 #overlay（pointer-events:auto）覆盖 #ovBtn，d 毫秒后移除；d=-1 永不移除。
+     真实鼠标点击会落在遮罩上并计入 #blockedCount；只有 force/JS 点击才会绕过遮罩触发按钮。 -->
+<button id="ovBtn" type="button">被遮挡的按钮</button>
+<div>按钮点击次数：<span id="ovCount">0</span></div>
+<div>遮罩拦截次数：<span id="blockedCount">0</span></div>
+<div id="overlay"></div>
+<script>
+var n = 0, blocked = 0;
+AW.$('ovBtn').addEventListener('click', function () { n += 1; AW.set('ovCount', String(n)); });
+AW.$('overlay').addEventListener('click', function () { blocked += 1; AW.set('blockedCount', String(blocked)); });
+AW.at(AW.ms('d', 2000), function () { var o = AW.$('overlay'); o.parentNode.removeChild(o); });
+</script>
+</body></html>

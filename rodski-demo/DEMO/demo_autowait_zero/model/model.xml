@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- v11.7.0 AutoWait=0 边界模块：模型与 demo_autowait 同名同定义（站点共用 ../demo_autowait/fun/site） -->
+<models>
+  <!-- late_input.html：输入框 d 后插入，输入内容回显到 #echo -->
+  <model name="LateInput" type="ui">
+    <element name="nameInput" type="web">
+      <location type="id">lateInput</location>
+    </element>
+    <element name="echoText" type="web">
+      <location type="id">echo</location>
+    </element>
+  </model>
+
+  <!-- late_button.html：按钮 d 后插入，点击计数（证明只点一次） -->
+  <model name="LateButton" type="ui">
+    <element name="submitBtn" type="web">
+      <location type="id">lateBtn</location>
+    </element>
+    <element name="clickCount" type="web">
+      <location type="id">clickCount</location>
+    </element>
+  </model>
+
+  <!-- ready.html：全部元素立即就绪，10 个 type 字段 + 2 个结果字段（G4 命中即走） -->
+  <model name="ReadyForm" type="ui">
+    <element name="field1" type="web"><location type="id">r1</location></element>
+    <element name="field2" type="web"><location type="id">r2</location></element>
+    <element name="field3" type="web"><location type="id">r3</location></element>
+    <element name="field4" type="web"><location type="id">r4</location></element>
+    <element name="field5" type="web"><location type="id">r5</location></element>
+    <element name="field6" type="web"><location type="id">r6</location></element>
+    <element name="field7" type="web"><location type="id">r7</location></element>
+    <element name="field8" type="web"><location type="id">r8</location></element>
+    <element name="city" type="web"><location type="id">rCity</location></element>
+    <element name="submit" type="web"><location type="id">rSubmit</location></element>
+    <element name="summary" type="web"><location type="id">summary</location></element>
+    <element name="submitCount" type="web"><location type="id">submitCount</location></element>
+  </model>
+</models>

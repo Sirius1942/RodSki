@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<globalvalue>
+  <group name="DefaultValue">
+    <!-- 自动等待（毫秒）：查找测试对象（type 每个字段 / verify / get 等）最多等 5000ms，元素出现即继续；不设置 = 不自动等待 -->
+    <var name="AutoWait" value="5000"/>
+  </group>
+  <group name="Site">
+    <!-- 由 run_acceptance.py 以 demo_autowait/fun/site 为根目录启动的本地服务 -->
+    <var name="URL" value="http://127.0.0.1:8767"/>
+  </group>
+</globalvalue>

@@ -47,6 +47,7 @@ source: rodski/docs/TEST_CASE_WRITING_GUIDE.md
 - `sql_blank_fallback`：`sql`/`query` 取 `BLANK/NULL/NONE/空` 视为未提供，先 `sql` 后 `query`，至少一个有效（lint ERROR）
 - `dialog`：不写 `window.confirm =` 垫片；用 `DefaultValue.DialogPolicy`（默认 `fail`）或 `<location type="page">dialog</location>` 元素，`type` 填 `accept`/`dismiss`/`accept:文本`
 - `db_assertion`：`DB` 后接 `verify 模型名 行ID`，列用 `<location type="field">`；DB `_verify` 不写 `${Return[-1]}`
+- `autowait_all_lookups`：自动等待 `DefaultValue.AutoWait`（毫秒，无默认值：不设置 = 不自动等待，新模块写 `5000`）作用于**所有**查找测试对象的步骤（`type` 每个字段的输入 / click / select / hover、`verify`、`get`、`clear`、`upload_file`），元素出现即继续；慢页面调大 `AutoWait`，不要写 `wait`（v11.7.0）
 - `waittime_ms`：`WaitTime` 与 `step_wait` 单位**毫秒**、作用于每一步，新模块写 `0`（旧值 ≤30 暂按秒兼容并告警）
 - `native_assert_over_evaluate`：数量/存在/可见用 `{"$count": N}`/`{"$exists": true}`/`{"$visible": true}`，URL/标题用 `page` 定位类型，不用 `evaluate` 断言
 - `ui_atomic_in_data`：`click/hover/select` 是 `type` 数据字段值，不是关键字

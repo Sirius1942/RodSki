@@ -1,0 +1,13 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>late_input</title><script src="common.js"></script></head><body>
+<h1>输入框延迟插入 <small id="delayInfo"></small></h1>
+<!-- 时间线：d 毫秒后插入 #lateInput；输入内容实时回显到 #echo -->
+<div id="box"></div>
+<div>回显：<span id="echo">(空)</span></div>
+<script>
+AW.at(AW.ms('d', 2000), function () {
+  var el = AW.add('box', 'input', { id: 'lateInput', type: 'text', placeholder: '延迟出现的输入框' });
+  el.addEventListener('input', function () { AW.set('echo', el.value || '(空)'); });
+});
+</script>
+</body></html>

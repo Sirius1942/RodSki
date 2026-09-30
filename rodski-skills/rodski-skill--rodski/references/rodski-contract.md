@@ -132,7 +132,7 @@ RodSki 用例始终是：
 | `run` | Python 脚本执行 | 执行 `fun/` 下代码，stdout 成为 Return |
 | `get` | 取值 | 优先使用 model+DataID 模式 |
 | `set` | 保存命名变量 | 优先于脆弱的 Return 索引 |
-| `wait` | 显式等待 | 不要用智能等待替代所有显式等待 |
+| `wait` | 显式固定等待 | 等元素出现不要用 `wait`：所有查找测试对象的步骤已按 `DefaultValue.AutoWait` 自动等待；`wait` 只用于演示 / 录屏 |
 
 不要把这些值加入 `action`：
 
@@ -250,7 +250,7 @@ welcomeMsg=欢迎, admin
 <globalvalue>
   <group name="DefaultValue">
     <var name="URL" value="http://localhost:8000"/>
-    <var name="WaitTime" value="0"/>  <!-- 毫秒（v11.6.0）；交互等待交给智能等待与 verify 自动重试 -->
+    <var name="WaitTime" value="0"/>  <!-- 毫秒（v11.6.0）；交互等待交给自动等待 AutoWait -->
   </group>
   <group name="sqlite_db">
     <var name="type" value="sqlite"/>

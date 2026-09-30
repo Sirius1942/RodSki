@@ -23,6 +23,8 @@ try:
         DriverError,
         DriverStoppedError,
         ElementNotFoundError,
+        ElementNotInteractableError,
+        StaleElementError,
         TimeoutError,
         is_critical_error,
     )
@@ -32,6 +34,8 @@ except ImportError:
         DriverError,
         DriverStoppedError,
         ElementNotFoundError,
+        ElementNotInteractableError,
+        StaleElementError,
         TimeoutError,
         is_critical_error,
     )
@@ -124,10 +128,10 @@ def _launch_channel_chromium(headless: bool, browser: str) -> str | None:
 class PlaywrightDriver(BaseDriver):
     """Playwright 驱动
 
-    自动等待策略:
-    - click: 等待元素可见、稳定、可点击
-    - type: 等待元素可见、可编辑
-    - 默认超时: 10秒
+    自动等待策略（v11.7.0）:
+    - 查找元素的轮询与上限由公共层 core/auto_wait.py 按 DefaultValue.AutoWait（毫秒；不设置 = 不自动等待）控制
+    - 本驱动 probe() 即时探测；动作的可操作性等待（可见 / 稳定 / 可用 / 未遮挡）只用传入的 timeout_ms
+    - 截图超时 SCREENSHOT_TIMEOUT_MS；navigate 页面加载超时不属于元素查找
 
     支持的定位器类型:
     - 传统定位器: id, css, xpath, text 等
@@ -185,6 +189,7 @@ class PlaywrightDriver(BaseDriver):
         # 从配置字典提取参数
         self.headless = self._config_dict.get('headless', headless)
         self.browser_name = self._config_dict.get('browser', browser)
+        # 保留兼容字段；v11.7.0 起元素查找超时由 AutoWait（set_auto_wait / timeout_ms）决定，不再读取它
         self._timeout = self._config_dict.get('timeout', self.DEFAULT_TIMEOUT)
         # CDP 附加模式：driver 不拥有浏览器，只断连不关闭（close() 语义见下）
         self.attached = bool(self._config_dict.get('cdp_endpoint'))
@@ -454,7 +459,7 @@ class PlaywrightDriver(BaseDriver):
         try:
             if not self.page:
                 return None
-            screenshot_bytes = self.page.screenshot()
+            screenshot_bytes = self.page.screenshot(timeout=self.SCREENSHOT_TIMEOUT_MS)
             import base64
             return base64.b64encode(screenshot_bytes).decode()
         except Exception as e:
@@ -507,33 +512,6 @@ class PlaywrightDriver(BaseDriver):
         except Exception as e:
             logger.debug(f"DOM 快照捕获失败: {e}")
             return {}
-
-    def _wait_for_element_visible(self, locator: str, timeout: int = None) -> bool:
-        """等待元素可见
-        
-        Args:
-            locator: CSS 选择器
-            timeout: 超时时间（毫秒）
-            
-        Returns:
-            元素是否可见
-        """
-        timeout = timeout or self._timeout
-        try:
-            self.page.wait_for_selector(locator, state="visible", timeout=timeout)
-            return True
-        except Exception as e:
-            logger.warning(f"等待元素可见超时: {locator}")
-            return False
-
-    def _wait_for_element_editable(self, locator: str, timeout: int = None) -> bool:
-        """等待元素可编辑"""
-        timeout = timeout or self._timeout
-        try:
-            self.page.wait_for_selector(locator, state="visible", timeout=timeout)
-            return True
-        except Exception:
-            return False
 
     def locate_element(self, locator_type: str, locator_value: str) -> Optional[Tuple[int, int, int, int]]:
         """定位元素，返回边界框坐标（BaseDriver 接口）"""
@@ -624,7 +602,7 @@ class PlaywrightDriver(BaseDriver):
         import time
         self._ensure_browser()
         path = tempfile.mktemp(suffix='.png', prefix=f'screenshot_{int(time.time())}_')
-        self.page.screenshot(path=path)
+        self.page.screenshot(path=path, timeout=self.SCREENSHOT_TIMEOUT_MS)
         return path
 
     def current_url(self) -> Optional[str]:
@@ -642,188 +620,108 @@ class PlaywrightDriver(BaseDriver):
                 return None
         return url or None
 
-    def click_locator(self, locator: str, **kwargs) -> bool:
-        """点击元素（通过定位器）
+    # ── v11.7.0 自动等待（AutoWait）驱动契约 ─────────────────────────
+    # 轮询与 deadline 由公共层（core/auto_wait.py）掌握；本驱动只提供：
+    #   probe()                 —— 即时探测（locator.count()，不等待）
+    #   动作方法的 timeout_ms     —— Playwright actionability 只用这段剩余预算
+    # 所有失败以异常表示（不返回 False），原生异常按 _translate_error 转换：
+    #   未匹配到元素 → ElementNotFoundError；已匹配但超时不可操作 → ElementNotInteractableError；
+    #   元素脱离 DOM / 页面跳转中 → StaleElementError；浏览器已关闭 → DriverStoppedError；
+    #   选择器语法错误等 → DriverError（不在自动等待白名单内，立即失败）。
+    # 不再有 wait_for_selector 吞异常、硬编码 5000/3000、force 点击、JS 点击、JS 赋值等降级。
 
-        自动等待元素可见、稳定、可点击后执行点击
-        """
+    # 截图超时（毫秒）：截图不是查找元素，不跟随 AutoWait；避免默认 30s 阻塞
+    SCREENSHOT_TIMEOUT_MS = 10000
+
+    def _element(self, locator: str, frame: Optional[str] = None):
+        """返回定位器对应的 Playwright Locator（首个匹配；frame 为 CSS，">>" 串联多层 iframe）。"""
+        return self._verify_scope(frame).locator(self._convert_locator(locator)).first
+
+    def _translate_error(self, operation: str, locator: str, error: Exception,
+                         frame: Optional[str] = None) -> Exception:
+        """把 Playwright 原生异常转换为 rodski 异常（决定自动等待是否重试）。"""
+        if isinstance(error, DriverError):
+            return error
+        where = f"{locator}（frame={frame}）" if frame else locator
+        msg = str(error)
+        if is_critical_error(error):
+            self._is_closed = True
+            return DriverStoppedError(f"{operation}失败: {msg}", driver_type="Playwright")
+        low = msg.lower()
+        if type(error).__name__ == "TimeoutError" or ("timeout" in low and "exceeded" in low):
+            try:
+                present = self._verify_scope(frame).locator(self._convert_locator(locator)).count() > 0
+            except Exception:
+                present = False
+            if present:
+                return ElementNotInteractableError(
+                    f"{operation}: 元素 {where} 已找到但不可操作（不可见 / 禁用 / 被遮挡 / 不稳定）",
+                    locator=locator, cause=error)
+            hint = "；请确认 frame 选择器指向 <iframe> 元素本身，多层 iframe 用 >> 串联" if frame else ""
+            return ElementNotFoundError(f"{operation}: 元素 {where} 未找到{hint}", locator=locator, cause=error)
+        if "failed to find frame" in low:
+            return ElementNotFoundError(
+                f"{operation}: iframe {frame} 尚未出现（元素 {locator}）；请确认 frame 选择器指向 <iframe> 元素本身，"
+                f"多层 iframe 用 >> 串联", locator=locator, cause=error)
+        if ("not attached" in low or "detached" in low or "context was destroyed" in low
+                or "navigation" in low or "frame was detached" in low):
+            return StaleElementError(f"{operation}: 元素 {where} 已失效（页面变化中）: {msg}",
+                                     locator=locator, cause=error)
+        if "not visible" in low or "not enabled" in low or "intercepts pointer events" in low \
+                or "not editable" in low or "outside of the viewport" in low:
+            return ElementNotInteractableError(f"{operation}: 元素 {where} 不可操作: {msg}",
+                                               locator=locator, cause=error)
+        return DriverError(f"{operation}失败: {where}: {msg}", locator=locator, cause=error)
+
+    def _element_action(self, operation: str, locator: str, fn, frame: Optional[str] = None,
+                        timeout_ms: Optional[float] = None) -> bool:
+        """在元素上执行一次动作 fn(locator_obj, timeout_ms)，失败抛转换后的异常。"""
         self._check_driver_alive()
         self._ensure_browser()
-        frame = kwargs.pop("frame", None)
-        if frame:
-            # v11.6.0 (C2): iframe 内元素
-            return self._frame_action("点击", locator, frame,
-                                      lambda loc: loc.click(timeout=self._timeout, **kwargs))
-
-        css_locator = self._convert_locator(locator)
-        logger.debug(f"点击元素: {locator} -> {css_locator}")
-        
+        timeout = self._action_timeout_ms(timeout_ms)
         try:
-            # 先等待元素可见
-            try:
-                self.page.wait_for_selector(css_locator, state="visible", timeout=self._timeout)
-            except Exception:
-                # 等待失败，尝试直接点击
-                pass
-            
-            # 尝试正常点击
-            try:
-                self.page.click(css_locator, timeout=5000, **kwargs)
-                return True
-            except Exception as e:
-                error_msg = str(e).lower()
-                
-                # 检查是否为严重错误
-                if is_critical_error(e):
-                    raise DriverStoppedError(str(e))
-                
-                # 元素不可见或被遮挡，先尝试滚动到可见位置
-                if "not visible" in error_msg or "attached" in error_msg or "timeout" in error_msg:
-                    logger.debug(f"尝试滚动到元素位置...")
-                    try:
-                        self.page.locator(css_locator).scroll_into_view_if_needed(timeout=3000)
-                        # 滚动后重试正常点击（保留 actionability 检查）
-                        self.page.click(css_locator, timeout=3000, **kwargs)
-                        return True
-                    except Exception:
-                        pass
-
-                    # 滚动+正常点击失败，尝试强制点击
-                    logger.debug(f"尝试强制点击...")
-                    try:
-                        self.page.click(css_locator, force=True, timeout=3000)
-                        return True
-                    except:
-                        pass
-
-                    # 尝试 JavaScript 点击（先滚动再点击）
-                    logger.debug(f"尝试 JavaScript 点击...")
-                    if css_locator.startswith('//'):
-                        # XPath: 使用 document.evaluate
-                        clicked = self.page.evaluate(f"""
-                            (() => {{
-                                const result = document.evaluate(`{css_locator}`, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
-                                const el = result.singleNodeValue;
-                                if (el) {{ el.scrollIntoView({{block: 'center'}}); el.click(); return true; }}
-                                return false;
-                            }})()
-                        """)
-                    else:
-                        # CSS 选择器
-                        clicked = self.page.evaluate(f"""
-                            (() => {{
-                                const el = document.querySelector('{css_locator}');
-                                if (el) {{ el.scrollIntoView({{block: 'center'}}); el.click(); return true; }}
-                                return false;
-                            }})()
-                        """)
-                    if clicked:
-                        return True
-                    raise DriverError(f"点击失败: 元素未找到 {locator}", locator=locator)
-
-                # 其他错误
-                raise DriverError(f"点击失败: {locator}", locator=locator, cause=e)
-
-        except DriverStoppedError:
-            raise
-        except DriverError:
-            raise
+            fn(self._element(locator, frame), timeout)
+            logger.debug(f"{operation}成功: {locator}" + (f"（frame={frame}）" if frame else ""))
+            return True
         except Exception as e:
-            self._handle_error("click_locator", locator, e)
-            raise DriverError(f"点击失败: {locator}", locator=locator, cause=e)
+            raise self._translate_error(operation, locator, e, frame) from e
 
-    def type_locator(self, locator: str, text: str, **kwargs) -> bool:
-        """输入文本（通过定位器）
-
-        自动等待元素可见、可编辑后执行输入
-        """
+    def probe(self, locator: str, frame: Optional[str] = None) -> bool:
+        """即时探测元素当前是否存在（不等待）。"""
         self._check_driver_alive()
         self._ensure_browser()
-        frame = kwargs.pop("frame", None)
-        if frame:
-            # v11.6.0 (C2): iframe 内元素
-            return self._frame_action("输入", locator, frame,
-                                      lambda loc: loc.fill(text, timeout=self._timeout, **kwargs))
-
-        css_locator = self._convert_locator(locator)
-        logger.debug(f"输入文本: {locator} -> {css_locator}")
-
         try:
-            # 先等待元素可见
-            try:
-                self.page.wait_for_selector(css_locator, state="visible", timeout=self._timeout)
-            except Exception:
-                # 等待失败，继续尝试
-                pass
-
-            # 尝试正常输入
-            try:
-                self.page.fill(css_locator, text, timeout=5000, **kwargs)
-                return True
-            except Exception as e:
-                error_msg = str(e).lower()
-                
-                # 检查是否为严重错误
-                if is_critical_error(e):
-                    raise DriverStoppedError(str(e))
-                
-                # 元素不可编辑，尝试先清空再输入
-                if "not visible" in error_msg or "editable" in error_msg or "timeout" in error_msg:
-                    logger.debug(f"尝试清空后输入...")
-                    try:
-                        # 先聚焦元素
-                        self.page.focus(css_locator, timeout=3000)
-                        # 清空
-                        self.page.fill(css_locator, "", timeout=3000)
-                        # 输入
-                        self.page.fill(css_locator, text, timeout=3000)
-                        return True
-                    except:
-                        pass
-                    
-                    # 尝试 JavaScript 输入，验证元素确实存在
-                    logger.debug(f"尝试 JavaScript 输入...")
-                    safe_text = text.replace("'", "\\'").replace("\n", "\\n")
-                    typed = self.page.evaluate(f"""
-                        (() => {{
-                            const el = document.querySelector('{css_locator}');
-                            if (el) {{ 
-                                el.value = '{safe_text}'; 
-                                el.dispatchEvent(new Event('input', {{ bubbles: true }}));
-                                el.dispatchEvent(new Event('change', {{ bubbles: true }}));
-                                return true;
-                            }}
-                            return false;
-                        }})()
-                    """)
-                    if typed:
-                        return True
-                    raise DriverError(f"输入失败: 元素未找到 {locator}", locator=locator, cause=e)
-                
-                # 其他错误
-                raise DriverError(f"输入失败: {locator}", locator=locator, cause=e)
-                
-        except DriverStoppedError:
-            raise
-        except DriverError:
-            raise
+            return self._verify_scope(frame).locator(self._convert_locator(locator)).count() > 0
         except Exception as e:
-            self._handle_error("type", locator, e)
-            raise DriverError(f"输入失败: {locator}", locator=locator, cause=e)
+            raise self._translate_error("查找", locator, e, frame) from e
+
+    def click_locator(self, locator: str, frame: Optional[str] = None,
+                      timeout_ms: Optional[float] = None, **kwargs) -> bool:
+        """点击元素：Playwright 等待可见 / 稳定 / 可用 / 未被遮挡，上限为 timeout_ms（默认 AutoWait）。"""
+        return self._element_action("点击", locator, lambda el, t: el.click(timeout=t, **kwargs),
+                                    frame, timeout_ms)
+
+    def type_locator(self, locator: str, text: str, frame: Optional[str] = None,
+                     timeout_ms: Optional[float] = None, **kwargs) -> bool:
+        """输入文本（fill：先清空再输入），等待可编辑，上限为 timeout_ms（默认 AutoWait）。"""
+        return self._element_action("输入", locator, lambda el, t: el.fill(text, timeout=t, **kwargs),
+                                    frame, timeout_ms)
 
     def type(self, locator: str, text: str) -> bool:
         """输入文本（KeywordEngine 旧 API）"""
         return self.type_locator(locator, text)
 
-    def check(self, locator: str, **kwargs) -> bool:
-        """检查元素可见"""
+    def check(self, locator: str, timeout_ms: Optional[float] = None, **kwargs) -> bool:
+        """检查元素可见（等待上限 AutoWait）；不可见返回 False。"""
         self._check_driver_alive()
         self._ensure_browser()
-
         try:
-            self.page.wait_for_selector(locator, state="visible", timeout=3000)
+            self._element(locator).wait_for(state="visible", timeout=self._action_timeout_ms(timeout_ms))
             return True
-        except Exception:
+        except Exception as e:
+            err = self._translate_error("检查", locator, e)
+            if isinstance(err, (DriverStoppedError,)):
+                raise err from e
             return False
 
     def wait(self, seconds: float) -> None:
@@ -855,62 +753,33 @@ class PlaywrightDriver(BaseDriver):
                 raise DriverError(f"导航失败: {url}", cause=e2)
 
     def screenshot(self, path: str) -> bool:
-        """截图"""
+        """截图（超时 SCREENSHOT_TIMEOUT_MS，失败返回 False 不阻塞）"""
         self._check_driver_alive()
         self._ensure_browser()
-        
+
         try:
-            self.page.screenshot(path=path)
+            self.page.screenshot(path=path, timeout=self.SCREENSHOT_TIMEOUT_MS)
             logger.debug(f"截图成功: {path}")
             return True
         except Exception as e:
             self._handle_error("screenshot", path, e)
             return False
 
-    def select(self, locator: str, value: str, frame: Optional[str] = None) -> bool:
-        """下拉选择"""
-        self._check_driver_alive()
-        self._ensure_browser()
-        if frame:
-            return self._frame_action("选择", locator, frame,
-                                      lambda loc: loc.select_option(value, timeout=self._timeout))
-        
-        try:
-            self.page.select_option(locator, value)
-            logger.debug(f"选择成功: {locator} = {value}")
-            return True
-        except Exception as e:
-            self._handle_error("select", locator, e)
-            raise DriverError(f"选择失败: {locator}", locator=locator, cause=e)
+    def select(self, locator: str, value: str, frame: Optional[str] = None,
+               timeout_ms: Optional[float] = None) -> bool:
+        """下拉选择：等待元素可用且目标选项出现，上限为 timeout_ms（默认 AutoWait）。"""
+        return self._element_action("选择", locator, lambda el, t: el.select_option(value, timeout=t),
+                                    frame, timeout_ms)
 
-    def hover_locator(self, locator: str, frame: Optional[str] = None) -> bool:
-        """悬停（通过定位器）"""
-        self._check_driver_alive()
-        self._ensure_browser()
-        if frame:
-            return self._frame_action("悬停", locator, frame,
-                                      lambda loc: loc.hover(timeout=self._timeout))
+    def hover_locator(self, locator: str, frame: Optional[str] = None,
+                      timeout_ms: Optional[float] = None) -> bool:
+        """悬停（通过定位器），上限为 timeout_ms（默认 AutoWait）。"""
+        return self._element_action("悬停", locator, lambda el, t: el.hover(timeout=t), frame, timeout_ms)
 
-        try:
-            self.page.hover(locator)
-            logger.debug(f"悬停成功: {locator}")
-            return True
-        except Exception as e:
-            self._handle_error("hover_locator", locator, e)
-            raise DriverError(f"悬停失败: {locator}", locator=locator, cause=e)
-
-    def drag(self, from_loc: str, to_loc: str) -> bool:
-        """拖拽"""
-        self._check_driver_alive()
-        self._ensure_browser()
-        
-        try:
-            self.page.drag_and_drop(from_loc, to_loc)
-            logger.debug(f"拖拽成功: {from_loc} -> {to_loc}")
-            return True
-        except Exception as e:
-            self._handle_error("drag", f"{from_loc} -> {to_loc}", e)
-            raise DriverError(f"拖拽失败: {from_loc} -> {to_loc}", cause=e)
+    def drag(self, from_loc: str, to_loc: str, timeout_ms: Optional[float] = None) -> bool:
+        """拖拽：两端元素均需可操作，上限为 timeout_ms（默认 AutoWait）。"""
+        return self._element_action(
+            "拖拽", from_loc, lambda el, t: el.drag_to(self._element(to_loc), timeout=t), None, timeout_ms)
 
     def scroll_page(self, x: int = 0, y: int = 300) -> bool:
         """滚动页面（通过像素距离）"""
@@ -929,68 +798,34 @@ class PlaywrightDriver(BaseDriver):
         """滚动（KeywordEngine 旧 API）"""
         return self.scroll_page(x, y)
 
-    def assert_element(self, locator: str, expected: str) -> bool:
-        """断言元素文本包含预期值"""
+    def assert_element(self, locator: str, expected: str, timeout_ms: Optional[float] = None) -> bool:
+        """断言元素文本包含预期值（元素出现等待上限 AutoWait）"""
         self._check_driver_alive()
         self._ensure_browser()
-        
         try:
-            text = self.page.text_content(locator) or ""
-            if expected in text:
-                logger.debug(f"断言成功: {locator} 包含 '{expected}'")
-                return True
-            else:
-                logger.warning(f"断言失败: {locator} 文本 '{text}' 不包含 '{expected}'")
-                return False
+            text = self._element(locator).text_content(timeout=self._action_timeout_ms(timeout_ms)) or ""
         except Exception as e:
-            self._handle_error("assert", locator, e)
-            return False
-
-    def clear(self, locator: str, frame: Optional[str] = None) -> bool:
-        """清空输入框"""
-        self._check_driver_alive()
-        self._ensure_browser()
-        if frame:
-            return self._frame_action("清空", locator, frame,
-                                      lambda loc: loc.fill("", timeout=self._timeout))
-
-        css_locator = self._convert_locator(locator)
-        try:
-            self.page.fill(css_locator, "")
+            raise self._translate_error("断言", locator, e) from e
+        if expected in text:
+            logger.debug(f"断言成功: {locator} 包含 '{expected}'")
             return True
-        except Exception as e:
-            self._handle_error("clear", locator, e)
-            raise DriverError(f"清空失败: {locator}", locator=locator, cause=e)
+        logger.warning(f"断言失败: {locator} 文本 '{text}' 不包含 '{expected}'")
+        return False
 
-    def double_click_locator(self, locator: str, frame: Optional[str] = None) -> bool:
-        """双击（通过定位器）"""
-        self._check_driver_alive()
-        self._ensure_browser()
-        if frame:
-            return self._frame_action("双击", locator, frame,
-                                      lambda loc: loc.dblclick(timeout=self._timeout))
+    def clear(self, locator: str, frame: Optional[str] = None, timeout_ms: Optional[float] = None) -> bool:
+        """清空输入框，上限为 timeout_ms（默认 AutoWait）。"""
+        return self._element_action("清空", locator, lambda el, t: el.fill("", timeout=t), frame, timeout_ms)
 
-        try:
-            self.page.dblclick(locator)
-            return True
-        except Exception as e:
-            self._handle_error("double_click_locator", locator, e)
-            raise DriverError(f"双击失败: {locator}", locator=locator, cause=e)
+    def double_click_locator(self, locator: str, frame: Optional[str] = None,
+                             timeout_ms: Optional[float] = None) -> bool:
+        """双击（通过定位器），上限为 timeout_ms（默认 AutoWait）。"""
+        return self._element_action("双击", locator, lambda el, t: el.dblclick(timeout=t), frame, timeout_ms)
 
-    def right_click_locator(self, locator: str, frame: Optional[str] = None) -> bool:
-        """右键点击（通过定位器）"""
-        self._check_driver_alive()
-        self._ensure_browser()
-        if frame:
-            return self._frame_action("右键点击", locator, frame,
-                                      lambda loc: loc.click(button="right", timeout=self._timeout))
-
-        try:
-            self.page.click(locator, button="right")
-            return True
-        except Exception as e:
-            self._handle_error("right_click_locator", locator, e)
-            raise DriverError(f"右键点击失败: {locator}", locator=locator, cause=e)
+    def right_click_locator(self, locator: str, frame: Optional[str] = None,
+                            timeout_ms: Optional[float] = None) -> bool:
+        """右键点击（通过定位器），上限为 timeout_ms（默认 AutoWait）。"""
+        return self._element_action("右键点击", locator,
+                                    lambda el, t: el.click(button="right", timeout=t), frame, timeout_ms)
 
     def key_press(self, key: str) -> bool:
         """按键"""
@@ -1004,25 +839,29 @@ class PlaywrightDriver(BaseDriver):
             self._handle_error("key_press", key, e)
             raise DriverError(f"按键失败: {key}", cause=e)
 
-    def get_text_locator(self, locator: str, frame: Optional[str] = None) -> str:
-        """获取元素文本（通过定位器）；frame（v11.6.0）指定所在 iframe，">>" 串联多层"""
+    def get_text_locator(self, locator: str, frame: Optional[str] = None,
+                         timeout_ms: Optional[float] = None) -> Optional[str]:
+        """获取元素文本（通过定位器）；frame（v11.6.0）指定所在 iframe，">>" 串联多层。
+
+        - verify 轮询期间（instant reads）：元素不在 DOM 中立即返回 None，不等待；
+        - 其余：等待元素出现，上限为 timeout_ms（默认 AutoWait），失败抛转换后的异常。
+        """
         self._check_driver_alive()
         self._ensure_browser()
-
-        try:
-            if getattr(self, "_instant_reads", False):
-                # v11.6.0 (A2): verify 轮询期间无等待读取——元素不在 DOM 中立即返回 None，
-                # 总等待只由 DefaultValue.AutoWait（自动等待）控制（CORE §4.6.5），不叠加 Playwright 默认 30s 超时
-                loc = self._verify_scope(frame).locator(locator)
+        if getattr(self, "_instant_reads", False):
+            # v11.6.0 (A2): 总等待只由 DefaultValue.AutoWait（自动等待）的 verify 轮询控制（CORE §4.6.5）
+            try:
+                loc = self._verify_scope(frame).locator(self._convert_locator(locator))
                 if loc.count() == 0:
                     return None
                 return loc.first.text_content(timeout=self.INSTANT_READ_TIMEOUT_MS)
-            if frame:
-                return self._verify_scope(frame).locator(locator).first.text_content()
-            return self.page.text_content(locator)
+            except Exception as e:
+                raise self._translate_error("读取文本", locator, e, frame) from e
+        try:
+            return self._element(locator, frame).text_content(
+                timeout=self._action_timeout_ms(timeout_ms))
         except Exception as e:
-            self._handle_error("get_text_locator", locator, e)
-            return None
+            raise self._translate_error("读取文本", locator, e, frame) from e
 
     # v11.6.0 (A2): 无等待读取模式下，元素已计数存在后读取文本的兜底超时（毫秒；防止读取瞬间元素被移除时挂起）
     INSTANT_READ_TIMEOUT_MS = 500
@@ -1184,37 +1023,10 @@ class PlaywrightDriver(BaseDriver):
                 except Exception as e:
                     logger.debug(f"关闭弹窗失败（忽略）: {e}")
 
-    # ── v11.6.0 (C2) iframe 内元素动作 ─────────────────────────────────
-
-    def _frame_action(self, operation: str, locator: str, frame: str, fn) -> bool:
-        """在 frame（CSS，">>" 串联多层）内定位元素并执行 fn(locator)；Playwright 自动等待可操作。"""
-        css_locator = self._convert_locator(locator)
-        try:
-            fn(self._verify_scope(frame).locator(css_locator).first)
-            return True
-        except DriverStoppedError:
-            raise
-        except Exception as e:
-            if is_critical_error(e):
-                raise DriverStoppedError(str(e))
-            self._handle_error(operation, f"{locator} (frame={frame})", e)
-            raise DriverError(
-                f"{operation}失败: iframe 内元素未找到或不可操作 {locator}（frame={frame}）。"
-                f"请确认 frame 选择器指向 <iframe> 元素本身，多层 iframe 用 >> 串联",
-                locator=locator, cause=e,
-            )
-
-    def upload_file(self, locator: str, file_path: str) -> bool:
-        """上传文件"""
-        self._check_driver_alive()
-        self._ensure_browser()
-        
-        try:
-            self.page.set_input_files(locator, file_path)
-            return True
-        except Exception as e:
-            self._handle_error("upload_file", locator, e)
-            raise DriverError(f"上传文件失败: {file_path}", cause=e)
+    def upload_file(self, locator: str, file_path: str, timeout_ms: Optional[float] = None) -> bool:
+        """上传文件：等待 file input 出现，上限为 timeout_ms（默认 AutoWait）。"""
+        return self._element_action("上传文件", locator,
+                                    lambda el, t: el.set_input_files(file_path, timeout=t), None, timeout_ms)
 
     def get_page_text(self) -> str:
         """获取页面所有文本内容"""

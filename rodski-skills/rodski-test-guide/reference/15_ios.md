@@ -87,7 +87,6 @@ v7.3.0 新增两个 iOS 高性能定位器（必须标 `platform="ios"`）：
     <var name="BundleId"          value="com.rodski.demo"/>
     <var name="AppTarget"         value="app://ios/com.rodski.demo"/>
     <var name="NoReset"           value="true"/>
-    <var name="NewCommandTimeout" value="120"/>
   </group>
 </globalvalue>
 ```

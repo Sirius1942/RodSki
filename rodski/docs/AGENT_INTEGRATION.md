@@ -128,7 +128,7 @@ for result in root.findall(".//result[@status='FAIL']"):
 | 错误类型 | exit_code | Agent 处理策略 |
 |---------|-----------|---------------|
 | 元素未找到 | 1 | 重新探索页面，更新 model XML |
-| 超时 / 断言在异步页面上失败 | 1 | **不要添加 `wait` 步骤**：UI `verify` 已自动重试（v11.6.0，自动等待 `AutoWait` 默认 5000 毫秒），数据确实更慢时调大 `DefaultValue.AutoWait`；元素数量 / 存在 / URL 断言改用原生操作符（CORE §4.6） |
+| 超时 / 断言在异步页面上失败 | 1 | **不要添加 `wait` 步骤**：所有查找测试对象的步骤（`type` 每个字段、`verify`、`get` 等）都自动等待（v11.7.0，上限 `DefaultValue.AutoWait` 毫秒；v11.7.1 起不设置或 `0` = 不自动等待，需显式设置如 `5000`），生成的模块要在 globalvalue 写 `AutoWait`，数据确实更慢时调大；元素数量 / 存在 / URL 断言改用原生操作符（CORE §4.6） |
 | 断言失败 | 1 | 检查预期值或页面状态；错误信息逐字段给出期望 / 实际，元素级断言 0 匹配时报「实际 0」，通常意味着选择器已失效 |
 | 契约类错误（verify 缺字段、SQL 参数、XML 属性非法字符、非法 action、字段集合不一致） | 1 / 2 | 按错误信息中的修复提示（hint）修改；常见坑见 `rodski capabilities` 的 `pitfalls` |
 | XML 格式错误 | 2 | 校验并修复 XML |
@@ -578,7 +578,7 @@ def choose_locator(element_info):
 | 错误类型 | 原因 | Agent 处理策略 |
 |---------|------|---------------|
 | 元素未找到 | vision 描述不准确 | 重新探索，更新描述 |
-| 超时 | 页面加载慢 | 调大 `DefaultValue.AutoWait`（自动等待，UI verify 自动重试上限，毫秒），不要添加 wait 步骤 |
+| 超时 / SKI326 | 元素出现慢 | 调大 `DefaultValue.AutoWait`（自动等待，所有查找测试对象步骤的等待上限，毫秒），不要添加 wait 步骤 |
 | 坐标偏移 | 窗口大小变化 | 使用 vision 替代 vision_bbox |
 | XML 格式错误 | 生成逻辑错误 | 验证 XML 格式 |
 
@@ -623,7 +623,7 @@ def execute_with_retry(case_xml, max_retries=3):
 - 优先使用传统定位器（xpath/css）
 - vision_bbox 比 vision 快
 - 批量执行减少启动开销
-- `DefaultValue.WaitTime=0`（单位毫秒），不生成固定 `wait` 步骤，等待交给智能等待与 verify 自动重试
+- `DefaultValue.WaitTime=0`（单位毫秒），不生成固定 `wait` 步骤，等待交给自动等待 AutoWait（所有查找测试对象的步骤）
 - `SessionMode=shared_browser` + `save_auth_state` / `use_auth_state` 省去每个用例启动浏览器与重复登录
 - `--workers N` 按用例文件并行；`--evidence concise` 去掉逐步截图（录像不变）
 

@@ -8,9 +8,6 @@ DEFAULTS = {
     "browser": "chromium",
     "headless": False,
     "timeout": 30,
-    "retry": 0,
-    "retry_delay": 1.0,
-    "retry_on_errors": ["ElementNotFound", "Timeout", "StaleElement"],
     "log_level": "INFO",
     "log_dir": "logs",
     "report_format": "html",
@@ -32,10 +29,6 @@ DEFAULTS = {
         "monitor_id": None,
         "video_size": "screen",
     },
-    "smart_wait_enabled": True,
-    "smart_wait_max_retries": 30,
-    "smart_wait_retry_interval": 0.3,
-    "smart_wait_log_retry": True,
     # v11.6.0：None 表示沿用 globalvalue DefaultValue.SessionMode / EvidenceMode（再缺省为
     # isolated / full）；CLI --session-mode / --evidence 写入这里覆盖
     "session_mode": None,
@@ -53,6 +46,28 @@ VALID_KEYS = {
 }
 
 
+# v11.7.0: 这些键从未被任何代码读取（元素等待统一由 globalvalue.xml DefaultValue.AutoWait 控制），
+# 出现在用户配置中时只提示一次，不报错。
+DEPRECATED_KEYS = {
+    "smart_wait_enabled", "smart_wait_max_retries", "smart_wait_retry_interval", "smart_wait_log_retry",
+    "element_wait_timeout", "element_retry_interval", "retry", "retry_delay", "retry_on_errors",
+}
+_warned_deprecated = False
+
+
+def _warn_deprecated_keys(keys) -> None:
+    global _warned_deprecated
+    if _warned_deprecated or not keys:
+        return
+    _warned_deprecated = True
+    import logging
+    logging.getLogger("rodski").warning(
+        "config.json 中的 %s 已废弃且不生效：元素等待统一由 globalvalue.xml "
+        "<var name=\"AutoWait\" value=\"5000\"/>（DefaultValue 组，毫秒）控制，请删除这些键",
+        ", ".join(sorted(keys)),
+    )
+
+
 class ConfigManager:
     def __init__(self, config_path: str = "config/config.json"):
         self.config_path = Path(config_path)
@@ -65,6 +80,8 @@ class ConfigManager:
                 with open(self.config_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
                 self.config.update(data)
+                if isinstance(data, dict):
+                    _warn_deprecated_keys(DEPRECATED_KEYS & set(data))
             except (json.JSONDecodeError, ValueError):
                 pass
 

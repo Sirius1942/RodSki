@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- v11.7.0 非 type 的元素查找关键字：get / clear / upload_file 同样受 AutoWait 控制（元素 2s 后出现） -->
+<cases tags="v117,autowait">
+  <case execute="是" id="TC001" title="get 读取 2s 后出现的文本，后续 verify 用 Return 比对" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/late_get.html?d=2000"/>
+    </pre_process>
+    <test_case>
+      <test_step action="get" model="LateGet" data="G001"/>
+      <test_step action="verify" model="LateGetRef" data="V001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+  <case execute="是" id="TC002" title="clear 清空 2s 后出现的预填输入框" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/late_clear.html?d=2000"/>
+    </pre_process>
+    <test_case>
+      <test_step action="clear" model="" data="#prefilled"/>
+      <test_step action="verify" model="LateClear" data="V001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+  <case execute="是" id="TC003" title="upload_file 上传到 2s 后出现的 file input" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/late_upload.html?d=2000"/>
+    </pre_process>
+    <test_case>
+      <test_step action="upload_file" model="#fileInput" data="fun/site/upload_sample.txt"/>
+      <test_step action="verify" model="LateUpload" data="V001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+</cases>

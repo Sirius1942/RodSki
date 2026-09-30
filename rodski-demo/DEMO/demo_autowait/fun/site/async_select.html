@@ -1,0 +1,20 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>async_select</title><script src="common.js"></script></head><body>
+<h1>下拉选项异步填充 <small id="delayInfo"></small></h1>
+<!-- 时间线：#region 立即存在但只有占位项；d 毫秒后填充 华北/华东/华南；选择结果显示在 #selected。
+     ?sd=毫秒 控制 select 元素本身的出现时间（默认 0 立即出现；负向用例用 sd=20000） -->
+<div id="box"></div>
+<div>已选择：<span id="selected">(无)</span></div>
+<script>
+AW.at(AW.ms('sd', 0), function () {
+  var s = AW.add('box', 'select', { id: 'region' });
+  var ph = document.createElement('option'); ph.value = ''; ph.textContent = '请选择'; s.appendChild(ph);
+  s.addEventListener('change', function () { AW.set('selected', s.value || '(无)'); });
+  AW.at(AW.ms('d', 2000), function () {
+    ['华北', '华东', '华南'].forEach(function (r) {
+      var o = document.createElement('option'); o.value = r; o.textContent = r; s.appendChild(o);
+    });
+  });
+});
+</script>
+</body></html>

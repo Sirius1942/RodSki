@@ -1,0 +1,21 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>late_hover</title><script src="common.js"></script>
+<style>
+  #menu { display: none; border: 1px solid #888; padding: 4px; }
+  #hoverTarget { display: inline-block; padding: 8px; background: #eef; }
+</style>
+</head><body>
+<h1>悬停目标延迟出现 <small id="delayInfo"></small></h1>
+<!-- 时间线：d 毫秒后插入 #hoverTarget；鼠标移入时显示 #menu 并把 #menuState 置为「已展开」 -->
+<div id="box"></div>
+<div id="menu">菜单项 A</div>
+<div>菜单状态：<span id="menuState">未展开</span></div>
+<script>
+AW.at(AW.ms('d', 2000), function () {
+  var t = AW.add('box', 'div', { id: 'hoverTarget' }, '悬停我');
+  t.addEventListener('mouseenter', function () {
+    AW.$('menu').style.display = 'block'; AW.set('menuState', '已展开');
+  });
+});
+</script>
+</body></html>

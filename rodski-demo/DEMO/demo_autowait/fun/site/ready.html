@@ -1,0 +1,23 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>ready</title></head><body>
+<h1>全部元素立即就绪</h1>
+<!-- 无任何延迟：10 个字段（8 个输入框 + 1 个下拉 + 1 个提交按钮）。提交后 #summary 汇总全部输入。
+     用于证明元素已就绪时 AutoWait 不引入任何额外等待（G4）。 -->
+<form id="f" onsubmit="return false">
+  <input id="r1"><input id="r2"><input id="r3"><input id="r4">
+  <input id="r5"><input id="r6"><input id="r7"><input id="r8">
+  <select id="rCity"><option value="">请选择</option><option value="上海">上海</option><option value="北京">北京</option></select>
+  <button id="rSubmit" type="button">提交</button>
+</form>
+<div>汇总：<span id="summary">(未提交)</span></div>
+<div>提交次数：<span id="submitCount">0</span></div>
+<script>
+var n = 0;
+document.getElementById('rSubmit').addEventListener('click', function () {
+  n += 1;
+  var ids = ['r1','r2','r3','r4','r5','r6','r7','r8','rCity'];
+  document.getElementById('summary').textContent = ids.map(function (i) { return document.getElementById(i).value; }).join('|');
+  document.getElementById('submitCount').textContent = String(n);
+});
+</script>
+</body></html>

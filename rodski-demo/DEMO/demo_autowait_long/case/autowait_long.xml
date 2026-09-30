@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- v11.7.0 边界 AutoWait=12000：8s 后出现的元素通过；20s 的按钮失败耗时 ∈ [11.5, 14.5]s（expect_fail） -->
+<cases tags="v117,autowait,boundary">
+  <case execute="是" id="TC001" title="AutoWait=12000：8s 后出现的按钮 click 通过" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/late_button.html?d=8000"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="LateButton" data="C001"/>
+      <test_step action="verify" model="LateButton" data="V001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+  <case execute="是" id="TC002" title="AutoWait=12000：8s 后出现的输入框输入通过" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/late_input.html?d=8000"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="LateInput" data="I001"/>
+      <test_step action="verify" model="LateInput" data="V001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+  <case execute="是" id="TC003" title="AutoWait=12000：20s 的按钮 click 失败" component_type="界面" priority="P0" expect_fail="是">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/late_button.html?d=20000"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="LateButton" data="C001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+</cases>

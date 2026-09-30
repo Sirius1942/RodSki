@@ -127,6 +127,13 @@ def main() -> None:
                     "错误密码",
                     {"username": "demo", "password": "wrong_pwd", "loginBtn": "click", "errorMsg": "BLANK"},
                 ),
+                # v11.7.0 自动等待验收（case/autowait.xml）专用行：与 L001 同值，独立 DataID
+                # 以免后续 login.xml 调整影响本验收
+                (
+                    "AWL001",
+                    "自动等待验收-正常登录",
+                    {"username": "demo", "password": "demo123", "loginBtn": "click", "errorMsg": "BLANK"},
+                ),
             ],
             remark="Mobile demo 登录输入数据",
         )
@@ -171,6 +178,8 @@ def main() -> None:
             fields=["welcomeText", "orderListBtn"],
             rows=[
                 ("H001", "进入订单列表", {"welcomeText": "BLANK", "orderListBtn": "click"}),
+                # v11.7.0 自动等待验收：登录接口延迟期间主页尚未出现，click 须由 AutoWait 等到按钮
+                ("AWH001", "自动等待验收-进入订单列表", {"welcomeText": "BLANK", "orderListBtn": "click"}),
             ],
             remark="Mobile demo 主页操作数据",
         )
@@ -184,6 +193,8 @@ def main() -> None:
             fields=["orderList", "firstOrderItem"],
             rows=[
                 ("O001", "打开第一条订单", {"orderList": "BLANK", "firstOrderItem": "click"}),
+                # v11.7.0 自动等待验收：订单接口延迟期间列表为空，click 须由 AutoWait 等到首条订单
+                ("AWO001", "自动等待验收-打开第一条订单", {"orderList": "BLANK", "firstOrderItem": "click"}),
             ],
             remark="Mobile demo 订单列表操作数据",
         )
@@ -200,6 +211,16 @@ def main() -> None:
                 (
                     "VD001",
                     "订单详情验证",
+                    {
+                        "orderNo": "SO-20260601-001",
+                        "customerName": "张三",
+                        "amount": "BLANK",
+                        "status": "已发货",
+                    },
+                ),
+                (
+                    "AWVD001",
+                    "自动等待验收-订单详情验证",
                     {
                         "orderNo": "SO-20260601-001",
                         "customerName": "张三",

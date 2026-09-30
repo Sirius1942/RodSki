@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <globalvalue>
   <group name="DefaultValue">
-    <!-- v11.6.0 起单位为毫秒（D3）；交互等待交给智能等待与 verify 自动重试 -->
+    <!-- v11.6.0 起单位为毫秒（D3）；交互等待交给自动等待 AutoWait -->
     <var name="WaitTime" value="0"/>
-    <!-- 自动等待：UI 模型 verify 自动重试的上限，单位毫秒（默认 5000；0 关闭） -->
+    <!-- 自动等待（毫秒）：所有查找测试对象的步骤最多等这么久；不设置或 0 = 不自动等待 -->
     <var name="AutoWait" value="5000"/>
     <var name="DialogPolicy" value="fail"/>
     <var name="EvidenceMode" value="full"/>

@@ -64,9 +64,18 @@ PITFALLS: List[Dict[str, Optional[str]]] = [
         "id": "waittime_ms",
         "title": "DefaultValue.WaitTime 与 <cases step_wait> 单位统一为毫秒，作用于每一步",
         "wrong": "WaitTime=1 以为是 1 秒；用例里到处写 wait 1/2 等异步表格",
-        "right": "新模块 WaitTime=0，交互等待交给智能等待与 verify 自动重试（DefaultValue.AutoWait 自动等待，单位毫秒，默认 5000）；"
+        "right": "新模块 WaitTime=0，交互等待交给自动等待（DefaultValue.AutoWait，单位毫秒，须显式设置如 5000，不设置 = 不自动等待；作用于 type 每个字段 / verify / get 等所有查找测试对象的步骤）；"
                  "旧值 ≤30 暂按秒兼容并打印弃用告警",
         "lint": "WARNING：DefaultValue.WaitTime > 0；用例中出现数字字面量 wait（附估算耗时）",
+    },
+    {
+        "id": "autowait_all_lookups",
+        "title": "自动等待（AutoWait）作用于所有查找测试对象的步骤，不只 verify（v11.7.0）",
+        "wrong": "元素晚出现就在 type 前插 wait 2；以为自动等待只管 verify；globalvalue 不写 AutoWait 却指望自动等待；页面慢就改 config.json 的 smart_wait_*",
+        "right": "type 每个字段（输入 / click / select / hover）、verify、get、clear、upload_file 都会等元素出现，"
+                 "上限 globalvalue DefaultValue.AutoWait（毫秒，须显式设置如 5000；不设置 = 不自动等待）；超时报 SKI326 元素 X 在 AutoWait=Nms 内未找到。"
+                 "慢页面调大 AutoWait，不要写 wait；smart_wait_* 从未生效且已删除",
+        "lint": "WARNING：用例中出现数字字面量 wait（附估算耗时）",
     },
     {
         "id": "native_assert_over_evaluate",

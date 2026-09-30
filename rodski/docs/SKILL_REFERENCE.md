@@ -119,7 +119,8 @@
 
 **v11.6.0 起**：
 
-- UI 模型的 `verify` 在 自动等待 `DefaultValue.AutoWait`（单位毫秒，默认 5000）内自动重试到全部字段匹配，异步页面**不需要**先写 `wait`；接口 / DB 模型单次比对。
+- UI 模型的 `verify` 在 自动等待 `DefaultValue.AutoWait`（单位毫秒；不设置 = 不重试，推荐显式写 `5000`）内自动重试到全部字段匹配，异步页面**不需要**先写 `wait`；接口 / DB 模型单次比对。
+- v11.7.0 起 `AutoWait` 同样作用于 `type` 批量的**每一个字段**（输入、click、select、hover 等）以及 `get` / `clear` / `upload_file`：元素出现即操作，超时报 `SKI326`。
 - 字段值可写操作符：`{"$gt": 100}`、`{"$contains": "x"}`，以及元素级 `{"$count": 10}`、`{"$count_gte": 1}`、`{"$count_lte": 5}`、`{"$exists": true}`、`{"$visible": false}`；0 匹配按实际 0 判定。
 - URL / 路径 / 标题 / 弹窗文本：模型元素用 `<location type="page">url|path|title|dialog</location>`。
 - 只校验部分字段：`<test_step action="verify" ... match_mode="subset"/>`，或在不校验的字段填 `BLANK`。
@@ -512,7 +513,7 @@ key 不存在会抛 `InvalidParameterError`。
 | 错误 | 原因 | 解决方案 |
 |------|------|---------|
 | 元素未找到 | 定位器错误 | 检查 vision 描述或坐标 |
-| 操作超时 | 页面加载慢 | 调大 `DefaultValue.AutoWait`（毫秒），不要增加 wait 步骤 |
+| 操作超时 / `SKI326 元素 X 在 AutoWait=Nms 内未找到` | 元素出现慢、定位器写错、元素被遮挡 | 先核对定位器与页面；确实慢时调大 `DefaultValue.AutoWait`（毫秒，作用于所有查找测试对象的步骤），不要增加 wait 步骤 |
 | 验证失败 | 期望值不匹配 | 更新数据表中的期望值 |
 
 ---

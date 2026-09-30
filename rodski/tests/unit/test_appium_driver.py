@@ -19,50 +19,6 @@ class TestAppiumDriver:
         mock_remote.assert_called_once()
     
     @patch('drivers.appium_driver.webdriver.Remote')
-    def test_click(self, mock_remote):
-        driver = AppiumDriver({"platformName": "Android"})
-        driver.driver = Mock()
-        driver.wait = Mock()
-
-        element = Mock()
-        driver.wait.until.return_value = element
-
-        assert driver.click("id=test") == True
-        element.click.assert_called_once()
-
-    @patch('drivers.appium_driver.webdriver.Remote')
-    def test_type_success(self, mock_remote):
-        driver = AppiumDriver({"platformName": "Android"})
-        driver.driver = Mock()
-        driver.wait = Mock()
-        element = Mock()
-        driver.wait.until.return_value = element
-
-        assert driver.type("id=input", "test text") == True
-        element.clear.assert_called_once()
-        element.send_keys.assert_called_once_with("test text")
-
-    @patch('drivers.appium_driver.webdriver.Remote')
-    def test_check_element_visible(self, mock_remote):
-        driver = AppiumDriver({"platformName": "Android"})
-        driver.driver = Mock()
-        driver.wait = Mock()
-        element = Mock()
-        element.is_displayed.return_value = True
-        driver.wait.until.return_value = element
-
-        assert driver.check("id=element") == True
-
-    @patch('drivers.appium_driver.webdriver.Remote')
-    def test_check_element_not_found(self, mock_remote):
-        driver = AppiumDriver({"platformName": "Android"})
-        driver.driver = Mock()
-        driver.wait = Mock()
-        driver.wait.until.side_effect = Exception("Not found")
-
-        assert driver.check("id=missing") == False
-
-    @patch('drivers.appium_driver.webdriver.Remote')
     def test_swipe(self, mock_remote):
         driver = AppiumDriver({"platformName": "Android"})
         driver.driver = Mock()
@@ -130,53 +86,6 @@ class TestAppiumDriver:
         assert driver.navigate("invalid_url") == False
 
     @patch('drivers.appium_driver.webdriver.Remote')
-    def test_select(self, mock_remote):
-        driver = AppiumDriver({"platformName": "Android"})
-        driver.driver = Mock()
-        driver.wait = Mock()
-        element = Mock()
-        element.tag_name = 'select'
-        element.find_elements.return_value = [Mock()]
-        driver.wait.until.return_value = element
-
-        assert driver.select("id=dropdown", "option1") == True
-
-    @patch('drivers.appium_driver.webdriver.Remote')
-    def test_hover(self, mock_remote):
-        driver = AppiumDriver({"platformName": "Android"})
-        driver.driver = Mock()
-        driver.wait = Mock()
-        element = Mock()
-        element.id = 'elem123'
-        driver.wait.until.return_value = element
-
-        assert driver.hover("id=menu") == True
-
-    @patch('drivers.appium_driver.webdriver.Remote')
-    def test_drag_success(self, mock_remote):
-        driver = AppiumDriver({"platformName": "Android"})
-        driver.driver = Mock()
-        # mock locate_element to return bboxes for the new W3C dragGesture API
-        driver.locate_element = Mock(side_effect=[
-            (10, 20, 60, 70),
-            (200, 300, 250, 350),
-        ])
-
-        assert driver.drag("id=source", "id=target") == True
-        driver.driver.execute_script.assert_called_once_with("mobile: dragGesture", {
-            "startX": 35, "startY": 45,
-            "endX": 225, "endY": 325,
-        })
-
-    @patch('drivers.appium_driver.webdriver.Remote')
-    def test_drag_failure(self, mock_remote):
-        driver = AppiumDriver({"platformName": "Android"})
-        driver.driver = Mock()
-        driver.driver.find_element.side_effect = Exception("Not found")
-
-        assert driver.drag("id=source", "id=target") == False
-
-    @patch('drivers.appium_driver.webdriver.Remote')
     def test_scroll_success(self, mock_remote):
         driver = AppiumDriver({"platformName": "Android"})
         driver.driver = Mock()
@@ -196,24 +105,6 @@ class TestAppiumDriver:
         driver.driver.get_window_size.side_effect = Exception("Failed")
 
         assert driver.scroll(0, 300) == False
-
-    @patch('drivers.appium_driver.webdriver.Remote')
-    def test_assert_element_success(self, mock_remote):
-        driver = AppiumDriver({"platformName": "Android"})
-        driver.driver = Mock()
-        element = Mock()
-        element.text = "Hello World"
-        driver.driver.find_element.return_value = element
-
-        assert driver.assert_element("id=title", "Hello") == True
-
-    @patch('drivers.appium_driver.webdriver.Remote')
-    def test_assert_element_failure(self, mock_remote):
-        driver = AppiumDriver({"platformName": "Android"})
-        driver.driver = Mock()
-        driver.driver.find_element.side_effect = Exception("Not found")
-
-        assert driver.assert_element("id=missing", "text") == False
 
     @patch('drivers.appium_driver.webdriver.Remote')
     def test_close(self, mock_remote):
@@ -238,25 +129,6 @@ class TestAppiumDriver:
         driver.driver.tap.side_effect = Exception("Failed")
 
         assert driver.tap(150, 300) == False
-
-    @patch('drivers.appium_driver.webdriver.Remote')
-    def test_long_press_success(self, mock_remote):
-        driver = AppiumDriver({"platformName": "Android"})
-        driver.driver = Mock()
-        element = Mock()
-        element.id = "element123"
-        driver.driver.find_element.return_value = element
-
-        assert driver.long_press("id=button") == True
-
-    @patch('drivers.appium_driver.webdriver.Remote')
-    def test_long_press_failure(self, mock_remote):
-        driver = AppiumDriver({"platformName": "Android"})
-        driver.driver = Mock()
-        driver.wait = Mock()
-        driver.wait.until.side_effect = Exception("Not found")
-
-        assert driver.long_press("id=missing") == False
 
     @patch('drivers.appium_driver.webdriver.Remote')
     def test_hide_keyboard_success(self, mock_remote):
@@ -293,15 +165,6 @@ class TestAppiumDriver:
         assert value == "android.widget.Button"
 
     @patch('drivers.appium_driver.webdriver.Remote')
-    def test_parse_locator_name(self, mock_remote):
-        driver = AppiumDriver({"platformName": "Android"})
-        from appium.webdriver.common.appiumby import AppiumBy
-
-        by, value = driver._parse_locator("name=submit")
-        assert by == AppiumBy.NAME
-        assert value == "submit"
-
-    @patch('drivers.appium_driver.webdriver.Remote')
     def test_get_supported_keywords(self, mock_remote):
         driver = AppiumDriver({"platformName": "Android"})
         keywords = driver.get_supported_keywords()
@@ -309,24 +172,6 @@ class TestAppiumDriver:
         assert "tap" in keywords
         assert "long_press" in keywords
         assert "hide_keyboard" in keywords
-
-    @patch('drivers.appium_driver.webdriver.Remote')
-    def test_click_failure(self, mock_remote):
-        driver = AppiumDriver({"platformName": "Android"})
-        driver.driver = Mock()
-        driver.wait = Mock()
-        driver.wait.until.side_effect = Exception("Element not found")
-
-        assert driver.click("id=missing") == False
-
-    @patch('drivers.appium_driver.webdriver.Remote')
-    def test_type_failure(self, mock_remote):
-        driver = AppiumDriver({"platformName": "Android"})
-        driver.driver = Mock()
-        driver.wait = Mock()
-        driver.wait.until.side_effect = Exception("Element not found")
-
-        assert driver.type("id=input", "text") == False
 
     @patch('drivers.appium_driver.webdriver.Remote')
     def test_init_with_custom_server_url(self, mock_remote):
