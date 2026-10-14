@@ -1,6 +1,52 @@
 # Changelog
 
 
+## [11.8.0] - 2026-10-14
+
+REQ-012 调试功能正式发布。新增断点管理、部分执行、执行队列、步骤快照等调试能力，提升测试开发和故障排查效率。
+
+### Added
+
+- **断点管理**：通过 `--break-at` 参数在指定位置设置断点，支持 `step:N`（步骤编号）、`scenario:ID`（场景ID）、`node:NAME`（节点名称）、`flow:ID`（流程ID）、`driver:ACTION`（驱动动作）、`batch:row:N`（数据行）等多种断点类型。
+- **部分执行**：通过 `--start-from N` 和 `--stop-at N` 参数精确控制执行范围，支持跳过前置步骤或在指定步骤后停止。
+- **单步执行**：通过 `--step-mode` 参数启用单步执行模式，每执行一步自动暂停；配合 `--driver-level` 可在每个驱动动作后暂停。
+- **执行队列**：自动记录多层级执行历史（Case → Scenario → Flow → Node → Step → Driver），支持查看完整的执行路径和上下文。
+- **步骤快照**：在断点暂停时自动保存步骤状态（action, model, data, 场景信息等），支持查询和检索。
+- **交互式调试命令**：暂停时支持 `continue` / `next` / `quit` / `list` / `context` / `help` 等命令，方便调试操作。
+- **调试会话管理**：通过 `DebugSession` 单例管理调试状态，集成断点管理器、执行队列和对象池。
+- **数据驱动调试支持**：断点和部分执行功能与数据驱动场景完全兼容，支持在数据循环中设置断点。
+
+### Changed
+
+- `SkiExecutor` 新增调试钩子：在每个测试步骤执行前检查断点，命中时暂停执行队列并保存步骤快照。
+- `DebugSession` 新增 `step_snapshots` 字典和相关方法（`save_step_snapshot` / `get_step_snapshot` / `clear_snapshots`）。
+- 执行队列暂停时不再阻塞后续测试，支持继续、下一步或退出执行。
+
+### Fixed
+
+- 修复 `BreakpointManager.should_break()` 方法不存在的问题，改为调用 `check_hit(step=step_index)`。
+- 修复 `ObjectPool.save_step_snapshot()` 方法缺失的问题，步骤快照功能移至 `DebugSession`。
+
+### 验收
+
+- `rodski-demo/DEMO/debug_partial_execution/`（3 个验收用例，通过率 100%）：
+  - AC-035：数据驱动场景的断点（测试断点在数据驱动循环中的触发）
+  - AC-036：多步骤部分执行（测试 `--start-from` 和 `--stop-at` 参数）
+  - AC-037：驱动器日志测试（测试驱动动作日志的自动记录）
+- 完整的测试模块：7 个数据表、7 个页面模型、完整的元数据结构、详细的文档（README, TEST_REPORT, SUMMARY）
+
+### 文档
+
+- 新增 `rodski-demo/DEMO/debug_partial_execution/README.md` - 调试功能使用指南
+- 新增 `rodski-demo/DEMO/debug_partial_execution/TEST_REPORT.md` - 详细测试报告
+- 新增 `rodski-demo/DEMO/debug_partial_execution/SUMMARY.md` - 集成总结
+- 新增 `REQ-012_COMPLETION_REPORT.md` - 完成报告
+
+### 相关需求
+
+- REQ-012：调试功能（断点、部分执行、执行队列、交互式调试）
+
+
 ## [11.7.1] - 2026-09-30
 
 `AutoWait` 取消隐含默认时长，规则更简单（Owner 决策）。
