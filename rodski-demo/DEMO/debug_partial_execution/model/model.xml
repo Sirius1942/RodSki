@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<model>
+    <!-- 简单表单页面模型 - 用于大部分验收用例 -->
+    <page name="SimpleForm" type="web">
+        <element name="username" type="web">
+            <location type="id">username</location>
+        </element>
+        <element name="password" type="web">
+            <location type="id">password</location>
+        </element>
+        <element name="vin" type="web">
+            <location type="id">vin</location>
+        </element>
+        <element name="submit" type="web">
+            <location type="id">submit</location>
+        </element>
+    </page>
+
+    <!-- 结果页面模型 -->
+    <page name="SubmitResult" type="web">
+        <element name="result_text" type="web">
+            <location type="id">result</location>
+        </element>
+        <element name="message" type="web">
+            <location type="css">.message</location>
+        </element>
+    </page>
+
+    <!-- 评论字段 -->
+    <page name="CommentField" type="web">
+        <element name="comment" type="web">
+            <location type="id">comment</location>
+        </element>
+    </page>
+
+    <!-- 确认按钮 -->
+    <page name="ConfirmButton" type="web">
+        <element name="confirm" type="web">
+            <location type="id">confirm</location>
+        </element>
+    </page>
+
+    <!-- 最终结果 -->
+    <page name="FinalResult" type="web">
+        <element name="status" type="web">
+            <location type="id">final_status</location>
+        </element>
+    </page>
+
+    <!-- 流程结果 -->
+    <page name="FlowResult" type="web">
+        <element name="flow_status" type="web">
+            <location type="id">flow_result</location>
+        </element>
+    </page>
+</model>

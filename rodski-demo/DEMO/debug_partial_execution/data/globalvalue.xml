@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<GlobalValue>
+    <!-- 测试环境配置 -->
+    <variable name="BASE_URL" value="https://example.com"/>
+    <variable name="TEST_USERNAME" value="test_user"/>
+    <variable name="TEST_PASSWORD" value="test_pass"/>
+    <variable name="TIMEOUT" value="10"/>
+    <variable name="RETRY_COUNT" value="3"/>
+
+    <!-- 调试配置 -->
+    <variable name="DEBUG_MODE" value="true"/>
+    <variable name="LOG_LEVEL" value="INFO"/>
+    <variable name="DRIVER_LOG_ENABLED" value="true"/>
+
+    <!-- 浏览器配置 -->
+    <variable name="BROWSER_TYPE" value="chromium"/>
+    <variable name="HEADLESS" value="false"/>
+</GlobalValue>

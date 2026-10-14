@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suite>
+    <!-- AC-036: 数据驱动场景的部分执行 -->
+    <case id="AC-036" batch="AC036_TestData" priority="P1">
+        <description>
+            测试数据驱动场景中的部分执行（暂停后继续）
+            验收标准：
+            1. 第一次执行到第8步后暂停并退出
+            2. 第二次从第9步继续，检测到浏览器对象存在
+            3. 提示用户是否复用对象
+            4. 复用对象后继续执行剩余步骤
+        </description>
+
+        <pre_process>
+            <test_step action="launch" browser="chromium" id="data_driven_browser"/>
+            <test_step action="navigate" target="data_driven_browser" data="https://example.com/form"/>
+        </pre_process>
+
+        <test_case>
+            <scenario id="S001" description="数据驱动 - 部分执行">
+                <test_step action="type" model="SimpleForm" data="AC036_TestData"/>
+                <test_step action="wait" model="" data="1"/>
+                <test_step action="get_text" model="SubmitResult" data="result_text"/>
+                <test_step action="verify" model="SubmitResult" data="AC036_TestData_verify"/>
+                <!-- 第5-8步 -->
+                <test_step action="screenshot" model="" data="AC-036-step5.png"/>
+                <test_step action="wait" model="" data="0.5"/>
+                <test_step action="type" model="CommentField" data="AC036_Comment"/>
+                <!-- 第8步暂停点 -->
+                <test_step action="screenshot" model="" data="AC-036-step8-pause.png"/>
+                <!-- 第9步及以后（从这里继续） -->
+                <test_step action="type" model="ConfirmButton" data="confirm"/>
+                <test_step action="wait" model="" data="1"/>
+                <test_step action="verify" model="FinalResult" data="AC036_Final_verify"/>
+            </scenario>
+        </test_case>
+
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+</suite>

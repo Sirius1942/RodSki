@@ -223,6 +223,19 @@ def setup_parser(subparsers):
                              "worker 中顺序执行，结果合并到同一运行目录。仅作用于 Web / 接口 / DB 用例"
                              "（默认 1 = 顺序执行）")
 
+    # REQ-012: 调试与部分执行参数
+    parser.add_argument("--break-at", type=str, default=None, dest="break_at",
+                        help="设置断点（逗号分隔多个），支持：step:N, scenario:ID, node:NAME, "
+                             "flow:ID, driver:ACTION, batch:row:N")
+    parser.add_argument("--start-from", type=int, default=None, dest="start_from",
+                        help="从第 N 个测试步骤开始执行（跳过前面的步骤）")
+    parser.add_argument("--stop-at", type=int, default=None, dest="stop_at",
+                        help="执行到第 N 个测试步骤后停止")
+    parser.add_argument("--step-mode", action="store_true", dest="step_mode",
+                        help="单步执行模式（每执行一步就暂停）")
+    parser.add_argument("--driver-level", action="store_true", dest="driver_level",
+                        help="驱动级别单步执行（配合 --step-mode 使用，在每个驱动动作后暂停）")
+
 
 REPORT_FORMATS = ("html", "junit")
 
@@ -1112,6 +1125,31 @@ def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional
 
     # observability：--trace 显式开启，--report html 也顺带采集性能数据
     enable_trace = bool(getattr(args, "trace", False)) or "html" in _report_formats(args)
+
+    # REQ-012: 初始化调试会话
+    debug_enabled = (
+        getattr(args, "break_at", None) is not None
+        or getattr(args, "start_from", None) is not None
+        or getattr(args, "stop_at", None) is not None
+        or getattr(args, "step_mode", False)
+    )
+    if debug_enabled:
+        try:
+            from ..core.debug_session import get_debug_session
+            from ..core.breakpoint_manager import parse_breakpoints_from_args
+        except ImportError:
+            from rodski.core.debug_session import get_debug_session
+            from rodski.core.breakpoint_manager import parse_breakpoints_from_args
+
+        debug_session = get_debug_session()
+        breakpoints = parse_breakpoints_from_args(getattr(args, "break_at", None))
+        debug_session.enable(
+            breakpoints=breakpoints,
+            start_from=getattr(args, "start_from", None),
+            stop_at=getattr(args, "stop_at", None),
+            step_mode=getattr(args, "step_mode", False),
+        )
+        logger.info(f"[Debug] Enabled with {len(breakpoints)} breakpoints")
 
     try:
         executor = SKIExecutor(

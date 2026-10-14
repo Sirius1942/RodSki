@@ -3,7 +3,7 @@ import sys
 import argparse
 import ast
 from pathlib import Path
-from . import run, roam, model, config, log, report, docs, data, init, plan, capabilities, explore, queue, business, case
+from . import run, roam, model, config, log, report, docs, data, init, plan, capabilities, explore, queue, business, case, debug
 
 from importlib.metadata import PackageNotFoundError, version
 
@@ -72,6 +72,7 @@ def main():
     queue.setup_parser(subparsers)
     business.setup_parser(subparsers)
     case.setup_parser(subparsers)
+    debug.setup_parser(subparsers)
 
     args = parser.parse_args()
 
@@ -95,6 +96,7 @@ def main():
         "queue": queue.handle,
         "business": business.handle,
         "case": case.handle,
+        "debug": debug.handle,
     }
 
     try:
