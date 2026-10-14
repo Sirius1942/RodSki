@@ -59,6 +59,9 @@ class DebugSession:
         self.current_node_name: Optional[str] = None
         self.current_data_row: Optional[Dict[str, Any]] = None
 
+        # 步骤快照（用于调试时查看步骤状态）
+        self.step_snapshots: Dict[int, Dict[str, Any]] = {}
+
         # 日志输出
         self.log_file: Optional[Path] = None
 
@@ -98,6 +101,32 @@ class DebugSession:
         if self.stop_at is not None and step_num > self.stop_at:
             return True
         return False
+
+    def save_step_snapshot(self, step_num: int, snapshot: Dict[str, Any]) -> None:
+        """保存步骤快照（用于调试时查看）
+
+        Args:
+            step_num: 步骤编号
+            snapshot: 快照数据（包含 action, model, data, 返回值等）
+        """
+        self.step_snapshots[step_num] = snapshot
+        logger.debug(f"[DebugSession] Saved snapshot for step {step_num}")
+
+    def get_step_snapshot(self, step_num: int) -> Optional[Dict[str, Any]]:
+        """获取步骤快照
+
+        Args:
+            step_num: 步骤编号
+
+        Returns:
+            快照数据，如果不存在则返回 None
+        """
+        return self.step_snapshots.get(step_num)
+
+    def clear_snapshots(self) -> None:
+        """清空所有步骤快照"""
+        self.step_snapshots.clear()
+        logger.debug("[DebugSession] Cleared all step snapshots")
 
     def check_breakpoint(self, **kwargs) -> bool:
         """检查是否命中断点

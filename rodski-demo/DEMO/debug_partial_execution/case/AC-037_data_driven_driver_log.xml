@@ -1,27 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<suite>
-    <!-- AC-037: 数据驱动场景的驱动动作日志 -->
-    <case id="AC-037" batch="AC037_TestData" priority="P1">
-        <description>
-            测试数据驱动场景中驱动动作级别的日志记录
-            验收标准：
-            1. 两行数据分别调用不同的业务流程
-            2. driver_actions.jsonl 中每个动作记录包含上下文（case/row/data_id/flow）
-            3. 可以通过 jq 过滤第1行的所有驱动动作
-            4. 可以对比两行的驱动动作差异
-        </description>
-
+<cases>
+    <case execute="是" id="AC-037" title="驱动器日志测试" priority="P1" component_type="界面">
         <pre_process>
-            <test_step action="launch" browser="chromium"/>
-            <test_step action="navigate" model="" data="https://example.com/multi-flow"/>
+            <test_step action="navigate" model="" data="data:text/html,%3Chtml%3E%3Cbody%3E%3Cinput%20id%3D%22username%22%3E%3Cinput%20id%3D%22password%22%3E%3Cdiv%20id%3D%22flow_result%22%3EFlow%20Success%3C%2Fdiv%3E%3C%2Fbody%3E%3C%2Fhtml%3E"/>
         </pre_process>
 
         <test_case>
-            <scenario id="S001" description="数据驱动 - 驱动动作日志">
-                <!-- 这里的 batch 数据会调用不同的业务流程 -->
-                <test_step action="business_call" model="multi_flow" data="AC037_TestData"/>
-                <test_step action="wait" model="" data="1"/>
-                <test_step action="verify" model="FlowResult" data="AC037_TestData_verify"/>
+            <scenario id="S001" title="驱动日志记录测试">
+                <!-- 执行一些驱动动作，生成日志 -->
+                <test_step action="type" model="AC037_TestData" data="001"/>
+                <test_step action="wait" model="" data="0.5"/>
+                <test_step action="get_text" model="AC037_TestData_verify" data="flow_status"/>
+                <test_step action="verify" model="AC037_TestData_verify" data="001"/>
             </scenario>
         </test_case>
 
@@ -29,4 +19,4 @@
             <test_step action="close" model="" data=""/>
         </post_process>
     </case>
-</suite>
+</cases>

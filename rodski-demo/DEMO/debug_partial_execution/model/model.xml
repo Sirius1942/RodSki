@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<model>
-    <!-- 简单表单页面模型 - 用于大部分验收用例 -->
-    <page name="SimpleForm" type="web">
+<models>
+    <!-- 简单表单页面模型 -->
+    <model name="SimpleForm" type="ui">
         <element name="username" type="web">
             <location type="id">username</location>
         </element>
@@ -14,43 +14,103 @@
         <element name="submit" type="web">
             <location type="id">submit</location>
         </element>
-    </page>
+    </model>
 
     <!-- 结果页面模型 -->
-    <page name="SubmitResult" type="web">
+    <model name="SubmitResult" type="ui">
         <element name="result_text" type="web">
             <location type="id">result</location>
         </element>
         <element name="message" type="web">
             <location type="css">.message</location>
         </element>
-    </page>
+    </model>
 
     <!-- 评论字段 -->
-    <page name="CommentField" type="web">
+    <model name="CommentField" type="ui">
         <element name="comment" type="web">
             <location type="id">comment</location>
         </element>
-    </page>
+    </model>
 
     <!-- 确认按钮 -->
-    <page name="ConfirmButton" type="web">
+    <model name="ConfirmButton" type="ui">
         <element name="confirm" type="web">
             <location type="id">confirm</location>
         </element>
-    </page>
+    </model>
 
     <!-- 最终结果 -->
-    <page name="FinalResult" type="web">
+    <model name="FinalResult" type="ui">
         <element name="status" type="web">
             <location type="id">final_status</location>
         </element>
-    </page>
+    </model>
 
     <!-- 流程结果 -->
-    <page name="FlowResult" type="web">
+    <model name="FlowResult" type="ui">
         <element name="flow_status" type="web">
             <location type="id">flow_result</location>
         </element>
-    </page>
-</model>
+    </model>
+
+    <!-- AC-035 专用模型 -->
+    <model name="AC035_TestData" type="ui">
+        <element name="username" type="web">
+            <location type="id">username</location>
+        </element>
+        <element name="password" type="web">
+            <location type="id">password</location>
+        </element>
+    </model>
+
+    <model name="AC035_TestData_verify" type="ui">
+        <element name="result_text" type="web">
+            <location type="id">result</location>
+        </element>
+    </model>
+
+    <!-- AC-036 专用模型 -->
+    <model name="AC036_TestData" type="ui">
+        <element name="username" type="web">
+            <location type="id">username</location>
+        </element>
+        <element name="password" type="web">
+            <location type="id">password</location>
+        </element>
+    </model>
+
+    <model name="AC036_Comment" type="ui">
+        <element name="comment" type="web">
+            <location type="id">comment</location>
+        </element>
+    </model>
+
+    <model name="AC036_TestData_verify" type="ui">
+        <element name="confirm" type="web">
+            <location type="id">confirm</location>
+        </element>
+    </model>
+
+    <model name="AC036_Final_verify" type="ui">
+        <element name="status" type="web">
+            <location type="id">final_status</location>
+        </element>
+    </model>
+
+    <!-- AC-037 专用模型 -->
+    <model name="AC037_TestData" type="ui">
+        <element name="flow_name" type="web">
+            <location type="id">username</location>
+        </element>
+        <element name="param1" type="web">
+            <location type="id">password</location>
+        </element>
+    </model>
+
+    <model name="AC037_TestData_verify" type="ui">
+        <element name="flow_status" type="web">
+            <location type="id">flow_result</location>
+        </element>
+    </model>
+</models>

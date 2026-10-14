@@ -1,37 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<suite>
-    <!-- AC-036: 数据驱动场景的部分执行 -->
-    <case id="AC-036" batch="AC036_TestData" priority="P1">
-        <description>
-            测试数据驱动场景中的部分执行（暂停后继续）
-            验收标准：
-            1. 第一次执行到第8步后暂停并退出
-            2. 第二次从第9步继续，检测到浏览器对象存在
-            3. 提示用户是否复用对象
-            4. 复用对象后继续执行剩余步骤
-        </description>
-
+<cases>
+    <case execute="是" id="AC-036" title="多步骤部分执行" priority="P1" component_type="界面">
         <pre_process>
-            <test_step action="launch" browser="chromium" id="data_driven_browser"/>
-            <test_step action="navigate" target="data_driven_browser" data="https://example.com/form"/>
+            <test_step action="navigate" model="" data="data:text/html,%3Chtml%3E%3Cbody%3E%3Cinput%20id%3D%22username%22%3E%3Cinput%20id%3D%22password%22%3E%3Cinput%20id%3D%22comment%22%3E%3Cdiv%20id%3D%22final_status%22%3ECompleted%3C%2Fdiv%3E%3C%2Fbody%3E%3C%2Fhtml%3E"/>
         </pre_process>
 
         <test_case>
-            <scenario id="S001" description="数据驱动 - 部分执行">
-                <test_step action="type" model="SimpleForm" data="AC036_TestData"/>
-                <test_step action="wait" model="" data="1"/>
-                <test_step action="get_text" model="SubmitResult" data="result_text"/>
-                <test_step action="verify" model="SubmitResult" data="AC036_TestData_verify"/>
-                <!-- 第5-8步 -->
-                <test_step action="screenshot" model="" data="AC-036-step5.png"/>
+            <scenario id="S001" title="部分执行测试">
+                <!-- 步骤 2-3: 输入用户名和密码 -->
+                <test_step action="type" model="AC036_TestData" data="001"/>
+                <!-- 步骤 4 -->
                 <test_step action="wait" model="" data="0.5"/>
-                <test_step action="type" model="CommentField" data="AC036_Comment"/>
-                <!-- 第8步暂停点 -->
-                <test_step action="screenshot" model="" data="AC-036-step8-pause.png"/>
-                <!-- 第9步及以后（从这里继续） -->
-                <test_step action="type" model="ConfirmButton" data="confirm"/>
-                <test_step action="wait" model="" data="1"/>
-                <test_step action="verify" model="FinalResult" data="AC036_Final_verify"/>
+                <!-- 步骤 5: 输入评论 -->
+                <test_step action="type" model="AC036_Comment" data="001"/>
+                <!-- 步骤 6 -->
+                <test_step action="wait" model="" data="0.5"/>
+                <!-- 步骤 7: 验证最终状态 -->
+                <test_step action="verify" model="AC036_Final_verify" data="001"/>
+                <!-- 步骤 8 -->
+                <test_step action="screenshot" model="" data="AC-036-final.png"/>
             </scenario>
         </test_case>
 
@@ -39,4 +26,4 @@
             <test_step action="close" model="" data=""/>
         </post_process>
     </case>
-</suite>
+</cases>

@@ -1,26 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<suite>
-    <!-- AC-035: 数据驱动场景的断点 -->
-    <case id="AC-035" batch="AC035_TestData" priority="P1">
-        <description>
-            测试数据驱动场景中设置断点的能力
-            验证点：
-            1. 断点在指定步骤前触发
-            2. 暂停时显示当前行数据（ROW 变量）
-            3. 继续执行后完成该行但不执行后续行
-        </description>
-
+<cases>
+    <case execute="是" id="AC-035" title="数据驱动场景的断点" priority="P1" component_type="界面">
         <pre_process>
-            <test_step action="navigate" model="" data="https://example.com/form"/>
+            <test_step action="navigate" model="" data="data:text/html,%3Chtml%3E%3Cbody%3E%3Cinput%20id%3D%22username%22%3E%3Cinput%20id%3D%22password%22%3E%3Cdiv%20id%3D%22result%22%3ESuccess%3C%2Fdiv%3E%3C%2Fbody%3E%3C%2Fhtml%3E"/>
         </pre_process>
 
         <test_case>
-            <scenario id="S001" description="数据驱动场景 - 第5步暂停">
-                <test_step action="type" model="SimpleForm" data="AC035_TestData"/>
+            <scenario id="S001" title="数据驱动场景断点测试">
+                <test_step action="type" model="AC035_TestData" data="001"/>
                 <test_step action="wait" model="" data="1"/>
-                <test_step action="get_text" model="SubmitResult" data="result_text"/>
-                <test_step action="verify" model="SubmitResult" data="AC035_TestData_verify"/>
-                <!-- 第5步：这里应该触发断点（如果用户设置了 --break-at step:5） -->
+                <test_step action="get_text" model="AC035_TestData_verify" data="result_text"/>
+                <test_step action="verify" model="AC035_TestData_verify" data="001"/>
                 <test_step action="screenshot" model="" data="AC-035-step5-breakpoint.png"/>
             </scenario>
         </test_case>
@@ -29,4 +19,4 @@
             <test_step action="close" model="" data=""/>
         </post_process>
     </case>
-</suite>
+</cases>

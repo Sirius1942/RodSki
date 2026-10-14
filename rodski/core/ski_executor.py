@@ -117,6 +117,7 @@ class SKIExecutor:
         enable_trace: bool = False,
         hooks: Optional[Dict[str, List[Callable]]] = None,
         diagnosis_engine: Optional[Any] = None,
+        debug_session=None,
     ):
         """初始化 SKI 执行器
 
@@ -132,6 +133,7 @@ class SKIExecutor:
                 不传则为空字典，行为与现状完全一致
             diagnosis_engine: DiagnosisEngine 实例（可选）；配置后 case 失败时
                 自动调用 diagnose()，结果写入 report_collector（若存在）
+            debug_session: v11.8.0 DebugSession 实例（可选）；用于调试模式
         """
         self.case_path = Path(case_path).expanduser().resolve()
         self.driver = driver
@@ -281,6 +283,9 @@ class SKIExecutor:
         self.roam_enabled = False
         self.roam_mode = "batch_just_passed"
         self.roam_case_id: Optional[str] = None
+
+        # v11.8.0 调试会话（可选）
+        self.debug_session = debug_session
 
     def _on_mobile_driver_created(self, driver_type: str, driver) -> None:
         """移动端/桌面端 driver 就绪回调：补启动用例录像。
@@ -2288,6 +2293,44 @@ class SKIExecutor:
         model = step['model']
         data = step['data']
 
+        # v11.8.0 调试钩子：在执行前检查断点、部分执行控制
+        if self.debug_session:
+            step_index = len(self._current_case_steps_log) + 1
+
+            # 检查是否应该跳过此步骤
+            if self.debug_session.should_skip_step(step_index):
+                logger.info(f"[DEBUG] 跳过步骤 {step_index}: {action} {model}")
+                # 记录跳过的步骤
+                self._current_case_steps_log.append({
+                    'index': step_index,
+                    'action': action,
+                    'model': model,
+                    'phase': step_type,
+                    'status': 'skipped',
+                    'return_source': 'debug_skip',
+                    'return_value': None,
+                    'named_writes': {},
+                })
+                return
+
+            # 检查断点
+            hit_bp = self.debug_session.breakpoint_manager.check_hit(step=step_index)
+            if hit_bp:
+                logger.info(f"[DEBUG] 断点命中：步骤 {step_index}")
+                self.debug_session.execution_queue.pause()
+                # 保存当前对象到步骤快照
+                self.debug_session.save_step_snapshot(
+                    step_index,
+                    {
+                        'action': action,
+                        'model': model,
+                        'data': data,
+                        'phase': step_type,
+                        'return_history': list(self.keyword_engine._context.history),
+                        'named_vars': dict(self.keyword_engine._context.named),
+                    }
+                )
+
         resolved_data = self.data_resolver.resolve_case_data(data)
 
         if data and resolved_data != data:
@@ -2436,6 +2479,23 @@ class SKIExecutor:
             'named_writes': named_writes,
             'browser_monitor': _browser_errors,
         })
+
+        # v11.8.0 调试钩子：步骤执行成功后保存对象快照
+        if self.debug_session:
+            self.debug_session.save_step_snapshot(
+                step_index,
+                {
+                    'action': action,
+                    'model': model,
+                    'data': resolved_data,
+                    'phase': step_type,
+                    'status': 'ok',
+                    'return_value': last_return,
+                    'return_history': list(self.keyword_engine._context.history),
+                    'named_vars': dict(self.keyword_engine._context.named),
+                    'named_writes': named_writes,
+                }
+            )
 
         # 报告收集器：记录步骤
         if getattr(self, 'report_collector', None):
