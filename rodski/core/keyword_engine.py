@@ -2767,8 +2767,13 @@ class KeywordEngine:
                     continue
                 expected = ''
 
-            # NULL → 接口期望 "null"; NONE → 接口期望 "none"; UI 均跳过
-            if expected_upper in ('NULL', 'NONE'):
+            # NONE → 跳过验证（CORE §4.1，v11.8.15 BUG-A15：此前接口模型当作期望字符串 "none"）
+            if expected_upper == 'NONE':
+                logger.debug(f"{element_name}: NONE → 跳过验证")
+                continue
+
+            # NULL → 接口期望 null; UI 跳过
+            if expected_upper == 'NULL':
                 if model_type == MODEL_TYPE_UI:
                     logger.debug(f"{element_name}: {expected_upper} → 跳过验证")
                     continue
@@ -3017,8 +3022,9 @@ class KeywordEngine:
             expected_upper = expected.strip().upper()
 
             # BLANK → 跳过该字段不验证
-            if expected_upper == 'BLANK':
-                logger.debug(f"{field}: BLANK → 跳过验证")
+            if expected_upper in ('BLANK', 'NONE'):
+                # NONE 跳过验证（CORE §4.1，v11.8.15 BUG-A15），字段缺失也不报错
+                logger.debug(f"{field}: {expected_upper} → 跳过验证")
                 continue
 
             # 检查字段是否存在于实际结果中
@@ -3036,8 +3042,8 @@ class KeywordEngine:
 
             actual_val = actual_data[field]
 
-            # NULL/NONE 特殊处理
-            if expected_upper in ('NULL', 'NONE'):
+            # NULL 特殊处理
+            if expected_upper == 'NULL':
                 expected_mapped = expected.lower()
                 actual_str = str(actual_val) if actual_val is not None else "null"
                 results[field] = actual_val

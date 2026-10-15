@@ -65,7 +65,6 @@ CASES: dict[str, dict[str, str | None]] = {
 
 # 已登记的框架/文档不一致（KNOWN）：case_id -> 说明
 KNOWN = {
-    "TC-HV-026-06": "F026 接口 verify 的 NONE 被当作期望字符串 'none'，而不是跳过验证（CORE §4.1）",
     "TC-HV-052-02": "F052 DB verify 不支持断言操作符（GUIDE §5.7.1 写明适用 DB）",
     "TC-HV-052-03": "F052 同上",
     "TC-HV-052-04": "F052 同上：失败原因是字符串不等，而不是 $gt 断言失败",

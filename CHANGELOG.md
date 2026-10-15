@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [11.8.15] - 2026-10-15
+
+### Fixed
+
+- BUG-A15：接口 / DB verify 中 NONE 被当作期望字符串 "none" 比较；按 CORE §4.1 改为跳过该字段（DB 模型字段缺失也不报错），GUIDE 控制值表同步更正 NONE 在 send 中"不发送该字段"并补 verify 行为说明（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
 ## [11.8.14] - 2026-10-15
 
 ### Fixed

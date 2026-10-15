@@ -86,3 +86,23 @@ class TestStatusWithoutModelElement:
         engine = _engine({'token': _field('token')}, {'token': 'abc', 'ghost': 'x'},
                          {'status': 200, 'token': 'abc'})
         assert engine._batch_verify('Login', 'V001', 'subset') is True
+
+
+class TestNoneSkipsVerify:
+    """A15：接口 / DB verify 中 NONE 跳过该字段（CORE §4.1），不当作期望字符串 "none" """
+
+    def test_interface_none_skipped(self):
+        engine = _engine({'token': _field('token'), 'text': _field('text')},
+                         {'token': 'abc', 'text': 'NONE'}, {'status': 200, 'token': 'abc', 'text': 'hello'})
+        assert engine._batch_verify('Login', 'V001') is True
+
+    def test_interface_null_still_expects_null(self):
+        engine = _engine({'text': _field('text')}, {'text': 'NULL'}, {'status': 200, 'text': 'hello'})
+        with pytest.raises(AssertionFailedError, match='text'):
+            engine._batch_verify('Login', 'V001')
+
+    def test_db_none_skipped_even_if_column_missing(self):
+        from core.model_parser import MODEL_TYPE_DATABASE
+        engine = _engine({'n': _field('n')}, {'n': '1', 'remark': 'NONE', 'other': 'none'},
+                         {'n': 1, 'other': 'none'}, model_type=MODEL_TYPE_DATABASE)
+        assert engine._batch_verify('Q', 'V001') is True

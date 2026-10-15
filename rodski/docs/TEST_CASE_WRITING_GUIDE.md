@@ -877,7 +877,9 @@ rodski data set product/shop/order OrderDB_verify V_OK n=2
 | `.Password` 后缀 | 输入时去掉后缀，日志中显示 `***` | — |
 | 空值（省略 field） | 跳过该元素（不输入） | — |
 | `BLANK` | 跳过（UI）/ 空字符串（接口） | 传空字符串 |
-| `NULL` / `NONE` | 跳过（UI） | 传 null / none |
+| `NULL` / `NONE` | 跳过（UI） | `NULL` 传 null；`NONE` 不发送该字段 |
+
+verify 中：`BLANK` 在 UI / DB 模型跳过、接口模型期望空字符串；`NULL` 期望 null（UI 跳过）；`NONE` 一律跳过该字段（CORE §4.1）。
 
 #### UI 动作关键字
 
