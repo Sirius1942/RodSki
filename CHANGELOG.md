@@ -1,6 +1,31 @@
 # Changelog
 
 
+## [11.8.1] - 2026-10-15
+
+修复版本：调试参数接线、`--group` 选择、`loop` 变量解析；重写 REQ-012 验收用例为真实执行判定。
+
+### Fixed
+
+- `rodski run` 未把 `DebugSession` 传给执行器，`--break-at` / `--start-from` / `--stop-at` / `--step-mode` 在 11.8.0 中均不生效。
+- `--group`（及 `--tag` / `--priority` 等 selector）选中 scenario 时整条用例被判为 `plan_not_selected` 跳过：selector 选择项缺少 `case_file`，与 v11.5.0 起的用例身份 `case_file::case_id` 不匹配。
+- `<loop var="i">` 中 `data` 属性的 `${i}` 不被替换：循环变量未写入模板解析源（现与 `set` 关键字一致）。
+- 调试钩子改为 `getattr(self, 'debug_session', None)`，修复 11.8.0 引入的 6 个单测失败。
+
+### 文档
+
+- `TEST_CASE_WRITING_GUIDE.md`：`loop range` 示例由 `1,5` 改为 `1-5`，并说明 `1-5` 为闭区间、`1,2,3` 为取值列表（`1,5` 只循环两次）。
+
+### 验收
+
+- 删除 11.8.0 中以 JS 自造数据自证的模拟验收；`rodski-demo/DEMO/debug_partial_execution/` 重写为 37 条真实验收：以子进程执行 `debug_partial_execution_targets/` 中的被测用例，按执行轨迹、结果产物与 `rodski debug` 输出判定。
+- 当前通过 1/37（AC-018）；其余为 REQ-012 尚未实现的能力（断点暂停交互、驱动动作日志、对象池、`--rows` 等），待后续版本实现。
+
+### 测试
+
+- 新增 `rodski/tests/integration/test_v1181_regressions.py`（`--start-from`、`--group`、loop 变量）。
+
+
 ## [11.8.0] - 2026-10-14
 
 REQ-012 调试功能正式发布。新增断点管理、部分执行、执行队列、步骤快照等调试能力，提升测试开发和故障排查效率。

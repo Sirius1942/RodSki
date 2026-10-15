@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- REQ-012 验收 E 驱动级别控制：每条用例由 fun/ac_runner.py 真实执行被测用例并判定，判定点见 README.md。 -->
+<cases tags="req-012,acceptance,group-e">
+    <case execute="是" id="AC-022" title="AC-022 查看驱动动作队列" component_type="接口" priority="P0">
+        <test_case>
+            <test_step action="run" model="" data="ac_runner.py AC-022"/>
+        </test_case>
+    </case>
+    <case execute="是" id="AC-023" title="AC-023 驱动动作级别断点" component_type="接口" priority="P0">
+        <test_case>
+            <test_step action="run" model="" data="ac_runner.py AC-023"/>
+        </test_case>
+    </case>
+    <case execute="是" id="AC-024" title="AC-024 驱动动作执行日志" component_type="接口" priority="P0">
+        <test_case>
+            <test_step action="run" model="" data="ac_runner.py AC-024"/>
+        </test_case>
+    </case>
+    <case execute="是" id="AC-025" title="AC-025 单个驱动动作失败定位" component_type="接口" priority="P0">
+        <test_case>
+            <test_step action="run" model="" data="ac_runner.py AC-025"/>
+        </test_case>
+    </case>
+    <case execute="是" id="AC-026" title="AC-026 驱动动作性能分析" component_type="接口" priority="P0">
+        <test_case>
+            <test_step action="run" model="" data="ac_runner.py AC-026"/>
+        </test_case>
+    </case>
+</cases>

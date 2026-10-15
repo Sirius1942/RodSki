@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  REQ-012 被测用例 DBG_ROWS：用现有 loop 逐行 type，USER001~USER005 共 5 个数据行。
+  "数据行"断点/过滤只由调试命令动态指定（break-at batch:row:N、rows data_id），用例不新增语法。
+  AC-010、AC-035~037。
+-->
+<cases tags="req-012,debug-target">
+    <case execute="是" id="DBG_ROWS" title="REQ-012 数据行基准用例" component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/form.html"/>
+        </pre_process>
+        <test_case>
+            <loop range="1-5" var="i">
+                <test_step action="type" model="LoginForm" data="USER00${i}"/>
+                <test_step action="verify" model="LoginResult" data="USER00${i}"/>
+                <test_step action="run" model="" data="mark.py row_${i}"/>
+            </loop>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+</cases>

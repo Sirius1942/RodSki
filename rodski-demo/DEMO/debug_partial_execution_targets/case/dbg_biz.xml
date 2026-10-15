@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  REQ-012 被测用例 DBG_BIZ：三次 business_call（debug_flow → invoice_flow → debug_flow），
+  用于节点断点 node:fill_vin（两次命中）、Flow 断点 flow:F_INVOICE_PLATFORM、
+  嵌套断点 business_call:call_again.node:fill_vin（仅第三次调用命中），以及多层级日志。
+  AC-006、AC-007、AC-011、AC-034。
+-->
+<cases tags="req-012,debug-target">
+    <case execute="是" id="DBG_BIZ" title="REQ-012 业务模型断点基准用例" component_type="界面" priority="P0">
+        <test_case>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/form.html"/>
+            <test_step action="run" model="" data="mark.py s_begin"/>
+            <business_call id="call_main" ref="debug_flow" flow="F_MAIN" input="BIZ001" expect="BIZ001"/>
+            <business_call id="call_invoice" ref="invoice_flow" flow="F_INVOICE_PLATFORM" input="INV001" expect="INV001"/>
+            <business_call id="call_again" ref="debug_flow" flow="F_MAIN" input="BIZ001" expect="BIZ001"/>
+            <test_step action="type" model="LoginForm" data="USER001"/>
+            <test_step action="run" model="" data="mark.py s_end"/>
+        </test_case>
+    </case>
+</cases>

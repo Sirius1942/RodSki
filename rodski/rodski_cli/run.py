@@ -1162,6 +1162,7 @@ def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional
             enable_trace=enable_trace,
             hooks=getattr(args, "_executor_hooks", None),
             diagnosis_engine=DiagnosisEngine(),
+            debug_session=debug_session if debug_enabled else None,
         )
         executor.roam_enabled = bool(getattr(args, "roam", False))
         executor.roam_mode = getattr(args, "roam_mode", None) or "batch_just_passed"

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- REQ-012 被测用例：business_call start_from + stop_at（只执行 fill_vin~submit）。AC-015。 -->
+<cases tags="req-012,debug-target">
+    <case execute="是" id="DBG_BIZ_RANGE" title="只执行 fill_vin 到 submit 节点" priority="P0">
+        <test_case>
+            <test_step action="run" model="" data="mark.py s_begin"/>
+            <business_call id="call_range" ref="debug_flow" flow="F_MAIN" input="BIZ001" expect="BIZ001"
+                           start_from="fill_vin" stop_at="submit"/>
+            <test_step action="run" model="" data="mark.py s_end"/>
+        </test_case>
+    </case>
+</cases>

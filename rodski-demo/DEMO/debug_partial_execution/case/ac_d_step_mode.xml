@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- REQ-012 验收 D 单步执行：每条用例由 fun/ac_runner.py 真实执行被测用例并判定，判定点见 README.md。 -->
+<cases tags="req-012,acceptance,group-d">
+    <case execute="是" id="AC-019" title="AC-019 单步执行模式" component_type="接口" priority="P1">
+        <test_case>
+            <test_step action="run" model="" data="ac_runner.py AC-019"/>
+        </test_case>
+    </case>
+    <case execute="是" id="AC-020" title="AC-020 单步执行中跳过步骤" component_type="接口" priority="P1">
+        <test_case>
+            <test_step action="run" model="" data="ac_runner.py AC-020"/>
+        </test_case>
+    </case>
+    <case execute="是" id="AC-021" title="AC-021 单步执行驱动动作级别" component_type="接口" priority="P1">
+        <test_case>
+            <test_step action="run" model="" data="ac_runner.py AC-021"/>
+        </test_case>
+    </case>
+</cases>

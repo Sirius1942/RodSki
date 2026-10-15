@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  REQ-012 被测用例 DBG_DRIVER：步骤 3 的 type 展开为 find_element/fill/click 等驱动原子动作。
+  AC-021~024、026、028、030。
+-->
+<cases tags="req-012,debug-target">
+    <case execute="是" id="DBG_DRIVER" title="REQ-012 驱动动作基准用例" component_type="界面" priority="P0">
+        <test_case>
+            <!-- 1 --><test_step action="navigate" model="" data="GlobalValue.Site.URL/form.html"/>
+            <!-- 2 --><test_step action="run" model="" data="mark.py d2"/>
+            <!-- 3 --><test_step action="type" model="LoginForm" data="USER001"/>
+            <!-- 4 --><test_step action="run" model="" data="mark.py d4"/>
+            <!-- 5 --><test_step action="verify" model="LoginResult" data="USER001"/>
+        </test_case>
+    </case>
+</cases>

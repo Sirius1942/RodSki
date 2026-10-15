@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- REQ-012 验收 A 基础暂停与继续：每条用例由 fun/ac_runner.py 真实执行被测用例并判定，判定点见 README.md。 -->
+<cases tags="req-012,acceptance,group-a">
+    <case execute="是" id="AC-001" title="AC-001 在指定步骤暂停" component_type="接口" priority="P0">
+        <test_case>
+            <test_step action="run" model="" data="ac_runner.py AC-001"/>
+        </test_case>
+    </case>
+    <case execute="是" id="AC-002" title="AC-002 暂停后继续执行" component_type="接口" priority="P0">
+        <test_case>
+            <test_step action="run" model="" data="ac_runner.py AC-002"/>
+        </test_case>
+    </case>
+    <case execute="是" id="AC-003" title="AC-003 暂停后跳过当前步骤" component_type="接口" priority="P0">
+        <test_case>
+            <test_step action="run" model="" data="ac_runner.py AC-003"/>
+        </test_case>
+    </case>
+    <case execute="是" id="AC-004" title="AC-004 暂停后中止执行" component_type="接口" priority="P0">
+        <test_case>
+            <test_step action="run" model="" data="ac_runner.py AC-004"/>
+        </test_case>
+    </case>
+    <case execute="是" id="AC-005" title="AC-005 多个断点顺序触发" component_type="接口" priority="P0">
+        <test_case>
+            <test_step action="run" model="" data="ac_runner.py AC-005"/>
+        </test_case>
+    </case>
+</cases>

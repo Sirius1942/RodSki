@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  REQ-012 被测用例 DBG_MULTI：两个浏览器对象（SPEC-012-debugging-design-constraints §1.2）。
+  test_step 的 id / target 是新属性，需同步扩展 case.xsd。AC-029。
+-->
+<cases tags="req-012,debug-target">
+    <case execute="是" id="DBG_MULTI" title="REQ-012 多浏览器对象" component_type="界面" priority="P0">
+        <pre_process>
+            <!-- 1 --><test_step action="launch" model="" data="GlobalValue.Site.URL/buyer.html" id="buyer_browser"/>
+            <!-- 2 --><test_step action="launch" model="" data="GlobalValue.Site.URL/seller.html" id="seller_browser"/>
+        </pre_process>
+        <test_case>
+            <!-- 3 --><test_step action="type" target="buyer_browser" model="BuyerForm" data="B001"/>
+            <!-- 4 --><test_step action="verify" target="buyer_browser" model="BuyerResult" data="B001"/>
+            <!-- 5 --><test_step action="verify" target="seller_browser" model="SellerPage" data="S001"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" target="buyer_browser" model="" data=""/>
+            <test_step action="close" target="seller_browser" model="" data=""/>
+        </post_process>
+    </case>
+</cases>

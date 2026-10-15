@@ -151,6 +151,8 @@ class CaseParser:
                 effective_tags = list(dict.fromkeys(file_tags + scenario_tags))
                 metadata.append({
                     'case_id': case.get('case_id', ''),
+                    # v11.5.0 起用例身份 = case_file::case_id，selector 选择项需带上 case_file
+                    'case_file': case.get('case_file', ''),
                     'case_priority': case.get('priority', ''),
                     'file_tags': file_tags,
                     'scenario_id': scenario.get('id', ''),

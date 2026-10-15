@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- REQ-012 验收 F 对象生命周期：每条用例由 fun/ac_runner.py 真实执行被测用例并判定，判定点见 README.md。 -->
+<cases tags="req-012,acceptance,group-f">
+    <case execute="是" id="AC-027" title="AC-027 暂停后对象复用" component_type="接口" priority="P0">
+        <test_case>
+            <test_step action="run" model="" data="ac_runner.py AC-027"/>
+        </test_case>
+    </case>
+    <case execute="是" id="AC-028" title="AC-028 完整执行后新对象提示" component_type="接口" priority="P0">
+        <test_case>
+            <test_step action="run" model="" data="ac_runner.py AC-028"/>
+        </test_case>
+    </case>
+    <case execute="是" id="AC-029" title="AC-029 多对象场景" component_type="接口" priority="P0">
+        <test_case>
+            <test_step action="run" model="" data="ac_runner.py AC-029"/>
+        </test_case>
+    </case>
+    <case execute="是" id="AC-030" title="AC-030 对象清理时机" component_type="接口" priority="P0">
+        <test_case>
+            <test_step action="run" model="" data="ac_runner.py AC-030"/>
+        </test_case>
+    </case>
+</cases>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  REQ-012 被测用例：business_call 声明式部分执行（SPEC-012-user-guide §3.2）。
+  start_from / stop_at 是 business_call 的新属性，需同步扩展 case.xsd。
+  debug_flow 节点顺序：open > fill_vin > submit > confirm。
+  AC-013（start_from）、AC-014（stop_at）、AC-015（start_from + stop_at）。
+-->
+<cases tags="req-012,debug-target">
+    <case execute="是" id="DBG_BIZ_FROM" title="从 submit 节点开始执行" priority="P0">
+        <test_case>
+            <test_step action="run" model="" data="mark.py s_begin"/>
+            <business_call id="call_from" ref="debug_flow" flow="F_MAIN" input="BIZ001" expect="BIZ001"
+                           start_from="submit"/>
+            <test_step action="run" model="" data="mark.py s_end"/>
+        </test_case>
+    </case>
+</cases>

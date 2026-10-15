@@ -1,255 +1,122 @@
-# REQ-012 调试功能验收测试模块
+# REQ-012 调试与部分执行 — 验收模块
 
-本模块用于验证 RodSki v11.8.0 中新增的调试功能（REQ-012）。
+- 需求：`.pb/requirements/REQ-012-debugging-and-partial-execution-v2.md`（§5 验收清单 37 项）
+- 交互/输出约定：`.pb/specs/SPEC-012-user-guide.md`、`.pb/specs/SPEC-012-debugging-design-constraints.md`
+- 被测用例模块：[`../debug_partial_execution_targets/`](../debug_partial_execution_targets/)
 
-## 功能概述
+## 验收方式
 
-REQ-012 调试功能包括：
+每条验收用例只有一步 `run`，调用 `fun/ac_runner.py AC-xxx`。脚本以子进程**真实执行**被测用例
+（`rodski run <被测用例> --headless <调试参数>`），并通过 stdin 输入 `c / s / q / Y / 1` 交互，判定依据：
 
-1. **断点管理** - 在指定位置暂停执行
-2. **部分执行** - 从指定步骤开始或在指定步骤停止
-3. **执行队列** - 记录和查看执行历史
-4. **交互式调试** - 暂停时的交互命令
-5. **步骤快照** - 保存和查看步骤状态
+| 依据 | 来源 |
+|------|------|
+| 执行轨迹 | 被测用例中的 `run mark.py <标签>` 把标签写入 `RODSKI_DEBUG_MARKER` 指向的临时文件——"哪些步骤真的执行了"不依赖框架自报 |
+| 是否真的暂停 | 出现断点提示行（含 `[Breakpoint]` 或 `已暂停`）后 2.5 秒内进程仍存活且轨迹不再增长 |
+| 结果产物 | 被测模块 `result/` 下本次新生成目录中的 `execution_summary.json`、`execution.log`、`driver_actions.jsonl`、`trace.json`、HTML 报告、截图 |
+| 另一个终端 | 暂停期间在另一进程执行 `rodski debug status/queue/objects/context/get-object` |
 
-## 快速开始
+页面由脚本在 `127.0.0.1:18765` 自动提供（`../debug_partial_execution_targets/fun/pages/`）。
+未通过时步骤报错信息中逐项列出 ✅/❌ 检查点、执行的命令和输出末尾。
 
-### 运行所有验收用例
-
-```bash
-cd rodski-demo/DEMO/debug_partial_execution
-
-# AC-035: 断点功能
-rodski run case/AC-035_data_driven_breakpoint.xml --break-at step:3 --headless
-
-# AC-036: 部分执行
-rodski run case/AC-036_data_driven_partial_execution.xml --stop-at 4 --headless
-
-# AC-037: 驱动器日志
-rodski run case/AC-037_data_driven_driver_log.xml --headless
-```
-
-### 验证数据完整性
+## 运行
 
 ```bash
-rodski data validate rodski-demo/DEMO/debug_partial_execution
+# 全部 37 条
+rodski run rodski-demo/DEMO/debug_partial_execution/case/
+
+# 单组 / 单条（调试验收脚本时直接执行，输出更直观）
+rodski run rodski-demo/DEMO/debug_partial_execution/case/ac_a_pause_resume.xml
+cd rodski-demo/DEMO/debug_partial_execution/fun && python3 ac_runner.py AC-001
 ```
 
-## 验收用例说明
+被测数据库变更后重建：`python3 rodski-demo/DEMO/debug_partial_execution_targets/data/init_data.py`
 
-### AC-035: 数据驱动场景的断点
+## 验收用例清单
 
-**目的:** 验证断点在数据驱动场景中的正常工作
+被测用例步骤序号均为全局序号（含 pre_process / post_process），见各被测用例注释。
 
-**测试步骤:**
-1. 加载测试页面（内嵌 HTML）
-2. 执行数据驱动的表单填充
-3. 在步骤3处触发断点
-4. 验证断点触发和执行暂停
+### A. 基础暂停与继续 — `case/ac_a_pause_resume.xml`
 
-**命令参数:**
-- `--break-at step:3` - 在步骤3设置断点
-- `--headless` - 无头模式运行
+| ID | 执行 | 判定 |
+|----|------|------|
+| AC-001 | `dbg_steps.xml --break-at step:5` → 输入 `c` | 提示含 `Step 5/12` 与 Case；暂停时只执行了第 1~4 步；继续后 12 步全部通过；只暂停 1 次 |
+| AC-002 | `dbg_steps.xml --break-at step:9` → 停 10 秒 → `c` | 暂停 10 秒期间阻塞；继续后依赖原页面的第 9~10 步通过；全程只启动一次浏览器 |
+| AC-003 | `dbg_steps.xml --break-at step:5` → `s` | 第 5 步未执行且 summary 为 skipped，其余步骤通过；终端提示跳过 |
+| AC-004 | `dbg_steps.xml --break-at step:5` → `q` | 第 5 步起都未执行；终端提示中止；summary 无第 5~12 步通过记录 |
+| AC-005 | `dbg_steps.xml --break-at step:3,step:7,step:11` | 依次在 3/7/11 暂停，每次暂停时轨迹正确；共 3 次 |
 
-**预期结果:** 用例通过，断点正常触发
+### B. 多层级断点 — `case/ac_b_breakpoint_levels.xml`
 
----
+| ID | 执行 | 判定 |
+|----|------|------|
+| AC-006 | `dbg_biz.xml --break-at node:fill_vin` | 两次调用 debug_flow 各在 fill_vin 节点前暂停（共 2 次），轨迹位置正确 |
+| AC-007 | `dbg_biz.xml --break-at flow:F_INVOICE_PLATFORM` | 在 invoice_flow 第一个节点前暂停 1 次 |
+| AC-008 | `dbg_steps.xml --break-at scenario:S002` | S001 全部完成、S002 未开始时暂停 |
+| AC-009 | `dbg_steps.xml --break-at driver:click` | 两次 type 中的 click 各暂停 1 次；提示含 click 与 loginBtn |
+| AC-010 | `dbg_rows.xml --break-at batch:row:3` | 前 2 行完成、第 3 行未开始；提示含 row 3 与 USER003 |
+| AC-011 | `dbg_biz.xml --break-at business_call:call_again.node:fill_vin` | 只在第三次调用（call_again）的 fill_vin 前暂停，同名节点在 call_main 中不命中 |
 
-### AC-036: 多步骤部分执行
+### C. 部分执行 — `case/ac_c_partial_execution.xml`
 
-**目的:** 验证 `--start-from` 和 `--stop-at` 参数的部分执行功能
+| ID | 执行 | 判定 |
+|----|------|------|
+| AC-012 | `dbg_marks.xml --start-from 6` | 只执行 m6~m10；第 1~5 步 skipped 且原因含 start-from；终端提示跳过 |
+| AC-013 | `dbg_biz_from.xml`（`business_call start_from="submit"`） | 只执行 submit/confirm 节点；调用通过；open/fill_vin 记录为 skipped |
+| AC-014 | `dbg_biz_to.xml`（`stop_at="fill_vin"`） | 只执行 open/fill_vin；submit/confirm 记录为 skipped |
+| AC-015 | `dbg_biz_range.xml`（`start_from="fill_vin" stop_at="submit"`） | 只执行 fill_vin/submit |
+| AC-016 | ① `dbg_steps.xml --break-at step:9` → `q`；② `dbg_steps.xml --start-from 9` → `Y` | ② 提示"检测到现有浏览器对象 DBG_STEPS.browser_obj_1 … [Y/n]"；复用后第 9~10 步在原页面通过 |
+| AC-017 | `dbg_needs_browser.xml --start-from 3` → `1` | 提示对象缺失并给出 [1] 中止 / [2] 继续；选 1 后退出码非 0、无步骤执行 |
+| AC-018 | `dbg_steps.xml --group grp_second` | 只执行 S002（s8 执行、S001 的 s3/s5/s7 未执行，步骤记录中无 S001）；S002 的 run/type/verify 全部通过 |
 
-**测试步骤:**
-1. 加载测试页面（内嵌 HTML）
-2. 执行8个测试步骤
-3. 使用 `--stop-at 4` 在步骤4后停止
+### D. 单步执行 — `case/ac_d_step_mode.xml`
 
-**命令参数:**
-- `--stop-at 4` - 执行到步骤4后停止
-- `--headless` - 无头模式运行
+| ID | 执行 | 判定 |
+|----|------|------|
+| AC-019 | `dbg_marks.xml --step-mode`，每次 `c` | 至少暂停 9 次；相邻两次暂停之间恰好执行 1 步；最终全部执行 |
+| AC-020 | `dbg_marks.xml --step-mode`，第 4 步前输入 `s` | m4 未执行、其余执行；summary 第 4 步 skipped |
+| AC-021 | `dbg_driver.xml --step-mode --driver-level` | type 步骤内按驱动动作暂停 ≥3 次，提示中出现 fill 与 click |
 
-**预期结果:** 用例通过，仅执行前4步
+### E. 驱动级别控制 — `case/ac_e_driver_control.xml`
 
-**其他测试场景:**
-```bash
-# 完整执行（所有8步）
-rodski run case/AC-036_data_driven_partial_execution.xml --headless
+| ID | 执行 | 判定 |
+|----|------|------|
+| AC-022 | `dbg_driver.xml --break-at step:4`，暂停时 `rodski debug queue [--filter pending/failed]` | 队列含 find_element/fill/click、≥4 个 ✅、耗时 ms；pending 过滤不含已完成项；failed 过滤可用 |
+| AC-023 | `dbg_driver.xml --break-at driver:fill` | 两次 fill 各暂停 1 次，分别指向 username / password |
+| AC-024 | `dbg_driver.xml` | 生成合法 `driver_actions.jsonl`：字段齐全、seq 连续、含 navigate_to/find_element/fill/click、context 含 case/phase/step；execution.log 含 `[DriverAction]` |
+| AC-025 | `dbg_driver_fail.xml`（预期失败） | jsonl 中有 status=failed 的动作，参数含 missing_button、有 error 与 Case/步骤上下文；有 `driver_action_<seq>_failed.png`；日志显示 `[Driver Action #<seq>] … 失败` |
+| AC-026 | `dbg_driver.xml --trace --report html` | jsonl duration_ms 均为数值；生成 trace.json；HTML 报告包含驱动动作与最慢动作统计 |
 
-# 从步骤5开始（会失败，因为页面未加载 - 符合预期）
-rodski run case/AC-036_data_driven_partial_execution.xml --start-from 5 --headless
-```
+### F. 对象生命周期 — `case/ac_f_object_lifecycle.xml`
 
----
+| ID | 执行 | 判定 |
+|----|------|------|
+| AC-027 | `dbg_steps.xml --break-at step:9`，暂停时 `rodski debug objects` → `c` | 对象池含 `DBG_STEPS.browser_obj_1`、alive、当前 URL；继续后第 9~10 步通过且未新建浏览器 |
+| AC-028 | `dbg_driver.xml` 连续完整执行两次 | 每次提示"新建浏览器对象 DBG_DRIVER.browser_obj_N … rodski debug get-object"，两次对象名不同 |
+| AC-029 | `dbg_multi.xml --break-at step:3`（`launch id=` + `target=`） | 对象池同时有 buyer_browser / seller_browser 及各自 URL；target 指定对象的 type/verify 通过 |
+| AC-030 | `dbg_driver.xml --break-at step:4` → `c` | 暂停时对象仍 alive；结束后日志 `[Object] DBG_DRIVER.browser_obj_N closed (total lifetime: Ns)` |
 
-### AC-037: 驱动器日志测试
+### G. 执行查看与日志 — `case/ac_g_inspect_and_logs.xml`
 
-**目的:** 验证驱动器动作日志的记录功能
+| ID | 执行 | 判定 |
+|----|------|------|
+| AC-031 | `dbg_steps.xml --break-at step:5`，`rodski debug status` | 显示 DBG_STEPS、5/12、暂停状态、完成/待执行统计 |
+| AC-032 | 同上，`rodski debug context` | 显示 Return[-1]/Return[-2]、第 3 步真实返回值 s3、GlobalValue（含 Site.URL 真实值）、scenario S001 |
+| AC-033 | 同上，`rodski debug get-object DBG_STEPS.browser_obj_1` | 显示 URL、状态、Python 访问示例 `get_object(`；不存在的对象返回非 0 |
+| AC-034 | `dbg_biz.xml` | execution.log 含 Case/Phase/BusinessCall/Flow/Node/Step/DriverAction 各层级、完成耗时 `(Nms)`、DriverAction 缩进；同时生成 jsonl |
 
-**测试步骤:**
-1. 加载测试页面（内嵌 HTML）
-2. 执行数据驱动的操作
-3. 验证驱动器日志自动记录
+### H. 与数据驱动联动 — `case/ac_h_data_rows.xml`
 
-**命令参数:**
-- `--headless` - 无头模式运行
+数据行只由调试命令动态指定（`--rows <data_id>`、`batch:row:N`），被测用例 `dbg_rows.xml` 用现有 `<loop>` 逐行 `type`，不新增 XML 语法。
 
-**预期结果:** 用例通过，驱动器日志正常记录
+| ID | 执行 | 判定 |
+|----|------|------|
+| AC-035 | `dbg_rows.xml --rows USER003 --break-at driver:fill`，暂停时 `rodski debug context` | 提示含 Row 与 USER003；只执行 USER003 行；context 显示 `${ROW.*}` |
+| AC-036 | ① `--rows USER003 --break-at step:3` → `q`；② `--rows USER003 --start-from 3` → `Y` | ② 提示"检测到数据行 USER003 上次执行到 Step 2 … [Y/n]"；复用浏览器，第 3 步 verify 在原页面通过 |
+| AC-037 | `dbg_rows.xml` | 10 次 fill 的 context 记录 row 1~5 与对应 data_id；按 row==2 过滤只得到 USER002 |
 
-**注意:** 驱动器日志在调试会话启用时自动记录，无需额外参数
+## 前置缺陷（v11.8.1 已修复）
 
----
-
-## 目录结构
-
-```
-debug_partial_execution/
-├── README.md                    # 本文件
-├── TEST_REPORT.md              # 详细测试报告
-├── case/                        # 测试用例
-│   ├── AC-035_data_driven_breakpoint.xml
-│   ├── AC-036_data_driven_partial_execution.xml
-│   └── AC-037_data_driven_driver_log.xml
-├── model/                       # 页面对象模型
-│   └── model.xml
-├── data/                        # 测试数据
-│   └── data.sqlite
-└── globalvalue/                 # 全局变量
-    └── globalvalue.xml
-```
-
-## 测试数据
-
-### 数据表清单
-
-| 表名 | 行数 | 用途 | 用例 |
-|------|------|------|------|
-| AC035_TestData | 2 | 表单输入数据 | AC-035 |
-| AC035_TestData_verify | 2 | 验证数据 | AC-035 |
-| AC036_TestData | 1 | 表单输入数据 | AC-036 |
-| AC036_Comment | 1 | 评论输入数据 | AC-036 |
-| AC036_Final_verify | 1 | 最终验证数据 | AC-036 |
-| AC037_TestData | 2 | 流程参数数据 | AC-037 |
-| AC037_TestData_verify | 2 | 验证数据 | AC-037 |
-
-### 数据库查询示例
-
-```bash
-# 查看所有数据表
-sqlite3 data/data.sqlite "SELECT table_name, model_name FROM rs_datatable;"
-
-# 查看 AC035 的测试数据
-sqlite3 data/data.sqlite "SELECT * FROM AC035_TestData;"
-
-# 查看元数据完整性
-sqlite3 data/data.sqlite "
-SELECT t.table_name, COUNT(DISTINCT r.data_id) as row_count
-FROM rs_datatable t
-LEFT JOIN rs_row r ON t.table_name = r.table_name
-GROUP BY t.table_name;
-"
-```
-
-## 调试命令参考
-
-### 断点相关
-
-```bash
-# 在步骤3设置断点
---break-at step:3
-
-# 设置多个断点
---break-at step:3,step:7
-
-# 在场景设置断点
---break-at scenario:S001
-
-# 在节点设置断点
---break-at node:SubmitForm
-```
-
-### 部分执行
-
-```bash
-# 从步骤5开始执行
---start-from 5
-
-# 执行到步骤10停止
---stop-at 10
-
-# 组合使用
---start-from 3 --stop-at 8
-```
-
-### 单步执行
-
-```bash
-# 单步执行模式（每步暂停）
---step-mode
-
-# 驱动级别单步（每个驱动动作暂停）
---step-mode --driver-level
-```
-
-### 交互式调试命令
-
-当执行暂停时，可以使用以下命令：
-
-- `c` / `continue` - 继续执行
-- `n` / `next` - 执行下一步
-- `q` / `quit` - 退出执行
-- `l` / `list` - 列出执行队列
-- `ctx` / `context` - 显示当前上下文
-- `help` - 显示帮助信息
-
-## 故障排查
-
-### 问题：用例执行失败，提示找不到数据
-
-**原因:** rs_row 表缺少数据行记录
-
-**解决方案:**
-```bash
-sqlite3 data/data.sqlite "
-INSERT OR REPLACE INTO rs_row (table_name, data_id) 
-SELECT 'YOUR_TABLE_NAME', data_id FROM YOUR_TABLE_NAME;
-"
-```
-
-### 问题：模型元素找不到
-
-**原因:** 模型名称与数据表名称不一致
-
-**解决方案:** 确保 model name = table name
-```bash
-# 检查一致性
-sqlite3 data/data.sqlite "
-SELECT table_name, model_name FROM rs_datatable 
-WHERE table_name != model_name;
-"
-
-# 修复
-sqlite3 data/data.sqlite "
-UPDATE rs_datatable SET model_name = table_name 
-WHERE table_name = 'YOUR_TABLE';
-"
-```
-
-### 问题：页面元素定位失败
-
-**原因:** 使用了真实外部网站（如 example.com）
-
-**解决方案:** 使用内嵌 HTML 的 data URL
-```xml
-<test_step action="navigate" model="" 
-  data="data:text/html,%3Chtml%3E%3Cbody%3E%3Cinput%20id%3D%22username%22%3E%3C%2Fbody%3E%3C%2Fhtml%3E"/>
-```
-
-## 相关文档
-
-- [TEST_REPORT.md](./TEST_REPORT.md) - 详细测试报告
-- [SPEC-012.md](../../docs/SPEC-012.md) - 调试功能需求规格
-- [RodSki 用户手册](https://rodski.readthedocs.io/) - 完整文档
-
-## 联系信息
-
-如有问题或建议，请联系开发团队或提交 Issue。
+- `<loop var="i">` 的 `${i}` 在 `data` 属性中不被替换 → 曾阻塞 AC-010、AC-035~037。
+- `TEST_CASE_WRITING_GUIDE.md` 曾写 `range="1,5"` 表示 1 到 5，实际为列表 `[1, 5]`；文档已改为 `1-5`。
+- `--group` 选择 scenario 时整条用例被标记为跳过 → 曾导致 AC-018 失败。
