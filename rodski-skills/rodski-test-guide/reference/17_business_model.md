@@ -150,7 +150,7 @@ rodski business debug     <module> --id login_flow --flow F_LOGIN_SUCCESS \
                           --input LOGIN_OK_01 --expect LOGIN_OK_01   # 仅调试，不产生正式结果
 ```
 
-正式执行仍用 `rodski run <module>/case/...`。完整可运行示例见 `rodski-demo/DEMO/demo_business_model/`。
+正式执行仍用 `rodski run <module>/case/...`。完整可运行示例见 `rodski-demo/mock_api/business_model/`。
 
 ### 17.10 编写顺序建议
 

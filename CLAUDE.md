@@ -153,6 +153,7 @@ RodSki/                     ← 主仓库（父仓库，git remote: github / ori
 ### 示例目录规则
 
 - **`rodski-demo/`** 是 RodSki 唯一的示例目录，需纳入版本管理
+- 组织方式：`rodski-demo/<环境>/<模块>`，环境 = `local / demosite / mock_api / mobile / desktop_vision / plugins`，共享被测站点在 `rodski-demo/_sites/demosite`；索引见 `rodski-demo/README.md`
 - `rodski-demo/` 中的用例和结构严格遵循 `rodski/docs/TEST_CASE_WRITING_GUIDE.md`
 - ❌ `rodski/examples/` 已废弃，不再使用
 
@@ -271,7 +272,8 @@ pytest tests/ -q
 python3 rodski/selftest.py
 
 # 运行 Demo 验收
-rodski run rodski-demo/DEMO/demo_full/case/
+rodski run rodski-demo/demosite/full/case/        # 主回归（需先启动 rodski-demo/_sites/demosite/app.py）
+python3 rodski-demo/run_regression.py             # 全量 demo 回归，按环境自动起停服务
 
 # 可观测性：导出 trace.json（run/case/keyword 三层 span + 耗时/重试指标）
 rodski run <case/> --trace

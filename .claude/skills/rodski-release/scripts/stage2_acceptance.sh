@@ -6,7 +6,7 @@
 # 职责:
 #   在打 tag 和打包之前，对主干代码跑一轮完整验收：
 #   1. 全量单元测试（pytest tests/unit/）
-#   2. demo_full UI 用例全量回归
+#   2. demosite/full UI 用例全量回归
 
 set -euo pipefail
 source "$(dirname "$0")/_common.sh"
@@ -30,18 +30,18 @@ fi
 cd "$PROJECT_ROOT"
 ok "单元测试全部通过"
 
-info "[2/2] 跑 demo_full UI 用例全量回归..."
+info "[2/2] 跑 demosite/full UI 用例全量回归..."
 DEMO_FILES=(
-    "rodski-demo/DEMO/demo_full/case/demo_case.xml"
-    "rodski-demo/DEMO/demo_full/case/tc015_only.xml"
-    "rodski-demo/DEMO/demo_full/case/tc016_locators.xml"
-    "rodski-demo/DEMO/demo_full/case/tc017_keywords.xml"
-    "rodski-demo/DEMO/demo_full/case/tc020_windows.xml"
-    "rodski-demo/DEMO/demo_full/case/tc021_data_ref.xml"
-    "rodski-demo/DEMO/demo_full/case/tc022_negative.xml"
-    "rodski-demo/DEMO/demo_full/case/tc050_builtin_functions.xml"
-    "rodski-demo/DEMO/demo_full/case/tc_expect_fail.xml"
-    "rodski-demo/DEMO/demo_full/case/tc040_scenario_basic.xml"
+    "rodski-demo/demosite/full/case/demo_case.xml"
+    "rodski-demo/demosite/full/case/tc015_only.xml"
+    "rodski-demo/demosite/full/case/tc016_locators.xml"
+    "rodski-demo/demosite/full/case/tc017_keywords.xml"
+    "rodski-demo/demosite/full/case/tc020_windows.xml"
+    "rodski-demo/demosite/full/case/tc021_data_ref.xml"
+    "rodski-demo/demosite/full/case/tc022_negative.xml"
+    "rodski-demo/demosite/full/case/tc050_builtin_functions.xml"
+    "rodski-demo/demosite/full/case/tc_expect_fail.xml"
+    "rodski-demo/demosite/full/case/tc040_scenario_basic.xml"
 )
 FAILED_CASES=()
 for f in "${DEMO_FILES[@]}"; do
@@ -63,7 +63,7 @@ done
 if [[ ${#FAILED_CASES[@]} -gt 0 ]]; then
     fail "${#FAILED_CASES[@]} 个用例失败，发布中止。"
 fi
-ok "demo_full UI 用例全部通过"
+ok "demosite/full UI 用例全部通过"
 
 write_state stage2 "$VERSION"
 

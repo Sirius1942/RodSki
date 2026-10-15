@@ -12,8 +12,8 @@
 
 优先参考目标模块中已通过的同类用例；目标仓库没有同类用例时，参考 RodSki 官方示例 `rodski-demo/`：
 
-- UI / API / DB 综合示例：`rodski-demo/DEMO/demo_full/`
-- 业务模型（`business_call`）示例：`rodski-demo/DEMO/demo_business_model/`
+- UI / API / DB 综合示例：`rodski-demo/demosite/full/`
+- 业务模型（`business_call`）示例：`rodski-demo/mock_api/business_model/`
 
 ## 本地风格
 

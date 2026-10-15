@@ -2189,7 +2189,7 @@ while True:
 - ✅ 新增"查找测试对象"的步骤必须经 `core/auto_wait.run_element`，不得自建等待循环
 - ❌ 驱动内部等待 / 降级 / 吞异常（13.2 第 3 条）
 - ❌ 在用例中用 `wait` 等待元素出现（调大 AutoWait）
-- 验收：`rodski-demo/DEMO/demo_autowait*`（Web 30 项）+ `mobile_app/case/autowait.xml`（Android 模拟器）；桌面视觉以单元测试覆盖
+- 验收：`rodski-demo/local/autowait*`（Web 30 项）+ `rodski-demo/mobile/app/case/autowait.xml`（Android 模拟器）；桌面视觉以单元测试覆盖
 
 ## 14. 项目结构说明
 
@@ -2210,35 +2210,25 @@ while True:
 
 ### 14.2 Demo 演示项目
 
-**位置**：`rodski-demo/DEMO/`
+**位置**：`rodski-demo/`
 
-**包含项目**（25 个）：
-- `demo_full/` - 完整功能演示（UI、接口、数据库、Return引用等）
-- `demo_runtime_control/` - 运行时控制演示（暂停、插入、终止）
-- `demo_nested_case/` - 嵌套目录用例（v11.5.0，3 层嵌套 + 自动化验收）
-- `demo_nested_case_single/` - 单用例文件模块（v11.5.0，测试省略 `file` 的兼容规则）
-- `demo_nested_case_dup_id/` - 同一文件内 ID 重复（v11.5.0，测试 SKI205）
-- `demo_authoring_v116/` - AI 编写契约、断言可靠性与执行性能（v11.5.2 起；v11.6.0 扩展）
-- `demo_authoring_v116_pitfalls/` - 踩坑夹具：复现错误写法，供 lint 与兼容性验收（v11.6.0）
-- `demo_authoring_v116_no_retry/` - `AutoWait=0` 关闭 verify 自动重试的验收夹具（v11.6.0）
-- `demo_autowait/`（`AutoWait=5000`）、`demo_autowait_zero/`（不设置 = 不自动等待）、`demo_autowait_long/`（`12000`）- 自动等待验收（v11.7.x，`run_acceptance.py` 30 项）
-- `demo_v11_enhancement/` - v11.x 增强特性演示
-- `demo_v7_features/` - v7.0 特性演示
-- `demo_business_model/` - 业务模型演示（v11.4.0）
-- `demo_hooks/` - hook 机制演示
-- `demo_pause_takeover/` - CDP 共享浏览器暂停接管
-- `demo_roaming_test/` - 漫游测试演示
-- `demo_load/` - 性能压测演示
-- `demo_perception/` - 感知定位演示
-- `mobile_app/` - 移动端测试（Android/iOS）
-- `browser_plugin/` - 浏览器插件集成
-- `browser_plugin_baidu/` - 插件示例：百度搜索
-- `vision_web/` - 视觉定位（Web）
-- `vision_desktop/` - 视觉定位（桌面）
-- `iteration-01-vision/` - 早期视觉能力迭代
-- `vscode_plugin/` - VS Code 扩展集成
-- `qq_music/` - QQ 音乐 App 测试示例
-- `rodski_website/` - 官网测试用例
+**组织方式**（v11.8.1 起）：`rodski-demo` 即 product 层，项目层按**运行环境**划分，模块层按功能域划分（`rodski-demo/<环境>/<模块>`）。总索引与全量回归入口见 `rodski-demo/README.md`、`rodski-demo/run_regression.py`。
+
+- `_sites/demosite/` - 共享被测站点（FastAPI，:8000），不是测试模块
+- `local/` - 无外部服务（data: URL、模块脚本自起的静态站、sqlite、run）
+  - `control_flow/` 条件/循环/scenario；`expressions/` 内置函数与断言表达式；`hooks/`；`runtime_control/`；`roaming/`
+  - `nested_case/`、`nested_case_single/`、`nested_case_dup_id/` - 嵌套目录用例（v11.5.0）
+  - `authoring/`、`authoring_pitfalls/`、`authoring_no_retry/` - AI 编写契约与断言可靠性（v11.5.2+）
+  - `autowait/`、`autowait_zero/`、`autowait_long/` - 自动等待验收（v11.7.x）
+  - `debug_partial_execution/`、`debug_partial_execution_targets/` - 调试与局部执行（REQ-012）
+- `demosite/` - 依赖共享站点 :8000
+  - `full/` - 主回归：UI、接口、数据库、Return 引用、内置函数、录制、覆盖率（发布 Stage 2 子集）
+  - `core_keywords/` - 关键字基础示例（SQLite、Set/Get、assert 图片、run 脚本）
+  - `load/` 性能压测；`pause_takeover/` CDP 共享浏览器暂停接管
+- `mock_api/business_model/` - 业务模型（自带 mock server）
+- `mobile/app/`（Android/iOS 自建 App）、`mobile/qq_music/`
+- `desktop_vision/perception/`（感知定位）、`desktop_vision/desktop/`（macOS 桌面自动化）
+- `plugins/browser_plugin/`、`browser_plugin_baidu/`、`vscode_plugin/`、`website/`
 
 **约束**：
 - Demo 项目必须简单易懂，代码量最小化
@@ -2266,10 +2256,10 @@ while True:
 2. **Demo 项目验证**
    ```bash
    # 运行完整功能 Demo
-   rodski run rodski-demo/DEMO/demo_full/case/demo_case.xml
+   rodski run rodski-demo/demosite/full/case/demo_case.xml
    
    # 运行运行时控制 Demo
-   rodski run rodski-demo/DEMO/demo_runtime_control/case/
+   rodski run rodski-demo/local/runtime_control/case/
    ```
 
 3. **验收标准**
@@ -2282,7 +2272,7 @@ while True:
 **添加新关键字时**：
 
 1. 在 `schemas/case.xsd` 中添加关键字定义
-2. 在 `demo_full/` 中添加演示用例
+2. 在 `rodski-demo/<环境>/<模块>/` 对应模块中添加演示用例
 3. 更新相关文档（API_TESTING_GUIDE.md 等）
 4. 运行完整测试验证
 
@@ -2299,11 +2289,11 @@ while True:
 
 ```bash
 # 1. 运行所有 Demo 项目
-rodski run rodski-demo/DEMO/demo_full/case/
-rodski run rodski-demo/DEMO/demo_runtime_control/case/
+rodski run rodski-demo/demosite/full/case/
+rodski run rodski-demo/local/runtime_control/case/
 
 # 2. 检查结果
-ls -la rodski-demo/DEMO/*/result/
+ls -la rodski-demo/*/result/
 
 # 3. 验证关键功能
 # - 登录流程
@@ -2326,8 +2316,8 @@ ls -la rodski-demo/DEMO/*/result/
 
 **示例**：
 ```bash
-# demo_full 初始化数据库
-cd rodski-demo/DEMO/demo_full
+# demosite/full 初始化数据库
+cd rodski-demo/demosite/full
 python3 init_db.py
 ```
 
@@ -2357,12 +2347,12 @@ python3 init_db.py
 test:
   script:
     - python3 rodski/selftest.py
-    - rodski run rodski-demo/DEMO/demo_full/case/ --headless --report junit
+    - rodski run rodski-demo/demosite/full/case/ --headless --report junit
   artifacts:
     paths:
-      - rodski-demo/DEMO/*/result/
+      - rodski-demo/*/result/
     reports:
-      junit: rodski-demo/DEMO/*/result/*/junit.xml
+      junit: rodski-demo/*/result/*/junit.xml
 ```
 
 GitLab CI / GitHub Actions 的完整接入示例见 `TEST_CASE_WRITING_GUIDE.md` §9.9。

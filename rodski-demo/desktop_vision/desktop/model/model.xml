@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 桌面用例只用 run（fun/desktop_ops 脚本）/ wait / launch，不需要 UI 模型 -->
+<models/>

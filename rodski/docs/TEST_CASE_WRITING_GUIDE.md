@@ -608,7 +608,7 @@ case/
 | D_ACCEPT | `accept` | `click` | `BLANK` | 点删除，确认弹窗 |
 | D_DISMISS | `dismiss` | `click` | `BLANK` | 点删除，取消弹窗 |
 
-prompt 弹窗填 `accept:输入文本`，例如 `accept:加急` 表示输入「加急」后确认（完整示例见 `rodski-demo/DEMO/demo_authoring_v116/`）。
+prompt 弹窗填 `accept:输入文本`，例如 `accept:加急` 表示输入「加急」后确认（完整示例见 `rodski-demo/local/authoring/`）。
 
 | DialogPage_verify | dialog | deleteBtn | status |
 |-------------------|--------|-----------|--------|
@@ -1854,19 +1854,19 @@ product/DEMO/demo_site/
 
 ```bash
 # 方式1：指定 case XML 文件
-rodski run rodski-demo/DEMO/demo_full/case/demo_case.xml
+rodski run rodski-demo/demosite/full/case/demo_case.xml
 
 # 方式2：指定 case 目录（递归执行该目录下所有 XML，任意层级，v11.5.0 起）
-rodski run rodski-demo/DEMO/demo_full/case/
+rodski run rodski-demo/demosite/full/case/
 
 # 方式2b：指定 case 下的任意子目录（同样递归，v11.5.0 起）
-rodski run rodski-demo/DEMO/demo_full/case/order/
+rodski run rodski-demo/demosite/full/case/order/
 
 # 方式3：指定测试模块目录
-rodski run rodski-demo/DEMO/demo_full/
+rodski run rodski-demo/demosite/full/
 
 # 方式4：文件 + --case-id，只执行该文件中的指定用例（v11.5.0 起，可逗号分隔多个）
-rodski run rodski-demo/DEMO/demo_full/case/order/order_basic.xml --case-id TC002
+rodski run rodski-demo/demosite/full/case/order/order_basic.xml --case-id TC002
 
 # 按标签过滤（OR 匹配，命中任一即可）
 rodski run case/ --tags smoke
@@ -3086,7 +3086,7 @@ rodski business debug     <module> --id login_flow --flow F_LOGIN_SUCCESS \
                           --input LOGIN_OK_01 --expect LOGIN_OK_01   # 仅调试，不产生正式结果
 ```
 
-正式执行仍用 `rodski run <module>/case/...`。完整可运行示例见 `rodski-demo/DEMO/demo_business_model/`。
+正式执行仍用 `rodski run <module>/case/...`。完整可运行示例见 `rodski-demo/mock_api/business_model/`。
 
 ### 17.10 编写顺序建议
 

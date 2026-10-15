@@ -9,7 +9,7 @@ assertion output while designing a business model.
 Example::
 
     python3 rodski/business_debug.py \
-      --module rodski-demo/DEMO/demo_business_model \
+      --module rodski-demo/mock_api/business_model \
       --ref login_flow \
       --flow F_LOGIN_SUCCESS \
       --input LOGIN_OK_01 \
@@ -289,7 +289,7 @@ def build_parser() -> argparse.ArgumentParser:
             "不执行 Case 生命周期、不写正式 result.xml、不计入通过率。"
         ),
     )
-    parser.add_argument("--module", required=True, help="测试模块目录，例如 rodski-demo/DEMO/demo_business_model")
+    parser.add_argument("--module", required=True, help="测试模块目录，例如 rodski-demo/mock_api/business_model")
     parser.add_argument("--ref", required=True, help="业务模型 id（business_model@id）")
     parser.add_argument("--flow", required=True, help="本次调试选择的目标流程 id")
     parser.add_argument("--input", required=True, dest="input_data_id", help="业务模型 Data 表中的 DataID")

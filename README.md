@@ -90,16 +90,16 @@ rodski run case/ --output-format json
 rodski explain case/login.xml
 
 # 查看模块中的逻辑表（XML + SQLite 统一视图）
-rodski data list rodski-demo/DEMO/demo_full/
+rodski data list rodski-demo/demosite/full/
 
 # 查看逻辑表字段
-rodski data schema rodski-demo/DEMO/demo_full/ RegisterAPI
+rodski data schema rodski-demo/demosite/full/ RegisterAPI
 
 # 查看指定数据行
-rodski data show rodski-demo/DEMO/demo_full/ RegisterAPI L001
+rodski data show rodski-demo/demosite/full/ RegisterAPI L001
 
 # 校验数据层（strict 会额外检查 XML 列漂移）
-rodski data validate rodski-demo/DEMO/demo_full/ --strict
+rodski data validate rodski-demo/demosite/full/ --strict
 
 # 初始化标准测试模块骨架
 rodski init /path/to/MyTestModule --with-verify --with-sqlite

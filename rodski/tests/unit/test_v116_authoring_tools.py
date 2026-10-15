@@ -225,8 +225,8 @@ class TestCaseLintAuthoringRules:
 class TestLintAgainstDemoFixtures:
     """V14 对应的 demo 夹具（不改动夹具，只读扫描）。"""
 
-    PIT = REPO / "rodski-demo" / "DEMO" / "demo_authoring_v116_pitfalls"
-    GOOD = REPO / "rodski-demo" / "DEMO" / "demo_authoring_v116"
+    PIT = REPO / "rodski-demo" / "local" / "authoring_pitfalls"
+    GOOD = REPO / "rodski-demo" / "local" / "authoring"
 
     @pytest.mark.skipif(not PIT.is_dir(), reason="demo 夹具不存在")
     def test_pitfalls_fixture_hits_all_rules(self, capsys):

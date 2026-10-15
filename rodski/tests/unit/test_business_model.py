@@ -13,7 +13,7 @@ from core.business_model import (
     BusinessModelValidator,
 )
 
-DEMO_XML = Path(__file__).parents[3] / "rodski-demo" / "DEMO" / "demo_business_model" / "business" / "business.xml"
+DEMO_XML = Path(__file__).parents[3] / "rodski-demo" / "mock_api" / "business_model" / "business" / "business.xml"
 
 
 def _model():

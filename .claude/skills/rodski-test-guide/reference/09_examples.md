@@ -91,13 +91,13 @@ product/DEMO/demo_site/
 
 ```bash
 # 方式1：指定 case XML 文件
-rodski run rodski-demo/DEMO/demo_full/case/demo_case.xml
+rodski run rodski-demo/demosite/full/case/demo_case.xml
 
 # 方式2：指定 case 目录（执行所有 XML）
-rodski run rodski-demo/DEMO/demo_full/case/
+rodski run rodski-demo/demosite/full/case/
 
 # 方式3：指定测试模块目录
-rodski run rodski-demo/DEMO/demo_full/
+rodski run rodski-demo/demosite/full/
 
 # 按标签过滤（OR 匹配，命中任一即可）
 rodski run case/ --tags smoke

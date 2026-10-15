@@ -55,11 +55,11 @@ RODSKI="scripts/rodski.sh"
 常用数据命令：
 
 ```bash
-"$RODSKI" data list rodski-demo/DEMO/demo_full/
-"$RODSKI" data schema rodski-demo/DEMO/demo_full/ RegisterAPI
-"$RODSKI" data show rodski-demo/DEMO/demo_full/ RegisterAPI L001
-"$RODSKI" data query rodski-demo/DEMO/demo_full/ RegisterAPI --limit 20
-"$RODSKI" data validate rodski-demo/DEMO/demo_full/
+"$RODSKI" data list rodski-demo/demosite/full/
+"$RODSKI" data schema rodski-demo/demosite/full/ RegisterAPI
+"$RODSKI" data show rodski-demo/demosite/full/ RegisterAPI L001
+"$RODSKI" data query rodski-demo/demosite/full/ RegisterAPI --limit 20
+"$RODSKI" data validate rodski-demo/demosite/full/
 "$RODSKI" data import <module>
 "$RODSKI" data import <module> --overwrite
 ```

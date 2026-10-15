@@ -1,0 +1,8 @@
+/_sites/demosite/demo.db
+/.regression/
+*.lock
+report_*.html
+# 运行输出（截图）
+/demosite/core_keywords/img/
+/demosite/core_keywords/wait_test.png
+/demosite/full/tc017_test.png

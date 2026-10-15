@@ -33,7 +33,7 @@ type: release
 ```
 Stage 1  合并功能分支到 main
    ↓
-Stage 2  主干验收测试（unit tests + demo_full UI 用例）
+Stage 2  主干验收测试（unit tests + demosite/full UI 用例）
    ↓
 Stage 2.5  Skills 同步与打包（diff 测试指南 → 切片 → dist/rodski-skills-vX.Y.Z.zip）
    ↓
@@ -115,7 +115,7 @@ VERSION=7.2.0
 
 执行内容：
 1. `pytest tests/unit/` 全量单元测试
-2. `rodski run` 跑 demo_full 所有 UI 用例（10 个文件）
+2. `rodski run` 跑 demosite/full 所有 UI 用例（10 个文件）
 
 失败处理：
 - 修复代码后重跑 stage2（不需要重跑 stage1）
@@ -168,7 +168,7 @@ VERSION=7.2.0
 1. 创建全新 venv（`.release_venv_<VERSION>/`）
 2. 安装刚打出的 wheel
 3. 验证 `rodski --version` 输出正确版本号
-4. 用安装包跑 `demo_full/case/demo_case.xml --headless`
+4. 用安装包跑 `demosite/full/case/demo_case.xml --headless`
 5. 自动清理 venv
 
 失败处理：
