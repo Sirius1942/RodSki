@@ -20,7 +20,9 @@ class DynamicExecutor:
     def __init__(self, data_resolver, return_values: Optional[List[Any]] = None):
         self.data_resolver = data_resolver
         self.variables: Dict[str, Any] = {}
-        self._return_values = return_values or []  # 历史 verify/Return 结果
+        # 必须保留调用方传入的同一个列表（RuntimeContext.history）：构造时它还是空列表，
+        # 若写成 `return_values or []` 会另建新列表而与关键字引擎的 Return 历史脱钩
+        self._return_values = return_values if return_values is not None else []
 
     def set_variable(self, name: str, value: Any) -> None:
         """设置变量"""
@@ -29,6 +31,10 @@ class DynamicExecutor:
     def get_variable(self, name: str) -> Any:
         """获取变量"""
         return self.variables.get(name)
+
+    def bind_return_history(self, history: List[Any]) -> None:
+        """改绑 Return 历史（执行器在 close 后重建 KeywordEngine 时必须调用）。"""
+        self._return_values = history
 
     def add_return_value(self, value: Any) -> None:
         """记录一个 verify/Return 结果（用于 verify_fail 判断）"""
@@ -178,37 +184,46 @@ class DynamicExecutor:
             return last.get('passed', last.get('_verify_passed', True)) is False
         return last is False
 
+    # CORE §12.3 写法：比较写在花括号内 `${Return[-1].status == 200}`（容忍漏写右花括号）
+    _RETURN_INLINE_RE = re.compile(
+        r'^\$\{Return\[(-?\d+)\]((?:\.\w+)+)\s*(contains|==|!=|>=|<=|>|<)\s*(.+?)\s*\}?$', re.S)
+    # 操作数写法：`${Return[-1].status}`（GUIDE §3.8：`${Return[-1].status} == 200`）
+    _RETURN_OPERAND_RE = re.compile(r'^\$\{Return\[(-?\d+)\]((?:\.\w+)*)\}$')
+
     def _eval_return_condition(self, condition: str) -> bool:
-        """${Return[N].field ==/contains value}"""
-        m = re.search(r'\$\{Return\[(-?\d+)\]\.(\w+)\s*(contains|==|!=|>|<|>=|<=)\s*[\'""]?(.+?)[\'""]?\}', condition)
-        if not m:
+        """${Return[N].field ==/contains value}（CORE 写法）或 ${Return[N].field} == value（GUIDE 写法）"""
+        try:
+            return self._eval_return_comparison(condition)
+        except IndexError as e:
+            logger.info(f"[IF] {e}，条件按 False 处理: {condition}")
             return False
-        idx_str, field, op, value = m.group(1), m.group(2), m.group(3), m.group(4)
-        idx = int(idx_str)
-        values = self._return_values
-        if not values or abs(idx) > len(values):
-            return False
-        actual = values[idx]
-        if isinstance(actual, dict):
-            actual = actual.get(field, '')
-        else:
-            actual = str(actual)
-        value = value.strip().strip('"\'')
-        if op == 'contains':
-            return value in actual
-        elif op == '==':
-            return str(actual) == value
-        elif op == '!=':
-            return str(actual) != value
-        elif op == '>':
-            return float(actual) > float(value)
-        elif op == '<':
-            return float(actual) < float(value)
-        elif op == '>=':
-            return float(actual) >= float(value)
-        elif op == '<=':
-            return float(actual) <= float(value)
+
+    def _eval_return_comparison(self, condition: str) -> bool:
+        m = self._RETURN_INLINE_RE.match(condition.strip())
+        if m:
+            actual = self._lookup_return(int(m.group(1)), m.group(2))
+            return self._compare(actual, m.group(3), self._resolve_value(m.group(4)))
+        parsed = self._split_comparison(condition)
+        if parsed:
+            left, op, right = parsed
+            return self._compare(self._resolve_value(left), op, self._resolve_value(right))
+        logger.warning(f"[IF] 无法识别的 Return 条件，按 False 处理: {condition}")
         return False
+
+    def _lookup_return(self, index: int, path: str) -> Any:
+        """按 Return 历史下标取值，path 形如 `.body.status`。
+
+        下标越界抛 IndexError（条件按 False 处理，与既有语义一致）；字段不存在返回空串。
+        """
+        values = self._return_values
+        if index >= len(values) or -index > len(values):
+            raise IndexError(f"Return[{index}] 不存在（当前共 {len(values)} 个返回值）")
+        current = values[index]
+        for part in [p for p in path.split('.') if p]:
+            if not isinstance(current, dict) or part not in current:
+                return ''
+            current = current[part]
+        return current
 
     def _eval_element_exists(self, condition: str, driver: Any = None) -> bool:
         """element_exists(locator) 或 element_not_exists(locator)"""
@@ -258,6 +273,10 @@ class DynamicExecutor:
         value = value.strip()
         if len(value) >= 2 and value[0] == value[-1] and value[0] in '"\'':
             return value[1:-1]
+
+        m = self._RETURN_OPERAND_RE.match(value)
+        if m:
+            return self._lookup_return(int(m.group(1)), m.group(2))
 
         m = self._VAR_RE.match(value)
         if m:

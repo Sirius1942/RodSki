@@ -395,6 +395,9 @@ class SKIExecutor:
                 )
                 self.data_resolver.return_provider = self.keyword_engine.get_return
                 self.keyword_engine.data_resolver = self.data_resolver
+                # 新引擎带来新的 RuntimeContext：条件求值必须改读新的 Return 历史
+                self.dynamic_executor.bind_return_history(self.keyword_engine._context.history)
+                self.keyword_engine._dynamic_executor = self.dynamic_executor
                 self.keyword_engine.before_keyword_hooks = list(
                     getattr(self, "_hooks", {}).get("before_keyword", [])
                 )

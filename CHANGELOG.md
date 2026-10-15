@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [11.8.4] - 2026-10-15
+
+### Fixed
+
+- BUG-A02：Return 条件恒为假：条件求值器持有的 Return 历史在构造时（空列表被替换）和用例间重建 KeywordEngine 时都与真实历史脱钩；改为共享并在重建时改绑，同时支持 GUIDE 写法 ${Return[-1].x} == v 与 CORE 写法 ${Return[-1].x == v}、嵌套字段（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
 ## [11.8.3] - 2026-10-15
 
 ### Fixed

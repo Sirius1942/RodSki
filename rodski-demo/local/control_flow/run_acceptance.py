@@ -37,10 +37,6 @@ FLOW_DIR = "case/flow/"
 # ---------------------------------------------------------------- KNOWN 缺陷登记
 # 检查项编号 -> 简述（详细的文档条款 / 代码位置见 README.md「KNOWN 缺陷」）
 KNOWN: Dict[str, str] = {
-    "C07": "Return 条件永远为假：DynamicExecutor 以 `return_values or []` 接收空的 history 列表，"
-           "空列表为假值导致另建新列表、与 RuntimeContext.history 脱钩（dynamic_executor.py:23 / ski_executor.py:230）；"
-           "GUIDE §3.8 的 ${Return[-1].status} == 200 写法也不被 _eval_return_condition 正则识别",
-    "C08": "同 C07：${Return[-1].status == 200}（CORE §12.3 写法）因 Return 历史脱钩永远为假",
     "C09": "element_exists/element_not_exists 以 1 个参数调用 PlaywrightDriver.locate_element(locator_type, locator_value)，"
            "TypeError 被吞掉 → element_exists 恒假、element_not_exists 恒真（dynamic_executor.py:209、playwright_driver.py:516）",
     "C12": "<loop> 内的 <if>/<elif>/<else> 被解析器静默丢弃（case_parser.py:_parse_branch_steps 只收 test_step/business_call），"

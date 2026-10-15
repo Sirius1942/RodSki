@@ -158,3 +158,21 @@ def test_tracer_reinjected_after_driver_recreation(wait_module):
     # 录像懒启动回调也必须重新注入（否则后续用例移动端录像不启动）
     assert executor.keyword_engine.on_mobile_driver_created == executor._on_mobile_driver_created
 
+
+
+def test_dynamic_executor_rebound_after_driver_recreation(wait_module):
+    """BUG-A02 回归：close 后重建 KeywordEngine 带来新的 RuntimeContext，
+
+    条件求值（DynamicExecutor）必须改读新引擎的 Return 历史，否则第 2 个用例起
+    `${Return[-1].x} == y` 永远看到旧历史而恒为假。
+    """
+    from unittest.mock import MagicMock
+    executor = _build_executor(wait_module, enable_trace=False)
+    executor.driver_factory = lambda: MagicMock()
+    executor._driver_closed = True
+    executor._ensure_driver_alive()
+
+    history = executor.keyword_engine._context.history
+    assert executor.dynamic_executor._return_values is history
+    history.append({"status": 200})
+    assert executor.dynamic_executor.evaluate_condition("${Return[-1].status} == 200") is True

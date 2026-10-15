@@ -375,3 +375,44 @@ class TestConditionVariableReference:
         """未定义变量不能拿字面量 '${x}' 去比较而静默走错分支"""
         with pytest.raises(ValueError, match="未定义的变量"):
             executor.evaluate_condition("${missing} == 1")
+
+
+# =====================================================================
+# BUG-A02：Return 条件与关键字引擎共享历史，支持 GUIDE / CORE 两种写法
+# =====================================================================
+def _identity_resolver():
+    r = MagicMock()
+    r.resolve.side_effect = lambda v: v
+    return r
+
+
+class TestReturnConditionSharedHistory:
+
+    def test_shares_empty_history_list(self):
+        """构造时传入的空 history 必须是同一个对象，否则后续 Return 永远看不到"""
+        history = []
+        ex = DynamicExecutor(data_resolver=_identity_resolver(), return_values=history)
+        history.append({"status": 200})
+        assert ex.evaluate_condition("${Return[-1].status} == 200") is True
+
+    def test_guide_form(self):
+        history = [{"status": 404}]
+        ex = DynamicExecutor(data_resolver=_identity_resolver(), return_values=history)
+        assert ex.evaluate_condition("${Return[-1].status} == 200") is False
+        history.append({"status": 200, "msg": "ok"})
+        assert ex.evaluate_condition("${Return[-1].status} == 200") is True
+        assert ex.evaluate_condition("${Return[-2].status} >= 400") is True
+        assert ex.evaluate_condition("${Return[-1].msg} contains 'o'") is True
+
+    def test_core_form_and_nested_path(self):
+        history = [{"body": {"status": "shipped"}, "status": 200}]
+        ex = DynamicExecutor(data_resolver=_identity_resolver(), return_values=history)
+        assert ex.evaluate_condition("${Return[-1].status == 200}") is True
+        assert ex.evaluate_condition("${Return[-1].status >= 200}") is True
+        assert ex.evaluate_condition("${Return[-1].body.status == shipped}") is True
+
+    def test_verify_fail_reads_shared_history(self):
+        history = []
+        ex = DynamicExecutor(data_resolver=_identity_resolver(), return_values=history)
+        history.append({"passed": False})
+        assert ex.evaluate_condition("verify_fail") is True
