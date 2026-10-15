@@ -45,8 +45,6 @@ FULL = CAT_ALL + ["RPT_001"] + CHK1_ALL + CHK2_ALL                       # CHK_0
 _SEL = ("selector 模式下（--tag/--tags/--priority/--exclude-tag 任一生效）只为带 scenario 的用例生成选择项，"
         "不含 scenario 的用例一律 SKIP(plan_not_selected)（ski_executor.py:1047-1049 + test_plan_selection.py:compile_from_selector）")
 KNOWN: Dict[str, str] = {
-    "P33": "prepare=none 时 _execute_debug_case 跳过 _run_steps，直接 _execute_step_list → _execute_step_item 引用未初始化的 "
-           "self._phase_runtime_seq（ski_executor.py:2000）→ AttributeError，用例 FAIL",
 }
 
 

@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [11.8.32] - 2026-10-15
+
+### Fixed
+
+- BUG-A13：调试计划 prepare=none 跳过 pre_process 后访问只在 _run_steps 中初始化的 _phase_runtime_seq，AttributeError 导致目标步骤一步不执行；执行器初始化该计数器，调试目标阶段开始时重置（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
 ## [11.8.31] - 2026-10-15
 
 ### Fixed

@@ -142,6 +142,9 @@ class SKIExecutor:
         self._business_models = None
         self.driver_factory = driver_factory
         self._driver_closed = False
+        # 当前阶段的步骤序号（日志用）；_run_steps 每阶段重置。调试计划 prepare=none 不经过 _run_steps，
+        # 必须有初值（v11.8.32 BUG-A13：否则 AttributeError，目标步骤一步不执行）
+        self._phase_runtime_seq = 0
 
         # 推导测试模块目录（必须为绝对路径，否则 run/subprocess 与 DB 相对路径会错位）
         if module_dir:
@@ -1198,6 +1201,7 @@ class SKIExecutor:
             # prepare=none: 不执行 pre_process
 
             if err is None:
+                self._phase_runtime_seq = 0
                 # Phase 2: scenario 步骤执行
                 if plan_kind == 'scenario_debug':
                     # scenario_debug: 执行完整 scenario

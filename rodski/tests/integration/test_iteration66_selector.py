@@ -99,3 +99,41 @@ def test_selector_without_case_path(tmp_path):
     assert "未找到默认测试计划" not in proc.stdout + proc.stderr
     root = ET.parse(sorted((module / "result").rglob("result.xml"))[-1]).getroot()
     assert {r.get("case_id") for r in root.iter("result") if r.get("status") == "PASS"} == {"SCN"}
+
+
+def test_debug_plan_prepare_none(tmp_path):
+    """BUG-A13：调试计划 prepare=none 不执行 pre_process、直接执行目标 scenario（此前 AttributeError: _phase_runtime_seq）"""
+    module = _module(tmp_path)
+    (module / "case" / "c.xml").write_text('''<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+  <case execute="是" id="DBG" title="调试">
+    <pre_process><test_step action="set" model="" data="pre=1"/></pre_process>
+    <test_case>
+      <scenario id="S01"><test_step action="set" model="" data="s1=1"/></scenario>
+      <scenario id="S02"><test_step action="set" model="" data="s2=1"/></scenario>
+    </test_case>
+  </case>
+</cases>''', encoding="utf-8")
+    (module / "plan").mkdir()
+    (module / "plan" / "dbg.xml").write_text('''<?xml version="1.0" encoding="UTF-8"?>
+<test_plan id="dbg" kind="scenario_debug" default_execute="否">
+  <debug prepare="none" cleanup="否"/>
+  <case id="DBG" execute="是"><scenario id="S02" execute="是"/></case>
+</test_plan>''', encoding="utf-8")
+    proc = subprocess.run(
+        [sys.executable, "-c",
+         "import sys; from rodski.rodski_cli import main; sys.argv=['rodski']+sys.argv[1:]; sys.exit(main())",
+         "run", "@dbg", "--debug"],
+        capture_output=True, text=True, cwd=str(module), timeout=120,
+        env={**__import__("os").environ, "PYTHONPATH": str(PROJECT_ROOT.parent)},
+    )
+    out = proc.stdout + proc.stderr
+    assert proc.returncode == 0, out
+    assert "_phase_runtime_seq" not in out
+    root = ET.parse(sorted((module / "result").rglob("result.xml"))[-1]).getroot()
+    case = next(r for r in root.iter("result") if r.get("case_id") == "DBG")
+    assert case.get("status") == "PASS", out
+    # 只执行目标 scenario S02，不执行 pre_process 与其他 scenario
+    log = sorted((module / "result").rglob("execution.log"))[-1].read_text(encoding="utf-8")
+    assert "set: s2 = '1'" in log
+    assert "set: pre = " not in log and "set: s1 = " not in log
