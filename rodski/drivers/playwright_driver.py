@@ -1001,6 +1001,10 @@ class PlaywrightDriver(BaseDriver):
             if action == "accept":
                 if prompt_text is not None:
                     dialog.accept(prompt_text)
+                elif dialog_type == "prompt":
+                    # v11.8.18 (BUG-A29)：未指定输入时按 prompt 默认值确认（GUIDE §6.6），
+                    # Playwright 的 accept() 不带参数会以空串确认
+                    dialog.accept(dialog.default_value or "")
                 else:
                     dialog.accept()
                 handled = True

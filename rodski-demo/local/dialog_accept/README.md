@@ -21,4 +21,4 @@ python3 rodski-demo/local/dialog_accept/run_acceptance.py            # D01~D05
 另外在临时目录复制模块、把 DialogPolicy 改为 `yes` 验证非法取值在执行前报错。
 手工单跑时先起站点：`cd rodski-demo/local/dialog_accept/fun/site && python3 -m http.server 18130`。
 
-已登记缺陷：D01:TC003（accept 策略下 prompt 以空串确认，而非默认值）。
+已登记缺陷：无（D01:TC003 已于 v11.8.18 修复，BUG-A29）。

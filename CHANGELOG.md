@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [11.8.18] - 2026-10-15
+
+### Fixed
+
+- BUG-A29：DialogPolicy=accept 时 prompt 以空字符串确认（Playwright accept() 不带参数）；未指定输入时改为按 prompt 默认值 default_value 确认（GUIDE §6.6）（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
 ## [11.8.17] - 2026-10-15
 
 ### Fixed

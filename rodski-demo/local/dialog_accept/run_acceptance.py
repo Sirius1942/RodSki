@@ -43,8 +43,6 @@ from build_data import build_all  # noqa: E402
 
 # 已登记的框架缺陷：检查失败时记为 KNOWN（仍计入未达标）
 KNOWN = {
-    "D01:TC003": "DialogPolicy=accept 时 prompt 以空字符串确认，而非文档所述按默认值确认"
-                 "（GUIDE §6.4.3；drivers/playwright_driver.py:1005 dialog.accept() 未传 dialog.default_value）",
 }
 
 
