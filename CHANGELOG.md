@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [11.8.22] - 2026-10-15
+
+### Fixed
+
+- BUG-A16：type 返回值历史的 DEBUG 日志（history[N]=...）原样打印 .Password 字段明文，落入 execution.log；步骤摘要日志中的 history / named / capture 统一脱敏为 ***（Return 本体是否脱敏待 C07 决定）（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
 ## [11.8.21] - 2026-10-15
 
 ### Fixed

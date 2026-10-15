@@ -1174,3 +1174,25 @@ class TestSpecialValues:
         with pytest.raises(AssertionFailedError, match="比较字段数为 0"):
             engine.execute("verify", {"model": "Order", "data": "V001"})
 
+
+
+class TestPasswordMaskedInStepLog:
+    """BUG-A16：type 返回值历史的 DEBUG 日志不得出现 .Password 明文"""
+
+    def test_history_debug_line_masked(self, mock_driver, caplog):
+        import logging
+        mock_model_parser = MagicMock()
+        mock_model_parser.get_model.return_value = {
+            '__model_type__': MODEL_TYPE_UI,
+            'username': {'locator_type': 'id', 'locator_value': 'u', 'model_type': MODEL_TYPE_UI},
+            'password': {'locator_type': 'id', 'locator_value': 'p', 'model_type': MODEL_TYPE_UI},
+        }
+        mock_model_parser.get_model_type.return_value = MODEL_TYPE_UI
+        mock_data_manager = MagicMock()
+        mock_model_parser.get_auto_capture.return_value = []
+        mock_data_manager.get_data.return_value = {'username': 'alice', 'password': 'S3cret!.Password'}
+        engine = KeywordEngine(mock_driver, model_parser=mock_model_parser, data_manager=mock_data_manager)
+        with caplog.at_level(logging.DEBUG, logger="rodski"):
+            engine.execute("type", {"model": "Login", "data": "D001"})
+        assert "S3cret!" not in caplog.text
+        assert "history[" in caplog.text

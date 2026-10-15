@@ -201,6 +201,17 @@ class HookResult:
         self.elapsed = elapsed
 
 
+def _mask_passwords(value: Any) -> Any:
+    """日志输出用：把以 `.Password` 结尾的字符串（含嵌套 dict/list 中的）替换为 `***`。"""
+    if isinstance(value, str):
+        return '***' if value.endswith('.Password') else value
+    if isinstance(value, dict):
+        return {k: _mask_passwords(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return type(value)(_mask_passwords(v) for v in value)
+    return value
+
+
 class KeywordEngine:
     """关键字引擎 - 执行测试关键字并管理驱动操作
     
@@ -866,7 +877,7 @@ class KeywordEngine:
         if isinstance(last, dict) and '_capture' in last:
             return_source = 'auto_capture'
             cap = last.get('_capture', {})
-            extra = f" capture={cap}"
+            extra = f" capture={_mask_passwords(cap)}"
         elif keyword == 'evaluate':
             return_source = 'evaluate'
             extra = ''
@@ -887,9 +898,10 @@ class KeywordEngine:
         logger.info(f"[STEP] action={keyword} model={model} status=OK source={return_source}{extra}")
 
         if logger.isEnabledFor(logging.DEBUG):
-            logger.debug(f"  history[{len(history)-1}]={repr(last)[:200]}")
+            # v11.8.22 (BUG-A16)：返回值中的 .Password 字段在日志中脱敏（CORE §4.1）
+            logger.debug(f"  history[{len(history)-1}]={repr(_mask_passwords(last))[:200]}")
             if self._context.named:
-                logger.debug(f"  named={self._context.named}")
+                logger.debug(f"  named={_mask_passwords(self._context.named)}")
 
     def _should_retry(self, error_message: str, retry_on_errors: List[str]) -> bool:
         """检查错误是否应该重试"""

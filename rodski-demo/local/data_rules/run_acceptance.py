@@ -41,7 +41,6 @@ import init_data  # noqa: E402  (NEGATIVE_F056 负向数据)
 
 # ── KNOWN：框架行为与文档不符（保留用例、不改框架）。键 = 检查项编号 ─────────────
 KNOWN: Dict[str, str] = {
-    "F027-03": ".Password 明文出现在 execution.log（type 返回值的 history DEBUG 行）",
     "F027-04": "type 的 Return / execution_summary.json return_value 含 .Password 字段明文",
     "F050-03": "rodski data import 接受字段不一致的 XML，写出违反字段集合一致约束的 data.sqlite",
     "F055-03": "Return 历史不按用例重置：非首个用例中 ${Return[0]} 不是本用例第一步",
