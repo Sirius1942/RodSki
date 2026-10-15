@@ -2025,9 +2025,9 @@ class KeywordEngine:
             )
 
         try:
-            from ..api.rest_helper import RestHelper
+            from ..api.rest_helper import RestHelper, build_http_result
         except ImportError:
-            from rodski.api.rest_helper import RestHelper
+            from rodski.api.rest_helper import RestHelper, build_http_result
 
         # 从浏览器获取 cookies 以共享登录态
         browser_cookies = None
@@ -2081,17 +2081,13 @@ class KeywordEngine:
         except Exception as e:
             raise DriverError(f"HTTP {method} 请求失败: {url} - {e}")
 
-        result_data = {"status": response.status_code}
         try:
             json_body = response.json()
-            if isinstance(json_body, dict):
-                result_data.update(json_body)
-            else:
-                result_data["body"] = json_body
             logger.debug(f"响应体: {json_body}")
         except (ValueError, TypeError):
-            result_data["body"] = response.text
+            json_body = response.text
             logger.debug(f"响应文本(前500字): {response.text[:500]}")
+        result_data = build_http_result(response.status_code, json_body)
 
         self.store_return(result_data)
 

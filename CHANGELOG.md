@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [11.8.12] - 2026-10-15
+
+### Fixed
+
+- BUG-A20：响应体同名 status 字段覆盖 HTTP 状态码；send 与压测驱动统一由 build_http_result 组装，status 恒为 HTTP 状态码，响应体自带 status 时完整响应体放在 body（body.status）（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
 ## [11.8.11] - 2026-10-15
 
 ### Fixed

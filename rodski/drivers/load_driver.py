@@ -37,7 +37,7 @@ class LoadDriver(BaseDriver):
     ) -> dict:
         """由 KeywordEngine._kw_send() 调用。
         通过 Locust FastHttpClient 发送请求，自动计时并统计到 env.stats。
-        返回格式与 InterfaceDriver 一致：{"status": 200, ...响应体字段}
+        返回格式与 send 一致（build_http_result）：status 为 HTTP 状态码，响应字段平铺，完整响应体在 body
         """
         with self._client.request(
             method=method,
@@ -53,7 +53,11 @@ class LoadDriver(BaseDriver):
                 body = resp.json()
             except Exception:
                 body = {}
-            result = {"status": resp.status_code, **body}
+            try:
+                from ..api.rest_helper import build_http_result
+            except ImportError:
+                from rodski.api.rest_helper import build_http_result
+            result = build_http_result(resp.status_code, body)
             self._last_response = result
             return result
 

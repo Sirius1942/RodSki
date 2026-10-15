@@ -65,8 +65,6 @@ CASES: dict[str, dict[str, str | None]] = {
 
 # 已登记的框架/文档不一致（KNOWN）：case_id -> 说明
 KNOWN = {
-    "TC-HV-044-05": "F044 响应体同名 status 覆盖 HTTP 状态码（CORE §3.3：status 列=HTTP 状态码）",
-    "TC-HV-044-06": "F044 同上：status 列被当作响应体字段比较，写 shipped 反而通过",
     "TC-HV-044-07": "F044 case XML 的 match_mode=\"subset\" 未传给 verify，仍按 strict 执行",
     "TC-HV-044-08": "F044 GUIDE §8.2 示例照写失败：strict 要求 _method/_url/password 出现在 _verify 行",
     "TC-HV-044-09": "F044 模型未声明 status 元素时 _verify 的 status 列不参与校验（且 subset 未生效）",

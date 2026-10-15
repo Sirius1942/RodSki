@@ -1617,7 +1617,8 @@ INSERT INTO rs_field VALUES ('PayAPI', 'D001', 'txn_no', 'TXN${date(today, %Y%m%
 </datatable>
 ```
 
-> `status` 字段：期望的 HTTP 状态码。其他字段：期望的响应字段值。
+> `status` 字段：期望的 HTTP 状态码。其他字段：期望的响应字段值（JSON 对象响应的字段平铺到顶层）。
+> 响应体自带同名 `status` 字段时，`status` 仍是 HTTP 状态码，响应体字段用 `${Return[-1].body.status}` 读取（v11.8.12）。
 
 **Case XML 写法**：
 
