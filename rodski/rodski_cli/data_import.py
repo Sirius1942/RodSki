@@ -20,6 +20,16 @@ def run_import(module: str, overwrite: bool = False) -> int:
         print("未找到 data.xml / data_verify.xml，无需迁移。")
         return 0
 
+    # v11.8.23 (BUG-A17)：写库前校验字段集合一致（CORE §2 / §11：迁移到 SQLite 必须统一为固定字段集合），
+    # 任一表不一致则整体不写入
+    errors = _ragged_rows(xml_tables)
+    if errors:
+        for err in errors:
+            print(f"  [FAIL] [SKI203] {err}。缺字段必须显式填 BLANK/NULL/NONE，不能省略")
+        print(f"\n导入失败: {len(errors)} 行字段集合与同表其他行不一致，未写入 data.sqlite；"
+              f"请在 XML 中补齐后重新导入。")
+        return 1
+
     db_path = data_dir / "data.sqlite"
     _ensure_sqlite(db_path)
 
@@ -61,6 +71,18 @@ def run_import(module: str, overwrite: bool = False) -> int:
     conn.close()
     print(f"\n导入完成: {imported} 张表导入，{skipped} 张表跳过。")
     return 0
+
+
+def _ragged_rows(xml_tables: Dict[str, Dict[str, Dict[str, Any]]]) -> list:
+    """返回字段集合不一致的行描述（`表.行: missing=[...]`），以同表各行字段并集为准。"""
+    errors = []
+    for table_name, rows in xml_tables.items():
+        all_fields = {f for row in rows.values() for f in row}
+        for data_id, row_data in rows.items():
+            missing = sorted(all_fields - set(row_data))
+            if missing:
+                errors.append(f"{table_name}.{data_id}: missing={missing}")
+    return errors
 
 
 def _parse_xml_into(path: Path, target: Dict[str, Dict[str, Dict[str, Any]]]) -> None:

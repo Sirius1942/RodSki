@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [11.8.23] - 2026-10-15
+
+### Fixed
+
+- BUG-A17：rodski data import 以各行字段并集为 schema、缺字段行少写记录且不报错，产出违反字段集合一致约束的 data.sqlite；写库前逐表校验，不一致时列出 表.行: missing=[...] 并提示 BLANK/NULL/NONE，整体不写入、退出码 1（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
 ## [11.8.22] - 2026-10-15
 
 ### Fixed

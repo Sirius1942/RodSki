@@ -84,7 +84,6 @@ python3 rodski-demo/local/data_rules/data/init_data.py
 | 检查项 | 现象 |
 |--------|------|
 | F027-04 | type 的 Return 含 `明文.Password`（execution_summary.json return_value 同样落盘） |
-| F050-03 | `data import` 接受字段不一致的 XML，写出的 data.sqlite 随后 validate / run 均失败 |
 | F055-03 | Return 历史在一次运行内跨用例累积不重置，非首个用例中 `${Return[0]}` 指向整次运行第一步 |
 | F060-02 | set 的值先经 `resolve_case_data` 去转义，再在 `_kw_set` 中 `resolve_with_return` 二次解析，`${random(...)}` 被求值 |
 

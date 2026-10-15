@@ -100,3 +100,26 @@ class TestDataImport:
         assert not db.exists()
         run_import(mod)
         assert db.exists()
+
+
+_RAGGED_XML = '''<?xml version="1.0" encoding="UTF-8"?>
+<datatables>
+  <datatable name="Ok">
+    <row id="O001"><field name="a">1</field></row>
+  </datatable>
+  <datatable name="Ragged">
+    <row id="R001"><field name="a">1</field><field name="b">2</field></row>
+    <row id="R002"><field name="a">3</field></row>
+  </datatable>
+</datatables>'''
+
+
+class TestRaggedRejected:
+    """BUG-A17：字段集合不一致的表在导入阶段报错，且整体不写入"""
+
+    def test_ragged_table_fails_and_writes_nothing(self, tmp_path, capsys):
+        mod = _make_module(tmp_path, data_xml=_RAGGED_XML)
+        assert run_import(mod) == 1
+        out = capsys.readouterr().out
+        assert "Ragged.R002: missing=['b']" in out and "BLANK/NULL/NONE" in out
+        assert not (Path(mod) / "data" / "data.sqlite").exists()
