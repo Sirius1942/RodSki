@@ -86,29 +86,44 @@ class DynamicExecutor:
         if 'text_contains' in c_lower or 'text_not_contains' in c_lower:
             return self._eval_text_contains(condition, driver)
 
-        # 5. 变量比较（原有逻辑）
-        for op in ['==', '!=', '>', '<', '>=', '<=']:
-            if op in condition:
-                parts = condition.split(op, 1)
-                if len(parts) == 2:
-                    left = self._resolve_value(parts[0].strip())
-                    right = self._resolve_value(parts[1].strip())
-                    if op == '==':
-                        return str(left) == str(right)
-                    elif op == '!=':
-                        return str(left) != str(right)
-                    elif op == '>':
-                        return float(left) > float(right)
-                    elif op == '<':
-                        return float(left) < float(right)
-                    elif op == '>=':
-                        return float(left) >= float(right)
-                    elif op == '<=':
-                        return float(left) <= float(right)
+        # 5. 变量比较
+        parsed = self._split_comparison(condition)
+        if parsed:
+            left, op, right = parsed
+            return self._compare(self._resolve_value(left), op, self._resolve_value(right))
 
         # 未知条件默认为 False
         logger.warning(f"[IF] 未知条件类型: {condition}")
         return False
+
+    # 双字符运算符必须排在单字符之前，否则 `a >= 3` 会在 `>` 处被拆成 `a` 与 `= 3`
+    _COMPARE_RE = re.compile(r'^(.+?)\s*(==|!=|>=|<=|>|<|\bcontains\b)\s*(.+)$', re.S)
+
+    @classmethod
+    def _split_comparison(cls, condition: str):
+        """拆成 (左, 运算符, 右)；不是比较表达式返回 None。"""
+        m = cls._COMPARE_RE.match(condition.strip())
+        if not m:
+            return None
+        return m.group(1).strip(), m.group(2), m.group(3).strip()
+
+    @staticmethod
+    def _compare(left: Any, op: str, right: Any) -> bool:
+        """==/!=/contains 按字符串比较，> < >= <= 按数值比较（无法转数值时抛 ValueError）。"""
+        if op == 'contains':
+            return str(right) in str(left)
+        if op == '==':
+            return str(left) == str(right)
+        if op == '!=':
+            return str(left) != str(right)
+        lf, rf = float(left), float(right)
+        if op == '>':
+            return lf > rf
+        if op == '<':
+            return lf < rf
+        if op == '>=':
+            return lf >= rf
+        return lf <= rf
 
     def _split_outside_quotes(
         self, s: str, sep: str, case_sensitive: bool = True

@@ -223,19 +223,17 @@ class TestVariableComparison:
         executor.set_variable("count", "2")
         assert executor.evaluate_condition("$count < 5") is True
 
-    @pytest.mark.xfail(
-        reason="源码 bug：运算符列表 ['==','!=','>','<','>=','<='] 中 '>' 排在 '>=' 前面，"
-               "'$count >= 5' 会先匹配到 '>' 并按 '>' 拆分，导致右侧变成 '= 5'。"
-               "修复方案：将运算符按长度降序排列（>=,<=,==,!=,>,<）"
-    )
     def test_variable_gte(self, executor):
         """变量大于等于比较"""
         executor.set_variable("count", "5")
         assert executor.evaluate_condition("$count >= 5") is True
 
-    @pytest.mark.xfail(
-        reason="源码 bug：同 test_variable_gte，'<' 排在 '<=' 前面导致拆分错误"
-    )
+    def test_variable_gte_not_split_at_gt(self, executor):
+        """BUG-A05：'>=' 不能在 '>' 处被拆开（右侧不应变成 '= 3'）"""
+        executor.set_variable("count", "3")
+        assert executor.evaluate_condition("$count >= 3") is True
+        assert executor.evaluate_condition("$count <= 2") is False
+
     def test_variable_lte(self, executor):
         """变量小于等于比较"""
         executor.set_variable("count", "5")
@@ -341,3 +339,4 @@ class TestParseLoopRange:
         """单个值"""
         result = executor.parse_loop_range("hello")
         assert result == ["hello"]
+
