@@ -565,11 +565,23 @@ class LoadBrowserModeUnsupportedCaseError(SKIError):
     error_code = "SKI604"
 
 
+class LoadBrowserModeNotSupportedError(SKIError):
+    """压测计划声明了 mode="browser"，当前版本只支持 api 模式（LOAD_TESTING_GUIDE §4.2）。"""
+    error_code = "SKI605"
+
+    def __init__(self, plan_id: str = ""):
+        super().__init__(
+            f"压测计划 {plan_id or ''} 声明了 mode=\"browser\"，当前版本只支持 mode=\"api\"（Locust 接口压测）。"
+            f"请改为 mode=\"api\" 并只引用 component_type=\"接口\" 的 case"
+        )
+
+
 ERROR_CODE_MAP.update({
     "SKI601": LoadModeUnsupportedError,
     "SKI602": LoadModeUnsupportedCaseError,
     "SKI603": LoadDependencyMissingError,
     "SKI604": LoadBrowserModeUnsupportedCaseError,
+    "SKI605": LoadBrowserModeNotSupportedError,
 })
 
 

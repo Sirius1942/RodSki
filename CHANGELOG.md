@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [11.8.29] - 2026-10-15
+
+### Fixed
+
+- BUG-A32：mode=browser 压测计划未被拒绝，按 api 模式照常压测并退出 0（mode 从未被运行链路读取）；新增 SKI605 LoadBrowserModeNotSupportedError，LocustLoadEngine.run 入口拒绝非 api 模式且不生成结果；LOAD 指南 §4.2 与错误码表同步（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
 ## [11.8.28] - 2026-10-15
 
 ### Fixed
