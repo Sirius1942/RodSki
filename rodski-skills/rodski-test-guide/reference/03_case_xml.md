@@ -232,7 +232,7 @@
 
 ```xml
 <test_case>
-  <loop range="1,5" var="i">
+  <loop range="1-5" var="i">
     <test_step action="type" model="ItemForm" data="D00${i}"/>
     <test_step action="verify" model="ItemForm" data="V00${i}"/>
   </loop>
@@ -241,7 +241,7 @@
 
 | 属性 | 必需 | 说明 |
 |------|------|------|
-| `range` | 是 | 循环范围，如 `1,5`（从 1 到 5） |
-| `var` | 否 | 循环变量名，可在内部步骤中通过 `${var}` 引用 |
+| `range` | 是 | 循环范围：`1-5` 为闭区间（1 到 5）；`1,2,3` 为逐个列举的取值列表（注意 `1,5` 只循环 1 和 5 两次） |
+| `var` | 否 | 循环变量名，可在内部步骤的 `data` 中通过 `${var}` 引用（如 `D00${i}`） |
 
 ---
