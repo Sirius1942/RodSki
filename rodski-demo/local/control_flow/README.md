@@ -83,5 +83,5 @@ F070 由编排脚本把模块复制到临时目录、改写 `WaitTime` / `step_w
 | C06/C14 | F067_02、F068_05 | `set` 的变量在 `<if condition>` 中不可见，`${flag} == off` 为假 | `rodski/core/ski_executor.py:2393`（以 model 空串为键同步变量）、`rodski/core/dynamic_executor.py:236-239`（`${x}` 只剥 `$`） **已修复 v11.8.3（BUG-A01）** |
 | C07/C08 | F067_03、F067_04 | `${Return[-1].status} == 200` / `${Return[-1].status == 200}` 恒为假 | `rodski/core/dynamic_executor.py:23`（`return_values or []` 使空 history 脱钩）、`:168` 正则不识别 GUIDE 写法 **已修复 v11.8.4（BUG-A02）** |
 | C09 | F067_05 | `element_exists` 恒假、`element_not_exists` 恒真 | `rodski/core/dynamic_executor.py:209` 以 1 参调用 `playwright_driver.py:516 locate_element(type, value)` **已修复 v11.8.5（BUG-A03）** |
-| C12/C13 | F068_03、F068_04 | `<loop>` 内的 `<if>/<elif>/<else>` 被静默丢弃 | `rodski/core/case_parser.py:_parse_branch_steps` |
+| C12/C13 | F068_03、F068_04 | `<loop>` 内的 `<if>/<elif>/<else>` 被静默丢弃 | `rodski/core/case_parser.py:_parse_branch_steps` **已修复 v11.8.6（BUG-A04）** |
 | C15/C16 | F068_06、F068_07 | `>=` / `<=` 条件被当作"评估失败"整块跳过 | `rodski/core/dynamic_executor.py:90` 运算符拆分顺序 **已修复 v11.8.2（BUG-A05）** |

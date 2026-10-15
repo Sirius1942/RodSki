@@ -37,9 +37,6 @@ FLOW_DIR = "case/flow/"
 # ---------------------------------------------------------------- KNOWN 缺陷登记
 # 检查项编号 -> 简述（详细的文档条款 / 代码位置见 README.md「KNOWN 缺陷」）
 KNOWN: Dict[str, str] = {
-    "C12": "<loop> 内的 <if>/<elif>/<else> 被解析器静默丢弃（case_parser.py:_parse_branch_steps 只收 test_step/business_call），"
-           "而 case.xsd LoopContainerType 允许 if/elif/else",
-    "C13": "同 C12（loop 内 if 被丢弃）+ 同 C06（${i} 在条件中不解析）",
 }
 
 

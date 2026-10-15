@@ -312,7 +312,9 @@ class CaseParser:
             'type': 'loop',
             'range': str(el.get('range', '') or '').strip(),
             'var': str(el.get('var', 'item') or '').strip(),
-            'steps': CaseParser._parse_branch_steps(el),
+            # 循环体与阶段容器同样支持 if/elif/else 链（case.xsd LoopContainerType），
+            # 不能用 _parse_branch_steps，否则 if 块被静默丢弃
+            'steps': CaseParser._parse_phase_steps(el),
         }
 
     @staticmethod

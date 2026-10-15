@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [11.8.6] - 2026-10-15
+
+### Fixed
+
+- BUG-A04：<loop> 内的 <if>/<elif>/<else> 被解析器静默丢弃；循环体改用与阶段容器相同的解析（支持 if/elif/else 链）（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
 ## [11.8.5] - 2026-10-15
 
 ### Fixed
