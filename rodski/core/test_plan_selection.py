@@ -51,6 +51,15 @@ def compile_from_selector(
         candidates = [m for m in candidates if not (exclude_set & set(m.get("effective_tags") or []))]
 
     for m in candidates:
+        if not m.get("scenario_id"):
+            # 不含 scenario 的用例：整条用例选中
+            selected.append({
+                "type": "case",
+                "case_id": m["case_id"],
+                "case_file": m.get("case_file", ""),
+                "reason": "selector",
+            })
+            continue
         selected.append({
             "type": "scenario",
             "case_id": m["case_id"],

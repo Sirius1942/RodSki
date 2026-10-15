@@ -168,3 +168,35 @@ class TestCheckPlanSelectorConflict:
             "plans/smoke.xml",
             {"filter_tags": None, "filter_group": None, "exclude_tags": None, "filter_priority": None},
         )
+
+
+class TestScenarioLessCases:
+    """BUG-A06：不含 scenario 的用例在 selector 模式下也要能被选中（整条用例）"""
+
+    def _cases(self):
+        return [
+            {"case_id": "CAT_001", "case_file": "catalog/a.xml", "priority": "P0",
+             "tags": ["catalog"], "scenarios": []},
+            {"case_id": "CHK_001", "case_file": "checkout/b.xml", "priority": "P1",
+             "tags": ["checkout"], "scenarios": [{"id": "s1", "group": "neg", "tag": ["p0"]}]},
+        ]
+
+    def test_metadata_has_case_level_entry(self):
+        from core.case_parser import CaseParser
+        meta = CaseParser.collect_scenario_metadata_from_cases(self._cases())
+        cat = [m for m in meta if m["case_id"] == "CAT_001"]
+        assert len(cat) == 1 and cat[0]["scenario_id"] == "" and cat[0]["effective_tags"] == ["catalog"]
+
+    def test_tag_selects_whole_case(self):
+        from core.case_parser import CaseParser
+        meta = CaseParser.collect_scenario_metadata_from_cases(self._cases())
+        result = compile_from_selector(meta, filter_tags=["catalog"])
+        assert result["selected"] == [
+            {"type": "case", "case_id": "CAT_001", "case_file": "catalog/a.xml", "reason": "selector"}
+        ]
+
+    def test_group_never_matches_scenarioless_case(self):
+        from core.case_parser import CaseParser
+        meta = CaseParser.collect_scenario_metadata_from_cases(self._cases())
+        result = compile_from_selector(meta, filter_group="neg")
+        assert [(e["type"], e["case_id"]) for e in result["selected"]] == [("scenario", "CHK_001")]

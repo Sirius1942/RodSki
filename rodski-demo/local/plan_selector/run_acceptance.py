@@ -45,13 +45,10 @@ FULL = CAT_ALL + ["RPT_001"] + CHK1_ALL + CHK2_ALL                       # CHK_0
 _SEL = ("selector 模式下（--tag/--tags/--priority/--exclude-tag 任一生效）只为带 scenario 的用例生成选择项，"
         "不含 scenario 的用例一律 SKIP(plan_not_selected)（ski_executor.py:1047-1049 + test_plan_selection.py:compile_from_selector）")
 KNOWN: Dict[str, str] = {
-    "P01": _SEL,
     "P02": "用例级 tags 属性被忽略（case_parser.py:118 只取 <cases tags>）；且 --tag 先按文件级 tags 做用例级过滤"
            "（ski_executor.py:1312-1319），scenario 的 tag 在此之前就被丢掉 → --tags smoke 0 条执行；" + _SEL,
     "P03": "--priority 多值只取第一个参与 scenario 选择（ski_executor.py:648 / run.py:903 priority_str=raw_priority[0]）；" + _SEL,
-    "P04": _SEL,
     "P05": _SEL + "；用例级 tags=slow 也未参与排除（case_parser.py:118）",
-    "P06": _SEL,
     "P08": "--tag 是 --tags 的别名，先按文件级 tags 做用例级过滤（ski_executor.py:1316-1319），"
            "只出现在 scenario@tag 的 p0 让所有用例在 scenario 选择前就被过滤掉，0 条执行",
     "P11": "无 case 路径时 run.py:590-603 总是解析默认计划 project_full，再与 selector 判冲突（SKI703）；"

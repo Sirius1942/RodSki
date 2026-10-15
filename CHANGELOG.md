@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [11.8.7] - 2026-10-15
+
+### Fixed
+
+- BUG-A06：selector 模式下不含 scenario 的用例一律 SKIP（--tags 0 条执行、退出码 0）；元数据为无 scenario 的用例生成用例级记录，命中时整条用例选中（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
 ## [11.8.6] - 2026-10-15
 
 ### Fixed
