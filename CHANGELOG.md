@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [11.8.19] - 2026-10-15
+
+### Fixed
+
+- BUG-A31：暂停中下发 terminate / force_terminate 后执行器仍处于暂停态，后处理与后续用例在 wait_unpaused 处卡死；终止命令同时解除暂停（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
 ## [11.8.18] - 2026-10-15
 
 ### Fixed

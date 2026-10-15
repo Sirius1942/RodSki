@@ -48,9 +48,6 @@ KNOWN = {
     "R02:fast": "强制终止只在步骤边界被处理，等当前步骤自然结束后才生效（CORE §8.7 要求不必等待）；"
                 "core/runtime_control.py:98-115 drain_at_boundary 只在 core/ski_executor.py:1923-1961 "
                 "_run_steps 的步骤前后调用，步内无中断点",
-    "R03:no_hang": "暂停期间收到 terminate 后执行器仍处于暂停态（_unpaused 未 set），"
-                   "后处理与后续用例在 _run_steps 的 wait_unpaused 循环中卡住"
-                   "（core/runtime_control.py:112-113 TERMINATE 分支未 set _unpaused；core/ski_executor.py:1935）",
     "R05:cli_entry": "文档声明运行时控制命令可由 CLI / GUI / 服务端下发（CORE §8.6、GUIDE §11.5），"
                      "但 rodski run 只有 --insert-step，没有 pause / resume / terminate / force-terminate 入口，"
                      "也没有服务端下发接口（rodski/rodski_cli/run.py:1124 仅在 --insert-step 时创建队列）",

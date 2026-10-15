@@ -89,3 +89,16 @@ class TestRuntimeControl:
         rq.resume()
         rq.drain_at_boundary(ex, deque())
         assert rq.wait_unpaused(timeout=0.01) is True
+
+    def test_terminate_while_paused_unpauses(self):
+        """BUG-A31：暂停中下发 terminate，后续阶段不能卡在 wait_unpaused"""
+        import pytest
+        for force, exc in ((False, GracefulRunTermination), (True, ForceRunTermination)):
+            rq = RuntimeCommandQueue()
+            rq.pause()
+            rq.drain_at_boundary(_StubExecutor(), deque())
+            assert rq.wait_unpaused(timeout=0.01) is False
+            rq.terminate(force=force)
+            with pytest.raises(exc):
+                rq.drain_at_boundary(_StubExecutor(), deque())
+            assert rq.wait_unpaused(timeout=0.01) is True
