@@ -65,10 +65,8 @@ CASES: dict[str, dict[str, str | None]] = {
 
 # 已登记的框架/文档不一致（KNOWN）：case_id -> 说明
 KNOWN = {
-    "TC-HV-044-07": "F044 case XML 的 match_mode=\"subset\" 未传给 verify，仍按 strict 执行",
     "TC-HV-044-08": "F044 GUIDE §8.2 示例照写失败：strict 要求 _method/_url/password 出现在 _verify 行",
     "TC-HV-044-09": "F044 模型未声明 status 元素时 _verify 的 status 列不参与校验（且 subset 未生效）",
-    "TC-HV-044-10": "F044 match_mode=subset 未生效，失败原因是 strict 缺字段而不是 name 不匹配",
     "TC-HV-026-06": "F026 接口 verify 的 NONE 被当作期望字符串 'none'，而不是跳过验证（CORE §4.1）",
     "TC-HV-052-02": "F052 DB verify 不支持断言操作符（GUIDE §5.7.1 写明适用 DB）",
     "TC-HV-052-03": "F052 同上",

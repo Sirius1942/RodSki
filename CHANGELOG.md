@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [11.8.13] - 2026-10-15
+
+### Fixed
+
+- BUG-A19：case XML 步骤上的 match_mode="subset" 未传入 verify 参数，恒按 strict 校验；execute_step 将步骤 match_mode（解析器默认 strict、business_call 为 subset）传给关键字（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
 ## [11.8.12] - 2026-10-15
 
 ### Fixed

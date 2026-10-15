@@ -2405,6 +2405,10 @@ class SKIExecutor:
             # set 的变量由 _kw_set 写入 DataResolver.data_source，条件求值从那里读取
         else:
             params = {'model': model, 'data': resolved_data}
+            # case XML 上的 match_mode（解析器默认 strict）以及 business_call 节点的 subset
+            # 都要传给 verify，否则恒按 strict 执行
+            if step.get('match_mode'):
+                params['match_mode'] = step['match_mode']
             try:
                 self.keyword_engine.execute(action, params)
             except AssertionFailedError as exc:
