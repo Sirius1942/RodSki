@@ -45,10 +45,6 @@ FULL = CAT_ALL + ["RPT_001"] + CHK1_ALL + CHK2_ALL                       # CHK_0
 _SEL = ("selector 模式下（--tag/--tags/--priority/--exclude-tag 任一生效）只为带 scenario 的用例生成选择项，"
         "不含 scenario 的用例一律 SKIP(plan_not_selected)（ski_executor.py:1047-1049 + test_plan_selection.py:compile_from_selector）")
 KNOWN: Dict[str, str] = {
-    "P21": "plan add-scenario 只写 <case id>（无 file，CLI 也无 file 参数，plan.py:185 _find_or_create_case_node），"
-           "多用例文件模块中生成的计划校验报 SKI207、执行报错",
-    "P22": "plan create --from-tag 生成的 <case> 不带 file（plan.py:542），多用例文件模块中计划校验报 SKI207；"
-           "且未包含用例级 tags=smoke 的 CAT_001",
     "P28": "plan debug-scenario 生成的 <case> 不带 file（CLI 无 file 参数，plan.py:746），多用例文件模块中 run @plan --debug 报 SKI207",
     "P29": "plan debug-step 生成的 <case> 不带 file（CLI 无 file 参数，plan.py:764），多用例文件模块中 run @plan --debug 报 SKI207",
     "P33": "prepare=none 时 _execute_debug_case 跳过 _run_steps，直接 _execute_step_list → _execute_step_item 引用未初始化的 "

@@ -71,5 +71,5 @@ prepare=auto 文档写作"执行 pre_process + 目标 step 之前的步骤"，�
 | P03 | `--priority P0,P1` 只按 P0 生成 scenario 选择 | `rodski/core/ski_executor.py:648`、`rodski/rodski_cli/run.py:903` **已修复 v11.8.10（BUG-A08）** |
 | P08 | `--tag p0`（只在 scenario@tag 上）0 条执行：`--tag` 先按文件级 tags 做用例级过滤 | `rodski/core/ski_executor.py:1317` **已修复 v11.8.8（BUG-A09）** |
 | P11 | 无路径 `rodski run --group negative`：有 project_full 时报 SKI703 互斥，无时报"未找到默认测试计划" | `rodski/rodski_cli/run.py:593-603` **已修复 v11.8.11（BUG-A10）** |
-| P21/P22/P28/P29 | `add-scenario`、`create --from-tag`、`debug-scenario`、`debug-step` 生成的 `<case>` 不带 `file`，多文件模块中 SKI207 | `rodski/rodski_cli/plan.py:185/542/746/764` |
+| P28/P29 | `debug-scenario`、`debug-step` 生成的 `<case>` 不带 `file`，多文件模块中 SKI207（P21/P22 已于 v11.8.30 修复，BUG-A11） | `rodski/rodski_cli/plan.py` debug 生成器 |
 | P33 | prepare=none 调试用例 FAIL：`'SKIExecutor' object has no attribute '_phase_runtime_seq'` | `rodski/core/ski_executor.py:2000`（`_execute_debug_case` 未初始化计数器） |

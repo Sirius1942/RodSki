@@ -62,6 +62,8 @@ def setup_parser(subparsers):
     as_p.add_argument("plan_id")
     as_p.add_argument("case_id")
     as_p.add_argument("scenario_id")
+    as_p.add_argument("--file", default=None,
+                      help="用例文件（相对 case/）；计划中尚无该用例且多个用例文件含同名 ID 时必填")
 
     # disable-case
     dc_p = sub.add_parser("disable-case", help="设置 case execute=否")
@@ -178,12 +180,51 @@ def _load_plan_tree(plan_id: str):
     return tree, tree.getroot(), path
 
 
-def _find_or_create_case_node(root: ET.Element, case_id: str) -> ET.Element:
+def _case_files_by_id() -> Dict[str, List[str]]:
+    """case/ 下所有用例文件的 {case_id: [相对 case/ 的 case_file, ...]} 索引。"""
+    case_d = _case_dir()
+    index: Dict[str, List[str]] = {}
+    if not case_d.is_dir():
+        return index
+    try:
+        from ..core.case_discovery import discover_case_files, relative_case_file, resolve_module_dir
+    except ImportError:
+        from rodski.core.case_discovery import discover_case_files, relative_case_file, resolve_module_dir
+    for xml_file in discover_case_files(case_d):
+        try:
+            nodes = ET.parse(xml_file).getroot().findall("case")
+        except ET.ParseError:
+            continue
+        case_file = relative_case_file(resolve_module_dir(xml_file), xml_file)
+        for case_node in nodes:
+            cid = (case_node.get("id") or "").strip()
+            if cid:
+                index.setdefault(cid, []).append(case_file)
+    return index
+
+
+def _find_or_create_case_node(root: ET.Element, case_id: str,
+                              case_file: Optional[str] = None) -> ET.Element:
+    """查找计划中的用例节点；没有时新建。
+
+    v11.8.30 (BUG-A11)：新建节点带上 file（CORE §7.7：多用例文件模块省略 file 报 SKI207）——
+    显式给出的 case_file 优先，否则按用例 ID 在 case/ 中唯一定位；同名 ID 出现在多个文件时报错要求 --file。
+    """
     for case_node in root.findall("case"):
-        if case_node.get("id") == case_id:
+        if case_node.get("id") == case_id and (not case_file or case_node.get("file") in (None, case_file)):
             return case_node
-    case_node = ET.SubElement(root, "case", {"id": case_id, "execute": "是"})
-    return case_node
+    attrs = {"id": case_id, "execute": "是"}
+    if not case_file:
+        candidates = _case_files_by_id().get(case_id, [])
+        if len(candidates) > 1:
+            print(f"错误: 用例 ID '{case_id}' 出现在多个用例文件中: {', '.join(candidates)}；"
+                  f"请用 --file 指定（路径相对 case/）", file=sys.stderr)
+            sys.exit(1)
+        if candidates:
+            case_file = candidates[0]
+    if case_file:
+        attrs = {"id": case_id, "file": case_file, "execute": "是"}
+    return ET.SubElement(root, "case", attrs)
 
 
 def _collect_existing_case_ids() -> set:
@@ -532,14 +573,18 @@ def _handle_create(args):
             filter_tags=filter_tags,
             filter_group=args.from_group,
         )
-        # Group selected by case_id
-        case_scenarios: Dict[str, List[str]] = {}
+        # 按 (case_file, case_id) 分组；v11.8.30 (BUG-A11) 写入 file，多用例文件模块才能直接执行。
+        # 不含 scenario 的用例（选择项 scenario_id 为空）只生成 <case>，不生成 <scenario>
+        case_scenarios: Dict[tuple, List[str]] = {}
         for item in result.get("selected", []):
-            cid = item["case_id"]
+            key = (item.get("case_file", ""), item["case_id"])
+            sids = case_scenarios.setdefault(key, [])
             sid = item.get("scenario_id", "")
-            case_scenarios.setdefault(cid, []).append(sid)
-        for cid, sids in case_scenarios.items():
-            case_node = ET.SubElement(root, "case", {"id": cid, "execute": "是"})
+            if sid:
+                sids.append(sid)
+        for (cfile, cid), sids in case_scenarios.items():
+            attrs = {"id": cid, "file": cfile, "execute": "是"} if cfile else {"id": cid, "execute": "是"}
+            case_node = ET.SubElement(root, "case", attrs)
             for sid in sids:
                 ET.SubElement(case_node, "scenario", {"id": sid, "execute": "是"})
 
@@ -668,7 +713,7 @@ def _handle_migrate(args):
 
 def _handle_add_scenario(args):
     tree, root, path = _load_plan_tree(args.plan_id)
-    case_node = _find_or_create_case_node(root, args.case_id)
+    case_node = _find_or_create_case_node(root, args.case_id, getattr(args, "file", None))
     # Check duplicate
     for sc_node in case_node.findall("scenario"):
         if sc_node.get("id") == args.scenario_id:

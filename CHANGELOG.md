@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [11.8.30] - 2026-10-15
+
+### Fixed
+
+- BUG-A11：plan add-scenario（计划中尚无该用例时）与 plan create --from-tag 生成的 <case> 缺少 file，多用例文件模块报 SKI207；新建节点按 ID 在 case/ 中唯一定位补 file（同名 ID 多文件时报错并要求新增的 --file 参数），--from-tag 写入选择项的 case_file，不含 scenario 的用例只生成 <case>；GUIDE §10.3 同步（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
 ## [11.8.29] - 2026-10-15
 
 ### Fixed
