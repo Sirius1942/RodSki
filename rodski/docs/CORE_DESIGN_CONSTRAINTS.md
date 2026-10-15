@@ -213,12 +213,12 @@ RodSki 的定位器类型以 `rodski/schemas/model.xsd` 的 `LocatorType` 枚举
 
 | 类型 | 格式 | 说明 | 示例 |
 |------|------|------|------|
-| `id` | CSS ID | 转换为 `#值` | `<location type="id">username</location>` → `#username` |
-| `class` | CSS Class | 转换为 `.值` | `<location type="class">btn-submit</location>` → `.btn-submit` |
+| `id` | CSS ID | 转换为 `[id="值"]`（等价于 `#值`） | `<location type="id">username</location>` → `[id="username"]` |
+| `class` | CSS Class | 转换为 `.值`；空格分隔的多个类名转换为 `.a.b`（同时具备） | `<location type="class">btn primary</location>` → `.btn.primary` |
 | `css` | CSS 选择器 | 原样使用 | `<location type="css">input[name="user"]</location>` |
 | `xpath` | XPath | 原样使用 | `<location type="xpath">//input[@id='user']</location>` |
 | `text` | 文本匹配 | Playwright `text=...` | `<location type="text">登录</location>` → `text=登录` |
-| `tag` | 标签名 | HTML 标签 | `<location type="tag">button</location>` |
+| `tag` | 标签名 | HTML 标签名选择器 | `<location type="tag">button</location>` → `button` |
 | `name` | name 属性 | 按 name 属性定位 | `<location type="name">username</location>` |
 | `static` | 静态值 | 字面量，不定位 | 用于接口 `_method` 等 |
 | `field` | 字段映射 | 接口请求字段 | 用于接口 body/query |

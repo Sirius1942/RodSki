@@ -71,9 +71,16 @@ class TestActions:
     def test_locator_conversion(self):
         d, _ = _driver()
         d.select("id=region", "x", timeout_ms=10)
-        d.page.locator.assert_called_with("#region")
+        d.page.locator.assert_called_with('[id="region"]')
         d.hover_locator("name=q", timeout_ms=10)
         d.page.locator.assert_called_with('[name="q"]')
+        # BUG-A24 / A25：class 多类名 = 同时具备；tag = 标签名选择器（与 KeywordEngine._web_selector 同一实现）
+        d.hover_locator("class=btn primary", timeout_ms=10)
+        d.page.locator.assert_called_with('.btn.primary')
+        d.hover_locator("tag=textarea", timeout_ms=10)
+        d.page.locator.assert_called_with('textarea')
+        d.hover_locator("xpath=(//a)[1]", timeout_ms=10)
+        d.page.locator.assert_called_with('xpath=(//a)[1]')
 
     def test_frame_scope(self):
         d, _ = _driver()
@@ -143,7 +150,7 @@ class TestProbeAndRead:
         assert d.probe("#x") is False
         d.page.locator.return_value.count.return_value = 2
         assert d.probe("id=x") is True
-        d.page.locator.assert_called_with("#x")
+        d.page.locator.assert_called_with('[id="x"]')
 
     def test_probe_translates_navigation_error(self):
         d, _ = _driver()

@@ -184,7 +184,7 @@ class TestDriverFrame:
         drv = _driver_with_page()
         assert drv.click_locator("id=payBtn", frame="#payFrame") is True
         loc = drv.page.frame_locator.return_value.locator
-        loc.assert_called_once_with("#payBtn")
+        loc.assert_called_once_with('[id="payBtn"]')
         loc.return_value.first.click.assert_called_once()
         drv.page.click.assert_not_called()
 

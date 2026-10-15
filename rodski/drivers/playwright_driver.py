@@ -17,6 +17,8 @@ import tempfile
 import time
 from pathlib import Path
 from typing import Optional, Tuple, Union, Dict, Any
+
+from .web_selector import convert_locator
 try:
     from .base_driver import BaseDriver
     from ..core.exceptions import (
@@ -357,25 +359,8 @@ class PlaywrightDriver(BaseDriver):
             )
 
     def _convert_locator(self, locator: str) -> str:
-        """转换定位器格式为 Playwright 支持的选择器"""
-        if locator.startswith('id='):
-            return '#' + locator[3:]
-        elif locator.startswith('class='):
-            return '.' + locator[6:]
-        elif locator.startswith('css='):
-            return locator[4:]
-        elif locator.startswith('xpath='):
-            # 移除 xpath= 前缀，Playwright 原生支持 XPath
-            return locator[6:]  # 返回纯 XPath 字符串
-        elif locator.startswith('text='):
-            # Playwright text locator: text=内容
-            return locator  # 保持原格式
-        elif locator.startswith('name='):
-            return f'[name="{locator[5:]}"]'
-        elif locator.startswith('#') or locator.startswith('.'):
-            return locator
-        else:
-            return locator
+        """转换定位器格式为 Playwright 支持的选择器（统一实现见 drivers/web_selector.py）"""
+        return convert_locator(locator)
 
     def _handle_error(self, operation: str, locator: str, error: Exception) -> None:
         """统一错误处理"""

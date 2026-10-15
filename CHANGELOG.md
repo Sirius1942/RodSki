@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [11.8.25] - 2026-10-15
+
+### Fixed
+
+- BUG-A24/A25：Web 定位器两套转换实现不一致：驱动 _convert_locator 把 class 多类名 "btn primary" 拼成后代选择器 .btn primary、tag 定位器原样下发（Unknown engine "tag"），只有元素状态断言的 _web_selector 正确；合并为 drivers/web_selector.py 唯一实现（class → .a.b、tag → 标签名、id → [id="..."]、xpath 显式 xpath= 前缀），GUIDE / CORE 定位器表同步（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
 ## [11.8.24] - 2026-10-15
 
 ### Fixed

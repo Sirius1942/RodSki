@@ -8,8 +8,10 @@ from typing import Dict, Any, Optional, List, Tuple, Union, Callable
 from pathlib import Path
 try:
     from ..drivers.base_driver import BaseDriver
+    from ..drivers.web_selector import to_playwright_selector
 except ImportError:
     from rodski.drivers.base_driver import BaseDriver
+    from rodski.drivers.web_selector import to_playwright_selector
 from .performance import monitor_performance
 from .exceptions import (
     UnknownKeywordError,
@@ -2708,20 +2710,8 @@ class KeywordEngine:
 
     @staticmethod
     def _web_selector(locator_type: str, locator_value: str) -> str:
-        """把模型定位器转换为 Playwright 选择器（用于元素数量 / 可见性断言）。"""
-        if locator_type == 'id':
-            return f'[id="{locator_value}"]'
-        if locator_type == 'class':
-            return ''.join(f'.{c}' for c in locator_value.split())
-        if locator_type in ('css', 'tag'):
-            return locator_value
-        if locator_type == 'xpath':
-            return f'xpath={locator_value}'
-        if locator_type == 'text':
-            return f'text={locator_value}'
-        if locator_type == 'name':
-            return f'[name="{locator_value}"]'
-        return f'{locator_type}={locator_value}'
+        """把模型定位器转换为 Playwright 选择器（与驱动 _convert_locator 同一实现）。"""
+        return to_playwright_selector(locator_type, locator_value)
 
     def _read_element_state(self, target_driver, operator: str, element_name: str,
                             locator_type: str, locator_value: str, frame: Optional[str]):

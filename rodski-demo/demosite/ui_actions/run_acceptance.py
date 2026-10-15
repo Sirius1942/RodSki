@@ -164,29 +164,6 @@ KNOWN: Dict[str, Known] = {
             "BLANK 行 :637 则明确区分了 UI/DB 与接口）",
         suspect="rodski/core/keyword_engine.py:2767-2770（UI 模型 NULL/NONE 一律跳过）",
         advice="改文档（CORE §4.1 NULL 验证行为补充「UI 模型：跳过」）或修框架按 null 比对"),
-    "LOC_MULTI_TYPE": Known(
-        symptom="SKI326 元素 LocMultiClass.multiBtn 在 AutoWait=2000ms 内未找到；尝试定位器: class=btn primary",
-        doc="rodski/docs/TEST_CASE_WRITING_GUIDE.md:469 / CORE_DESIGN_CONSTRAINTS.md:217（class → CSS .定位值）",
-        suspect="rodski/drivers/playwright_driver.py:363-364 _convert_locator 把 'btn primary' 转成 '.btn primary'"
-                "（后代选择器）；而 rodski/core/keyword_engine.py:2675-2676 _web_selector 已按空格拆成 '.btn.primary'，两处不一致",
-        advice="修框架（_convert_locator 按空白拆分多类名，与 _web_selector 一致），并在文档补充多类名写法"),
-    "LOC_MULTI_VERIFY": Known(
-        symptom="badgeMulti 期望 'MULTI-CLASS-TEXT'，实际 ''（多类名定位未命中）",
-        doc="rodski/docs/TEST_CASE_WRITING_GUIDE.md:469 / CORE_DESIGN_CONSTRAINTS.md:217",
-        suspect="rodski/core/keyword_engine.py:2899 get_text_locator('class=badge info') → "
-                "rodski/drivers/playwright_driver.py:363-364 转成 '.badge info'",
-        advice="修框架（同 LOC_MULTI_TYPE）"),
-    "LOC_TAG_TYPE": Known(
-        symptom="SKI302 查找失败: tag=textarea: Locator.count: Unknown engine \"tag\" while parsing selector tag=textarea",
-        doc="rodski/docs/TEST_CASE_WRITING_GUIDE.md:473 / CORE_DESIGN_CONSTRAINTS.md:221（tag → 标签名选择器）",
-        suspect="rodski/drivers/playwright_driver.py:359-378 _convert_locator 无 'tag=' 分支，原样返回 'tag=textarea'；"
-                "调用方 rodski/core/keyword_engine.py:1693 拼成 f\"{type}={value}\"",
-        advice="修框架（_convert_locator 增加 tag= → 去前缀）"),
-    "LOC_TAG_VERIFY": Known(
-        symptom="SKI302 读取文本失败: tag=h2: Locator.count: Unknown engine \"tag\"",
-        doc="rodski/docs/TEST_CASE_WRITING_GUIDE.md:473 / CORE_DESIGN_CONSTRAINTS.md:221",
-        suspect="rodski/core/keyword_engine.py:2899 → rodski/drivers/playwright_driver.py:359-378（同 LOC_TAG_TYPE）",
-        advice="修框架（同 LOC_TAG_TYPE）"),
     "LAUNCH_BAD_APP": Known(
         symptom="[预期失败但实际成功]：launch 'rodski_no_such_app_xyz_20261015' 静默通过",
         doc="rodski/docs/CORE_DESIGN_CONSTRAINTS.md:63（launch：应用路径或应用名 → 启动应用）、:73（Web/Mobile 不使用 launch）；"
