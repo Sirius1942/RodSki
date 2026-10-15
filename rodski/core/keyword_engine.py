@@ -722,12 +722,17 @@ class KeywordEngine:
     @staticmethod
     def _accepts_timeout_ms(fn) -> bool:
         """驱动方法是否显式声明了 timeout_ms 参数（**kwargs 不算：Playwright 会把未知参数透传给 page.click）。"""
+        return KeywordEngine._accepts_param(fn, 'timeout_ms')
+
+    @staticmethod
+    def _accepts_param(fn, name: str) -> bool:
+        """驱动方法是否显式声明了参数 name（**kwargs 不算）。"""
         import inspect
         try:
             params = inspect.signature(fn).parameters
         except (TypeError, ValueError):
             return False
-        p = params.get('timeout_ms')
+        p = params.get(name)
         return p is not None and p.kind in (p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY)
 
     def _call_driver(self, fn, *args, timeout_ms: Optional[int] = None, **kwargs):
@@ -1556,13 +1561,15 @@ class KeywordEngine:
             logger.debug(f"{element_name}: {value_lower} {locator}")
             return (value_lower, element_name, call(fn, locator))
 
-        # 带参数的动作：key_press【按键】（按键发往当前焦点元素；目标元素已在定位阶段等到）
+        # 带参数的动作：key_press【按键】—— 作用于字段对应元素（v11.8.27 B06/D3：驱动支持时先聚焦该元素再按键）
         if value_lower.startswith('key_press'):
             key = self._extract_bracket_value(value)
             if not key:
                 logger.warning(f"{element_name}: key_press 缺少按键参数，格式应为 key_press【按键】")
                 return None
-            logger.debug(f"{element_name}: 按键 '{key}'")
+            logger.debug(f"{element_name}: 按键 '{key}' @ {locator}")
+            if self._accepts_param(target_driver.key_press, 'locator'):
+                return ('key_press', element_name, call(target_driver.key_press, key, locator=locator))
             return ('key_press', element_name, target_driver.key_press(key))
 
         # 带参数的动作：select【选项值】
@@ -1620,7 +1627,10 @@ class KeywordEngine:
             return ('select', element_name,
                     self._call_driver(target_driver.select, locator, select_value, timeout_ms=tmo, frame=frame))
         if value_lower.startswith('key_press'):
-            # 键盘事件发往当前焦点元素，与 frame 无关
+            key = self._extract_bracket_value(value)
+            if key and self._accepts_param(target_driver.key_press, 'locator'):
+                return ('key_press', element_name,
+                        self._call_driver(target_driver.key_press, key, locator=locator, frame=frame, timeout_ms=tmo))
             return self._execute_element_action(value, locator, element_name, driver=target_driver)
         if value_lower == 'scroll' or value_lower.startswith('scroll【') or value_lower.startswith('drag'):
             raise InvalidParameterError(

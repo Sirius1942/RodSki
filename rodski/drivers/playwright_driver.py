@@ -827,11 +827,30 @@ class PlaywrightDriver(BaseDriver):
         return self._element_action("右键点击", locator,
                                     lambda el, t: el.click(button="right", timeout=t), frame, timeout_ms)
 
-    def key_press(self, key: str) -> bool:
-        """按键"""
+    @staticmethod
+    def _map_modifiers(key: str) -> str:
+        """macOS 上组合键中的 Control 修饰键按 Command 行为执行（GUIDE §6.4：Control+A 全选）。
+
+        只替换组合键中的修饰键位置；单独按 Control 键不替换。ControlOrMeta 需 Playwright ≥ 1.45。
+        """
+        if sys.platform != "darwin" or "+" not in key:
+            return key
+        parts = key.split("+")
+        return "+".join(
+            "ControlOrMeta" if part == "Control" and i < len(parts) - 1 else part
+            for i, part in enumerate(parts)
+        )
+
+    def key_press(self, key: str, locator: Optional[str] = None, frame: Optional[str] = None,
+                  timeout_ms: Optional[float] = None) -> bool:
+        """按键。给出 locator 时先聚焦该元素再按键（v11.8.27 BUG-A28 / B06：GUIDE §6.4 key_press 作用于字段对应元素），
+        否则发往当前焦点；macOS 上组合键 Control 映射为 Command。"""
+        key = self._map_modifiers(key)
+        if locator:
+            return self._element_action("按键", locator, lambda el, t: el.press(key, timeout=t), frame, timeout_ms)
         self._check_driver_alive()
         self._ensure_browser()
-        
+
         try:
             self.page.keyboard.press(key)
             return True

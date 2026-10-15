@@ -916,6 +916,8 @@ verify 中：`BLANK` 在 UI / DB 模型跳过、接口模型期望空字符串�
 | F 功能键 | `F1` `F5` `F12` | `key_press【F5】` |
 
 > 组合键使用 `+` 连接，修饰键在前、普通键在后。macOS 上 `Control` 对应 `Command` 键行为。
+>
+> 按键作用于该字段对应的元素：Web 驱动先聚焦该元素再按键（v11.8.27 起；此前发往当前焦点元素）。macOS 上组合键中的 `Control` 修饰键按 `Command` 执行（`Control+A` 全选），单独按 `Control` 不转换。
 
 #### 示例：含动作关键字的数据表
 

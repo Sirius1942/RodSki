@@ -146,18 +146,6 @@ CHECKS: List[Check] = [
 ]
 
 KNOWN: Dict[str, Known] = {
-    "KP_COMBO": Known(
-        symptom="kpEcho 期望 'V:'，实际 'V:abc'：macOS 上 Control+A 未全选（Chromium 将其解释为移到行首）",
-        doc="rodski/docs/TEST_CASE_WRITING_GUIDE.md:915「macOS 上 Control 对应 Command 键行为」",
-        suspect="rodski/drivers/playwright_driver.py:836 page.keyboard.press(key) 原样下发，未把 Control 映射为 Meta/ControlOrMeta",
-        advice="修框架（macOS 上把 Control+ 映射为 ControlOrMeta+），或改文档删除该说明"),
-    "KP_TARGET": Known(
-        symptom="kpOtherResult 期望 'OTHER:Enter'，实际 'none'：按键发给了当前焦点 kpInput，而不是字段对应的 kpOther",
-        doc="rodski/docs/TEST_CASE_WRITING_GUIDE.md:892（key_press 列在「对该元素执行的 UI 动作」表中，示例 "
-            "<field name=\"password\">key_press【Tab】</field>）；§6.4.2「type 每个字段的目标元素出现并可操作后再输入」",
-        suspect="rodski/core/keyword_engine.py:1545-1552（注释「按键发往当前焦点元素」，未先聚焦目标）；"
-                "rodski/drivers/playwright_driver.py:830-840 key_press 不接收定位器",
-        advice="修框架（先 focus 目标元素再按键，或用 locator.press），或在文档明确「key_press 发往当前焦点，字段只用于等待元素」"),
     "CTRL_VERIFY_NULL": Known(
         symptom="UI verify 字段填 NULL 时被跳过，页面文本 'random-noise' 与 null 不一致却通过（[预期失败但实际成功]）",
         doc="rodski/docs/CORE_DESIGN_CONSTRAINTS.md:638（§4.1 NULL 的验证行为=期望 null，未区分 UI/接口；"

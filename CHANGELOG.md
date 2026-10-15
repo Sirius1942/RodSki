@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [11.8.27] - 2026-10-15
+
+### Fixed
+
+- BUG-A28（含 B06/D3）：macOS 上 key_press【Control+A】未映射为 Command（Chromium 解释为行首，不会全选）；组合键中的 Control 修饰键在 macOS 上映射为 ControlOrMeta，单独 Control 不变。同时按 D3 修 B06：key_press 改为先聚焦字段对应元素再按键（element.press），此前发往当前焦点；iframe 内同样生效，GUIDE §6.4 说明同步（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
 ## [11.8.26] - 2026-10-15
 
 ### Fixed

@@ -193,3 +193,31 @@ class TestLaunchNonUrl:
         d.navigate = MagicMock(return_value=True)
         d.launch(url="http://localhost:8000/")
         d.navigate.assert_called_once_with("http://localhost:8000/")
+
+
+class TestKeyPress:
+    """BUG-A28 / B06（D3）：key_press 作用于字段对应元素；macOS 上组合键 Control → Command"""
+
+    def test_locator_presses_on_element(self):
+        d, el = _driver()
+        assert d.key_press("Enter", locator="id=other", timeout_ms=100) is True
+        d.page.locator.assert_called_with('[id="other"]')
+        el.press.assert_called_once()
+        assert el.press.call_args.args[0] == "Enter"
+        d.page.keyboard.press.assert_not_called()
+
+    def test_without_locator_uses_focused_element(self):
+        d, _ = _driver()
+        d.key_press("Tab")
+        d.page.keyboard.press.assert_called_once_with("Tab")
+
+    @pytest.mark.parametrize("platform,key,expected", [
+        ("darwin", "Control+A", "ControlOrMeta+A"),
+        ("darwin", "Control+Shift+Z", "ControlOrMeta+Shift+Z"),
+        ("darwin", "Control", "Control"),
+        ("darwin", "Shift+Tab", "Shift+Tab"),
+        ("linux", "Control+A", "Control+A"),
+    ])
+    def test_modifier_mapping(self, platform, key, expected):
+        with patch("sys.platform", platform):
+            assert PlaywrightDriver._map_modifiers(key) == expected

@@ -1215,3 +1215,25 @@ class TestPasswordMaskedInStepLog:
             engine.execute("type", {"model": "Login", "data": "D001"})
         assert "S3cret!" not in caplog.text
         assert "history[" in caplog.text
+
+
+class TestKeyPressTarget:
+    """B06（D3）：type 批量中 key_press 把字段对应元素的定位器交给驱动（驱动支持时）"""
+
+    def test_locator_passed_to_driver(self):
+        from typing import Optional
+
+        class _Drv:
+            def __init__(self):
+                self.calls = []
+
+            def key_press(self, key: str, locator: Optional[str] = None, frame: Optional[str] = None,
+                          timeout_ms: Optional[float] = None):
+                self.calls.append((key, locator))
+                return True
+
+        drv = _Drv()
+        engine = KeywordEngine(MagicMock())
+        result = engine._execute_element_action('key_press【Enter】', 'id=kpOther', 'kpOther', driver=drv)
+        assert result[0] == 'key_press'
+        assert drv.calls == [('Enter', 'id=kpOther')]
