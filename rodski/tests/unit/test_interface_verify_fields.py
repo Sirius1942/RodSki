@@ -106,3 +106,28 @@ class TestNoneSkipsVerify:
         engine = _engine({'n': _field('n')}, {'n': '1', 'remark': 'NONE', 'other': 'none'},
                          {'n': 1, 'other': 'none'}, model_type=MODEL_TYPE_DATABASE)
         assert engine._batch_verify('Q', 'V001') is True
+
+
+class TestDbVerifyOperators:
+    """A23：DB verify 支持 $gt/$gte/$lt/$lte/$contains 断言操作符（GUIDE §5.7.1）"""
+
+    def _db(self, row, result):
+        from core.model_parser import MODEL_TYPE_DATABASE
+        return _engine({}, row, result, model_type=MODEL_TYPE_DATABASE)
+
+    def test_operators_pass(self):
+        engine = self._db({'qty': '{"$gte": 5}', 'amount': '{"$lte": 520.5}', 'no': '{"$contains": "ORD"}'},
+                          [{'qty': 8, 'amount': 520.5, 'no': 'ORD-2001'}])
+        assert engine._batch_verify('Q', 'V001') is True
+
+    def test_operator_failure_reports_reason(self):
+        engine = self._db({'qty': '{"$gt": 100}'}, [{'qty': 8}])
+        with pytest.raises(AssertionFailedError) as exc:
+            engine._batch_verify('Q', 'V001')
+        mismatch = exc.value.details['mismatches'][0]
+        assert mismatch['element'] == 'qty' and mismatch.get('reason')
+
+    def test_element_operator_rejected(self):
+        engine = self._db({'qty': '{"$count": 1}'}, [{'qty': 8}])
+        with pytest.raises(InvalidParameterError, match='UI'):
+            engine._batch_verify('Q', 'V001')

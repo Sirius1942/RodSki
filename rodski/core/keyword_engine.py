@@ -3021,7 +3021,7 @@ class KeywordEngine:
 
             expected_upper = expected.strip().upper()
 
-            # BLANK → 跳过该字段不验证
+            # BLANK / NONE → 跳过该字段不验证
             if expected_upper in ('BLANK', 'NONE'):
                 # NONE 跳过验证（CORE §4.1，v11.8.15 BUG-A15），字段缺失也不报错
                 logger.debug(f"{field}: {expected_upper} → 跳过验证")
@@ -3057,6 +3057,38 @@ class KeywordEngine:
             actual_str = str(actual_val) if actual_val is not None else ""
             results[field] = actual_str
             compared_count += 1
+
+            # v11.8.16 (BUG-A23): 断言操作符（GUIDE §5.7.1 适用 DB），按查询结果原始值求值
+            operator = None
+            if expected.strip().startswith('{'):
+                try:
+                    parsed = json.loads(expected)
+                    if AssertionEngine.is_operator_dict(parsed):
+                        operator = parsed
+                except json.JSONDecodeError:
+                    pass
+            if operator is not None:
+                if AssertionEngine.is_element_operator(operator):
+                    raise InvalidParameterError(
+                        keyword="verify", param_name=field,
+                        reason=(
+                            f"{next(iter(operator))} 是元素状态断言，只能用于 UI 模型；"
+                            f"接口/DB 结果请用 $gt/$gte/$lt/$lte/$contains 或字面值比较"
+                        ),
+                    )
+                try:
+                    AssertionEngine.evaluate(actual_val, operator)
+                    logger.debug(f"{field}: 实际={actual_val}, 操作符={operator} → OK")
+                except ValueError as ve:
+                    raise InvalidParameterError(keyword="verify", param_name=field, reason=str(ve))
+                except AssertOpError as ae:
+                    logger.debug(f"{field}: 断言操作符失败 - {ae}")
+                    mismatches.append({
+                        'element': field, 'expected': str(operator),
+                        'actual': actual_str, 'reason': str(ae),
+                    })
+                continue
+
             matched = actual_str == expected
             logger.debug(f"{field}: 实际='{actual_str}', 期望='{expected}' → {'OK' if matched else 'FAIL'}")
 

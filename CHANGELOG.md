@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [11.8.16] - 2026-10-15
+
+### Fixed
+
+- BUG-A23：DB verify 不支持 $gt/$gte/$lt/$lte/$contains 断言操作符（直接按字符串比较，GUIDE §5.7.1 写明适用 DB）；_batch_verify_db 按查询结果原始值求值操作符，失败附原因，元素状态操作符报参数错误（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
 ## [11.8.15] - 2026-10-15
 
 ### Fixed
