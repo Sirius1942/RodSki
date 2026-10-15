@@ -660,15 +660,12 @@ class SKIExecutor:
 
         from .test_plan_selection import compile_from_selector
         metadata = CaseParser.collect_scenario_metadata_from_cases(cases)
-        # compile_from_selector expects filter_priority as a single string
-        raw_priority = selector_filters.get("filter_priority")
-        priority_str = raw_priority[0] if isinstance(raw_priority, list) and raw_priority else raw_priority
         selection = compile_from_selector(
             metadata,
             filter_tags=selector_filters.get("filter_tags"),
             filter_group=selector_filters.get("filter_group"),
             exclude_tags=selector_filters.get("exclude_tags"),
-            filter_priority=priority_str,
+            filter_priority=selector_filters.get("filter_priority"),
         )
         self.plan_selection_result = selection
         return selection

@@ -898,15 +898,12 @@ def _handle_dry_run(
         _print_plan_dry_run_selection(plan, selection)
     elif selector_filters and _has_active_selector(selector_filters):
         metadata = CaseParser.collect_scenario_metadata_from_cases(cases)
-        # compile_from_selector expects filter_priority as a single string
-        raw_priority = selector_filters.get("filter_priority")
-        priority_str = raw_priority[0] if isinstance(raw_priority, list) and raw_priority else raw_priority
         selection = compile_from_selector(
             metadata,
             filter_tags=selector_filters.get("filter_tags"),
             filter_group=selector_filters.get("filter_group"),
             exclude_tags=selector_filters.get("exclude_tags"),
-            filter_priority=priority_str,
+            filter_priority=selector_filters.get("filter_priority"),
         )
         _print_selector_dry_run_selection(selection)
 

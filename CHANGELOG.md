@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [11.8.10] - 2026-10-15
+
+### Fixed
+
+- BUG-A08：--priority P0,P1 多值时 scenario 选择只取第一个值（执行与 --dry-run 均如此）；selector 编译接受优先级列表（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
 ## [11.8.9] - 2026-10-15
 
 ### Fixed

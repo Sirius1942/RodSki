@@ -200,3 +200,11 @@ class TestScenarioLessCases:
         meta = CaseParser.collect_scenario_metadata_from_cases(self._cases())
         result = compile_from_selector(meta, filter_group="neg")
         assert [(e["type"], e["case_id"]) for e in result["selected"]] == [("scenario", "CHK_001")]
+
+
+def test_priority_multi_value():
+    """BUG-A08：--priority P0,P1 不能只取第一个值"""
+    result = compile_from_selector(_metadata(), filter_priority=["P0", "P1"])
+    assert {e["scenario_id"] for e in result["selected"]} == {"sc01", "sc02", "sc03", "sc04"}
+    result = compile_from_selector(_metadata(), filter_priority="p1")
+    assert {e["scenario_id"] for e in result["selected"]} == {"sc03", "sc04"}

@@ -77,3 +77,9 @@ def test_case_level_tags(tmp_path):
     assert passed == {"PLAIN_P0"}
     code, passed = _executed(_module(tmp_path / "x"), "--tags", "suite", "--exclude-tags", "smoke")
     assert passed == {"PLAIN_P1", "SCN"}
+
+
+def test_priority_multi_value(tmp_path):
+    """BUG-A08：--priority P0,P2 两个优先级的用例都执行"""
+    code, passed = _executed(_module(tmp_path), "--priority", "P0,P2")
+    assert passed == {"PLAIN_P0", "SCN"}
