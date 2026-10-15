@@ -1992,6 +1992,8 @@ class SKIExecutor:
             logger.info(f"  [{self._phase_runtime_seq}] loop {var_name} in {loop_range} ({len(items)} 次)")
             for idx, item in enumerate(items, 1):
                 self.dynamic_executor.set_variable(var_name, item)
+                # 与 set 关键字一致：写入模板解析源，使 data 中的 ${var} 在本轮迭代可解析
+                self.data_resolver.set_var(var_name, item)
                 logger.debug(f"    循环 [{idx}/{len(items)}]: {var_name}={item}")
                 self._execute_step_list(step.get('steps', []), phase_label)
         else:
@@ -2294,7 +2296,7 @@ class SKIExecutor:
         data = step['data']
 
         # v11.8.0 调试钩子：在执行前检查断点、部分执行控制
-        if self.debug_session:
+        if getattr(self, 'debug_session', None):
             step_index = len(self._current_case_steps_log) + 1
 
             # 检查是否应该跳过此步骤
@@ -2481,7 +2483,7 @@ class SKIExecutor:
         })
 
         # v11.8.0 调试钩子：步骤执行成功后保存对象快照
-        if self.debug_session:
+        if getattr(self, 'debug_session', None):
             self.debug_session.save_step_snapshot(
                 step_index,
                 {

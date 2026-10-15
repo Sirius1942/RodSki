@@ -400,12 +400,13 @@ class TestCaseParserScenario:
   </case>
 </cases>''')
         parser = CaseParser(case_xml)
-        parser.parse_cases()
+        cases = parser.parse_cases()
 
         metadata = parser.collect_scenario_metadata()
 
         assert metadata == [{
             'case_id': 'sc004',
+            'case_file': cases[0]['case_file'],
             'case_priority': 'P1',
             'file_tags': ['suite', 'smoke'],
             'scenario_id': 's_tag',

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- REQ-012 验收 G 执行查看与日志：每条用例由 fun/ac_runner.py 真实执行被测用例并判定，判定点见 README.md。 -->
+<cases tags="req-012,acceptance,group-g">
+    <case execute="是" id="AC-031" title="AC-031 实时查看执行状态" component_type="接口" priority="P0">
+        <test_case>
+            <test_step action="run" model="" data="ac_runner.py AC-031"/>
+        </test_case>
+    </case>
+    <case execute="是" id="AC-032" title="AC-032 查看上下文变量" component_type="接口" priority="P0">
+        <test_case>
+            <test_step action="run" model="" data="ac_runner.py AC-032"/>
+        </test_case>
+    </case>
+    <case execute="是" id="AC-033" title="AC-033 获取运行时对象" component_type="接口" priority="P0">
+        <test_case>
+            <test_step action="run" model="" data="ac_runner.py AC-033"/>
+        </test_case>
+    </case>
+    <case execute="是" id="AC-034" title="AC-034 多维度日志完整性" component_type="接口" priority="P0">
+        <test_case>
+            <test_step action="run" model="" data="ac_runner.py AC-034"/>
+        </test_case>
+    </case>
+</cases>

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- REQ-012 验收 B 多层级断点：每条用例由 fun/ac_runner.py 真实执行被测用例并判定，判定点见 README.md。 -->
+<cases tags="req-012,acceptance,group-b">
+    <case execute="是" id="AC-006" title="AC-006 业务模型节点断点" component_type="接口" priority="P0">
+        <test_case>
+            <test_step action="run" model="" data="ac_runner.py AC-006"/>
+        </test_case>
+    </case>
+    <case execute="是" id="AC-007" title="AC-007 Flow 级别断点" component_type="接口" priority="P0">
+        <test_case>
+            <test_step action="run" model="" data="ac_runner.py AC-007"/>
+        </test_case>
+    </case>
+    <case execute="是" id="AC-008" title="AC-008 Scenario 断点" component_type="接口" priority="P0">
+        <test_case>
+            <test_step action="run" model="" data="ac_runner.py AC-008"/>
+        </test_case>
+    </case>
+    <case execute="是" id="AC-009" title="AC-009 驱动动作断点" component_type="接口" priority="P0">
+        <test_case>
+            <test_step action="run" model="" data="ac_runner.py AC-009"/>
+        </test_case>
+    </case>
+    <case execute="是" id="AC-010" title="AC-010 批量操作行级断点" component_type="接口" priority="P0">
+        <test_case>
+            <test_step action="run" model="" data="ac_runner.py AC-010"/>
+        </test_case>
+    </case>
+    <case execute="是" id="AC-011" title="AC-011 嵌套断点（业务模型内的步骤）" component_type="接口" priority="P0">
+        <test_case>
+            <test_step action="run" model="" data="ac_runner.py AC-011"/>
+        </test_case>
+    </case>
+</cases>

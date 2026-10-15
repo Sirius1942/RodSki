@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- REQ-012 被测业务模型：每个节点只执行一个 mark.py 标记，验收脚本据此判断节点是否真实执行。 -->
+<business_models version="0.1">
+    <business_model id="debug_flow" name="调试主流程" version="1">
+        <description>四个顺序节点；AC-006/011/013~015 的节点断点与 start_from/stop_at 目标。</description>
+        <nodes>
+            <node id="open" title="打开">
+                <steps><test_step action="run" model="" data="mark.py node_open"/></steps>
+            </node>
+            <node id="fill_vin" title="填写 VIN">
+                <steps><test_step action="run" model="" data="mark.py node_fill_vin"/></steps>
+            </node>
+            <node id="submit" title="提交">
+                <steps><test_step action="run" model="" data="mark.py node_submit"/></steps>
+            </node>
+            <node id="confirm" title="确认">
+                <steps><test_step action="run" model="" data="mark.py node_confirm"/></steps>
+            </node>
+        </nodes>
+        <edges>
+            <edge from="open" to="fill_vin"/>
+            <edge from="fill_vin" to="submit"/>
+            <edge from="submit" to="confirm"/>
+        </edges>
+        <flows>
+            <flow id="F_MAIN" type="basic" path="open&gt;fill_vin&gt;submit&gt;confirm"/>
+        </flows>
+    </business_model>
+
+    <business_model id="invoice_flow" name="开票流程" version="1">
+        <description>AC-007 Flow 级断点目标。</description>
+        <nodes>
+            <node id="inv_start" title="开票开始">
+                <steps><test_step action="run" model="" data="mark.py inv_start"/></steps>
+            </node>
+            <node id="inv_platform" title="平台开票">
+                <steps><test_step action="run" model="" data="mark.py inv_platform"/></steps>
+            </node>
+        </nodes>
+        <edges>
+            <edge from="inv_start" to="inv_platform"/>
+        </edges>
+        <flows>
+            <flow id="F_INVOICE_PLATFORM" type="basic" path="inv_start&gt;inv_platform"/>
+        </flows>
+    </business_model>
+</business_models>

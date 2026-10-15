@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- REQ-012 被测用例 DBG_MARKS：10 个纯标记步骤 m1~m10，不需要浏览器。AC-012、AC-019、AC-020。 -->
+<cases tags="req-012,debug-target">
+    <case execute="是" id="DBG_MARKS" title="REQ-012 纯标记步骤用例" priority="P0">
+        <test_case>
+            <test_step action="run" model="" data="mark.py m1"/>
+            <test_step action="run" model="" data="mark.py m2"/>
+            <test_step action="run" model="" data="mark.py m3"/>
+            <test_step action="run" model="" data="mark.py m4"/>
+            <test_step action="run" model="" data="mark.py m5"/>
+            <test_step action="run" model="" data="mark.py m6"/>
+            <test_step action="run" model="" data="mark.py m7"/>
+            <test_step action="run" model="" data="mark.py m8"/>
+            <test_step action="run" model="" data="mark.py m9"/>
+            <test_step action="run" model="" data="mark.py m10"/>
+        </test_case>
+    </case>
+</cases>

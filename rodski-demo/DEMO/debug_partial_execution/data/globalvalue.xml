@@ -1,26 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <globalvalue>
     <group name="DefaultValue">
-        <var name="AutoWait" value="5000"/>
         <var name="WaitTime" value="0"/>
-    </group>
-
-    <group name="TestConfig">
-        <var name="BASE_URL" value="https://example.com"/>
-        <var name="TEST_USERNAME" value="test_user"/>
-        <var name="TEST_PASSWORD" value="test_pass"/>
-        <var name="TIMEOUT" value="10"/>
-        <var name="RETRY_COUNT" value="3"/>
-    </group>
-
-    <group name="DebugConfig">
-        <var name="DEBUG_MODE" value="true"/>
-        <var name="LOG_LEVEL" value="INFO"/>
-        <var name="DRIVER_LOG_ENABLED" value="true"/>
-    </group>
-
-    <group name="BrowserConfig">
-        <var name="BROWSER_TYPE" value="chromium"/>
-        <var name="HEADLESS" value="false"/>
     </group>
 </globalvalue>

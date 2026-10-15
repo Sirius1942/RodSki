@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<globalvalue>
+    <group name="DefaultValue">
+        <var name="AutoWait" value="3000"/>
+        <var name="WaitTime" value="0"/>
+    </group>
+    <group name="Site">
+        <!-- 与 fun/serve_pages.py、验收脚本 dbg_harness.py 的端口一致 -->
+        <var name="URL" value="http://127.0.0.1:18765"/>
+    </group>
+</globalvalue>

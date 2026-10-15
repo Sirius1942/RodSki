@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- REQ-012 验收 H 与数据驱动联动（数据行由调试命令动态指定）：每条用例由 fun/ac_runner.py 真实执行被测用例并判定，判定点见 README.md。 -->
+<cases tags="req-012,acceptance,group-h">
+    <case execute="是" id="AC-035" title="AC-035 数据驱动场景的断点" component_type="接口" priority="P1">
+        <test_case>
+            <test_step action="run" model="" data="ac_runner.py AC-035"/>
+        </test_case>
+    </case>
+    <case execute="是" id="AC-036" title="AC-036 数据驱动场景的部分执行" component_type="接口" priority="P1">
+        <test_case>
+            <test_step action="run" model="" data="ac_runner.py AC-036"/>
+        </test_case>
+    </case>
+    <case execute="是" id="AC-037" title="AC-037 数据驱动场景的驱动动作日志" component_type="接口" priority="P1">
+        <test_case>
+            <test_step action="run" model="" data="ac_runner.py AC-037"/>
+        </test_case>
+    </case>
+</cases>

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- REQ-012 验收 C 部分执行：每条用例由 fun/ac_runner.py 真实执行被测用例并判定，判定点见 README.md。 -->
+<cases tags="req-012,acceptance,group-c">
+    <case execute="是" id="AC-012" title="AC-012 从指定步骤开始执行" component_type="接口" priority="P0">
+        <test_case>
+            <test_step action="run" model="" data="ac_runner.py AC-012"/>
+        </test_case>
+    </case>
+    <case execute="是" id="AC-013" title="AC-013 从业务模型节点开始" component_type="接口" priority="P0">
+        <test_case>
+            <test_step action="run" model="" data="ac_runner.py AC-013"/>
+        </test_case>
+    </case>
+    <case execute="是" id="AC-014" title="AC-014 只执行到指定节点" component_type="接口" priority="P0">
+        <test_case>
+            <test_step action="run" model="" data="ac_runner.py AC-014"/>
+        </test_case>
+    </case>
+    <case execute="是" id="AC-015" title="AC-015 节点范围执行" component_type="接口" priority="P0">
+        <test_case>
+            <test_step action="run" model="" data="ac_runner.py AC-015"/>
+        </test_case>
+    </case>
+    <case execute="是" id="AC-016" title="AC-016 部分执行时对象检测" component_type="接口" priority="P0">
+        <test_case>
+            <test_step action="run" model="" data="ac_runner.py AC-016"/>
+        </test_case>
+    </case>
+    <case execute="是" id="AC-017" title="AC-017 部分执行时对象缺失警告" component_type="接口" priority="P0">
+        <test_case>
+            <test_step action="run" model="" data="ac_runner.py AC-017"/>
+        </test_case>
+    </case>
+    <case execute="是" id="AC-018" title="AC-018 只执行指定 scenario" component_type="接口" priority="P0">
+        <test_case>
+            <test_step action="run" model="" data="ac_runner.py AC-018"/>
+        </test_case>
+    </case>
+</cases>

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- REQ-012 被测用例模型：页面见 fun/pages/，由验收脚本或 fun/serve_pages.py 在 127.0.0.1:18765 提供。 -->
+<models>
+    <!-- form.html：type 批量输入 username/password 后点击 loginBtn（click 写在数据表 field 值中） -->
+    <model name="LoginForm" type="ui">
+        <element name="username" type="web">
+            <location type="id">username</location>
+        </element>
+        <element name="password" type="web">
+            <location type="id">password</location>
+        </element>
+        <element name="loginBtn" type="web">
+            <location type="id">loginBtn</location>
+        </element>
+    </model>
+
+    <model name="LoginResult" type="ui">
+        <element name="result" type="web">
+            <location type="id">result</location>
+        </element>
+    </model>
+
+    <!-- AC-025：页面上不存在的元素，用于驱动动作失败定位 -->
+    <model name="BrokenForm" type="ui">
+        <element name="missingBtn" type="web">
+            <location type="id">missing_button</location>
+        </element>
+    </model>
+
+    <!-- AC-029：双浏览器对象 -->
+    <model name="BuyerForm" type="ui">
+        <element name="msg" type="web">
+            <location type="id">msg</location>
+        </element>
+        <element name="sendBtn" type="web">
+            <location type="id">sendBtn</location>
+        </element>
+    </model>
+
+    <model name="BuyerResult" type="ui">
+        <element name="status" type="web">
+            <location type="id">status</location>
+        </element>
+    </model>
+
+    <model name="SellerPage" type="ui">
+        <element name="title" type="web">
+            <location type="id">title</location>
+        </element>
+        <element name="inbox" type="web">
+            <location type="id">inbox</location>
+        </element>
+    </model>
+</models>

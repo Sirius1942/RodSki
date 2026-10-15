@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  REQ-012 被测用例 DBG_DRIVER_FAIL：刻意失败。步骤 3 定位不存在的 id=missing_button，
+  供 AC-025 验证"驱动原子动作失败定位"。全量回归时该用例 FAIL 属预期。
+-->
+<cases tags="req-012,debug-target,expected-fail">
+    <case execute="是" id="DBG_DRIVER_FAIL" title="REQ-012 驱动动作失败定位（预期失败）" component_type="界面" priority="P0">
+        <test_case>
+            <!-- 1 --><test_step action="navigate" model="" data="GlobalValue.Site.URL/form.html"/>
+            <!-- 2 --><test_step action="run" model="" data="mark.py f2"/>
+            <!-- 3 --><test_step action="type" model="BrokenForm" data="D001"/>
+        </test_case>
+    </case>
+</cases>

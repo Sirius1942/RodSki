@@ -54,6 +54,7 @@ def compile_from_selector(
         selected.append({
             "type": "scenario",
             "case_id": m["case_id"],
+            "case_file": m.get("case_file", ""),
             "scenario_id": m["scenario_id"],
             "reason": "selector",
         })
