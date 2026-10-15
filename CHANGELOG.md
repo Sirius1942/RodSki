@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [11.8.24] - 2026-10-15
+
+### Fixed
+
+- BUG-A18：set 中 $${random(...)} 转义被二次解析：执行器 resolve_case_data 已还原转义，_kw_set 再 resolve_with_return 把字面量 ${random(...)} 当调用求值（同时绕过规则 5）；执行器传 resolved 标记，_kw_set 不再二次解析，Python API 直接调用仍解析（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
 ## [11.8.23] - 2026-10-15
 
 ### Fixed

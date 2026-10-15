@@ -3410,7 +3410,9 @@ class KeywordEngine:
         key = key.strip()
         if not key:
             raise InvalidParameterError(keyword="set", param_name="data", reason="key 不能为空")
-        if self.data_resolver:
+        # 执行器已用 resolve_case_data 解析过（resolved=True）时不再解析：二次解析会把
+        # $${random(...)} 转义还原出的字面量 ${random(...)} 当作调用求值（v11.8.24 BUG-A18）
+        if self.data_resolver and not params.get("resolved"):
             value = self.data_resolver.resolve_with_return(value)
         logger.info(f"set: {key} = '{value}'")
         self._context.named[key] = value

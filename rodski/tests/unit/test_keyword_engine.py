@@ -226,6 +226,25 @@ class TestAdvancedKeywords:
         assert result is True
         assert engine._context.named["count"] == "42"
 
+    def test_set_escaped_function_stays_literal(self, mock_driver):
+        """BUG-A18：执行器已解析的 $${random(...)} 转义结果不能在 _kw_set 中被二次求值"""
+        from data.data_resolver import DataResolver
+        resolver = DataResolver()
+        engine = KeywordEngine(mock_driver, data_resolver=resolver)
+        resolved = resolver.resolve_case_data("lit=$${random(int, 1, 9)}")
+        assert resolved == "lit=${random(int, 1, 9)}"
+        engine.execute("set", {"value": resolved, "resolved": True})
+        assert engine._context.named["lit"] == "${random(int, 1, 9)}"
+
+    def test_set_unresolved_value_still_resolved(self, mock_driver):
+        """未经执行器解析的调用方（Python API）仍由 _kw_set 解析模板"""
+        from data.data_resolver import DataResolver
+        resolver = DataResolver()
+        engine = KeywordEngine(mock_driver, data_resolver=resolver)
+        engine.execute("set", {"data": "a=1"})
+        engine.execute("set", {"data": "b=${a}x"})
+        assert engine._context.named["b"] == "1x"
+
     def test_db_query_success(self, mock_driver, tmp_path):
         """DB 关键字: 模型驱动模式查询成功"""
         import sqlite3

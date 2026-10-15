@@ -2400,7 +2400,8 @@ class SKIExecutor:
             logger.info("SessionMode=shared_session：close 保留浏览器会话，供后续用例复用（run 结束时统一关闭）")
             self.keyword_engine.store_return(True)
         elif action_key == 'set':
-            params = {'var_name': model, 'value': resolved_data}
+            # value 已经过 resolve_case_data 完整解析（含 $${ 转义还原），标记 resolved 避免 _kw_set 二次解析
+            params = {'var_name': model, 'value': resolved_data, 'resolved': True}
             self.keyword_engine.execute(action, params)
             # set 的变量由 _kw_set 写入 DataResolver.data_source，条件求值从那里读取
         else:
