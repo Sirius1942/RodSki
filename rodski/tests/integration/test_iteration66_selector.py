@@ -83,3 +83,19 @@ def test_priority_multi_value(tmp_path):
     """BUG-A08：--priority P0,P2 两个优先级的用例都执行"""
     code, passed = _executed(_module(tmp_path), "--priority", "P0,P2")
     assert passed == {"PLAIN_P0", "SCN"}
+
+
+def test_selector_without_case_path(tmp_path):
+    """BUG-A10：模块目录下不带路径 `rodski run --tag p0` 在全部用例上选择，不去解析默认计划"""
+    module = _module(tmp_path)
+    proc = subprocess.run(
+        [sys.executable, "-c",
+         "import sys; from rodski.rodski_cli import main; sys.argv=['rodski']+sys.argv[1:]; sys.exit(main())",
+         "run", "--tag", "p0"],
+        capture_output=True, text=True, cwd=str(module), timeout=120,
+        env={**__import__("os").environ, "PYTHONPATH": str(PROJECT_ROOT.parent)},
+    )
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert "未找到默认测试计划" not in proc.stdout + proc.stderr
+    root = ET.parse(sorted((module / "result").rglob("result.xml"))[-1]).getroot()
+    assert {r.get("case_id") for r in root.iter("result") if r.get("status") == "PASS"} == {"SCN"}

@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [11.8.11] - 2026-10-15
+
+### Fixed
+
+- BUG-A10：不带用例路径的 rodski run --group/--tag 总是先解析默认计划，报 SKI703 冲突或未找到默认计划；有 selector 时改为在当前模块全部用例上临时选择（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
 ## [11.8.10] - 2026-10-15
 
 ### Fixed

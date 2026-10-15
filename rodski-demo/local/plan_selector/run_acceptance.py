@@ -45,8 +45,6 @@ FULL = CAT_ALL + ["RPT_001"] + CHK1_ALL + CHK2_ALL                       # CHK_0
 _SEL = ("selector 模式下（--tag/--tags/--priority/--exclude-tag 任一生效）只为带 scenario 的用例生成选择项，"
         "不含 scenario 的用例一律 SKIP(plan_not_selected)（ski_executor.py:1047-1049 + test_plan_selection.py:compile_from_selector）")
 KNOWN: Dict[str, str] = {
-    "P11": "无 case 路径时 run.py:590-603 总是解析默认计划 project_full，再与 selector 判冲突（SKI703）；"
-           "模块无默认计划时报“未找到默认测试计划”，GUIDE §10.5 的 `rodski run --group negative` 写法不可用",
     "P21": "plan add-scenario 只写 <case id>（无 file，CLI 也无 file 参数，plan.py:185 _find_or_create_case_node），"
            "多用例文件模块中生成的计划校验报 SKI207、执行报错",
     "P22": "plan create --from-tag 生成的 <case> 不带 file（plan.py:542），多用例文件模块中计划校验报 SKI207；"

@@ -590,6 +590,11 @@ def handle(args):
         if not plan_path.exists():
             print(f"错误: 测试计划不存在: {plan_path}", file=sys.stderr)
             return 1
+    elif raw_case is None and _has_active_selector(_build_selector_filters(args)):
+        # 无路径 + selector（GUIDE §10.5 `rodski run --group negative`）：在当前模块全部
+        # 用例上临时选择，不解析默认计划（@plan_id 与 selector 固定互斥，CORE §7.7）
+        module_dir = _resolve_module_dir_from_cwd()
+        case_path = _resolve_case_path(module_dir)
     elif raw_case is None:
         module_dir = _resolve_module_dir_from_cwd()
         try:
