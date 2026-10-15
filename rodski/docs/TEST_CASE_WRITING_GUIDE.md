@@ -1055,6 +1055,7 @@ UI 模型的 `verify` 会在自动等待 `DefaultValue.AutoWait` 毫秒内（例
 
 - strict 模式下某行一半以上字段都是 `BLANK` 时，`rodski case lint` 会提示改用 `match_mode="subset"`（INFO）。
 - 缺字段的报错会直接给出这两种修法。
+- 接口模型（v11.8.14 起）不受"全部字段"约束：只比较 `_verify` 行中写出的字段，请求字段与 `_method` / `_url` 等控制元素不用写进 `_verify`；`status` 列即使模型没有声明 `status` 元素也按 HTTP 状态码校验。
 
 #### 5.7.4 什么时候还用 evaluate
 

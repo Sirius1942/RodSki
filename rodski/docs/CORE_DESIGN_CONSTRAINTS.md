@@ -972,7 +972,7 @@ INSERT INTO rs_field (row_id, field_name, field_value) VALUES
 
 #### 4.7.1 match_mode 属性
 
-- `match_mode="strict"`（默认）— 严格模式，`_verify` 表必须包含模型的所有字段
+- `match_mode="strict"`（默认）— 严格模式，`_verify` 表必须包含模型的所有字段（UI / DB 模型；接口模型见 §4.7.4 第 6 条）
 - `match_mode="subset"` — 子集模式，只校验 `_verify` 表中声明的字段，忽略其他字段
 
 #### 4.7.2 使用场景
@@ -1028,6 +1028,7 @@ INSERT INTO rs_field (row_id, field_name, field_value) VALUES
 3. **字段存在性检查** — `subset` 模式下，`_verify` 表中声明的字段必须在模型中存在（否则跳过该字段）
 4. **不改变比较逻辑** — 两种模式使用相同的比较逻辑（等值或断言操作符），只影响迭代策略
 5. **缺字段报错附带修复提示**（v11.6.0，C4） — strict 模式下 `_verify` 行缺少模型字段时，错误信息必须附带：「若只想校验部分字段，使用 `match_mode="subset"`；或在该字段填 `BLANK` 跳过」（UI / DB 模型中 `BLANK` 表示跳过该字段，见 §4.1）
+6. **接口模型只比较行内字段**（v11.8.14） — 接口模型同时声明请求字段与响应字段，strict 的"全部字段"要求只适用于 UI / DB 模型。接口模型无论 strict 还是 subset，都只比较 `_verify` 行中出现、且在模型中声明的字段；`status` 列即使模型未声明 `status` 元素，也按 HTTP 状态码比较（§4.1）；`_` 前缀的控制元素（`_method` / `_url` / `_header_*` 等）任何模式下都不参与比较
 
 ---
 

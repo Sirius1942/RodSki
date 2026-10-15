@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [11.8.14] - 2026-10-15
+
+### Fixed
+
+- BUG-A21/A22：接口模型 verify 的字段范围：strict 要求 _verify 行包含请求字段与 _method/_url 控制元素（GUIDE §8.2 示例照写即失败），且模型未声明 status 元素时 status 列被静默忽略；接口模型改为只比较行内出现且模型已声明的字段，status 列恒按 HTTP 状态码比较，_ 前缀控制元素不参与比较（CORE §4.7.4 第 6 条、GUIDE §5.7.3）（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
 ## [11.8.13] - 2026-10-15
 
 ### Fixed

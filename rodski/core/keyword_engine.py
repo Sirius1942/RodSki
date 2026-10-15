@@ -2532,7 +2532,14 @@ class KeywordEngine:
             return self._batch_verify_db(data_row, model_name)
 
         # v11.0.0: 根据 match_mode 选择迭代策略
-        if match_mode == "subset":
+        if model_type == MODEL_TYPE_INTERFACE:
+            # v11.8.14 (BUG-A21/A22): 接口模型同时声明请求与响应字段，_verify 只比较行内出现的字段；
+            # status（HTTP 状态码，CORE §4.1）即使模型未声明也从 Return[-1] 取值比较，不能静默忽略；
+            # 其余未在模型中声明的列按 CORE §4.7 跳过；`_` 前缀控制元素任何模式下都不参与比较
+            fields_to_verify = [(name, model.get(name)) for name in data_row.keys()
+                               if not name.startswith('_') and (name in model or name == 'status')]
+            logger.debug(f"接口模型: 验证 _verify 行内 {len(fields_to_verify)} 个字段")
+        elif match_mode == "subset":
             # 子集模式：迭代 data_row 中的字段，只验证声明的字段
             fields_to_verify = [(name, model.get(name)) for name in data_row.keys()
                                if not name.startswith('__') and name in model]
@@ -2727,8 +2734,8 @@ class KeywordEngine:
             if element_name.startswith('__'):
                 continue
 
-            # subset 模式：element_info 可能为 None（字段不在 model 中）
-            if match_mode == "subset" and element_info is None:
+            # subset 模式：element_info 可能为 None（字段不在 model 中）；接口模型按字段名从 Return 取值
+            if match_mode == "subset" and element_info is None and model_type != MODEL_TYPE_INTERFACE:
                 logger.debug(f"{element_name}: 不在模型中，跳过（subset 模式）")
                 continue
 
@@ -2803,8 +2810,9 @@ class KeywordEngine:
                     ),
                 )
 
-            locator_type = element_info['locator_type']
-            locator_value = element_info['locator_value']
+            element_info = element_info or {}
+            locator_type = element_info.get('locator_type', '')
+            locator_value = element_info.get('locator_value', '')
             frame = element_info.get('frame')
             # 平台感知过滤（WI-48）：移动端按当前平台选取主定位器
             if model_type == MODEL_TYPE_UI:
