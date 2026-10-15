@@ -22,6 +22,8 @@ agent          接管段 A：connect_over_cdp 同一浏览器 → 判断页面 �
 run-2  TK_P2   自动化用例收回控制权：verify Agent 写入的 #formResult        （全新进程附加同一浏览器）
    ↓
 explore        接管段 B：探索类测试步骤——用**真实 CLI** 在同一条会话上逐条发起、逐条留证：
+                 rodski explore-step --cdp :9333 --action clear --data "#username"
+                 （先清空接管段 A 填的用户名：数据表空值 = 不输入，v11.8.21 起不再清空输入框）
                  rodski explore-step --cdp :9333 --action type --model TakeoverForm --data E001
                  （边界输入：用户名留空 + 选「用户」后提交）
                  rodski explore-step ... --action get        → 读回表单各元素当前文本
@@ -75,14 +77,16 @@ python3 rodski-demo/demosite/pause_takeover/run_demo.py
 [agent] ✓ 判断成立：run-1 的登录态在共享浏览器中延续
 [agent] 操作完成：… → #formResult='提交成功！用户名: 接管人角色: admin'
 [phase:part2_continue] TK_P2: PASS
-[explore 1/3] 边界输入：用户名留空 + 选择角色「用户」后提交
+[explore 1/4] 边界输入准备：清空用户名输入框
+…
+[explore 2/4] 边界输入：用户名留空 + 选择角色「用户」后提交
        success=True url=http://localhost:8000/
        return_value={'username': '', 'role': 'select【user】', 'submitBtn': 'click', 'formResult': ''}
        screenshot=rodski-demo/demosite/pause_takeover/result/explore/takeover_demo_step_1.png
-[explore 2/3] 采集证据：读取功能测试表单各元素当前文本
+[explore 3/4] 采集证据：读取功能测试表单各元素当前文本
        return_value={..., 'formResult': '提交成功！用户名: 角色: user'}
        screenshot=.../takeover_demo_step_2.png
-[explore 3/3] 模型盲区：evaluate 读模型未覆盖的 #resultId
+[explore 4/4] 模型盲区：evaluate 读模型未覆盖的 #resultId
        return_value=RID-anonymous-user
        screenshot=.../takeover_demo_step_3.png
 [phase:part3_post] TK_P3: PASS

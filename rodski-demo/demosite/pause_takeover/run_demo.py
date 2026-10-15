@@ -52,6 +52,12 @@ EXPLORE_SESSION = "takeover_demo"
 # 每步 (说明, CLI 参数)。动词都是探索语义——探测边界、采集证据，不做固定断言。
 EXPLORE_STEPS = [
     (
+        # 接管段 A 已在 #username 填了「接管人」；数据表空值 = 不输入（CORE §4.1，v11.8.21 起不再清空输入框），
+        # 所以先显式清空，下一步的「用户名留空」才成立
+        "边界输入准备：清空用户名输入框",
+        ["--action", "clear", "--model", "", "--data", "#username"],
+    ),
+    (
         "边界输入：用户名留空 + 选择角色「用户」后提交（观察页面缺参时的表现）",
         ["--action", "type", "--model", "TakeoverForm", "--data", "E001"],
     ),
