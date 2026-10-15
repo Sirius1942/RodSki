@@ -91,6 +91,8 @@ def setup_parser(subparsers):
     dbgs_p = sub.add_parser("debug-scenario", help="创建 scenario_debug plan")
     dbgs_p.add_argument("plan_id")
     dbgs_p.add_argument("--case", required=True, dest="case_id")
+    dbgs_p.add_argument("--file", default=None,
+                        help="用例文件（相对 case/）；同名用例 ID 出现在多个文件时必填")
     dbgs_p.add_argument("--scenario", required=True, dest="scenario_id")
     dbgs_p.add_argument("--prepare", default="auto", choices=["auto", "case", "none"])
     dbgs_p.add_argument("--cleanup", default="否", choices=["是", "否"])
@@ -99,6 +101,8 @@ def setup_parser(subparsers):
     dbgst_p = sub.add_parser("debug-step", help="创建 step_debug plan")
     dbgst_p.add_argument("plan_id")
     dbgst_p.add_argument("--case", required=True, dest="case_id")
+    dbgst_p.add_argument("--file", default=None,
+                        help="用例文件（相对 case/）；同名用例 ID 出现在多个文件时必填")
     dbgst_p.add_argument("--scenario", required=True, dest="scenario_id")
     dbgst_p.add_argument("--step", required=True, type=int, dest="step_no")
     dbgst_p.add_argument("--step-mode", default="all", choices=["all", "from", "only"], dest="step_mode")
@@ -788,7 +792,8 @@ def _handle_debug_scenario(args):
 
     root = _build_plan_root(args.plan_id, kind="scenario_debug", default_execute="否")
     ET.SubElement(root, "debug", {"prepare": args.prepare, "cleanup": args.cleanup})
-    case_node = ET.SubElement(root, "case", {"id": args.case_id, "execute": "是"})
+    # v11.8.31 (BUG-A12)：与 add-scenario 共用节点生成，带上 file（多用例文件模块否则 SKI207，--debug 一步不执行）
+    case_node = _find_or_create_case_node(root, args.case_id, getattr(args, "file", None))
     ET.SubElement(case_node, "scenario", {"id": args.scenario_id, "execute": "是"})
     _write_plan_xml(path, root)
     print(f"创建 scenario_debug plan: {path}")
@@ -806,7 +811,7 @@ def _handle_debug_step(args):
         "step_mode": args.step_mode,
         "cleanup": args.cleanup,
     })
-    case_node = ET.SubElement(root, "case", {"id": args.case_id, "execute": "是"})
+    case_node = _find_or_create_case_node(root, args.case_id, getattr(args, "file", None))
     sc_node = ET.SubElement(case_node, "scenario", {"id": args.scenario_id, "execute": "是"})
     ET.SubElement(sc_node, "step", {"no": str(args.step_no), "execute": "是"})
     _write_plan_xml(path, root)

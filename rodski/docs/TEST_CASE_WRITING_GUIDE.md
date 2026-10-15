@@ -2170,6 +2170,8 @@ rodski plan debug-scenario inv_debug --case TC040 --scenario INV-001 --prepare a
 # 创建 step 调试计划
 rodski plan debug-step inv_step_debug --case TC040 --scenario INV-001 --step 2 --step-mode only --prepare auto --cleanup 否
 
+# 生成的 <case> 会按用例 ID 自动补 file；同名 ID 出现在多个用例文件时加 --file order/invoice.xml（v11.8.31）
+
 # 执行调试
 rodski run @inv_debug --debug
 rodski run @inv_step_debug --debug

@@ -376,3 +376,14 @@ class TestGeneratedPlanHasFile:
         got = {(c.get("file"), c.get("id")): [s.get("id") for s in c.findall("scenario")]
                for c in root.findall("case")}
         assert got == {("checkout/flow.xml", "CHK_001"): ["S01"], ("catalog/list.xml", "CAT_001"): []}
+
+    def test_debug_plans_get_file(self, multi):
+        """BUG-A12：debug-scenario / debug-step 生成的 <case> 也带 file"""
+        assert handle(Namespace(plan_action="debug-scenario", plan_id="dbg_s", case_id="CHK_001",
+                                scenario_id="S03", prepare="auto", cleanup="否")) == 0
+        assert handle(Namespace(plan_action="debug-step", plan_id="dbg_t", case_id="DUP", file="dup/a.xml",
+                                scenario_id="S01", step_no=1, step_mode="only", prepare="none",
+                                cleanup="否")) == 0
+        s = ET.parse(multi / "plan" / "dbg_s.xml").getroot().find("case")
+        t = ET.parse(multi / "plan" / "dbg_t.xml").getroot().find("case")
+        assert (s.get("file"), t.get("file")) == ("checkout/flow.xml", "dup/a.xml")

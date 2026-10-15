@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [11.8.31] - 2026-10-15
+
+### Fixed
+
+- BUG-A12：plan debug-scenario / debug-step 生成的调试计划 <case> 缺少 file，多用例文件模块 SKI207、--debug 一步不执行；与 add-scenario 共用节点生成（按 ID 唯一定位补 file，新增 --file 参数），GUIDE §10.7 同步（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
 ## [11.8.30] - 2026-10-15
 
 ### Fixed
