@@ -162,9 +162,9 @@ def entries() -> List[Entry]:
         Entry("demosite", "demosite/ui_actions", [PY, str(D / "ui_actions/run_acceptance.py")], service=demosite),
         Entry("demosite", "demosite/network", [PY, str(D / "network/run_acceptance.py")], service=demosite),
         Entry("demosite", "demosite/load case/", rodski("run", str(D / "load/case"), "--headless"),
-              expect="5/5", known="TC-LOAD-001/002 verify 行缺 _method 字段（strict，见 bug A21），3/5", service=demosite),
+              expect="5/5", service=demosite),
         Entry("demosite", "demosite/core_keywords", rodski("run", str(D / "core_keywords/case"), "--headless"),
-              expect="12/12", known="TC020~022 期望值与数据不符、TC025/029 verify 缺字段、TC031 assert 图片 cv2 未导入（框架 Bug），存量 6/12",
+              expect="12/12", known="TC020~022 期望值与数据不符、TC025/029 verify 缺字段，存量 7/12（TC031 已由 v11.8.17 BUG-A27 修复）",
               service=demosite),
     ]
     # mock_api：自带 mock，回归时改用 18001 避免与 demosite :8000 冲突
