@@ -5,9 +5,9 @@ from pathlib import Path
 from typing import Dict, Any
 
 try:
-    from rodski.core.sqlite_schema import SQLITE_DDL
+    from ..core.sqlite_schema import SQLITE_DDL
 except ImportError:
-    from core.sqlite_schema import SQLITE_DDL
+    from rodski.core.sqlite_schema import SQLITE_DDL
 
 
 def run_import(module: str, overwrite: bool = False) -> int:

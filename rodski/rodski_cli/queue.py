@@ -37,7 +37,7 @@ try:
         select_devices,
     )
 except ImportError:                                      # pragma: no cover
-    from core.device_scheduler import (                   # type: ignore[no-redef]
+    from rodski.core.device_scheduler import (                   # type: ignore[no-redef]
         Device,
         DeviceScheduler,
         DeviceSelection,

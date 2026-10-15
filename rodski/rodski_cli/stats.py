@@ -8,7 +8,7 @@ from typing import List, Dict, Any, Optional
 try:
     from ..core.statistics_collector import StatisticsCollector
 except ImportError:
-    from core.statistics_collector import StatisticsCollector
+    from rodski.core.statistics_collector import StatisticsCollector
 
 
 def setup_parser(subparsers):

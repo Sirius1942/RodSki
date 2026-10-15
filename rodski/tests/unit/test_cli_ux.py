@@ -216,3 +216,24 @@ class TestCLIBackwardCompatibility:
                 == "http://127.0.0.1:9222")
         assert (_normalize_cdp_endpoint("https://example.com:9222")
                 == "https://example.com:9222")
+
+
+class TestSingleModuleTree:
+    """BUG-A33：`python rodski/cli_main.py` 与包入口加载同一套 rodski.* 模块"""
+
+    def test_script_entry_uses_package_modules(self):
+        code = (
+            "import runpy, sys\n"
+            f"sys.argv = [{str(PROJECT_ROOT / 'cli_main.py')!r}, '--version']\n"
+            f"sys.path.insert(0, {str(PROJECT_ROOT)!r})\n"
+            "try:\n"
+            f"    runpy.run_path({str(PROJECT_ROOT / 'cli_main.py')!r}, run_name='__main__')\n"
+            "except SystemExit:\n"
+            "    pass\n"
+            "import rodski.rodski_cli.run as r\n"
+            "from rodski.core.driver_factory import DriverFactory\n"
+            "print('TOP', sorted(m for m in sys.modules if m == 'rodski_cli' or m.startswith(('core.', 'drivers.'))))\n"
+        )
+        proc = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
+                              cwd=str(PROJECT_ROOT))
+        assert "TOP []" in proc.stdout, proc.stdout + proc.stderr

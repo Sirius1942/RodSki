@@ -7,7 +7,7 @@ from pathlib import Path
 try:
     from ..core.sqlite_schema import SQLITE_DDL
 except ImportError:
-    from core.sqlite_schema import SQLITE_DDL
+    from rodski.core.sqlite_schema import SQLITE_DDL
 
 
 _MODEL_XML = '<?xml version="1.0" encoding="UTF-8"?>\n<models>\n</models>\n'

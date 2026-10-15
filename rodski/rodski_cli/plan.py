@@ -456,9 +456,9 @@ def _handle_preview(args):
         from ..core.case_parser import CaseParser
         from ..core.test_plan_selection import TestPlanSelection
     except ImportError:
-        from core.plan_parser import PlanParser
-        from core.case_parser import CaseParser
-        from core.test_plan_selection import TestPlanSelection
+        from rodski.core.plan_parser import PlanParser
+        from rodski.core.case_parser import CaseParser
+        from rodski.core.test_plan_selection import TestPlanSelection
 
     path = _plan_path(args.plan_id)
     if not path.is_file():
@@ -517,8 +517,8 @@ def _handle_create(args):
             from ..core.case_parser import CaseParser
             from ..core.test_plan_selection import compile_from_selector
         except ImportError:
-            from core.case_parser import CaseParser
-            from core.test_plan_selection import compile_from_selector
+            from rodski.core.case_parser import CaseParser
+            from rodski.core.test_plan_selection import compile_from_selector
 
         case_d = _case_dir()
         if not case_d.is_dir():

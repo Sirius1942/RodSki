@@ -452,7 +452,7 @@ def _apply_mobile_cli_overrides(executor, module_dir: Path, args) -> None:
             try:
                 from ..core.global_value_parser import GlobalValueParser as _GVP
             except ImportError:
-                from core.global_value_parser import GlobalValueParser as _GVP
+                from rodski.core.global_value_parser import GlobalValueParser as _GVP
             platform_vars = _GVP(str(platform_gv_path)).parse()
             # 深度合并：平台 globalvalue 的 group/var 覆盖默认值
             for group, vars_ in platform_vars.items():
@@ -1117,7 +1117,7 @@ def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional
         try:
             from ..core.driver_factory import DriverFactory
         except ImportError:
-            from core.driver_factory import DriverFactory
+            from rodski.core.driver_factory import DriverFactory
         return DriverFactory.get_driver(driver_type, **kwargs)
 
     driver = create_driver("web")

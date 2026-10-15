@@ -22,7 +22,7 @@ def handle(args):
     try:
         from ..core.config_manager import ConfigManager
     except ImportError:
-        from core.config_manager import ConfigManager
+        from rodski.core.config_manager import ConfigManager
 
     manager = ConfigManager()
 

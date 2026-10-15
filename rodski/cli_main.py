@@ -5,26 +5,48 @@ import argparse
 import traceback
 from pathlib import Path
 
+# v11.8.20 (BUG-A33)：统一以包名 rodski.* 导入，避免 `python rodski/cli_main.py` 时
+# rodski_cli 以顶层包导入、相对导入全部失败进入回退分支，同一进程出现 core.* 与 rodski.core.*
+# 两份模块（DriverFactory 缓存分裂，移动端第 2 条用例起复用已关闭会话）
 if __package__ in (None, ""):
-    sys.path.insert(0, str(Path(__file__).resolve().parent))
-
-from rodski_cli import (
-    VERSION,
-    run,
-    roam,
-    model,
-    config,
-    log,
-    report,
-    profile,
-    docs,
-    capabilities,
-    data,
-    init,
-    plan,
-    explore,
-    business,
-)
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+try:
+    from rodski.rodski_cli import (
+        VERSION,
+        run,
+        roam,
+        model,
+        config,
+        log,
+        report,
+        profile,
+        docs,
+        capabilities,
+        data,
+        init,
+        plan,
+        explore,
+        business,
+    )
+except ImportError:
+    # 以 rodski/ 为根单独安装（rodski/pyproject.toml）时 rodski_cli 是顶层包
+    from rodski_cli import (
+        VERSION,
+        run,
+        roam,
+        model,
+        config,
+        log,
+        report,
+        profile,
+        docs,
+        capabilities,
+        data,
+        init,
+        plan,
+        explore,
+        business,
+    )
 
 
 def format_error(e, verbose=False):

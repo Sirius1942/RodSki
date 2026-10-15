@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [11.8.20] - 2026-10-15
+
+### Fixed
+
+- BUG-A33：python rodski/cli_main.py 入口下 rodski_cli 以顶层包导入，相对导入全部进入回退分支，run.py 两处回退分别落到 core.* 与 rodski.core.*，DriverFactory 缓存分裂（移动端第 2 条用例起复用已关闭会话）；cli_main 改为以 rodski.rodski_cli 包名导入，rodski_cli 内 29 处 core./drivers. 顶层回退与 model.py 无条件 from data. 统一为 rodski.*（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
 ## [11.8.19] - 2026-10-15
 
 ### Fixed

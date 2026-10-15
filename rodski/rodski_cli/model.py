@@ -28,7 +28,10 @@ def handle(args):
     if args.action == "lint":
         return _lint(args.module)
 
-    from data.model_manager import ModelManager
+    try:
+        from ..data.model_manager import ModelManager
+    except ImportError:
+        from rodski.data.model_manager import ModelManager
     manager = ModelManager()
 
     if args.action == "create":

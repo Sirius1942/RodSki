@@ -7,9 +7,9 @@ try:
     from ..core.performance import set_profiler
     from ..core.task_executor import TaskExecutor
 except ImportError:
-    from core.profiler import Profiler
-    from core.performance import set_profiler
-    from core.task_executor import TaskExecutor
+    from rodski.core.profiler import Profiler
+    from rodski.core.performance import set_profiler
+    from rodski.core.task_executor import TaskExecutor
 
 
 def setup_parser(subparsers):
