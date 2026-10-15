@@ -149,11 +149,26 @@ class TestElementExists:
         """没有 driver 时 element_exists 应返回 False"""
         assert executor.evaluate_condition("element_exists(#btn)", None) is False
 
-    def test_element_exists_driver_exception(self, executor):
-        """driver 抛异常时 element_exists 应返回 False"""
+    def test_element_exists_driver_exception_propagates(self, executor):
+        """BUG-A03：driver 异常不能被吞成固定结果，交给执行器按"条件无法评估"处理"""
         driver = MagicMock()
         driver.locate_element.side_effect = RuntimeError("element error")
-        assert executor.evaluate_condition("element_exists(#btn)", driver) is False
+        with pytest.raises(RuntimeError):
+            executor.evaluate_condition("element_exists(#btn)", driver)
+
+    @pytest.mark.parametrize("locator,expected", [
+        ("#login-btn", ("css", "#login-btn")),
+        (".toast-error", ("css", ".toast-error")),
+        ("xpath=//button[@id='b']", ("xpath", "//button[@id='b']")),
+        ("id=status", ("id", "status")),
+        ("input[name=q]", ("css", "input[name=q]")),
+    ])
+    def test_locator_split_matches_driver_signature(self, executor, locator, expected):
+        """BUG-A03：驱动签名是 locate_element(locator_type, locator_value)"""
+        driver = MagicMock()
+        driver.locate_element.return_value = (0, 0, 1, 1)
+        assert executor.evaluate_condition(f"element_exists({locator})", driver) is True
+        driver.locate_element.assert_called_once_with(*expected)
 
 
 # =====================================================================

@@ -235,12 +235,23 @@ class DynamicExecutor:
         if driver is None:
             logger.warning(f"[IF] element_exists 需要 driver，但 driver 为 None")
             return False
-        try:
-            bbox = driver.locate_element(locator)
-            exists = bbox is not None
-            return not exists if neg else exists
-        except Exception:
-            return True if neg else False
+        locator_type, locator_value = self._split_locator(locator)
+        # 驱动接口为 locate_element(locator_type, locator_value)；定位异常向上抛，
+        # 按"条件无法评估"处理（CORE §12.4），不再吞成固定的 True/False
+        bbox = driver.locate_element(locator_type, locator_value)
+        exists = bbox is not None
+        return not exists if neg else exists
+
+    _LOCATOR_TYPES = ('id', 'class', 'css', 'xpath', 'text', 'name', 'tag')
+
+    @classmethod
+    def _split_locator(cls, locator: str):
+        """CORE §12.3 Locator 格式：`type=value`（如 `xpath=//button`），否则按 CSS 选择器处理（如 `#dialog`）。"""
+        locator = locator.strip().strip('"\'')
+        prefix, sep, rest = locator.partition('=')
+        if sep and prefix.strip() in cls._LOCATOR_TYPES:
+            return prefix.strip(), rest
+        return 'css', locator
 
     def _eval_text_contains(self, condition: str, driver: Any = None) -> bool:
         """text_contains(text) 或 text_not_contains(text)"""

@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [11.8.5] - 2026-10-15
+
+### Fixed
+
+- BUG-A03：element_exists 恒假 / element_not_exists 恒真：以单参调用 locate_element(type, value) 且异常被吞；改为按 CORE 约定拆分 type=value（否则按 CSS），定位异常按条件无法评估处理（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
 ## [11.8.4] - 2026-10-15
 
 ### Fixed

@@ -37,8 +37,6 @@ FLOW_DIR = "case/flow/"
 # ---------------------------------------------------------------- KNOWN 缺陷登记
 # 检查项编号 -> 简述（详细的文档条款 / 代码位置见 README.md「KNOWN 缺陷」）
 KNOWN: Dict[str, str] = {
-    "C09": "element_exists/element_not_exists 以 1 个参数调用 PlaywrightDriver.locate_element(locator_type, locator_value)，"
-           "TypeError 被吞掉 → element_exists 恒假、element_not_exists 恒真（dynamic_executor.py:209、playwright_driver.py:516）",
     "C12": "<loop> 内的 <if>/<elif>/<else> 被解析器静默丢弃（case_parser.py:_parse_branch_steps 只收 test_step/business_call），"
            "而 case.xsd LoopContainerType 允许 if/elif/else",
     "C13": "同 C12（loop 内 if 被丢弃）+ 同 C06（${i} 在条件中不解析）",
