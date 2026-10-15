@@ -468,8 +468,14 @@ class TestNetworkOpsWithPlaywrightDriver:
         assert result is True
         mock_page.unroute_all.assert_called_once_with()
 
+    @staticmethod
+    def _sync_page():
+        """按 Playwright 同步 Page 的真实接口构造 mock（BUG-A30：裸 MagicMock 接受不存在的 wait_for_response）"""
+        from playwright.sync_api import Page
+        return MagicMock(spec=Page)
+
     def test_wait_for_response_calls_expect_response(self):
-        """wait_for_response 调用 page.wait_for_response 并返回响应信息"""
+        """wait_for_response 用同步 API page.expect_response 等待并返回响应信息"""
         from builtin_ops.network_ops import wait_for_response
 
         mock_response = MagicMock()
@@ -477,15 +483,27 @@ class TestNetworkOpsWithPlaywrightDriver:
         mock_response.status = 200
         mock_response.text.return_value = '[{"id": 1}]'
 
-        mock_page = MagicMock()
-        mock_page.wait_for_response.return_value = mock_response
+        mock_page = self._sync_page()
+        mock_page.expect_response.return_value.__enter__.return_value.value = mock_response
         driver = self._make_driver(mock_page)
 
         result = wait_for_response("/api/users", timeout=5, _context={"driver": driver})
 
-        mock_page.wait_for_response.assert_called_once()
-        predicate = mock_page.wait_for_response.call_args[0][0]
+        mock_page.expect_response.assert_called_once()
+        predicate = mock_page.expect_response.call_args[0][0]
+        assert mock_page.expect_response.call_args.kwargs["timeout"] == 5000
         # 验证 predicate 做子串匹配
         assert predicate(mock_response) is True
         assert result["status"] == 200
         assert result["url"] == "http://localhost/api/users"
+
+    def test_wait_for_response_timeout_message(self):
+        """只有 Playwright 超时才报「等待网络响应超时」"""
+        from playwright.sync_api import TimeoutError as PWTimeout
+        from builtin_ops.network_ops import wait_for_response
+
+        mock_page = self._sync_page()
+        mock_page.expect_response.return_value.__enter__.side_effect = PWTimeout("Timeout 2000ms exceeded")
+        driver = self._make_driver(mock_page)
+        with pytest.raises(RuntimeError, match="等待网络响应超时 \\(2s\\)"):
+            wait_for_response("/api/never", timeout=2, _context={"driver": driver})

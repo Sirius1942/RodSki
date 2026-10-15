@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [11.8.28] - 2026-10-15
+
+### Fixed
+
+- BUG-A30：wait_for_response 调用同步 API 不存在的 page.wait_for_response，每次抛 AttributeError 又被包装成"等待网络响应超时"（超时负向用例假通过）；改用 page.expect_response 等待调用之后到达的匹配响应，只有 Playwright TimeoutError 报为超时；单测改用 spec=Page 的 mock（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
 ## [11.8.27] - 2026-10-15
 
 ### Fixed

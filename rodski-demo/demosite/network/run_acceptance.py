@@ -41,9 +41,6 @@ CASES: dict[str, dict[str, str | None]] = {
 }
 
 KNOWN = {
-    "TC-NET-077-01": "F077 wait_for_response 调用 sync Page.wait_for_response（Python 同步 API 不存在），必然失败",
-    "TC-NET-077-02": "F077 同上",
-    "TC-NET-077-03": "F077 同上：超时用例因 AttributeError 失败，不是真正的等待超时",
     "TC-NET-077-04": "F077 reset_request_log 文档列为内置函数但未注册，被当作 fun/ 脚本",
     "TC-NET-077-05": "F077 reset_request_log/get_request_log 未注册",
 }
