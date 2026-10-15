@@ -174,3 +174,22 @@ class TestProbeAndRead:
         el.text_content.return_value = "Hello World"
         assert d.assert_element("#e", "Hello", timeout_ms=10) is True
         assert d.assert_element("#e", "Bye", timeout_ms=10) is False
+
+
+class TestLaunchNonUrl:
+    """BUG-A26：Web 驱动 launch 非 http(s) 目标必须报错，不能静默成功"""
+
+    @pytest.mark.parametrize("target", ["rodski_no_such_app", "ftp://127.0.0.1/x.html", "localhost:8000/x"])
+    def test_app_path_rejected(self, target):
+        from rodski.core.exceptions import InvalidParameterError as IPE
+        d, _ = _driver()
+        with pytest.raises(Exception) as exc:
+            d.launch(app_path=target)
+        assert type(exc.value).__name__ == IPE.__name__
+        assert target in str(exc.value) and "navigate" in str(exc.value)
+
+    def test_url_still_navigates(self):
+        d, _ = _driver()
+        d.navigate = MagicMock(return_value=True)
+        d.launch(url="http://localhost:8000/")
+        d.navigate.assert_called_once_with("http://localhost:8000/")

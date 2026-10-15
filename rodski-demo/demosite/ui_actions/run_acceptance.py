@@ -164,19 +164,6 @@ KNOWN: Dict[str, Known] = {
             "BLANK 行 :637 则明确区分了 UI/DB 与接口）",
         suspect="rodski/core/keyword_engine.py:2767-2770（UI 模型 NULL/NONE 一律跳过）",
         advice="改文档（CORE §4.1 NULL 验证行为补充「UI 模型：跳过」）或修框架按 null 比对"),
-    "LAUNCH_BAD_APP": Known(
-        symptom="[预期失败但实际成功]：launch 'rodski_no_such_app_xyz_20261015' 静默通过",
-        doc="rodski/docs/CORE_DESIGN_CONSTRAINTS.md:63（launch：应用路径或应用名 → 启动应用）、:73（Web/Mobile 不使用 launch）；"
-            "SKILL_REFERENCE.md:223-229",
-        suspect="rodski/core/keyword_engine.py:2194-2202 非 http 目标走 self.driver.launch(app_path=...)；"
-                "rodski/drivers/playwright_driver.py:731-735 launch 只认 url 参数、忽略 app_path 且返回 None；"
-                "keyword_engine.py:2208 无条件 store_return(True)",
-        advice="修框架（Web 驱动收到非 http(s) 目标时抛 InvalidParameterError / DriverError）"),
-    "LAUNCH_BAD_SCHEME": Known(
-        symptom="[预期失败但实际成功]：launch 'ftp://127.0.0.1:18140/keys.html' 静默通过，未打开任何页面",
-        doc="rodski/docs/CORE_DESIGN_CONSTRAINTS.md:63、:73",
-        suspect="同 LAUNCH_BAD_APP（keyword_engine.py:2194-2202、playwright_driver.py:731-735）",
-        advice="修框架（同 LAUNCH_BAD_APP）"),
     "LAUNCH_MULTI": Known(
         symptom="SKI204 XML 不符合 Schema 约束 (case.xsd)：'id' / 'target' attribute not allowed for element test_step，用例未执行",
         doc=".pb/specs/SPEC-012-debugging-design-constraints.md:46-84（test_step 新增 target / id，launch id= 创建命名对象）、"

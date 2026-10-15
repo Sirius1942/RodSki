@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [11.8.26] - 2026-10-15
+
+### Fixed
+
+- BUG-A26：Web 驱动 launch 非 http(s) 目标（不存在的应用名、ftp://、漏写协议）时 PlaywrightDriver.launch 忽略 app_path 返回 None，步骤静默成功；改为报参数错误并提示写完整 URL / 改用 navigate / 使用 Desktop 模型；驱动异常导入回退统一为 rodski.core（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
 ## [11.8.25] - 2026-10-15
 
 ### Fixed

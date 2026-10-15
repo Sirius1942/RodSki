@@ -26,17 +26,19 @@ try:
         DriverStoppedError,
         ElementNotFoundError,
         ElementNotInteractableError,
+        InvalidParameterError,
         StaleElementError,
         TimeoutError,
         is_critical_error,
     )
 except ImportError:
     from rodski.drivers.base_driver import BaseDriver
-    from core.exceptions import (
+    from rodski.core.exceptions import (
         DriverError,
         DriverStoppedError,
         ElementNotFoundError,
         ElementNotInteractableError,
+        InvalidParameterError,
         StaleElementError,
         TimeoutError,
         is_critical_error,
@@ -714,10 +716,23 @@ class PlaywrightDriver(BaseDriver):
         time.sleep(seconds)
 
     def launch(self, **kwargs) -> None:
-        """启动应用或打开页面（BaseDriver 接口）"""
+        """启动应用或打开页面（BaseDriver 接口）
+
+        Web 驱动只能打开 http(s) 页面；收到应用名 / 其他协议（app_path）时报参数错误，
+        不能静默忽略后让步骤判为成功（v11.8.26 BUG-A26，CORE §1：Web 不使用 launch 启动应用）。
+        """
         url = kwargs.get('url')
         if url:
             self.navigate(url)
+            return
+        target = kwargs.get('app_path') or ''
+        raise InvalidParameterError(
+            keyword="launch", param_name="data",
+            reason=(
+                f"Web 驱动无法启动 '{target}'：只能打开 http:// 或 https:// 页面。"
+                f"打开页面请写完整 URL 或改用 navigate；启动桌面应用请使用 Desktop 模型"
+            ),
+        )
 
     def navigate(self, url: str) -> bool:
         """导航到URL，等待页面加载完成"""
