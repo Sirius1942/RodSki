@@ -447,3 +447,21 @@ class TestLoopBody:
         assert branch['condition'] == '${i} == 1'
         assert [e['condition'] for e in branch['elif_chain']] == ['${i} == 2']
         assert branch['else_steps'][0]['data'] == 'a=3'
+
+
+class TestCaseLevelTags:
+    def test_case_tags_merged_with_suite_tags(self, tmp_path):
+        """BUG-A07：<case tags> 不能被忽略，与 <cases tags> 合并去重"""
+        case_xml = _write_xml(tmp_path, '''\
+<?xml version="1.0" encoding="UTF-8"?>
+<cases tags="suite,smoke">
+  <case execute="是" id="t1" title="a" tags="smoke, slow">
+    <test_case><test_step action="wait" model="" data="0"/></test_case>
+  </case>
+  <case execute="是" id="t2" title="b">
+    <test_case><test_step action="wait" model="" data="0"/></test_case>
+  </case>
+</cases>''')
+        cases = CaseParser(case_xml).parse_cases()
+        assert cases[0]['tags'] == ['suite', 'smoke', 'slow']
+        assert cases[1]['tags'] == ['suite', 'smoke']

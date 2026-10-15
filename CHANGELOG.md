@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [11.8.9] - 2026-10-15
+
+### Fixed
+
+- BUG-A07：用例级 <case tags> 属性（case.xsd 允许）被解析器忽略；与 <cases tags> 合并后参与 --tags / --exclude-tags，GUIDE §3.2 属性表补充 tags（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
 ## [11.8.8] - 2026-10-15
 
 ### Fixed

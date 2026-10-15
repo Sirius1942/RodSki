@@ -115,7 +115,10 @@ class CaseParser:
                 'component_type': component_type,
                 'roam': roam,
                 'expect_fail': case_node.get('expect_fail', '否').strip(),
-                'tags': suite_tags,
+                # 用例 tags = 文件级 <cases tags> + 用例级 <case tags>（case.xsd CaseType@tags），去重保序
+                'tags': list(dict.fromkeys(suite_tags + [
+                    t.strip() for t in (case_node.get('tags') or '').split(',') if t.strip()
+                ])),
                 'priority': (case_node.get('priority') or '').strip(),
                 'step_wait': step_wait_ms,
                 'metadata': self._parse_metadata(case_node.find('metadata')),

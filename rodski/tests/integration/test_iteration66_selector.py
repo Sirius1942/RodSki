@@ -68,3 +68,12 @@ def test_tag_only_on_scenario(tmp_path):
     code, passed = _executed(_module(tmp_path), "--tag", "p0")
     assert code == 0
     assert passed == {"SCN"}
+
+
+def test_case_level_tags(tmp_path):
+    """BUG-A07：<case tags> 参与 --tags 选择与 --exclude-tags 排除"""
+    module = _module(tmp_path)
+    code, passed = _executed(module, "--tags", "smoke")
+    assert passed == {"PLAIN_P0"}
+    code, passed = _executed(_module(tmp_path / "x"), "--tags", "suite", "--exclude-tags", "smoke")
+    assert passed == {"PLAIN_P1", "SCN"}
