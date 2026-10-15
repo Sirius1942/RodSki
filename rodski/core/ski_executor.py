@@ -2388,9 +2388,7 @@ class SKIExecutor:
         elif action_key == 'set':
             params = {'var_name': model, 'value': resolved_data}
             self.keyword_engine.execute(action, params)
-            # 同步到动态执行器
-            if hasattr(self, 'dynamic_executor'):
-                self.dynamic_executor.set_variable(model, resolved_data)
+            # set 的变量由 _kw_set 写入 DataResolver.data_source，条件求值从那里读取
         else:
             params = {'model': model, 'data': resolved_data}
             try:

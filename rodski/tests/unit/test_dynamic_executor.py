@@ -340,3 +340,38 @@ class TestParseLoopRange:
         result = executor.parse_loop_range("hello")
         assert result == ["hello"]
 
+
+# =====================================================================
+# BUG-A01：条件中的 ${name} 变量引用
+# =====================================================================
+class TestConditionVariableReference:
+    """文档写法 `${name}`：loop 变量与 set 写入 DataResolver 的变量都要可见"""
+
+    @pytest.fixture
+    def executor(self):
+        r = MagicMock()
+        r.data_source = {"flag": "off", "total": "4"}  # set 关键字经 set_var 写入此处
+        r.resolve.side_effect = lambda v: v
+        return DynamicExecutor(data_resolver=r)
+
+    def test_set_variable_visible_with_braces(self, executor):
+        assert executor.evaluate_condition("${flag} == off") is True
+        assert executor.evaluate_condition("${flag} == on") is False
+        assert executor.evaluate_condition("${flag} != on") is True
+
+    def test_numeric_compare_with_braces(self, executor):
+        assert executor.evaluate_condition("${total} > 0") is True
+        assert executor.evaluate_condition("${total} >= 3") is True
+        assert executor.evaluate_condition("${total} <= 3") is False
+
+    def test_loop_variable_takes_precedence(self, executor):
+        executor.set_variable("flag", "on")
+        assert executor.evaluate_condition("${flag} == on") is True
+
+    def test_quoted_literal(self, executor):
+        assert executor.evaluate_condition("${flag} == 'off'") is True
+
+    def test_undefined_variable_raises(self, executor):
+        """未定义变量不能拿字面量 '${x}' 去比较而静默走错分支"""
+        with pytest.raises(ValueError, match="未定义的变量"):
+            executor.evaluate_condition("${missing} == 1")

@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [11.8.3] - 2026-10-15
+
+### Fixed
+
+- BUG-A01：条件中的 ${name} 变量引用不解析、set 定义的变量在条件里不可见；条件操作数改为从 loop 变量与 set 模板变量取值，未定义变量按条件无法评估处理（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
 ## [11.8.2] - 2026-10-15
 
 ### Fixed

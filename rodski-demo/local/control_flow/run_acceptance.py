@@ -37,8 +37,6 @@ FLOW_DIR = "case/flow/"
 # ---------------------------------------------------------------- KNOWN 缺陷登记
 # 检查项编号 -> 简述（详细的文档条款 / 代码位置见 README.md「KNOWN 缺陷」）
 KNOWN: Dict[str, str] = {
-    "C06": "set 写入的变量在 <if condition> 中不可见：set 同步到 DynamicExecutor 时以 model(空串) 为键，"
-           "且 ${var} 解析只剥掉 '$' 去查 '{var}'（ski_executor.py:2393、dynamic_executor.py:236-239）",
     "C07": "Return 条件永远为假：DynamicExecutor 以 `return_values or []` 接收空的 history 列表，"
            "空列表为假值导致另建新列表、与 RuntimeContext.history 脱钩（dynamic_executor.py:23 / ski_executor.py:230）；"
            "GUIDE §3.8 的 ${Return[-1].status} == 200 写法也不被 _eval_return_condition 正则识别",
@@ -48,8 +46,6 @@ KNOWN: Dict[str, str] = {
     "C12": "<loop> 内的 <if>/<elif>/<else> 被解析器静默丢弃（case_parser.py:_parse_branch_steps 只收 test_step/business_call），"
            "而 case.xsd LoopContainerType 允许 if/elif/else",
     "C13": "同 C12（loop 内 if 被丢弃）+ 同 C06（${i} 在条件中不解析）",
-    "C14": "同 C06：${login_status} == 401 中的变量不解析，elif 链全部为假走 else",
-    "C15": "同 C06 + C16：${total} > 0 中变量不解析（float('${total}') 异常 → 条件块整体跳过）",
 }
 
 

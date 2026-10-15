@@ -244,18 +244,32 @@ class DynamicExecutor:
         except Exception:
             return False
 
+    # `${name}`（文档写法）与 `$name`（兼容写法）
+    _VAR_RE = re.compile(r'^\$\{(\w+)\}$|^\$(\w+)$')
+
     def _resolve_value(self, value: str) -> Any:
-        """解析值（变量或字面量）"""
+        """解析比较操作数：引号字面量 / 变量引用 / 其余交给 DataResolver。
+
+        变量依次查 loop 变量（self.variables）与 set 写入的模板变量
+        （DataResolver.data_source，set 关键字通过 set_var 写入）。
+        引用了未定义的变量时抛 ValueError，由调用方按"条件无法评估"处理，
+        不再把 `${x}` 字面量拿去比较而静默走错分支。
+        """
         value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in '"\'':
+            return value[1:-1]
 
-        # 检查是否是变量引用
-        if value.startswith('$'):
-            var_name = value[1:]
-            return self.variables.get(var_name, value)
+        m = self._VAR_RE.match(value)
+        if m:
+            name = m.group(1) or m.group(2)
+            if name in self.variables:
+                return self.variables[name]
+            source = getattr(self.data_resolver, 'data_source', None)
+            if isinstance(source, dict) and name in source:
+                return source[name]
+            raise ValueError(f"条件引用了未定义的变量: {value}")
 
-        # 使用数据解析器解析
-        resolved = self.data_resolver.resolve(value)
-        return resolved
+        return self.data_resolver.resolve(value)
 
     def parse_loop_range(self, loop_spec: str) -> List[Any]:
         """解析循环范围
