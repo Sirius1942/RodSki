@@ -208,17 +208,6 @@ KNOWN: Dict[str, Known] = {
                 "运行时 rodski/core/keyword_engine.py:_kw_launch(2165) 也不读取 id，多浏览器对象只存在于 "
                 "rodski-demo/local/debug_partial_execution/fun/dbg_harness.py（demo 侧）",
         advice="修框架（扩展 case.xsd + 执行器对象池）后同步 rodski/docs；或在 SPEC-012 标注未实现"),
-    "ASSERT_IMG_POS": Known(
-        symptom="SKI313 关键字 'assert' 执行失败: name 'cv2' is not defined（本机已安装 opencv 4.13.0）",
-        doc="rodski/docs/TEST_CASE_WRITING_GUIDE.md:325 / :3114（assert 断言）、:1363（assert 返回断言结果）；"
-            "图片参数仅见 keyword_engine.py:_kw_assert 文档字符串，rodski/docs 无 type=image 说明",
-        suspect="rodski/core/keyword_engine.py:2342 cv2.imread(...) 但模块未导入 cv2（提交 a8cfe75 移除了模块级 import cv2）",
-        advice="修框架（_kw_assert 内懒加载 cv2 或改用 ImageMatcher 读图）；并在 GUIDE 补 assert type=image 参数说明"),
-    "ASSERT_IMG_NEG": Known(
-        symptom="负向用例虽判 PASS，但失败原因是 name 'cv2' is not defined，不是相似度不足",
-        doc="同 ASSERT_IMG_POS",
-        suspect="rodski/core/keyword_engine.py:2342",
-        advice="修框架（同 ASSERT_IMG_POS）"),
 }
 
 

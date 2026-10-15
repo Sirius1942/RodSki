@@ -28,7 +28,7 @@ from .exceptions import (
     is_retryable_error,
     is_critical_error,
 )
-from .assertion.image_matcher import ImageMatcher
+from .assertion.image_matcher import ImageMatcher, _require_cv_deps
 from .assertion.video_analyzer import VideoAnalyzer
 from .assertion_engine import AssertionEngine
 from .assertion_engine import AssertionError as AssertOpError
@@ -2335,6 +2335,9 @@ class KeywordEngine:
             screenshot_path = self.driver.take_screenshot()
             if screenshot_path is None:
                 raise DriverError("截图失败，无法执行视觉断言")
+            # v11.8.17 (BUG-A27): cv2 为可选依赖（rodski[vision]），使用处再导入；缺失时给出安装提示
+            _require_cv_deps()
+            import cv2
             screenshot = cv2.imread(screenshot_path)
             if screenshot is None:
                 raise DriverError(f"无法读取截图文件: {screenshot_path}")
@@ -2366,7 +2369,15 @@ class KeywordEngine:
                     logger.info(f"失败截图已保存: {saved_path}")
 
             self.store_return(result)
-            return result["matched"]
+            if not result["matched"]:
+                # v11.8.17 (BUG-A27)：不匹配必须使步骤失败；此前返回 False 仍被记为 PASS
+                raise AssertionFailedError(
+                    message=(f"图片断言失败: similarity={result['similarity']} < threshold={threshold}, "
+                             f"reference={reference}"),
+                    details={'similarity': result['similarity'], 'threshold': threshold,
+                             'failure_screenshot': result.get('failure_screenshot')},
+                )
+            return True
 
         # ── type=video ─────────────────────────────────────────────
         elif assert_type == "video":
@@ -2422,7 +2433,14 @@ class KeywordEngine:
                 result["failure_recording"] = recording_path
 
             self.store_return(result)
-            return result["matched"]
+            if not result["matched"]:
+                raise AssertionFailedError(
+                    message=(f"视频断言失败: similarity={result['similarity']} < threshold={threshold}, "
+                             f"reference={reference}"),
+                    details={'similarity': result['similarity'], 'threshold': threshold,
+                             'failure_recording': result.get('failure_recording')},
+                )
+            return True
 
         else:
             raise InvalidParameterError(

@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [11.8.17] - 2026-10-15
+
+### Fixed
+
+- BUG-A27：assert type=image 读取截图时 name cv2 is not defined（a8cfe75 移除模块级 import 后使用处未导入）；改为使用处导入并在缺依赖时提示安装 rodski[vision]。修复后暴露同根问题：图片/视频断言不匹配时只返回 False，步骤仍记为 PASS，负向用例永远无法失败；改为抛 AssertionFailedError（附相似度与失败截图）（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
 ## [11.8.16] - 2026-10-15
 
 ### Fixed
