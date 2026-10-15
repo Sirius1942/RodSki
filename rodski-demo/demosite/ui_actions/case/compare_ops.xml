@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  F041 UI 侧 $gt / $gte / $lt / $lte / $contains（TEST_CASE_WRITING_GUIDE §5.7.1：适用 UI / 接口 / DB）
+  页面 #price=128.50、#qty=7、#msg=「订单 ORD-2026 已创建」；负向用例覆盖边界（等于时 $gt/$lt 不成立）。
+-->
+<cases tags="ui_actions,F041">
+    <case execute="是" id="OPS_CMP_OK" title="$gt / $gte / $lt / $lte / $contains 全部成立（含等值边界）" component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/ops.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="verify" model="CmpOps" data="V_OK"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="OPS_CMP_N_GT" title="负向：128.50 $gt 128.5" component_type="界面" priority="P1" expect_fail="是">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/ops.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="verify" model="CmpOps" data="N_GT"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="OPS_CMP_N_GTE" title="负向：128.50 $gte 128.51" component_type="界面" priority="P1" expect_fail="是">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/ops.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="verify" model="CmpOps" data="N_GTE"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="OPS_CMP_N_LT" title="负向：128.50 $lt 128.5" component_type="界面" priority="P1" expect_fail="是">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/ops.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="verify" model="CmpOps" data="N_LT"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="OPS_CMP_N_LTE" title="负向：128.50 $lte 128.49" component_type="界面" priority="P1" expect_fail="是">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/ops.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="verify" model="CmpOps" data="N_LTE"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="OPS_CMP_N_CONTAINS" title="负向：$contains ORD-2027" component_type="界面" priority="P1" expect_fail="是">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/ops.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="verify" model="CmpOps" data="N_CONTAINS"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+</cases>

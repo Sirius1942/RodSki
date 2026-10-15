@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- F056 接口 / DB 模型的 _verify 表中禁止 ${Return[-1]}（自引用），v6.7.6 起硬性失败
+     依据：CORE_DESIGN_CONSTRAINTS.md §4.3；TEST_CASE_WRITING_GUIDE.md §7.4
+     本文件是负向样例，不放在 case/（运行前合规检查会拦截整个模块）；run_acceptance.py 复制模块到临时目录、写入 fun 中声明的负向数据后执行。
+     若不拦截，自引用比较必然相等而"通过"；expect_fail="是"，run_acceptance.py 断言失败原因为自引用规则 -->
+<cases tags="data_rules,f056">
+    <case execute="是" id="F056_API_SELFREF" title="接口 _verify 中 ${Return[-1].tag} 报错" component_type="接口" priority="P0" expect_fail="是">
+        <pre_process>
+            <test_step action="run" model="" data="mock_server.py ensure"/>
+        </pre_process>
+        <test_case>
+            <test_step action="send" model="EchoRef" data="D001"/>
+            <test_step action="verify" model="EchoSelfRef" data="V001"/>
+        </test_case>
+    </case>
+    <case execute="是" id="F056_DB_SELFREF" title="DB _verify 中 ${Return[-1].c_id} 报错" component_type="数据库" priority="P0" expect_fail="是">
+        <pre_process>
+            <test_step action="run" model="" data="mock_server.py ensure"/>
+            <test_step action="DB" model="BizDB" data="Q_CREATE"/>
+            <test_step action="DB" model="BizDB" data="Q_UPSERT"/>
+        </pre_process>
+        <test_case>
+            <test_step action="DB" model="BizDB" data="Q_ROW"/>
+            <test_step action="verify" model="BizDBSelf" data="V_SELFREF"/>
+        </test_case>
+    </case>
+</cases>

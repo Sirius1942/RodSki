@@ -1,0 +1,10 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<test_plan id="load_extra_manual" title="F118 预编译产物手动修改(source=manual)后被运行时使用" kind="load">
+  <load_profile mode="api">
+    <concurrency>1</concurrency>
+    <duration_seconds>4</duration_seconds>
+    <ramp_up_seconds>0</ramp_up_seconds>
+    <think_time_ms min="100" max="200" />
+  </load_profile>
+  <case id="TC-LOAD-X01" weight="3" file="load_extra_cases.xml" />
+</test_plan>

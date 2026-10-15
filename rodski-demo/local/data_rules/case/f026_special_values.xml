@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- F026 数据表控制值 BLANK / NULL / NONE / 空值
+     依据：CORE_DESIGN_CONSTRAINTS.md §4.1 表格；TEST_CASE_WRITING_GUIDE.md §5.4「控制值」、§5.7.3
+     页面与接口由 fun/mock_server.py（127.0.0.1:18121）提供，pre_process 中自动启动 -->
+<cases tags="data_rules,f026">
+    <case execute="是" id="F026_UI_TYPE" title="UI type：BLANK/NULL/NONE 均跳过，预填值不变" component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="run" model="" data="mock_server.py ensure"/>
+        </pre_process>
+        <test_case>
+            <test_step action="navigate" model="" data="GlobalValue.Site.Pages/specials.html"/>
+            <test_step action="type" model="SpecForm" data="S001"/>
+            <test_step action="verify" model="SpecDump" data="V001"/>
+        </test_case>
+    </case>
+    <case execute="是" id="F026_UI_TYPE_EMPTY" title="UI type：空值字段跳过，预填值不变" component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="run" model="" data="mock_server.py ensure"/>
+        </pre_process>
+        <test_case>
+            <test_step action="navigate" model="" data="GlobalValue.Site.Pages/specials.html"/>
+            <test_step action="type" model="SpecForm" data="S002"/>
+            <test_step action="verify" model="SpecDump" data="V002"/>
+        </test_case>
+    </case>
+    <case execute="是" id="F026_UI_VERIFY" title="UI verify：BLANK/NONE 跳过该字段" component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="run" model="" data="mock_server.py ensure"/>
+        </pre_process>
+        <test_case>
+            <test_step action="navigate" model="" data="GlobalValue.Site.Pages/specials.html"/>
+            <test_step action="verify" model="SpecText" data="V_SKIP"/>
+        </test_case>
+    </case>
+    <case execute="是" id="F026_SEND" title="send：BLANK 发空串、NULL 发 null、NONE 不发送" component_type="接口" priority="P1">
+        <pre_process>
+            <test_step action="run" model="" data="mock_server.py ensure"/>
+        </pre_process>
+        <test_case>
+            <test_step action="send" model="EchoSpecial" data="D001"/>
+            <test_step action="verify" model="EchoSpecialResult" data="V001"/>
+        </test_case>
+    </case>
+    <case execute="是" id="F026_API_VERIFY" title="接口 verify：BLANK 期望空串、NULL 期望 null" component_type="接口" priority="P1">
+        <pre_process>
+            <test_step action="run" model="" data="mock_server.py ensure"/>
+        </pre_process>
+        <test_case>
+            <test_step action="send" model="FixedAPI" data="D001"/>
+            <test_step action="verify" model="FixedResult" data="V_BLANK_NULL"/>
+        </test_case>
+    </case>
+    <case execute="是" id="F026_API_VERIFY_NONE" title="接口 verify：NONE 跳过验证（实际 xyz）" component_type="接口" priority="P1">
+        <pre_process>
+            <test_step action="run" model="" data="mock_server.py ensure"/>
+        </pre_process>
+        <test_case>
+            <test_step action="send" model="FixedAPI" data="D001"/>
+            <test_step action="verify" model="FixedResult" data="V_NONE"/>
+        </test_case>
+    </case>
+    <case execute="是" id="F026_API_VERIFY_BLANK_NEG" title="接口 verify：BLANK 期望空串，实际 hello 时应失败" component_type="接口" priority="P2" expect_fail="是">
+        <pre_process>
+            <test_step action="run" model="" data="mock_server.py ensure"/>
+        </pre_process>
+        <test_case>
+            <test_step action="send" model="FixedAPI" data="D001"/>
+            <test_step action="verify" model="FixedResult" data="V_BLANK_MISMATCH"/>
+        </test_case>
+    </case>
+    <case execute="是" id="F026_DB_VERIFY" title="DB verify：BLANK 跳过、NULL 期望 null" component_type="数据库" priority="P1">
+        <pre_process>
+            <test_step action="run" model="" data="mock_server.py ensure"/>
+            <test_step action="DB" model="BizDB" data="Q_CREATE"/>
+            <test_step action="DB" model="BizDB" data="Q_UPSERT"/>
+        </pre_process>
+        <test_case>
+            <test_step action="DB" model="BizDB" data="Q_ROW"/>
+            <test_step action="verify" model="BizDB" data="V_BLANK_NULL"/>
+        </test_case>
+    </case>
+    <case execute="是" id="F026_DB_VERIFY_NONE" title="DB verify：NONE 跳过验证（实际 zzz）" component_type="数据库" priority="P1">
+        <pre_process>
+            <test_step action="run" model="" data="mock_server.py ensure"/>
+            <test_step action="DB" model="BizDB" data="Q_CREATE"/>
+            <test_step action="DB" model="BizDB" data="Q_UPSERT"/>
+        </pre_process>
+        <test_case>
+            <test_step action="DB" model="BizDB" data="Q_ROW"/>
+            <test_step action="verify" model="BizDB" data="V_NONE"/>
+        </test_case>
+    </case>
+</cases>

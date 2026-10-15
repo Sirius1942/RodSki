@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  用例级选择目标（不含 scenario）：套件 tags=catalog,regression（GUIDE §3.2 <cases tags>，文件内所有用例共享），
+  CAT_001 / CAT_003 另带用例级 tags 属性（case.xsd CaseType@tags）。
+-->
+<cases tags="catalog,regression">
+    <case execute="是" id="CAT_001" title="商品目录 P0（用例级 tags=smoke）" component_type="接口" priority="P0" tags="smoke">
+        <test_case>
+            <test_step action="run" model="" data="mark.py CAT_001"/>
+        </test_case>
+    </case>
+    <case execute="是" id="CAT_002" title="商品目录 P1" component_type="接口" priority="P1">
+        <test_case>
+            <test_step action="run" model="" data="mark.py CAT_002"/>
+        </test_case>
+    </case>
+    <case execute="是" id="CAT_003" title="商品目录 P2（用例级 tags=slow）" component_type="接口" priority="P2" tags="slow">
+        <test_case>
+            <test_step action="run" model="" data="mark.py CAT_003"/>
+        </test_case>
+    </case>
+</cases>

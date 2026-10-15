@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- F094：step 调试计划（GUIDE §10.7）—— CHK_001/S01 第 2 步，prepare=auto（pre_process + 目标之前的步骤），step_mode=only，cleanup=否 -->
+<test_plan id="checkout_step_debug" title="CHK_001 S01 第 2 步调试" kind="step_debug" default_execute="否">
+  <debug prepare="auto" step_mode="only" cleanup="否"/>
+  <case file="checkout/checkout_flow.xml" id="CHK_001" execute="是">
+    <scenario id="S01" execute="是">
+      <step no="2" execute="是"/>
+    </scenario>
+  </case>
+</test_plan>

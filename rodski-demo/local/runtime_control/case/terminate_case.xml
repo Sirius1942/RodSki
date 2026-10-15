@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- F108 运行时控制：终止 / 强制终止（CORE §8.6 / §8.7，GUIDE §11.5）。
+     由 run_acceptance_extra.py 通过 RuntimeCommandQueue 在步骤执行中下发命令并断言：
+       RT_TERM        wait 1.5 执行中下发 terminate（非强制）→ 该步完整跑完，之后的固定步骤不再执行
+       RT_FORCE       wait 3 执行中下发 terminate(force=True) → 不等当前步骤自然结束，尽快中止
+       RT_PAUSE_TERM  navigate 后 pause，暂停期间下发 terminate → 结束执行，不卡在暂停状态
+       RT_AFTER       前面用例被终止后，执行器仍能返回（不挂起）；记录后续用例是否继续执行
+     裸 CLI（不注入控制命令）运行时四个用例都自然执行完并 PASS。
+     wait 数值各不相同，便于在步骤日志中区分「哪一步执行了」。 -->
+<cases>
+  <case execute="是" id="RT_TERM" title="运行时正常终止（步骤边界生效）" component_type="界面">
+    <test_case>
+      <test_step action="navigate" model="" data="about:blank"/>
+      <test_step action="wait" model="" data="1.5"/>
+      <test_step action="wait" model="" data="0.31"/>
+    </test_case>
+    <post_process>
+      <test_step action="wait" model="" data="0.01"/>
+    </post_process>
+  </case>
+
+  <case execute="是" id="RT_FORCE" title="运行时强制终止（不等待当前步骤结束）" component_type="界面">
+    <test_case>
+      <test_step action="navigate" model="" data="about:blank"/>
+      <test_step action="wait" model="" data="3"/>
+      <test_step action="wait" model="" data="0.32"/>
+    </test_case>
+    <post_process>
+      <test_step action="wait" model="" data="0.02"/>
+    </post_process>
+  </case>
+
+  <case execute="是" id="RT_PAUSE_TERM" title="暂停期间终止" component_type="界面">
+    <test_case>
+      <test_step action="navigate" model="" data="about:blank"/>
+      <test_step action="wait" model="" data="0.21"/>
+      <test_step action="wait" model="" data="0.33"/>
+    </test_case>
+    <post_process>
+      <test_step action="wait" model="" data="0.03"/>
+    </post_process>
+  </case>
+
+  <case execute="是" id="RT_AFTER" title="终止后的下一个用例" component_type="界面">
+    <test_case>
+      <test_step action="navigate" model="" data="about:blank"/>
+      <test_step action="wait" model="" data="0.34"/>
+    </test_case>
+  </case>
+</cases>

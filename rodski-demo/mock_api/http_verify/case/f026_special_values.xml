@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+    <!-- F026：接口侧 BLANK / NULL / NONE 控制值
+         依据：CORE_DESIGN_CONSTRAINTS.md §4.1（send：BLANK=发送空字符串，NULL=发送 null，NONE=不发送该字段；
+               verify：接口模型 BLANK=期望空字符串，NULL=期望 null，NONE=跳过验证）；
+               TEST_CASE_WRITING_GUIDE.md §5.4「控制值」、§5.7.3
+         server.py /api/echo 回显请求体中字段的形态（empty_string / null / absent / value） -->
+
+    <case execute="是" id="TC-HV-026-01" title="send BLANK发送空字符串" component_type="接口">
+        <test_case>
+            <test_step action="send" model="EchoAPI" data="E_BLANK"/>
+            <test_step action="verify" model="EchoResp" data="V_BLANK"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC-HV-026-02" title="send NULL发送null" component_type="接口">
+        <test_case>
+            <test_step action="send" model="EchoAPI" data="E_NULL"/>
+            <test_step action="verify" model="EchoResp" data="V_NULL"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC-HV-026-03" title="send NONE不发送字段" component_type="接口">
+        <test_case>
+            <test_step action="send" model="EchoAPI" data="E_NONE"/>
+            <test_step action="verify" model="EchoResp" data="V_NONE"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC-HV-026-04" title="同一行混用三种控制值" component_type="接口">
+        <test_case>
+            <test_step action="send" model="EchoAPI" data="E_MIX"/>
+            <test_step action="verify" model="EchoResp" data="V_MIX"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC-HV-026-05" title="verify BLANK期望空串且NULL期望null" component_type="接口">
+        <test_case>
+            <test_step action="send" model="HttpGet" data="FIELDS"/>
+            <test_step action="verify" model="FieldsResp" data="V_SPECIAL"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC-HV-026-06" title="verify NONE跳过验证" component_type="接口">
+        <test_case>
+            <test_step action="send" model="HttpGet" data="FIELDS"/>
+            <test_step action="verify" model="FieldsResp" data="V_NONE_SKIP"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC-HV-026-07" title="verify BLANK遇到非空值必须失败" component_type="接口" expect_fail="是">
+        <test_case>
+            <test_step action="send" model="HttpGet" data="FIELDS"/>
+            <test_step action="verify" model="FieldsResp" data="N_BLANK"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC-HV-026-08" title="verify NULL遇到非空值必须失败" component_type="接口" expect_fail="是">
+        <test_case>
+            <test_step action="send" model="HttpGet" data="FIELDS"/>
+            <test_step action="verify" model="FieldsResp" data="N_NULL"/>
+        </test_case>
+    </case>
+</cases>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<globalvalue>
+    <group name="DefaultValue">
+        <!-- 自动等待（毫秒）：静态页面元素立即就绪；负向 verify 约 2s 后判定失败 -->
+        <var name="AutoWait" value="2000"/>
+        <!-- 步骤后固定等待（毫秒），交互等待由 AutoWait 负责 -->
+        <var name="WaitTime" value="0"/>
+    </group>
+    <group name="Site">
+        <!-- 本模块专用静态页面 fun/site/，由 run_acceptance.py 在 18140 端口启动 -->
+        <var name="URL" value="http://127.0.0.1:18140"/>
+    </group>
+    <group name="Demo">
+        <!-- 共享被测站点 rodski-demo/_sites/demosite -->
+        <var name="URL" value="http://localhost:8000"/>
+    </group>
+</globalvalue>

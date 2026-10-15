@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- plan_selector 只验收"执行范围选择"：用例步骤全部是 run fun/mark.py（记录执行轨迹），不需要任何模型 -->
+<models>
+</models>

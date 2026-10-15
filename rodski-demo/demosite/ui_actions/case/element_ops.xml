@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  F040 UI 元素级操作符 $count / $count_gte / $count_lte / $exists / $visible
+  （TEST_CASE_WRITING_GUIDE §5.7.1；CORE §4.6.1 元素级原生断言）
+  页面 #list 有 5 个 li.item（其中 1 个 display:none）；#absent 不存在；#hiddenEl display:none。
+  负向用例 expect_fail="是"：verify 必须真的失败（0 匹配不得被跳过，CORE §4.6.1 防静默通过）。
+-->
+<cases tags="ui_actions,F040">
+    <case execute="是" id="OPS_ELEM_OK" title="$count=5 / $count_gte=3 / $exists true,false / $visible true,false" component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/ops.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="verify" model="ElemOps" data="V_OK"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="OPS_ELEM_BOUND" title="边界：$count_lte=5 / $count_gte=5 / 不存在元素 $visible:false / 隐藏元素 $exists:true" component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/ops.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="verify" model="ElemOps" data="V_BOUND"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="OPS_ELEM_N_COUNT" title="负向：$count 6（实际 5）" component_type="界面" priority="P1" expect_fail="是">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/ops.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="verify" model="ElemOps" data="N_COUNT"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="OPS_ELEM_N_GTE" title="负向：$count_gte 6（实际 5）" component_type="界面" priority="P1" expect_fail="是">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/ops.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="verify" model="ElemOps" data="N_GTE"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="OPS_ELEM_N_LTE" title="负向：$count_lte 4（实际 5）" component_type="界面" priority="P1" expect_fail="是">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/ops.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="verify" model="ElemOps" data="N_LTE"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="OPS_ELEM_N_EXISTS" title="负向：不存在的元素 $exists:true" component_type="界面" priority="P1" expect_fail="是">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/ops.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="verify" model="ElemOps" data="N_EXISTS"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="OPS_ELEM_N_NOTEXISTS" title="负向：存在的元素 $exists:false" component_type="界面" priority="P1" expect_fail="是">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/ops.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="verify" model="ElemOps" data="N_NOTEXISTS"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="OPS_ELEM_N_VISFALSE" title="负向：可见元素 $visible:false" component_type="界面" priority="P1" expect_fail="是">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/ops.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="verify" model="ElemOps" data="N_VISFALSE"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="OPS_ELEM_N_VISTRUE" title="负向：隐藏元素 $visible:true" component_type="界面" priority="P1" expect_fail="是">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/ops.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="verify" model="ElemOps" data="N_VISTRUE"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="OPS_ELEM_N_VISABSENT" title="负向：不存在的元素 $visible:true" component_type="界面" priority="P1" expect_fail="是">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/ops.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="verify" model="ElemOps" data="N_VISABSENT"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+</cases>

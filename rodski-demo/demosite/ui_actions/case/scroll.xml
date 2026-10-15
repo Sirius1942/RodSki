@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  F025 scroll / scroll【x,y】（TEST_CASE_WRITING_GUIDE §5.4：scroll 默认向下 300px；scroll【x,y】自定义滚动距离）
+  页面右上角固定区实时显示 scrollX,scrollY 与远处元素是否进入视口。
+-->
+<cases tags="ui_actions,F025">
+    <case execute="是" id="SCROLL_DEFAULT" title="scroll 默认向下 300px" component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/scroll.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="verify" model="ScrollView" data="V_INIT"/>
+            <test_step action="type" model="ScrollPage" data="S_DEF"/>
+            <test_step action="verify" model="ScrollView" data="V_300"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="SCROLL_XY" title="scroll【0,500】自定义距离" component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/scroll.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="ScrollPage" data="S_DOWN500"/>
+            <test_step action="verify" model="ScrollView" data="V_500"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="SCROLL_CHAIN" title="连续滚动：远处元素进入视口、水平滚动、负值回滚" component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/scroll.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="verify" model="ScrollView" data="V_INIT"/>
+            <test_step action="type" model="ScrollPage" data="S_DEF"/>
+            <test_step action="type" model="ScrollPage" data="S_DOWN500"/>
+            <test_step action="verify" model="ScrollView" data="V_800"/>
+            <test_step action="type" model="ScrollPage" data="S_RIGHT200"/>
+            <test_step action="verify" model="ScrollView" data="V_X"/>
+            <test_step action="type" model="ScrollPage" data="S_UP300"/>
+            <test_step action="verify" model="ScrollView" data="V_UP"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+</cases>

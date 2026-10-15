@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  F067 <if>/<else> 条件为假走 else 分支（TEST_CASE_WRITING_GUIDE §3.8 <if>；CORE §12.2~§12.4、§12.6）
+  写法约定（用例自检）：
+    - "按文档不应执行"的分支放 run fail.py → 走错分支时用例自身失败；
+    - "按文档应执行"的分支放 run mark.py（执行轨迹）+ set hits=${hits}x（命中计数）；
+    - 用例末尾 run assert_eq.py ${hits} 期望值 → 条件块被整体跳过（评估失败）时也能发现。
+  每条用例都带"条件为真"的正向对照，避免"条件永远为假"时 else 分支碰巧通过。
+  页面为 GlobalValue.CfPage.READY 内嵌 data: URL（含 #title=CF-PAGE-READY、#status=PAID）。
+-->
+<cases step_wait="0" tags="flow,branch">
+
+    <case execute="是" id="F067_01" title="F067 文本条件为假走 else（含为真对照与 text_not_contains）"
+          component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.CfPage.READY"/>
+            <test_step action="set" model="" data="hits=n"/>
+        </pre_process>
+        <test_case>
+            <if condition="text_contains('NO-SUCH-TEXT')">
+                <test_step action="run" model="" data="fail.py F067_01_then_should_not_run"/>
+                <else>
+                    <test_step action="run" model="" data="mark.py F067_01_else"/>
+                    <test_step action="set" model="" data="hits=${hits}x"/>
+                </else>
+            </if>
+            <if condition="text_contains('CF-PAGE-READY')">
+                <test_step action="run" model="" data="mark.py F067_01_then"/>
+                <test_step action="set" model="" data="hits=${hits}x"/>
+                <else>
+                    <test_step action="run" model="" data="fail.py F067_01_else_should_not_run"/>
+                </else>
+            </if>
+            <if condition="text_not_contains('CF-PAGE-READY')">
+                <test_step action="run" model="" data="fail.py F067_01_not_contains_then_should_not_run"/>
+                <else>
+                    <test_step action="run" model="" data="mark.py F067_01_not_contains_else"/>
+                    <test_step action="set" model="" data="hits=${hits}x"/>
+                </else>
+            </if>
+            <test_step action="run" model="" data="assert_eq.py ${hits} nxxx F067_01命中次数"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="F067_02" title="F067 变量条件 ${flag} 为假走 else、为真走 then（GUIDE §3.8 支持变量引用）"
+          component_type="接口" priority="P1">
+        <pre_process>
+            <test_step action="set" model="" data="hits=n"/>
+            <test_step action="set" model="" data="flag=off"/>
+        </pre_process>
+        <test_case>
+            <if condition="${flag} == on">
+                <test_step action="run" model="" data="fail.py F067_02_then_should_not_run"/>
+                <else>
+                    <test_step action="run" model="" data="mark.py F067_02_else"/>
+                    <test_step action="set" model="" data="hits=${hits}x"/>
+                </else>
+            </if>
+            <if condition="${flag} == off">
+                <test_step action="run" model="" data="mark.py F067_02_then"/>
+                <test_step action="set" model="" data="hits=${hits}x"/>
+                <else>
+                    <test_step action="run" model="" data="fail.py F067_02_else_should_not_run"/>
+                </else>
+            </if>
+            <test_step action="run" model="" data="assert_eq.py ${hits} nxx F067_02命中次数"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="F067_03" title="F067 Return 条件 ${Return[-1].status} == 200（GUIDE §3.8 示例写法）"
+          component_type="接口" priority="P1">
+        <pre_process>
+            <test_step action="set" model="" data="hits=n"/>
+        </pre_process>
+        <test_case>
+            <test_step action="run" model="" data="emit.py 404 not_found"/>
+            <if condition="${Return[-1].status} == 200">
+                <test_step action="run" model="" data="fail.py F067_03_then_should_not_run"/>
+                <else>
+                    <test_step action="set" model="" data="hits=${hits}x"/>
+                    <test_step action="run" model="" data="mark.py F067_03_else"/>
+                </else>
+            </if>
+            <test_step action="run" model="" data="emit.py 200 ok"/>
+            <if condition="${Return[-1].status} == 200">
+                <test_step action="set" model="" data="hits=${hits}x"/>
+                <test_step action="run" model="" data="mark.py F067_03_then"/>
+                <else>
+                    <test_step action="run" model="" data="fail.py F067_03_else_should_not_run"/>
+                </else>
+            </if>
+            <test_step action="run" model="" data="assert_eq.py ${hits} nxx F067_03命中次数"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="F067_04" title="F067 Return 条件 ${Return[-1].status == 200}（CORE §12.3 写法）"
+          component_type="接口" priority="P2">
+        <pre_process>
+            <test_step action="set" model="" data="hits=n"/>
+        </pre_process>
+        <test_case>
+            <test_step action="run" model="" data="emit.py 404 not_found"/>
+            <if condition="${Return[-1].status == 200}">
+                <test_step action="run" model="" data="fail.py F067_04_then_should_not_run"/>
+                <else>
+                    <test_step action="set" model="" data="hits=${hits}x"/>
+                    <test_step action="run" model="" data="mark.py F067_04_else"/>
+                </else>
+            </if>
+            <test_step action="run" model="" data="emit.py 200 ok"/>
+            <if condition="${Return[-1].status == 200}">
+                <test_step action="set" model="" data="hits=${hits}x"/>
+                <test_step action="run" model="" data="mark.py F067_04_then"/>
+                <else>
+                    <test_step action="run" model="" data="fail.py F067_04_else_should_not_run"/>
+                </else>
+            </if>
+            <test_step action="run" model="" data="assert_eq.py ${hits} nxx F067_04命中次数"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="F067_05" title="F067 element_exists / element_not_exists 条件（CORE §12.3）"
+          component_type="界面" priority="P2">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.CfPage.READY"/>
+            <test_step action="set" model="" data="hits=n"/>
+        </pre_process>
+        <test_case>
+            <if condition="element_exists(#no_such_element)">
+                <test_step action="run" model="" data="fail.py F067_05_exists_missing_should_not_run"/>
+                <else>
+                    <test_step action="run" model="" data="mark.py F067_05_exists_missing_else"/>
+                    <test_step action="set" model="" data="hits=${hits}x"/>
+                </else>
+            </if>
+            <if condition="element_exists(#status)">
+                <test_step action="run" model="" data="mark.py F067_05_exists_present_then"/>
+                <test_step action="set" model="" data="hits=${hits}x"/>
+                <else>
+                    <test_step action="run" model="" data="fail.py F067_05_exists_present_else_should_not_run"/>
+                </else>
+            </if>
+            <if condition="element_not_exists(#status)">
+                <test_step action="run" model="" data="fail.py F067_05_not_exists_present_should_not_run"/>
+                <else>
+                    <test_step action="run" model="" data="mark.py F067_05_not_exists_present_else"/>
+                    <test_step action="set" model="" data="hits=${hits}x"/>
+                </else>
+            </if>
+            <test_step action="run" model="" data="assert_eq.py ${hits} nxxx F067_05命中次数"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+</cases>

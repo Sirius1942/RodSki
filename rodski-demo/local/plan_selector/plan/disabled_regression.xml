@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- F092：test_plan.execute="否" 高于其下所有 case/scenario 的 execute="是" 与 default_execute="是"，整个计划不执行任何用例 -->
+<test_plan id="disabled_regression" title="整个计划关闭" kind="suite" execute="否" default_execute="是">
+  <case file="catalog/catalog_basic.xml" id="CAT_001" execute="是"/>
+  <case file="checkout/checkout_flow.xml" id="CHK_001" execute="是">
+    <scenario id="S01" execute="是"/>
+  </case>
+</test_plan>

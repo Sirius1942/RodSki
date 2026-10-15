@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>Return 跨源比对</title></head>
+<body>
+<h1>UI _verify 引用 ${Return[-N]} 验收页</h1>
+<!-- 每次加载随机生成，用例无法写死期望值，只能引用前序 get 的返回值 -->
+<p>订单号 <span id="orderNo"></span> 其他单号 <span id="otherNo"></span></p>
+<p>镜像订单号 <span id="orderNoMirror"></span></p>
+<p><button id="copyBtn">复制订单号</button> 复制结果 <span id="copied">none</span></p>
+<script>
+  const rnd = () => String(Math.floor(100000 + Math.random() * 900000));
+  const orderNo = 'ORD-' + rnd();
+  const otherNo = 'OTH-' + rnd();
+  document.getElementById('orderNo').textContent = orderNo;
+  document.getElementById('otherNo').textContent = otherNo;
+  document.getElementById('orderNoMirror').textContent = orderNo;
+  document.getElementById('copyBtn').addEventListener('click', () => {
+    document.getElementById('copied').textContent = orderNo;
+  });
+</script>
+</body>
+</html>

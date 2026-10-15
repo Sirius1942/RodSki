@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  scenario 级选择目标（GUIDE §3.4 / §10.2）：
+    CHK_001 P0：pre_process + 裸步骤 + S01(positive; smoke,p0; 3 步) + S02(negative; slow) + S03(positive; api) + post_process
+    CHK_002 P1：S01(negative; smoke) + S02(positive; api)
+    CHK_003 P0：execute="否"（case XML 硬关闭，任何 plan / selector 都不得执行，GUIDE §10.9）
+  每个步骤 run mark.py "<case>/<scenario>/<步号>"，编排脚本据此断言实际执行到哪一步。
+-->
+<cases tags="checkout">
+    <case execute="是" id="CHK_001" title="下单主流程 P0" component_type="接口" priority="P0">
+        <pre_process>
+            <test_step action="run" model="" data="mark.py CHK_001/pre"/>
+        </pre_process>
+        <test_case>
+            <test_step action="run" model="" data="mark.py CHK_001/bare"/>
+            <scenario id="S01" title="正常下单" group="positive" tag="smoke,p0">
+                <test_step action="run" model="" data="mark.py CHK_001/S01/1"/>
+                <test_step action="run" model="" data="mark.py CHK_001/S01/2"/>
+                <test_step action="run" model="" data="mark.py CHK_001/S01/3"/>
+            </scenario>
+            <scenario id="S02" title="库存不足" group="negative" tag="slow">
+                <test_step action="run" model="" data="mark.py CHK_001/S02/1"/>
+            </scenario>
+            <scenario id="S03" title="接口下单" group="positive" tag="api">
+                <test_step action="run" model="" data="mark.py CHK_001/S03/1"/>
+            </scenario>
+        </test_case>
+        <post_process>
+            <test_step action="run" model="" data="mark.py CHK_001/post"/>
+        </post_process>
+    </case>
+    <case execute="是" id="CHK_002" title="退款流程 P1" component_type="接口" priority="P1">
+        <test_case>
+            <scenario id="S01" title="超期退款被拒" group="negative" tag="smoke">
+                <test_step action="run" model="" data="mark.py CHK_002/S01/1"/>
+            </scenario>
+            <scenario id="S02" title="正常退款" group="positive" tag="api">
+                <test_step action="run" model="" data="mark.py CHK_002/S02/1"/>
+            </scenario>
+        </test_case>
+    </case>
+    <case execute="否" id="CHK_003" title="已下线流程（case 级 execute=否）" component_type="接口" priority="P0">
+        <test_case>
+            <scenario id="S01" title="不应执行" group="positive" tag="smoke">
+                <test_step action="run" model="" data="mark.py CHK_003/S01/1"/>
+            </scenario>
+        </test_case>
+    </case>
+</cases>

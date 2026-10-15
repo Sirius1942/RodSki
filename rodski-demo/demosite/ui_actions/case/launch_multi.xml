@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  F017 多浏览器对象 launch（正向）
+  文档：.pb/specs/SPEC-012-debugging-design-constraints.md §1.2（test_step 新增 id / target：launch 用 id 命名对象，
+  后续步骤用 target 指定操作对象）与 SPEC-012-user-guide 多对象示例。单独成文件：若 case.xsd 不接受 id/target，
+  只影响本文件。
+-->
+<cases tags="ui_actions,F017">
+    <case execute="是" id="LAUNCH_MULTI" title="两个浏览器对象：买家操作不影响卖家页面" component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="launch" model="" data="GlobalValue.Site.URL/buyer.html" id="buyer_browser"/>
+            <test_step action="launch" model="" data="GlobalValue.Site.URL/seller.html" id="seller_browser"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" target="buyer_browser" model="BuyerForm" data="B001"/>
+            <test_step action="verify" target="buyer_browser" model="BuyerView" data="B001"/>
+            <test_step action="verify" target="seller_browser" model="SellerView" data="S001"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" target="buyer_browser" model="" data=""/>
+            <test_step action="close" target="seller_browser" model="" data=""/>
+        </post_process>
+    </case>
+</cases>

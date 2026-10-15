@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- F065 <metadata> 元信息子元素：位于 pre_process 之前，只记录元信息、不影响执行
+     依据：TEST_CASE_WRITING_GUIDE.md §3.2「<metadata> 可选子元素」；case.xsd MetadataType
+     run_acceptance.py 断言：case.xsd 校验通过；用例 PASS；执行后用例文件不被改写；metadata 放在 pre_process 之后的样例 xsd 校验失败 -->
+<cases tags="data_rules,f065">
+    <case execute="是" id="F065_METADATA" title="带完整 metadata 的用例正常执行" component_type="接口" priority="P2">
+        <metadata created_by="agent" created_at="2026-10-15" updated_by="agent" updated_at="2026-10-15" success_rate="95%" last_run="2026-10-15 10:00:00"/>
+        <pre_process>
+            <test_step action="run" model="" data="emit.py pre"/>
+        </pre_process>
+        <test_case>
+            <test_step action="run" model="" data="emit.py meta"/>
+        </test_case>
+    </case>
+</cases>

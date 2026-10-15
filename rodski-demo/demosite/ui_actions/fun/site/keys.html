@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>key_press</title></head>
+<body>
+<h1>key_press 验收页</h1>
+<p><input id="kpInput" autocomplete="off"> 回显 <span id="kpEcho">V:</span> 回车结果 <span id="kpResult">none</span></p>
+<p><input id="kpOther" autocomplete="off"> 另一输入框按键结果 <span id="kpOtherResult">none</span></p>
+<p>当前焦点 <span id="focusState">FOCUS:none</span></p>
+<script>
+  const kpInput = document.getElementById('kpInput');
+  const kpOther = document.getElementById('kpOther');
+  kpInput.addEventListener('input', () => {
+    document.getElementById('kpEcho').textContent = 'V:' + kpInput.value;
+  });
+  kpInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('kpResult').textContent = 'ENTER:' + kpInput.value;
+  });
+  kpOther.addEventListener('keydown', (e) => {
+    document.getElementById('kpOtherResult').textContent = 'OTHER:' + e.key;
+  });
+  for (const el of [kpInput, kpOther]) {
+    el.addEventListener('focus', () => {
+      document.getElementById('focusState').textContent = 'FOCUS:' + el.id;
+    });
+  }
+</script>
+</body>
+</html>

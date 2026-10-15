@@ -83,4 +83,11 @@
     </element>
 </model>
 
+<!-- case/flow/ 验收：F069 loop 内 DB/verify 逐轮解析 DataID（连接 cf_db 为 result/ 下的临时 SQLite 文件，只执行常量 SELECT） -->
+<model name="CfQuery" type="database" connection="cf_db" servicename="">
+    <element name="label" type="database">
+        <location type="field">label</location>
+    </element>
+</model>
+
 </models>

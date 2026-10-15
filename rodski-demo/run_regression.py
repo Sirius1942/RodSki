@@ -137,6 +137,14 @@ def entries() -> List[Entry]:
         Entry("local", "local/autowait（含 _zero/_long）", [PY, str(L / "autowait/run_acceptance.py")]),
         Entry("local", "local/authoring（含 _no_retry/_pitfalls）", [PY, str(L / "authoring/run_acceptance.py")]),
         Entry("local", "local/nested_case（含 _single/_dup_id）", [PY, str(L / "nested_case/run_acceptance.py")]),
+        Entry("local", "local/control_flow 分支/循环/等待", [PY, str(L / "control_flow/run_acceptance.py")]),
+        Entry("local", "local/plan_selector", [PY, str(L / "plan_selector/run_acceptance.py")]),
+        Entry("local", "local/data_rules", [PY, str(L / "data_rules/run_acceptance.py")]),
+        Entry("local", "local/dialog_*（accept/dismiss/default）", [PY, str(L / "dialog_accept/run_acceptance.py")]),
+        Entry("local", "local/session_shared", [PY, str(L / "session_shared/run_acceptance.py")]),
+        Entry("local", "local/hooks 扩展事件", [PY, str(L / "hooks/run_acceptance_extra.py")]),
+        Entry("local", "local/runtime_control 终止", [PY, str(L / "runtime_control/run_acceptance_extra.py")]),
+        Entry("local", "local/roaming 扩展", [PY, str(L / "roaming/run_acceptance_extra.py")]),
         Entry("local", "local/debug_partial_execution", rodski("run", str(L / "debug_partial_execution/case")),
               known="REQ-012 调试交互能力未实现，仅 AC-018 通过"),
     ]
@@ -150,13 +158,17 @@ def entries() -> List[Entry]:
         Entry("demosite", "demosite/pause_takeover", [PY, str(D / "pause_takeover/run_demo.py")], service=demosite),
         Entry("demosite", "demosite/load @api_load_basic", rodski("run", "@api_load_basic"), cwd=D / "load",
               service=demosite),
+        Entry("demosite", "demosite/load 扩展（summary/CLI）", [PY, str(D / "load/run_acceptance_extra.py")], service=demosite),
+        Entry("demosite", "demosite/ui_actions", [PY, str(D / "ui_actions/run_acceptance.py")], service=demosite),
+        Entry("demosite", "demosite/network", [PY, str(D / "network/run_acceptance.py")], service=demosite),
         Entry("demosite", "demosite/load case/", rodski("run", str(D / "load/case"), "--headless"),
-              expect="2/2", known="verify 行缺 _method 字段（strict），存量 0/2", service=demosite),
+              expect="5/5", known="TC-LOAD-001/002 verify 行缺 _method 字段（strict，见 bug A21），3/5", service=demosite),
         Entry("demosite", "demosite/core_keywords", rodski("run", str(D / "core_keywords/case"), "--headless"),
-              expect="12/12", known="TC020~022 期望值与数据不符、TC025/029 verify 缺字段、TC031 缺 cv2，存量 6/12",
+              expect="12/12", known="TC020~022 期望值与数据不符、TC025/029 verify 缺字段、TC031 assert 图片 cv2 未导入（框架 Bug），存量 6/12",
               service=demosite),
     ]
     # mock_api：自带 mock，回归时改用 18001 避免与 demosite :8000 冲突
+    E.append(Entry("mock_api", "mock_api/http_verify", [PY, str(DEMO / "mock_api/http_verify/run_acceptance.py")]))
     E.append(Entry("mock_api", "mock_api/business_model (login_flows)", [PY, "-c", _BUSINESS_SNIPPET], expect="3/3"))
     # mobile
     E += [
@@ -251,6 +263,7 @@ finally:
 # ── 执行与记录 ──────────────────────────────────────────
 
 SUMMARY_RE = re.compile(r"^执行完成: (\d+)/(\d+) 通过", re.M)  # 行首，排除嵌套子进程的缩进输出
+TALLY_RE = re.compile(r"^(?:汇总|验收结果)[:：].*$", re.M)
 
 
 def restore_artifacts() -> None:
@@ -262,6 +275,13 @@ def restore_artifacts() -> None:
             and "mobile/app/data/data.sqlite" not in p]
     if keep:
         subprocess.run(["git", "-C", str(REPO), "checkout", "--", *keep], capture_output=True)
+
+
+def remove_web_recordings(since: float) -> None:
+    """browser_plugin 用例会让 web 服务写录制文件（被跟踪目录），清掉本轮新增的。"""
+    for f in (REPO / "web" / "recordings").glob("recording_*.json"):
+        if f.stat().st_mtime >= since:
+            f.unlink()
 
 
 def collect_cases(since: float) -> dict:
@@ -299,6 +319,17 @@ def run_entry(e: Entry, raw: Path) -> tuple:
     actual = f"{found[-1][0]}/{found[-1][1]}" if found else None
     ok = (actual == e.expect) if e.expect else p.returncode == 0
     detail = f"实际 {actual}" if actual else f"exit {p.returncode}"
+    tally = TALLY_RE.findall(out)
+    if tally and not e.expect:
+        # 编排脚本汇总行（`汇总: PASS=x FAIL=y KNOWN=z` 或 `汇总: PASS x KNOWN y FAIL z`）
+        counts = {k: int(v) for k, v in re.findall(r"(PASS|FAIL|KNOWN)[=\s]+(\d+)", tally[-1])}
+        detail = tally[-1].strip()
+        if counts.get("FAIL"):
+            ok = False
+        elif counts.get("KNOWN"):
+            return "KNOWN", f"{detail}（KNOWN 为已登记的框架缺陷，见模块 README）"
+        else:
+            ok = True
     if ok:
         return "PASS", detail
     if e.known:
@@ -335,6 +366,7 @@ def main() -> int:
     finally:
         cases = collect_cases(start)
         restore_artifacts()
+        remove_web_recordings(start)
     (out_dir / "summary.tsv").write_text("".join(f"{s}\t{n}\t{d}\n" for s, n, d in rows), encoding="utf-8")
     (out_dir / "cases.json").write_text(json.dumps(cases, ensure_ascii=False, indent=1), encoding="utf-8")
     counts = {s: sum(1 for r in rows if r[0] == s) for s in ("PASS", "FAIL", "KNOWN", "ENV_BLOCKED")}

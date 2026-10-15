@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- F072 DialogPolicy 默认值 fail（globalvalue 不写 DialogPolicy）：
+     CORE §2.5.6 第 4 条 / §7.4、GUIDE §4.3.4 / §6.4.3 ——
+     未注册处理器的弹窗让出现弹窗的步骤立即失败，错误信息包含弹窗文本，不会卡住等待，也不会静默吞掉。
+     负向用例用 expect_fail="是"：result.xml 中 PASS 表示「步骤确实失败了」；
+     错误文本与耗时由 dialog_accept/run_acceptance.py 断言。 -->
+<cases tags="f072,dialog_policy,fail">
+  <case execute="是" id="TC001" title="默认 fail：未注册处理器的 confirm 使 type 步骤失败" component_type="界面" priority="P0" expect_fail="是">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/dialog.html"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="DialogPolicyPage" data="D_CONFIRM"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+
+  <case execute="是" id="TC002" title="默认 fail：未注册处理器的 alert 使 type 步骤失败" component_type="界面" priority="P0" expect_fail="是">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/dialog.html"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="DialogPolicyPage" data="D_ALERT"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+
+  <case execute="是" id="TC003" title="默认 fail 下注册一次性 accept 后 confirm 正常通过" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/dialog.html"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="DialogPolicyPage" data="D_ONCE_ACCEPT_CONFIRM"/>
+      <test_step action="verify" model="DialogPolicyPage" data="V_CONFIRM_TRUE"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+
+  <!-- TC004 + TC005：用例结束时未被使用的一次性处理器必须清除，不影响下一个用例（CORE §2.5.6 第 4 条）。
+       TC004 刻意不写 close，让同一浏览器/驱动延续到 TC005（等价于以往「不写 close」的会话复用写法），
+       否则新浏览器天然没有处理器，验证会空洞通过。 -->
+  <case execute="是" id="TC004" title="只注册一次性 accept 不触发弹窗（不 close，驱动延续到下一用例）" component_type="界面" priority="P1">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/dialog.html"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="DialogPolicyPage" data="D_REGISTER_ONLY"/>
+    </test_case>
+  </case>
+
+  <case execute="是" id="TC005" title="上一用例遗留的处理器已清除：confirm 仍按默认 fail 失败" component_type="界面" priority="P1" expect_fail="是">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/dialog.html"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="DialogPolicyPage" data="D_CONFIRM"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+</cases>

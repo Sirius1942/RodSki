@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- F092：default_execute="是" 时未提及的 case/scenario 默认执行；显式 execute="否" 的 case / scenario 不执行 -->
+<test_plan id="defaulton_regression" title="默认执行 + 显式关闭" kind="suite" execute="是" default_execute="是">
+  <case file="catalog/catalog_basic.xml" id="CAT_002" execute="否"/>
+  <case file="checkout/checkout_flow.xml" id="CHK_001" execute="是">
+    <scenario id="S02" execute="否"/>
+  </case>
+</test_plan>

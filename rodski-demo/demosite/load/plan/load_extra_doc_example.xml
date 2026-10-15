@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- LOAD_TESTING_GUIDE.md §2 Step 2 / §4.1 示例照写（<cases> 包裹 + case id），仅替换 case id、缩短时长 -->
+<test_plan id="load_extra_doc_example" kind="load">
+  <load_profile mode="api">
+    <concurrency>2</concurrency>
+    <duration_seconds>4</duration_seconds>
+    <ramp_up_seconds>0</ramp_up_seconds>
+    <think_time_ms min="100" max="200"/>
+  </load_profile>
+  <cases>
+    <case id="TC-LOAD-X01" execute="是" weight="1"/>
+  </cases>
+</test_plan>

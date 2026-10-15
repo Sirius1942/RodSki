@@ -33,13 +33,17 @@ python3 rodski-demo/run_regression.py --desktop       # 额外执行会操作鼠
 | 模块 | 验收内容 | 规定入口 |
 |------|---------|---------|
 | `expressions/` | 内置函数、数组、断言操作符、match_mode | `rodski run case/` |
-| `control_flow/` | if/elif/else、loop、scenario tags/depends | `run_v7_demo.py` |
-| `hooks/` | Hook 事件与权限 | `run_demo.py` |
-| `runtime_control/` | 暂停 / 恢复 / 插入步骤 | `run_demo.py` |
-| `roaming/` | 漫游执行 | `run_demo.py` |
+| `control_flow/` | if/elif/else 与嵌套、loop、scenario depends、三阶段失败语义、WaitTime/step_wait | `run_v7_demo.py`、`run_acceptance.py` |
+| `plan_selector/` | --tags/--priority/--exclude-tags、--tag/--group、执行优先级、plan 子命令、默认计划、调试计划 | `run_acceptance.py` |
+| `hooks/` | Hook 事件与权限；扩展事件 on_session_start / after_keyword / on_case_failure / on_run_end | `run_demo.py`、`run_acceptance_extra.py` |
+| `runtime_control/` | 暂停 / 恢复 / 插入步骤；终止 / 强制终止 | `run_demo.py`、`run_acceptance_extra.py` |
+| `roaming/` | 漫游执行；默认引擎、`--case-file/--case-id`、SKI801~803 | `run_demo.py`、`run_acceptance_extra.py` |
 | `nested_case/` + `_single` + `_dup_id` | 嵌套目录用例、case_file::case_id 身份（v11.5） | `nested_case/run_acceptance.py` |
 | `authoring/` + `_pitfalls` + `_no_retry` | AI 编写契约、lint、断言可靠性（v11.5.2+） | `authoring/run_acceptance.py` |
 | `autowait/` + `_zero` + `_long` | 自动等待（v11.7） | `autowait/run_acceptance.py` |
+| `data_rules/` | 数据规则：BLANK/NULL/NONE、.Password 脱敏、data 子命令、字段集合一致、Return 引用、生成函数、metadata、XSD | `run_acceptance.py` |
+| `dialog_accept/` + `dialog_dismiss` + `dialog_default` | DialogPolicy accept / dismiss / 默认 fail、一次性处理器、非法值 | `dialog_accept/run_acceptance.py` |
+| `session_shared/` | SessionMode shared_session 与 `--session-mode` 覆盖 | `run_acceptance.py` |
 | `debug_partial_execution/` | 调试与局部执行验收（REQ-012，37 条） | `rodski run case/` |
 | `debug_partial_execution_targets/` | 上一模块驱动的被测用例 | 由上一模块调用 |
 
@@ -49,7 +53,9 @@ python3 rodski-demo/run_regression.py --desktop       # 额外执行会操作鼠
 |------|---------|---------|
 | `full/` | 主回归：UI、接口、SQLite、Return 引用、定位器、多窗口/iframe、内置函数、录制、JS 覆盖率；发布 Stage 2/4 使用其子集 | `rodski run case/ --headless` |
 | `core_keywords/` | 关键字基础示例：SQLite 查询/插入、GlobalValue、Return 链、Set/Get、assert 图片、clear/check、run 脚本 | `rodski run case/ --headless` |
-| `load/` | 性能压测计划 | `rodski run @api_load_basic`（在模块目录下） |
+| `load/` | 性能压测计划；load_summary/错误率、--load-ui/--no-compile/--dry-run、mode=browser | `rodski run @api_load_basic`（在模块目录下）、`run_acceptance_extra.py` |
+| `ui_actions/` | UI 原子动作（key_press/drag/scroll）、控制值、class/tag/text 定位器、verify 操作符、launch、assert 图片、Return 引用、生成值 | `run_acceptance.py` |
+| `network/` | mock_route/clear_routes、wait_for_response/request_log、JS 覆盖率 | `run_acceptance.py`（仓库根目录执行） |
 | `pause_takeover/` | CDP 共享浏览器暂停接管 | `run_demo.py` |
 
 ### `mock_api/`
@@ -57,6 +63,7 @@ python3 rodski-demo/run_regression.py --desktop       # 额外执行会操作鼠
 | 模块 | 验收内容 | 规定入口 |
 |------|---------|---------|
 | `business_model/` | 业务模型 business_call（v11.4），自带 `server.py` mock | `acceptance.py`；回归时改用 18001 端口 |
+| `http_verify/` | send + verify：HTTP status 与响应字段、BLANK/NULL/NONE、断言操作符、DB verify 操作符；自带 `server.py`（18150） | `run_acceptance.py` |
 
 ### `mobile/` 需 Android 模拟器 + Appium
 

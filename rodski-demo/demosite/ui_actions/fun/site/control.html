@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>BLANK/NULL/NONE</title></head>
+<body>
+<h1>UI 控制值 BLANK / NULL / NONE 验收页</h1>
+<p>fb <input id="fb" value="orig-b"> <span id="eb"></span> 聚焦次数 <span id="cb">0</span></p>
+<p>fn <input id="fn" value="orig-n"> <span id="en"></span> 聚焦次数 <span id="cn">0</span></p>
+<p>fo <input id="fo" value="orig-o"> <span id="eo"></span> 聚焦次数 <span id="co">0</span></p>
+<p>fp <input id="fp" value=""> <span id="ep"></span></p>
+<p>噪声文本 <span id="noise">random-noise</span></p>
+<script>
+  const pairs = { fb: ['eb', 'B:', 'cb'], fn: ['en', 'N:', 'cn'], fo: ['eo', 'O:', 'co'], fp: ['ep', 'P:', null] };
+  for (const [id, [echo, prefix, counter]] of Object.entries(pairs)) {
+    const input = document.getElementById(id);
+    const show = () => { document.getElementById(echo).textContent = prefix + input.value; };
+    input.addEventListener('input', show);
+    show();
+    if (counter) {
+      input.addEventListener('focus', () => {
+        const c = document.getElementById(counter);
+        c.textContent = String(Number(c.textContent) + 1);
+      });
+    }
+  }
+</script>
+</body>
+</html>

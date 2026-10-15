@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>Buyer Console</title></head>
+<body>
+<h1 id="title">Buyer Console</h1>
+<input id="msg" autocomplete="off"> <button id="sendBtn">发送</button>
+<p>状态 <span id="status">IDLE</span></p>
+<script>
+  document.getElementById('sendBtn').addEventListener('click', () => {
+    document.getElementById('status').textContent = 'SENT:' + document.getElementById('msg').value;
+  });
+</script>
+</body>
+</html>

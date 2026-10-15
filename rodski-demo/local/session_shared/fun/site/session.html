@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>SessionMode 验收页</title>
+</head>
+<body>
+<!-- F073 SessionMode 验收页：加载时把 localStorage / cookie 中的标记显示出来（没有则显示 none），
+     点击 markBtn 写入标记 S1。用来判断两个用例之间浏览器会话（context）是否共享。 -->
+<h1>SessionMode</h1>
+<button id="markBtn" onclick="mark()">写入标记</button>
+<p>localStorage: <span id="storageVal"></span></p>
+<p>cookie: <span id="cookieVal"></span></p>
+<script>
+function readCookie(name) {
+  var m = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+  return m ? decodeURIComponent(m[1]) : null;
+}
+function render() {
+  document.getElementById('storageVal').textContent = localStorage.getItem('rodski_mark') || 'none';
+  document.getElementById('cookieVal').textContent = readCookie('rodski_mark') || 'none';
+}
+function mark() {
+  localStorage.setItem('rodski_mark', 'S1');
+  document.cookie = 'rodski_mark=S1; path=/; max-age=3600';
+  render();
+}
+render();
+</script>
+</body>
+</html>

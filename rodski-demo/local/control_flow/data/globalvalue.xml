@@ -11,4 +11,14 @@
         <var name="type" value="sqlite"/>
         <var name="database" value="/Users/sirius05/Documents/project/RodSki/rodski-demo/demo.db"/>
     </group>
+    <!-- case/flow/ 验收（F067/F068 条件分支）：内嵌 data: 页面，不依赖 :8000 -->
+    <group name="CfPage">
+        <var name="READY" value="data:text/html,%3Ch1%20id%3D%22title%22%3ECF-PAGE-READY%3C%2Fh1%3E%3Cp%20id%3D%22status%22%3EPAID%3C%2Fp%3E"/>
+    </group>
+    <!-- case/flow/ 验收（F069）：DB 关键字只执行常量 SELECT；SQLite 相对路径相对模块目录解析，
+         放在 result/（已 gitignore，运行开始时由框架创建）下，避免在模块目录留下产物 -->
+    <group name="cf_db">
+        <var name="type" value="sqlite"/>
+        <var name="database" value="result/cf_flow.sqlite"/>
+    </group>
 </globalvalue>

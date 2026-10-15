@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>drag</title>
+<style>
+  .zone { width: 220px; height: 110px; border: 2px dashed #667eea; display: inline-flex;
+          align-items: center; justify-content: center; margin: 12px; }
+  #card { width: 90px; height: 60px; background: #667eea; color: #fff; display: flex;
+          align-items: center; justify-content: center; cursor: move; }
+</style></head>
+<body>
+<h1>drag【目标定位器】验收页</h1>
+<div id="card" draggable="true">card</div>
+<div id="dropA" class="zone">A:empty</div>
+<div id="dropB" class="zone">B:empty</div>
+<p>最近一次放置 <span id="dropLog">none</span></p>
+<script>
+  document.getElementById('card').addEventListener('dragstart', (e) => {
+    e.dataTransfer.setData('text/plain', 'card');
+  });
+  for (const id of ['dropA', 'dropB']) {
+    const zone = document.getElementById(id);
+    const label = id.slice(-1);
+    zone.addEventListener('dragover', (e) => e.preventDefault());
+    zone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      zone.textContent = label + ':' + e.dataTransfer.getData('text/plain');
+      document.getElementById('dropLog').textContent = 'DROP:' + id;
+    });
+  }
+</script>
+</body>
+</html>

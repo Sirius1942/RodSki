@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 子目录目标：plan add-dir / case_dir 整目录选入（GUIDE §10.3），不带 scenario -->
+<cases tags="report">
+    <case execute="是" id="RPT_001" title="报表导出 P3" component_type="接口" priority="P3">
+        <test_case>
+            <test_step action="run" model="" data="mark.py RPT_001"/>
+        </test_case>
+    </case>
+</cases>

@@ -1,0 +1,10 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<test_plan id="load_extra_verify_fail" title="F118 verify 失败计入错误率，错误率>5% 退出码 1" kind="load">
+  <load_profile mode="api">
+    <concurrency>2</concurrency>
+    <duration_seconds>5</duration_seconds>
+    <ramp_up_seconds>0</ramp_up_seconds>
+    <think_time_ms min="50" max="150" />
+  </load_profile>
+  <case id="TC-LOAD-001" weight="1" file="api_login.xml" />
+</test_plan>

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  F023 key_press【按键】（TEST_CASE_WRITING_GUIDE §5.4「UI 动作关键字」与「key_press 按键参考」）
+  key_press 只能写在数据表字段值里，由 type 批量识别执行（CORE §1.2）。
+-->
+<cases tags="ui_actions,F023">
+    <case execute="是" id="KP_ENTER" title="key_press【Enter】作用于刚输入的输入框" component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/keys.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="KeyPress" data="K_ENTER"/>
+            <test_step action="verify" model="KeyPressView" data="V_ENTER"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="KP_TAB" title="key_press【Tab】切换焦点（GUIDE §5.4 示例 L002）" component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/keys.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="KeyPress" data="K_TAB"/>
+            <test_step action="verify" model="KeyPressView" data="V_TAB"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="KP_COMBO" title="key_press【Control+A】组合键全选后 Backspace 清空" component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/keys.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="KeyPress" data="K_COMBO"/>
+            <test_step action="verify" model="KeyPressView" data="V_COMBO"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="KP_TARGET" title="key_press 作用于字段对应的目标元素（目标不是当前焦点）" component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/keys.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="KeyPress" data="K_TARGET"/>
+            <test_step action="verify" model="KeyPressView" data="V_TARGET"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+</cases>

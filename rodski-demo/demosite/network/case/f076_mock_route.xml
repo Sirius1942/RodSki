@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+    <!-- F076：mock_route 拦截生效 + clear_routes 后恢复
+         依据：TEST_CASE_WRITING_GUIDE.md §8.6「内置函数（进程内执行，model 必须为空）」；
+               CORE_DESIGN_CONSTRAINTS.md §1.4 in-process 内置函数扩展点
+         被测：demosite :8000 看板（GET /api/orders）与登录（POST /api/login） -->
+
+    <case execute="是" id="TC-NET-076-01" title="mock_route替换订单接口后clear_routes恢复" component_type="界面">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.DefaultValue.URL"/>
+        </pre_process>
+        <test_case>
+            <test_step action="run" model="" data="mock_route(url_pattern='**/api/orders', status=200, body='{&quot;success&quot;:true,&quot;data&quot;:[{&quot;order_id&quot;:&quot;MOCK-0001&quot;,&quot;customer&quot;:&quot;Mock客户&quot;,&quot;amount&quot;:66,&quot;status&quot;:&quot;paid&quot;}]}')"/>
+            <test_step action="verify" model="MockResult" data="V_ORDERS"/>
+            <test_step action="type" model="LoginForm" data="L001"/>
+            <test_step action="verify" model="Dashboard" data="V_MOCK"/>
+            <test_step action="run" model="" data="clear_routes()"/>
+            <test_step action="type" model="NavMenu" data="N_DASH"/>
+            <test_step action="verify" model="Dashboard" data="V_REAL"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="TC-NET-076-02" title="mock_route伪造登录失败后clear_routes恢复真实登录" component_type="界面">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.DefaultValue.URL"/>
+        </pre_process>
+        <test_case>
+            <test_step action="run" model="" data="mock_route(url_pattern='**/api/login', status=200, body='{&quot;success&quot;:false,&quot;message&quot;:&quot;MOCK-拒绝登录&quot;}')"/>
+            <test_step action="type" model="LoginForm" data="L001"/>
+            <test_step action="verify" model="LoginError" data="V_MOCK"/>
+            <test_step action="run" model="" data="clear_routes()"/>
+            <test_step action="type" model="LoginForm" data="L001"/>
+            <test_step action="verify" model="Dashboard" data="V_REAL"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+</cases>

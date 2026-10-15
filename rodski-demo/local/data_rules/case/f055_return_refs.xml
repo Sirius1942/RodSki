@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- F055 ${Return[-2]} / ${Return[0]} / 表名.DataID.字段名 —— 引用只写在数据表字段值中
+     依据：TEST_CASE_WRITING_GUIDE.md §7.2（Return[-2]=上上步、Return[0]=第一步、表名.DataID.字段名）、§7.3、§5.6；
+           CORE_DESIGN_CONSTRAINTS.md §4.2、§4.3（UI verify 允许 ${Return[-N]} 跨源比对）
+     注意：F055_API_REFS / F055_RETURN0 不带 pre_process，test_case 第 1 步（启动 mock 并返回 {"tag":...}）即"第一步" -->
+<cases tags="data_rules,f055">
+    <case execute="是" id="F055_API_REFS" title="数据表字段中 Return[-2]/Return[-1]/表名.DataID.字段名 解析正确" component_type="接口" priority="P0">
+        <test_case>
+            <test_step action="run" model="" data="mock_server.py ensure first"/>
+            <test_step action="run" model="" data="emit.py second"/>
+            <test_step action="run" model="" data="emit.py third"/>
+            <test_step action="send" model="EchoRef" data="D001"/>
+            <test_step action="verify" model="EchoRefResult" data="V001"/>
+        </test_case>
+    </case>
+    <case execute="是" id="F055_RETURN0" title="数据表字段中 ${Return[0]} 取本用例第一步返回值" component_type="接口" priority="P0">
+        <test_case>
+            <test_step action="run" model="" data="mock_server.py ensure step-one"/>
+            <test_step action="run" model="" data="emit.py step-two"/>
+            <test_step action="send" model="EchoRef0" data="D001"/>
+            <test_step action="verify" model="EchoRef0Result" data="V001"/>
+        </test_case>
+    </case>
+    <case execute="是" id="F055_UI_CROSS" title="UI type 引用 Return[-1]；UI verify 期望值引用 Return[-2]（跨源比对）" component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="run" model="" data="mock_server.py ensure"/>
+        </pre_process>
+        <test_case>
+            <test_step action="navigate" model="" data="GlobalValue.Site.Pages/ret.html"/>
+            <test_step action="run" model="" data="emit.py alpha"/>
+            <test_step action="type" model="RetForm" data="R001"/>
+            <test_step action="verify" model="RetOut" data="V001"/>
+        </test_case>
+    </case>
+</cases>

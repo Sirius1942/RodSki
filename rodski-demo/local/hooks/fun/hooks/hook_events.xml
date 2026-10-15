@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- F112 Hook 其他事件（HOOKS_REFERENCE §1~§3）：on_session_start / after_keyword / on_case_failure / on_run_end。
+     HE_PASS 只读查询正常通过；HE_FAIL 引用不存在的数据行，DB 步骤失败 → 用于触发 on_case_failure。
+     只使用只读行 Q_READ，不写 audit_log；由 run_acceptance_extra.py 驱动并断言事件与参数。
+     注意：HE_FAIL 是刻意失败的用例（不加 expect_fail，否则 run 结果统计无法体现 failed=1）。
+     存放位置说明：本文件不放在 case/ 下——plan/demo_plan.xml 的 <case> 未写 file 属性，case/ 下一旦出现
+     第二个用例文件，run_demo.py 的 @demo_plan 步骤会报 SKI207（多用例文件模块中 plan case 引用必须指定 file）。
+     run_acceptance_extra.py 把模块复制到临时目录后，将本文件放入临时模块的 case/hook_events.xml 再执行。 -->
+<cases tags="hook_events">
+  <case execute="是" id="HE_PASS" title="只读查询通过（after_keyword status=ok）" component_type="数据库" priority="P1">
+    <test_case>
+      <test_step action="DB" model="DemoDB" data="Q_READ"/>
+    </test_case>
+  </case>
+
+  <case execute="是" id="HE_FAIL" title="引用不存在的数据行失败（触发 on_case_failure）" component_type="数据库" priority="P1">
+    <test_case>
+      <test_step action="DB" model="DemoDB" data="Q_NOT_EXIST"/>
+    </test_case>
+  </case>
+</cases>

@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<test_plan id="load_extra_ui_case" title="F119 mode=api 引用界面用例应报 SKI602" kind="load">
+  <load_profile mode="api">
+    <concurrency>1</concurrency>
+    <duration_seconds>3</duration_seconds>
+    <ramp_up_seconds>0</ramp_up_seconds>
+    <think_time_ms min="100" max="200" />
+  </load_profile>
+  <case id="TC-LOAD-X01" weight="3" file="load_extra_cases.xml" />
+  <case id="TC-LOAD-XUI" weight="1" file="load_extra_cases.xml" />
+</test_plan>

@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  F026 UI 侧控制值 BLANK / NULL / NONE
+  - type：BLANK / NULL / NONE 均「跳过」（GUIDE §5.4 控制值表；CORE §4.1 UI 行为列）
+    断言：原值保留、元素未被聚焦；页面不存在的元素填控制值也不会被查找。
+  - verify：BLANK 在 UI 模型中跳过该字段（GUIDE §5.7.3 / CORE §4.1）；NONE 跳过验证（CORE §4.1）；
+    NULL 期望 null（CORE §4.1，未区分 UI / 接口），页面有文本时应失败。
+-->
+<cases tags="ui_actions,F026">
+    <case execute="是" id="CTRL_TYPE_SKIP" title="type：BLANK/NULL/NONE 跳过，原值保留且不聚焦" component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/control.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="ControlInput" data="C_SKIP"/>
+            <test_step action="verify" model="ControlView" data="V_SKIP"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="CTRL_TYPE_GHOST_NULL" title="type：不存在的元素填 NULL 被跳过" component_type="界面" priority="P2">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/control.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="ControlInput" data="C_GHOST_NULL"/>
+            <test_step action="verify" model="ControlView" data="V_GNULL"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="CTRL_TYPE_GHOST_NONE" title="type：不存在的元素填 NONE 被跳过" component_type="界面" priority="P2">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/control.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="ControlInput" data="C_GHOST_NONE"/>
+            <test_step action="verify" model="ControlView" data="V_GNONE"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="CTRL_VERIFY_NONE" title="verify：NONE 跳过验证（含不存在的元素）" component_type="界面" priority="P2">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/control.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="verify" model="ControlView" data="V_NONE"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="CTRL_VERIFY_NULL" title="verify：NULL 期望 null，页面有文本应失败（负向）" component_type="界面" priority="P2" expect_fail="是">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/control.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="verify" model="ControlView" data="V_NULL"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+</cases>
