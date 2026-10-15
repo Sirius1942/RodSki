@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [11.8.8] - 2026-10-15
+
+### Fixed
+
+- BUG-A09：--tag 先被当作 --tags 按文件级 tags 做用例级过滤，只写在 scenario 上的 tag 选不中任何用例；selector 模式下只在 selector 编译阶段统一选择一次（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
 ## [11.8.7] - 2026-10-15
 
 ### Fixed

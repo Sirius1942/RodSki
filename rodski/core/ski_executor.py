@@ -459,7 +459,13 @@ class SKIExecutor:
         if filter_case_ids:
             cases = [case for case in cases if case.get('case_id') in filter_case_ids]
 
-        cases = self._filter_cases(cases, filter_tags, filter_priority, exclude_tags)
+        if self._selector_active():
+            # selector 模式（CLI --tag/--tags/--priority/--exclude-tag/--group）只在
+            # _compile_plan_selection 中按"文件 tags + scenario tag"统一选择一次；
+            # 若这里再按文件级 tags 先过滤，只写在 scenario 上的 tag 永远选不中
+            pass
+        else:
+            cases = self._filter_cases(cases, filter_tags, filter_priority, exclude_tags)
         plan_selection = self._compile_plan_selection(cases)
         cases = self._filter_cases_by_plan_scope(cases, plan_selection)
         cases, plan_case_skips = self._apply_plan_selection(cases, plan_selection)
@@ -624,6 +630,16 @@ class SKIExecutor:
 
         return [c for c in cases if _uid(c) in touched]
 
+    def _selector_active(self) -> bool:
+        """CLI selector（无 @plan_id 时）是否生效。"""
+        if getattr(self, 'plan_path', None):
+            return False
+        selector_filters = getattr(self, 'selector_filters', None) or {}
+        return any(
+            selector_filters.get(k)
+            for k in ("filter_tags", "filter_group", "exclude_tags", "filter_priority")
+        )
+
     def _compile_plan_selection(self, cases: List[Dict[str, Any]]) -> Optional[Dict[str, List[Dict[str, Any]]]]:
         """Parse ``self.plan_path`` or compile selector filters into plan selection metadata."""
         plan_path = getattr(self, 'plan_path', None)
@@ -638,11 +654,7 @@ class SKIExecutor:
 
         # Selector mode: compile from CLI filters if any are active
         selector_filters = getattr(self, 'selector_filters', None) or {}
-        has_active = any(
-            selector_filters.get(k)
-            for k in ("filter_tags", "filter_group", "exclude_tags", "filter_priority")
-        )
-        if not has_active:
+        if not self._selector_active():
             self.plan_selection_result = None
             return None
 
