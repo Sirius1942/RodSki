@@ -12,7 +12,7 @@ python3 rodski-demo/local/data_rules/run_acceptance.py
 python3 rodski-demo/local/data_rules/run_acceptance.py F026 F055   # 只跑指定功能
 python3 rodski-demo/local/data_rules/run_acceptance.py --strict    # KNOWN 也算失败
 
-# 只执行 case/（21 个用例；当前 18 通过、3 个 KNOWN 失败，退出码 1）
+# 只执行 case/（21 个用例；当前 19 通过、2 个 KNOWN 失败，退出码 1）
 python3 rodski/cli_main.py run rodski-demo/local/data_rules/case --headless
 
 # 重建 data.sqlite
@@ -83,7 +83,6 @@ python3 rodski-demo/local/data_rules/data/init_data.py
 
 | 检查项 | 现象 |
 |--------|------|
-| F026-02 | 空值字段被当作输入值，输入框被清空（实际 `f5=`） |
 | F027-03 | execution.log 的 `history[N]=...` DEBUG 行打印 type 返回值，含 `.Password` 明文 |
 | F027-04 | type 的 Return 含 `明文.Password`（execution_summary.json return_value 同样落盘） |
 | F050-03 | `data import` 接受字段不一致的 XML，写出的 data.sqlite 随后 validate / run 均失败 |

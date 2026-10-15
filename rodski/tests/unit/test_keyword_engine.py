@@ -1064,6 +1064,26 @@ class TestSpecialValues:
         assert len(calls) == 1
         assert calls[0][0][0] == 'id=uname'  # 定位器格式为 type=value
 
+    def test_type_empty_value_skips_field(self, mock_driver):
+        """BUG-A14：type 批量模式字段值为空串 → 跳过（CORE §4.1），不能输入空串清空预填内容；空白串仍照常输入"""
+        mock_model_parser = MagicMock()
+        mock_model_parser.get_model.return_value = {
+            '__model_type__': MODEL_TYPE_UI,
+            'field1': {'locator_type': 'id', 'locator_value': 'f1', 'model_type': MODEL_TYPE_UI},
+            'field2': {'locator_type': 'id', 'locator_value': 'f2', 'model_type': MODEL_TYPE_UI},
+            'field3': {'locator_type': 'id', 'locator_value': 'f3', 'model_type': MODEL_TYPE_UI},
+        }
+        mock_model_parser.get_model_type.return_value = MODEL_TYPE_UI
+        mock_data_manager = MagicMock()
+        mock_data_manager.get_data.return_value = {'field1': 'hello', 'field2': '', 'field3': ' '}
+
+        engine = KeywordEngine(mock_driver,
+                               model_parser=mock_model_parser,
+                               data_manager=mock_data_manager)
+        assert engine.execute("type", {"model": "Form", "data": "D001"}) is True
+        typed = [c[0][0] for c in mock_driver.type_locator.call_args_list]
+        assert typed == ['id=f1', 'id=f3']
+
     def test_type_null_skips_field(self, mock_driver):
         """type 批量模式：NULL 值应跳过该字段"""
         mock_model_parser = MagicMock()

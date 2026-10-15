@@ -1774,7 +1774,13 @@ class KeywordEngine:
                     param_name="data",
                     reason=f"type 批量输入失败: 模型元素 '{element_name}' 在数据行 '{data_id}' 中缺少对应字段"
                 )
-            value = str(data_row[element_name])
+            raw_value = data_row[element_name]
+            if raw_value is None or raw_value == '':
+                # 空值 → 跳过（CORE §4.1；v11.8.21 BUG-A14：此前按空串输入，清空了预填内容）
+                logger.debug(f"{element_name}: 空值 → 跳过")
+                resolved_values[element_name] = None
+                continue
+            value = str(raw_value)
             if self.data_resolver:
                 value = self.data_resolver.resolve_with_return(value)
 
