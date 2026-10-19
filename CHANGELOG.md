@@ -1,7 +1,70 @@
 # Changelog
 
 
-## [11.8.32] - 2026-10-15
+## [11.8.32] - 2026-10-19
+
+### ⚠️ 升级须知：可能影响已有用例（从 v11.7.1 升级，覆盖 v11.8.0 ~ v11.8.32）
+
+本版修复了 33 个"静默错误 / 与文档不符"的缺陷（iteration-66，BUG-A01 ~ A33）。下列行为按文档改正后，**原来假通过、走错分支或被跳过的用例，结果可能改变**。升级后建议先全量跑一遍，失败用例按下表对照。
+
+| # | 变化 | 以前 | 现在 | 用例需要怎么改 |
+|---|------|------|------|----------------|
+| 1 | 接口模型 verify 的字段范围（A21/A22） | strict 要求 `_verify` 行写全模型字段（含请求字段、`_method/_url`）；模型没声明 `status` 元素时 `status` 列被静默忽略 | 只比较 `_verify` 行里写出、且模型已声明的字段；`status` 列恒按 HTTP 状态码比较；`_` 前缀控制元素不比较；只剩控制元素的行报"比较字段数为 0" | 删掉为凑 strict 而写的请求字段 / BLANK 列；原来写错的 `status` 期望值现在会失败 |
+| 2 | `status` 与响应体同名字段（A20） | 响应体的 `status` 覆盖 HTTP 状态码 | `status` 恒为 HTTP 码；响应体自带 `status` 时完整响应体放在 `body` 下 | 校验响应体字段改写 `body.status` 列 / `${Return[-1].body.status}` |
+| 3 | `match_mode="subset"`（A19） | 写了也按 strict 执行 | 生效 | 无 |
+| 4 | 接口 / DB verify 的 `NONE`（A15） | 当作期望字符串 `"none"` | 跳过该字段（CORE §4.1） | 原来用 `NONE` 断言字符串 none 的改为字面值 |
+| 5 | DB verify 断言操作符（A23） | `{"$gte":5}` 按字符串比较，必失败 | 按操作符求值 | 无 |
+| 6 | UI `type` 字段值为空串（A14） | 输入空串，**清空**输入框 | 跳过，不动该输入框（只含空格的值照常输入） | 依赖"空串清空"的改为显式 `clear` 步骤 |
+| 7 | 条件分支（A01–A05） | `${var}` 引用 set 变量、`${Return[-1].x} == v`、`element_exists()`、`>=`/`<=`、`<loop>` 内的 if 均失效：恒走 else 或整块跳过 | 按文档求值；引用未定义变量按"条件无法评估"跳过该分支 | 检查分支内步骤，以前从未执行过的分支现在会执行 |
+| 8 | `set` 中 `$${...}` 转义（A18） | 被二次解析成函数调用 | 得到字面量 `${...}` | 无 |
+| 9 | 定位器（A24/A25） | `class` 多类名 `btn primary` 变成后代选择器找不到；`tag` 报 `Unknown engine`；`id` 转为 `#值` | `class` → `.btn.primary`；`tag` → 标签选择器；`id` → `[id="值"]` | 无（id 含 `.`/`:` 的现在也能定位） |
+| 10 | `key_press`（A28，D3） | 发往当前焦点；macOS 上 `Control+A` 是行首 | 先聚焦本字段对应元素再按键；macOS 组合键 `Control` 按 Command 执行 | 依赖"发往当前焦点"的，把 key_press 写到目标元素的字段上 |
+| 11 | Web `launch` 非 http(s) 目标（A26） | 静默成功，什么都没打开 | 报参数错误 | 改用 `navigate` 并写完整 URL；桌面应用用 Desktop 模型 |
+| 12 | 图片 / 视频 `assert`（A27） | 报 `cv2 is not defined`；不匹配也判 PASS | 相似度不足步骤失败 | 原来"通过"的图片断言需重新确认参考图 |
+| 13 | DialogPolicy=accept 的 prompt（A29） | 以空串确认 | 以默认值确认 | 无 |
+| 14 | `wait_for_response`（A30） | 必定报错（错误信息伪装成超时） | 可用：等待**调用之后**到达的匹配响应 | 触发请求的动作要晚于该步骤开始 |
+| 15 | 选择器 `--tags/--tag/--priority`（A06–A10） | 不含 scenario 的用例全部 SKIP；用例级 `tags` 被忽略；只写在 scenario 上的 tag 选不中；`--priority P0,P1` 只取 P0；不带路径 `rodski run --tag` 报默认计划冲突 | 均按文档选择 | 选中的用例数可能**变多** |
+| 16 | plan 生成命令（A11–A13） | `add-scenario` / `--from-tag` / `debug-*` 生成的 `<case>` 缺 `file`（多文件模块 SKI207）；`prepare="none"` 报错 | 自动补 `file`，ID 重名时用新参数 `--file`；`prepare="none"` 可用 | 无 |
+| 17 | 压测 `mode="browser"`（A32） | 静默按 api 执行 | 报 SKI605，非 0 退出 | 改为 `mode="api"` |
+| 18 | `rodski data import`（A17） | 字段不一致的表照常写入 | 报 `表.行: missing=[...]`，整体不写入 | 先在 XML 中补 BLANK/NULL/NONE |
+
+**写法示例**
+
+```text
+# 1. 接口 verify：模型 Login 有 _method/_url/username/password/token，_verify 只写要校验的
+Login_verify.V001:  status=200   token=abc123
+
+# 2. 响应 HTTP 200，body={"status":"ok"}
+Login_verify.V002:  status=200   body.status=ok
+
+# 5. DB verify 操作符
+OrderQuery_verify.V001:  qty={"$gte": 5}   amount={"$lt": 1000}   order_no={"$contains": "ORD"}
+
+# 10. key_press 写在目标元素的字段上
+SearchForm.D001:  keyword=手机   searchBtn=key_press【Enter】
+```
+
+```xml
+<!-- 6. 要清空输入框，显式 clear；数据表里空串 = 不输入 -->
+<test_step action="clear" model="" data="#username"/>
+
+<!-- 7. 以下条件现在按文档求值 -->
+<test_step action="set" model="" data="flag=on"/>
+<if condition="${flag} == on"> ... </if>
+<if condition="${Return[-1].status} == 200"> ... </if>
+<if condition="element_exists(#saveBtn)"> ... </if>
+<loop var="i" range="1-3">
+    <if condition="${i} >= 2"> ... </if>
+</loop>
+
+<!-- 14. 先安排请求，再等待 -->
+<test_step action="evaluate" model="" data="setTimeout(function(){ fetch('/api/orders'); }, 1500)"/>
+<test_step action="run" model="" data="wait_for_response(url_pattern='/api/orders', timeout=10)"/>
+```
+
+**不影响写法的修复**：`.Password` 明文不再出现在 execution.log（A16）；暂停中下发终止不再卡死（A31）；`python rodski/cli_main.py` 与 `rodski` 命令加载同一套模块（A33）。
+
+**rodski-demo**：按运行环境重组为 `rodski-demo/<local|demosite|mock_api|mobile|desktop_vision|plugins>/<模块>`，旧 `rodski-demo/DEMO/...` 路径失效；全量回归入口 `python3 rodski-demo/run_regression.py`。
 
 ### Fixed
 
