@@ -121,6 +121,10 @@ rodski data import <module> [--overwrite]
 rodski data set <module> <table> <data_id> field=value [field=value ...]   # 修改已有行
 rodski data add-row <module> <table> <data_id> field=value [...] [--remark 备注]   # 新增行：必须给出完整字段集合
 rodski data delete-row <module> <table> <data_id>                          # 删除行
+rodski data set <module> <table> <data_id> --remark "所属计划 / 用途"       # 只改行备注（v11.9.0，可与 field=value 同用）
+
+# 数据驱动表（v11.9.0，见 §10.10）
+rodski data create-driver <module> <表名> --case <case_file::case_id> --remark "<目的；所属计划>" --columns "<表名.基础DataID>,..."
 ```
 
 例如接口返回的订单数由 1 变为 2，只改期望值：
