@@ -12,7 +12,7 @@ def compile_from_selector(
     filter_tags: Optional[List[str]] = None,
     filter_group: Optional[str] = None,
     exclude_tags: Optional[List[str]] = None,
-    filter_priority: Optional[str] = None,
+    filter_priority: Optional[Any] = None,
 ) -> Dict[str, List[Dict[str, Any]]]:
     """Compile a selection result from CLI selector filters.
 
@@ -21,7 +21,8 @@ def compile_from_selector(
         filter_tags: OR-match against effective_tags (--tag smoke,p0).
         filter_group: Exact match against scenario_group (--group negative).
         exclude_tags: Exclude scenarios whose effective_tags hit any of these (--exclude-tag slow).
-        filter_priority: Filter by case_priority first (--priority P0).
+        filter_priority: Filter by case_priority first (--priority P0 或 P0,P1)；
+            接受单个字符串或列表，列表中任一命中即可。
 
     Returns:
         Dict with 'selected', 'skipped', 'stale_references' (stale always empty).
@@ -33,8 +34,9 @@ def compile_from_selector(
 
     # Step 1: filter by priority at case level
     if filter_priority:
-        priority_upper = filter_priority.upper()
-        candidates = [m for m in candidates if (m.get("case_priority") or "").upper() == priority_upper]
+        wanted = [filter_priority] if isinstance(filter_priority, str) else list(filter_priority)
+        priorities = {str(p).strip().upper() for p in wanted if str(p).strip()}
+        candidates = [m for m in candidates if (m.get("case_priority") or "").strip().upper() in priorities]
 
     # Step 2: filter by tags (OR match)
     if filter_tags:
@@ -51,6 +53,15 @@ def compile_from_selector(
         candidates = [m for m in candidates if not (exclude_set & set(m.get("effective_tags") or []))]
 
     for m in candidates:
+        if not m.get("scenario_id"):
+            # 不含 scenario 的用例：整条用例选中
+            selected.append({
+                "type": "case",
+                "case_id": m["case_id"],
+                "case_file": m.get("case_file", ""),
+                "reason": "selector",
+            })
+            continue
         selected.append({
             "type": "scenario",
             "case_id": m["case_id"],

@@ -1,0 +1,10 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<test_plan id="load_extra_ui_default" title="F119 --load-ui 默认端口 8089" kind="load">
+  <load_profile mode="api">
+    <concurrency>2</concurrency>
+    <duration_seconds>12</duration_seconds>
+    <ramp_up_seconds>0</ramp_up_seconds>
+    <think_time_ms min="100" max="200" />
+  </load_profile>
+  <case id="TC-LOAD-X01" weight="3" file="load_extra_cases.xml" />
+</test_plan>

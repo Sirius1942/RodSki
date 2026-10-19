@@ -115,7 +115,10 @@ class CaseParser:
                 'component_type': component_type,
                 'roam': roam,
                 'expect_fail': case_node.get('expect_fail', '否').strip(),
-                'tags': suite_tags,
+                # 用例 tags = 文件级 <cases tags> + 用例级 <case tags>（case.xsd CaseType@tags），去重保序
+                'tags': list(dict.fromkeys(suite_tags + [
+                    t.strip() for t in (case_node.get('tags') or '').split(',') if t.strip()
+                ])),
                 'priority': (case_node.get('priority') or '').strip(),
                 'step_wait': step_wait_ms,
                 'metadata': self._parse_metadata(case_node.find('metadata')),
@@ -142,10 +145,26 @@ class CaseParser:
 
     @staticmethod
     def collect_scenario_metadata_from_cases(cases: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """从已解析 case 列表生成 scenario 元数据索引。"""
+        """从已解析 case 列表生成 selector 元数据索引。
+
+        含 scenario 的用例每个 scenario 一条（scenario_id 非空）；不含 scenario 的用例
+        生成一条用例级记录（scenario_id 为空串），否则 selector 模式下这些用例无法被选中。
+        """
         metadata: List[Dict[str, Any]] = []
         for case in cases:
             file_tags = list(case.get('tags') or [])
+            if not case.get('scenarios'):
+                metadata.append({
+                    'case_id': case.get('case_id', ''),
+                    'case_file': case.get('case_file', ''),
+                    'case_priority': case.get('priority', ''),
+                    'file_tags': file_tags,
+                    'scenario_id': '',
+                    'scenario_group': '',
+                    'scenario_tags': [],
+                    'effective_tags': list(dict.fromkeys(file_tags)),
+                })
+                continue
             for scenario in case.get('scenarios') or []:
                 scenario_tags = list(scenario.get('tag') or [])
                 effective_tags = list(dict.fromkeys(file_tags + scenario_tags))
@@ -312,7 +331,9 @@ class CaseParser:
             'type': 'loop',
             'range': str(el.get('range', '') or '').strip(),
             'var': str(el.get('var', 'item') or '').strip(),
-            'steps': CaseParser._parse_branch_steps(el),
+            # 循环体与阶段容器同样支持 if/elif/else 链（case.xsd LoopContainerType），
+            # 不能用 _parse_branch_steps，否则 if 块被静默丢弃
+            'steps': CaseParser._parse_phase_steps(el),
         }
 
     @staticmethod

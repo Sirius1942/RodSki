@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<models>
+
+<!-- demosite (:8000) 登录表单 -->
+<model name="LoginForm" type="ui" servicename="">
+    <element name="username" type="web"><location type="id">loginUsername</location></element>
+    <element name="password" type="web"><location type="id">loginPassword</location></element>
+    <element name="loginBtn" type="web"><location type="id">loginBtn</location></element>
+</model>
+
+<model name="LoginError" type="ui" servicename="">
+    <element name="message" type="web"><location type="id">loginError</location></element>
+</model>
+
+<model name="NavMenu" type="ui" servicename="">
+    <element name="dashboard" type="web"><location type="id">navDashboard</location></element>
+</model>
+
+<!-- 看板：数据来自 GET /api/orders -->
+<model name="Dashboard" type="ui" servicename="">
+    <element name="totalOrders" type="web"><location type="id">totalOrders</location></element>
+    <element name="totalAmount" type="web"><location type="id">totalAmount</location></element>
+    <element name="firstOrderNo" type="web"><location type="css">#dashboardTableBody tr:first-child td:first-child</location></element>
+    <element name="rows" type="web"><location type="css">#dashboardTableBody tr</location></element>
+</model>
+
+<!-- run 内置函数返回值（verify 从 Return[-1] 读取） -->
+<model name="MockResult" type="interface" servicename="">
+    <element name="pattern" type="field"><location type="field">pattern</location></element>
+</model>
+
+<model name="NetResp" type="interface" servicename="">
+    <element name="status" type="field"><location type="field">status</location></element>
+    <element name="url" type="field"><location type="field">url</location></element>
+    <element name="body" type="field"><location type="field">body</location></element>
+    <element name="orders" type="field"><location type="field">json.data.length</location></element>
+</model>
+
+<model name="CoverageResult" type="interface" servicename="">
+    <element name="output" type="field"><location type="field">output</location></element>
+    <element name="files" type="field"><location type="field">summary.total_files</location></element>
+    <element name="avg" type="field"><location type="field">summary.average_coverage_pct</location></element>
+</model>
+
+</models>

@@ -167,12 +167,12 @@ def _init_keyword_engine(module_path: Path, cdp_endpoint: Optional[str] = None):
         from ..drivers.playwright_driver import PlaywrightDriver
         from ..data.data_resolver import DataResolver
     except ImportError:
-        from core.keyword_engine import KeywordEngine
-        from core.config_manager import ConfigManager
-        from core.model_parser import ModelParser
-        from core.data_table_parser import DataTableParser
-        from core.global_value_parser import GlobalValueParser
-        from drivers.playwright_driver import PlaywrightDriver
+        from rodski.core.keyword_engine import KeywordEngine
+        from rodski.core.config_manager import ConfigManager
+        from rodski.core.model_parser import ModelParser
+        from rodski.core.data_table_parser import DataTableParser
+        from rodski.core.global_value_parser import GlobalValueParser
+        from rodski.drivers.playwright_driver import PlaywrightDriver
         from rodski.data.data_resolver import DataResolver
 
     # 加载配置

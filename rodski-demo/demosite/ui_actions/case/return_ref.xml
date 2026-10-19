@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  F055 UI 模型 _verify 引用 ${Return[-N]}（跨源比对）
+  文档：TEST_CASE_WRITING_GUIDE §7.3 注意 / §7.4 表（UI verify + ${Return[-2].token} 允许）；CORE §4.3「允许：UI 模型的 _verify 表中引用 ${Return[-N]}」。
+  页面每次加载随机生成订单号，期望值只能来自前序 get 模型模式的返回值（GUIDE §7.5：get 返回元素文本 dict）。
+  ${Return[...]} 只写在数据表字段值里，不写在 Case XML data 属性（GUIDE §7.3）。
+-->
+<cases tags="ui_actions,F055">
+    <case execute="是" id="RET_MINUS2" title="get → type → verify：期望值 ${Return[-2].orderNo}" component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/return.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="get" model="OrderSrc" data="G001"/>
+            <test_step action="type" model="OrderCopy" data="C001"/>
+            <test_step action="verify" model="OrderCopyView" data="V_RET2"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="RET_MINUS1" title="get → verify：期望值 ${Return[-1].orderNo}" component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/return.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="get" model="OrderSrc" data="G001"/>
+            <test_step action="verify" model="OrderCopyView" data="V_RET1"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="RET_NEG" title="负向：期望值引用另一随机单号 ${Return[-2].otherNo}，必须失败" component_type="界面" priority="P1" expect_fail="是">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/return.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="get" model="OrderSrc" data="G001"/>
+            <test_step action="type" model="OrderCopy" data="C001"/>
+            <test_step action="verify" model="OrderCopyView" data="N_RET2"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+</cases>

@@ -17,10 +17,10 @@ def get_capabilities():
         from ..core.model_parser import VALID_LOCATOR_TYPES
         from ..core.xml_schema_validator import SCHEMA_FILES
     except ImportError:
-        from core.keyword_engine import KeywordEngine
-        from core.driver_factory import DriverFactory
-        from core.model_parser import VALID_LOCATOR_TYPES
-        from core.xml_schema_validator import SCHEMA_FILES
+        from rodski.core.keyword_engine import KeywordEngine
+        from rodski.core.driver_factory import DriverFactory
+        from rodski.core.model_parser import VALID_LOCATOR_TYPES
+        from rodski.core.xml_schema_validator import SCHEMA_FILES
 
     def _load_version_from_file(path: Path):
         try:

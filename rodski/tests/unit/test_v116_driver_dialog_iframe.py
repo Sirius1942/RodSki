@@ -112,6 +112,15 @@ class TestDriverDialog:
         d2.dismiss.assert_called_once()
         assert drv.consume_unexpected_dialog() is None
 
+    def test_policy_accept_prompt_uses_default_value(self):
+        """BUG-A29：DialogPolicy=accept 时 prompt 按默认值确认，而不是空串"""
+        drv = _driver_with_page()
+        drv.set_dialog_policy("accept")
+        d = _dialog("备注?", "prompt")
+        d.default_value = "默认备注"
+        drv._on_dialog(d)
+        d.accept.assert_called_once_with("默认备注")
+
     def test_invalid_policy_rejected(self):
         with pytest.raises(DriverError):
             _driver_with_page().set_dialog_policy("ignore")
@@ -175,7 +184,7 @@ class TestDriverFrame:
         drv = _driver_with_page()
         assert drv.click_locator("id=payBtn", frame="#payFrame") is True
         loc = drv.page.frame_locator.return_value.locator
-        loc.assert_called_once_with("#payBtn")
+        loc.assert_called_once_with('[id="payBtn"]')
         loc.return_value.first.click.assert_called_once()
         drv.page.click.assert_not_called()
 

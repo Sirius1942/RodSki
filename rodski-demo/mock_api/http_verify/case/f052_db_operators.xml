@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+    <!-- F052：DB verify 断言操作符
+         依据：TEST_CASE_WRITING_GUIDE.md §5.7.1（$gt/$gte/$lt/$lte/$contains 适用 UI / 接口 / DB）、§5.5「校验查询结果」；
+               CORE_DESIGN_CONSTRAINTS.md §4.6.4-2
+         被测库：模块根目录 verify_ops.db（data/init_data.py 生成），ORD-2001 qty=8 amount=520.5 remark=加急订单 -->
+
+    <case execute="是" id="TC-HV-052-01" title="DB verify字面值对照组" component_type="接口">
+        <test_case>
+            <test_step action="DB" model="OrderDB" data="Q1"/>
+            <test_step action="verify" model="OrderDB" data="V_LIT"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC-HV-052-02" title="DB verify操作符contains/gte/lt" component_type="接口">
+        <test_case>
+            <test_step action="DB" model="OrderDB" data="Q1"/>
+            <test_step action="verify" model="OrderDB" data="V_OPS"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC-HV-052-03" title="DB verify操作符gt/lte混合字面值与BLANK" component_type="接口">
+        <test_case>
+            <test_step action="DB" model="OrderDB" data="Q1"/>
+            <test_step action="verify" model="OrderDB" data="V_OPS2"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC-HV-052-04" title="DB verify操作符不满足必须失败" component_type="接口" expect_fail="是">
+        <test_case>
+            <test_step action="DB" model="OrderDB" data="Q1"/>
+            <test_step action="verify" model="OrderDB" data="N_OPS"/>
+        </test_case>
+    </case>
+</cases>

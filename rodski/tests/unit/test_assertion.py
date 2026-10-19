@@ -769,3 +769,41 @@ if __name__ == "__main__":
     failed_count = r.run([Path(__file__).resolve()])
     print(f"\n结果: {failed_count} failed")
     sys.exit(failed_count)
+
+
+class TestKwAssertImageEndToEnd:
+    """BUG-A27：_kw_assert type=image 读取截图时 `name 'cv2' is not defined`"""
+
+    def test_identical_screenshot_passes(self, tmp_path):
+        from unittest.mock import MagicMock
+        from core.keyword_engine import KeywordEngine
+
+        img = create_test_image(120, 80)
+        shot = tmp_path / "shot.png"
+        ref = tmp_path / "ref.png"
+        cv2.imwrite(str(shot), img)
+        cv2.imwrite(str(ref), img)
+        driver = MagicMock()
+        driver.take_screenshot.return_value = str(shot)
+        engine = KeywordEngine(driver)
+        engine._module_dir = tmp_path
+        assert engine._kw_assert({"data": f"type=image,reference={ref},threshold=0.9"}) is True
+
+    def test_mismatch_fails_step(self, tmp_path):
+        """不匹配必须抛 AssertionFailedError，而不是返回 False（返回值不会让步骤失败）"""
+        import pytest
+        from unittest.mock import MagicMock
+        from core.exceptions import AssertionFailedError
+        from core.keyword_engine import KeywordEngine
+
+        shot = tmp_path / "shot.png"
+        ref = tmp_path / "ref.png"
+        cv2.imwrite(str(shot), create_test_image(120, 80, (0, 0, 255)))
+        cv2.imwrite(str(ref), create_gradient_image(60, 40))
+        driver = MagicMock()
+        driver.take_screenshot.return_value = str(shot)
+        engine = KeywordEngine(driver)
+        engine._module_dir = tmp_path
+        with pytest.raises(AssertionFailedError, match="图片断言失败"):
+            engine._kw_assert({"data": f"type=image,reference={ref},threshold=0.95"})
+        assert engine.get_return(-1)["matched"] is False

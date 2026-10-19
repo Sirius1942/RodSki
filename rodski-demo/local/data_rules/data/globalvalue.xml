@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<globalvalue>
+    <group name="DefaultValue">
+        <var name="WaitTime" value="0"/>
+        <!-- 自动等待（毫秒）：UI type/verify 最多等 3000ms -->
+        <var name="AutoWait" value="3000"/>
+    </group>
+    <group name="Site">
+        <!-- fun/mock_server.py 提供的页面与接口 -->
+        <var name="Pages" value="http://127.0.0.1:18121/pages"/>
+    </group>
+    <group name="biz_db">
+        <!-- 相对模块目录；.runtime/ 由 mock_server.py ensure 创建 -->
+        <var name="type" value="sqlite"/>
+        <var name="database" value=".runtime/biz.db"/>
+    </group>
+</globalvalue>

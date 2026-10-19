@@ -149,11 +149,26 @@ class TestElementExists:
         """没有 driver 时 element_exists 应返回 False"""
         assert executor.evaluate_condition("element_exists(#btn)", None) is False
 
-    def test_element_exists_driver_exception(self, executor):
-        """driver 抛异常时 element_exists 应返回 False"""
+    def test_element_exists_driver_exception_propagates(self, executor):
+        """BUG-A03：driver 异常不能被吞成固定结果，交给执行器按"条件无法评估"处理"""
         driver = MagicMock()
         driver.locate_element.side_effect = RuntimeError("element error")
-        assert executor.evaluate_condition("element_exists(#btn)", driver) is False
+        with pytest.raises(RuntimeError):
+            executor.evaluate_condition("element_exists(#btn)", driver)
+
+    @pytest.mark.parametrize("locator,expected", [
+        ("#login-btn", ("css", "#login-btn")),
+        (".toast-error", ("css", ".toast-error")),
+        ("xpath=//button[@id='b']", ("xpath", "//button[@id='b']")),
+        ("id=status", ("id", "status")),
+        ("input[name=q]", ("css", "input[name=q]")),
+    ])
+    def test_locator_split_matches_driver_signature(self, executor, locator, expected):
+        """BUG-A03：驱动签名是 locate_element(locator_type, locator_value)"""
+        driver = MagicMock()
+        driver.locate_element.return_value = (0, 0, 1, 1)
+        assert executor.evaluate_condition(f"element_exists({locator})", driver) is True
+        driver.locate_element.assert_called_once_with(*expected)
 
 
 # =====================================================================
@@ -223,19 +238,17 @@ class TestVariableComparison:
         executor.set_variable("count", "2")
         assert executor.evaluate_condition("$count < 5") is True
 
-    @pytest.mark.xfail(
-        reason="源码 bug：运算符列表 ['==','!=','>','<','>=','<='] 中 '>' 排在 '>=' 前面，"
-               "'$count >= 5' 会先匹配到 '>' 并按 '>' 拆分，导致右侧变成 '= 5'。"
-               "修复方案：将运算符按长度降序排列（>=,<=,==,!=,>,<）"
-    )
     def test_variable_gte(self, executor):
         """变量大于等于比较"""
         executor.set_variable("count", "5")
         assert executor.evaluate_condition("$count >= 5") is True
 
-    @pytest.mark.xfail(
-        reason="源码 bug：同 test_variable_gte，'<' 排在 '<=' 前面导致拆分错误"
-    )
+    def test_variable_gte_not_split_at_gt(self, executor):
+        """BUG-A05：'>=' 不能在 '>' 处被拆开（右侧不应变成 '= 3'）"""
+        executor.set_variable("count", "3")
+        assert executor.evaluate_condition("$count >= 3") is True
+        assert executor.evaluate_condition("$count <= 2") is False
+
     def test_variable_lte(self, executor):
         """变量小于等于比较"""
         executor.set_variable("count", "5")
@@ -341,3 +354,80 @@ class TestParseLoopRange:
         """单个值"""
         result = executor.parse_loop_range("hello")
         assert result == ["hello"]
+
+
+# =====================================================================
+# BUG-A01：条件中的 ${name} 变量引用
+# =====================================================================
+class TestConditionVariableReference:
+    """文档写法 `${name}`：loop 变量与 set 写入 DataResolver 的变量都要可见"""
+
+    @pytest.fixture
+    def executor(self):
+        r = MagicMock()
+        r.data_source = {"flag": "off", "total": "4"}  # set 关键字经 set_var 写入此处
+        r.resolve.side_effect = lambda v: v
+        return DynamicExecutor(data_resolver=r)
+
+    def test_set_variable_visible_with_braces(self, executor):
+        assert executor.evaluate_condition("${flag} == off") is True
+        assert executor.evaluate_condition("${flag} == on") is False
+        assert executor.evaluate_condition("${flag} != on") is True
+
+    def test_numeric_compare_with_braces(self, executor):
+        assert executor.evaluate_condition("${total} > 0") is True
+        assert executor.evaluate_condition("${total} >= 3") is True
+        assert executor.evaluate_condition("${total} <= 3") is False
+
+    def test_loop_variable_takes_precedence(self, executor):
+        executor.set_variable("flag", "on")
+        assert executor.evaluate_condition("${flag} == on") is True
+
+    def test_quoted_literal(self, executor):
+        assert executor.evaluate_condition("${flag} == 'off'") is True
+
+    def test_undefined_variable_raises(self, executor):
+        """未定义变量不能拿字面量 '${x}' 去比较而静默走错分支"""
+        with pytest.raises(ValueError, match="未定义的变量"):
+            executor.evaluate_condition("${missing} == 1")
+
+
+# =====================================================================
+# BUG-A02：Return 条件与关键字引擎共享历史，支持 GUIDE / CORE 两种写法
+# =====================================================================
+def _identity_resolver():
+    r = MagicMock()
+    r.resolve.side_effect = lambda v: v
+    return r
+
+
+class TestReturnConditionSharedHistory:
+
+    def test_shares_empty_history_list(self):
+        """构造时传入的空 history 必须是同一个对象，否则后续 Return 永远看不到"""
+        history = []
+        ex = DynamicExecutor(data_resolver=_identity_resolver(), return_values=history)
+        history.append({"status": 200})
+        assert ex.evaluate_condition("${Return[-1].status} == 200") is True
+
+    def test_guide_form(self):
+        history = [{"status": 404}]
+        ex = DynamicExecutor(data_resolver=_identity_resolver(), return_values=history)
+        assert ex.evaluate_condition("${Return[-1].status} == 200") is False
+        history.append({"status": 200, "msg": "ok"})
+        assert ex.evaluate_condition("${Return[-1].status} == 200") is True
+        assert ex.evaluate_condition("${Return[-2].status} >= 400") is True
+        assert ex.evaluate_condition("${Return[-1].msg} contains 'o'") is True
+
+    def test_core_form_and_nested_path(self):
+        history = [{"body": {"status": "shipped"}, "status": 200}]
+        ex = DynamicExecutor(data_resolver=_identity_resolver(), return_values=history)
+        assert ex.evaluate_condition("${Return[-1].status == 200}") is True
+        assert ex.evaluate_condition("${Return[-1].status >= 200}") is True
+        assert ex.evaluate_condition("${Return[-1].body.status == shipped}") is True
+
+    def test_verify_fail_reads_shared_history(self):
+        history = []
+        ex = DynamicExecutor(data_resolver=_identity_resolver(), return_values=history)
+        history.append({"passed": False})
+        assert ex.evaluate_condition("verify_fail") is True

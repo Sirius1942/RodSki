@@ -11,7 +11,7 @@ except ImportError:  # pytest launched from rodski/ with legacy import path
     from rodski_cli.business import handle
 
 
-DEMO = Path(__file__).parents[3] / "rodski-demo" / "DEMO" / "demo_business_model"
+DEMO = Path(__file__).parents[3] / "rodski-demo" / "mock_api" / "business_model"
 XML = DEMO / "business" / "business.xml"
 
 

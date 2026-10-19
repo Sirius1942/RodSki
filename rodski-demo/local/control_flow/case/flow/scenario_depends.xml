@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  F066 scenario depends（TEST_CASE_WRITING_GUIDE §3.4 执行语义）
+  - depends 依赖未通过（FAIL 或 SKIP）时，当前 scenario 不执行并标记为 SKIP
+  - scenario 失败会导致 case 失败；后处理阶段仍执行
+  F066_01：S01 故意失败 → S02(depends S01) SKIP → S04(depends S02，依赖为 SKIP) SKIP；
+           S03 无依赖照常执行，S05(depends S03) 执行，S06(depends S03,S01) SKIP。
+           case 按文档应失败，标 expect_fail="是"。
+  F066_02：正向对照，依赖通过时依赖方正常执行。
+  run_acceptance.py 依据执行轨迹 + execution.log 中 "scenario Sxx ... -> SKIP (depends not passed: ...)" 断言。
+-->
+<cases step_wait="0" tags="flow,scenario">
+
+    <case execute="是" id="F066_01" title="F066 depends 未通过（FAIL/SKIP）→ 依赖方 SKIP"
+          component_type="接口" priority="P1" expect_fail="是">
+        <test_case>
+            <scenario id="S01" title="故意失败的上游" group="negative">
+                <test_step action="run" model="" data="fail.py F066_01_S01_intended"/>
+            </scenario>
+            <scenario id="S02" title="依赖失败的 S01" depends="S01">
+                <test_step action="run" model="" data="mark.py F066_01_S02_should_skip"/>
+            </scenario>
+            <scenario id="S03" title="无依赖，照常执行">
+                <test_step action="run" model="" data="mark.py F066_01_S03"/>
+            </scenario>
+            <scenario id="S04" title="依赖被 SKIP 的 S02" depends="S02">
+                <test_step action="run" model="" data="mark.py F066_01_S04_should_skip"/>
+            </scenario>
+            <scenario id="S05" title="依赖通过的 S03" depends="S03">
+                <test_step action="run" model="" data="mark.py F066_01_S05"/>
+            </scenario>
+            <scenario id="S06" title="多依赖其一失败" depends="S03,S01">
+                <test_step action="run" model="" data="mark.py F066_01_S06_should_skip"/>
+            </scenario>
+        </test_case>
+        <post_process>
+            <test_step action="run" model="" data="mark.py F066_01_post"/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="F066_02" title="F066 正向对照：依赖通过时依赖方执行"
+          component_type="接口" priority="P1">
+        <test_case>
+            <scenario id="S01" title="上游通过">
+                <test_step action="run" model="" data="mark.py F066_02_S01"/>
+            </scenario>
+            <scenario id="S02" title="依赖 S01" depends="S01">
+                <test_step action="run" model="" data="mark.py F066_02_S02"/>
+            </scenario>
+        </test_case>
+    </case>
+
+</cases>

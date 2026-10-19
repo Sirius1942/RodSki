@@ -44,7 +44,7 @@ def setup_parser(subparsers):
         "debug",
         help="调试一次业务模型调用（不计入正式测试结果）",
     )
-    debug.add_argument("module", help="测试模块目录，例如 rodski-demo/DEMO/demo_business_model")
+    debug.add_argument("module", help="测试模块目录，例如 rodski-demo/mock_api/business_model")
     debug.add_argument("--id", "--ref", dest="ref", required=True,
                        help="业务模型 id（business_model@id）")
     debug.add_argument("--flow", required=True, help="本次调试选择的目标流程 id")

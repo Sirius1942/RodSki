@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  F070 WaitTime（TEST_CASE_WRITING_GUIDE §6.4.1）：未写 step_wait，按 DefaultValue.WaitTime 每步后固定等待。
+  3 个 run 步骤；run_acceptance.py 把模块复制到临时目录，分别把 WaitTime 改成 0 / 1（旧秒值）/ 31 / 800，
+  用 result.xml 的 execution_time 断言毫秒语义与 ≤30 按秒兼容。直接 rodski run 时按本模块 WaitTime=500 执行。
+-->
+<cases tags="flow,wait">
+
+    <case execute="是" id="F070_01" title="F070 WaitTime 每步固定等待（3 步）" component_type="接口" priority="P2">
+        <test_case>
+            <test_step action="run" model="" data="mark.py F070_01_s1"/>
+            <test_step action="run" model="" data="mark.py F070_01_s2"/>
+            <test_step action="run" model="" data="mark.py F070_01_s3"/>
+        </test_case>
+    </case>
+
+</cases>

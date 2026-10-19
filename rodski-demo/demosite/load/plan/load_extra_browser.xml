@@ -1,0 +1,10 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<test_plan id="load_extra_browser" title="F119 mode=browser（v8.0 只支持 api）应报错" kind="load">
+  <load_profile mode="browser">
+    <concurrency>1</concurrency>
+    <duration_seconds>3</duration_seconds>
+    <ramp_up_seconds>0</ramp_up_seconds>
+    <think_time_ms min="100" max="200" />
+  </load_profile>
+  <case id="TC-LOAD-X01" weight="3" file="load_extra_cases.xml" />
+</test_plan>

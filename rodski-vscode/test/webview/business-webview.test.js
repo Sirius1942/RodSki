@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 
 const DEMO_XML = fs.readFileSync(
-  path.join(__dirname, '../../../rodski-demo/DEMO/demo_business_model/business/business.xml'),
+  path.join(__dirname, '../../../rodski-demo/mock_api/business_model/business/business.xml'),
   'utf8'
 );
 

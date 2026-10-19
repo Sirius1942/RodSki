@@ -52,7 +52,7 @@ def login_screenshot() -> Path:
     candidates = [
         FIXTURES_DIR / "login_screen.png",
         Path(__file__).parents[2]
-        / "rodski-demo" / "DEMO" / "demo_perception" / "assets" / "_sources"
+        / "rodski-demo" / "desktop_vision" / "perception" / "assets" / "_sources"
         / "login_screen.png",
     ]
     for c in candidates:

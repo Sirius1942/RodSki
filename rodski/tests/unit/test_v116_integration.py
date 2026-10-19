@@ -74,7 +74,7 @@ def test_demo_waittime_migrated_to_milliseconds():
         pytest.skip("rodski-demo 不存在")
     legacy = []
     for gv in demo.rglob("data/globalvalue.xml"):
-        if "_archive" in gv.parts or "demo_authoring_v116_pitfalls" in gv.parts:
+        if "_archive" in gv.parts or "authoring_pitfalls" in gv.parts:
             continue
         raw = _default_wait(gv)
         if raw is None:
@@ -86,7 +86,7 @@ def test_demo_waittime_migrated_to_milliseconds():
 
 
 def test_pitfalls_fixture_keeps_legacy_waittime():
-    gv = REPO / "rodski-demo/DEMO/demo_authoring_v116_pitfalls/data/globalvalue.xml"
+    gv = REPO / "rodski-demo/local/authoring_pitfalls/data/globalvalue.xml"
     if not gv.is_file():
         pytest.skip("夹具不存在")
     assert _default_wait(gv) == "1"

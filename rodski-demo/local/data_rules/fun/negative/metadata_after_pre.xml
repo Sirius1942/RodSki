@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- F065 负向样例：<metadata> 必须位于 <pre_process> 之前（TEST_CASE_WRITING_GUIDE §3.2），case.xsd 校验必须失败 -->
+<cases>
+    <case execute="是" id="NEG_META" title="metadata 位置错误">
+        <pre_process>
+            <test_step action="run" model="" data="emit.py pre"/>
+        </pre_process>
+        <metadata created_by="agent"/>
+        <test_case>
+            <test_step action="run" model="" data="emit.py meta"/>
+        </test_case>
+    </case>
+</cases>

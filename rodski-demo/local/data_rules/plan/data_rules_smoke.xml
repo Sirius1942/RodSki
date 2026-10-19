@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- data_rules 冒烟计划（F086 用于 plan.xsd 校验；run_acceptance.py 另外执行 rodski plan validate） -->
+<test_plan id="data_rules_smoke" title="data_rules 冒烟：生成函数与 metadata" kind="suite" execute="是" default_execute="否">
+  <case file="f059_generators.xml" id="F059_GENERATORS"/>
+  <case file="f065_metadata.xml" id="F065_METADATA"/>
+</test_plan>

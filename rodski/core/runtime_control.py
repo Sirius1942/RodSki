@@ -110,6 +110,9 @@ class RuntimeCommandQueue(BaseRuntimeControl):
                     executor.apply_insert_resources(cmd.temp_models, cmd.temp_tables)
                     dq.extendleft(reversed(cmd.steps))
             elif cmd.kind == ControlCommandKind.TERMINATE:
+                # v11.8.19 (BUG-A31)：终止同时解除暂停，否则后续阶段（后处理/后续用例）在 wait_unpaused 处卡死
+                self._unpaused.set()
                 raise GracefulRunTermination()
             elif cmd.kind == ControlCommandKind.FORCE_TERMINATE:
+                self._unpaused.set()
                 raise ForceRunTermination("runtime force_terminate")

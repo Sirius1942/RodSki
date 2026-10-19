@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>DialogPolicy 验收页</title>
+</head>
+<body>
+<!-- DialogPolicy（F072）验收页：dialog_accept / dialog_dismiss / dialog_default 三个模块共用。
+     每个按钮弹出一种原生弹窗，并把页面实际拿到的返回值写到对应结果元素上，
+     confirmLog 依次记录每次 confirm 的返回值（逗号分隔），用于验证一次性处理器只生效一次。 -->
+<h1>DialogPolicy</h1>
+<p>
+  <button id="alertBtn" onclick="doAlert()">alert</button>
+  <span id="alertResult">-</span>
+</p>
+<p>
+  <button id="confirmBtn" onclick="doConfirm()">confirm</button>
+  <span id="confirmResult">-</span>
+  <span id="confirmLog"></span>
+</p>
+<p>
+  <button id="promptBtn" onclick="doPrompt()">prompt</button>
+  <span id="promptResult">-</span>
+</p>
+<script>
+function $(id) { return document.getElementById(id); }
+function doAlert() {
+  alert('保存成功');
+  $('alertResult').textContent = 'alert-closed';
+}
+function doConfirm() {
+  var ok = confirm('确认删除订单 ORD9?');
+  $('confirmResult').textContent = 'confirm=' + ok;
+  var log = $('confirmLog').textContent;
+  $('confirmLog').textContent = log ? log + ',' + ok : String(ok);
+}
+function doPrompt() {
+  var v = prompt('请输入备注', '默认备注');
+  $('promptResult').textContent = v === null ? 'prompt=null' : 'prompt=' + v;
+}
+</script>
+</body>
+</html>

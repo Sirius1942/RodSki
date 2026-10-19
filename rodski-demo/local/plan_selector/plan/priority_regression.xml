@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  F092 执行优先级矩阵（GUIDE §10.9、CORE §7.7）default_execute="否"：
+    CHK_003  case XML execute=否            > plan case/scenario execute=是   → 不执行
+    CHK_002  plan case execute=否           > plan scenario execute=是        → 不执行（SKIP）
+    CHK_001  S01 step 2 execute=否          > test_plan.default_execute       → 只执行 S01 第 1、3 步
+             S02 plan scenario execute=否   > plan step execute=是            → 不执行
+             S03 未提及                      → default_execute=否 → 不执行
+    CAT_001  显式选中                        → 执行
+    CAT_002 / CAT_003 / RPT_001 未提及       → 不执行
+-->
+<test_plan id="priority_regression" title="执行优先级矩阵" kind="suite" execute="是" default_execute="否">
+  <case file="checkout/checkout_flow.xml" id="CHK_003" execute="是">
+    <scenario id="S01" execute="是"/>
+  </case>
+  <case file="checkout/checkout_flow.xml" id="CHK_002" execute="否">
+    <scenario id="S01" execute="是"/>
+  </case>
+  <case file="checkout/checkout_flow.xml" id="CHK_001" execute="是">
+    <scenario id="S01" execute="是">
+      <step no="1" execute="是"/>
+      <step no="2" execute="否"/>
+      <step no="3" execute="是"/>
+    </scenario>
+    <scenario id="S02" execute="否">
+      <step no="1" execute="是"/>
+    </scenario>
+  </case>
+  <case file="catalog/catalog_basic.xml" id="CAT_001" execute="是"/>
+</test_plan>

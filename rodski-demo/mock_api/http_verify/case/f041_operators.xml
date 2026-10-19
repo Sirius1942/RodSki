@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+    <!-- F041：接口 verify 断言操作符 $gt / $gte / $lt / $lte / $contains
+         依据：TEST_CASE_WRITING_GUIDE.md §5.7.1；CORE_DESIGN_CONSTRAINTS.md §4.6.1~§4.6.4、§4.5（字段.length）
+         /api/items → count=3, price=100, title="Order list /order/2026", names=[apple,banana,cherry], ids=[1,2,3], items 3 项 -->
+
+    <case execute="是" id="TC-HV-041-01" title="操作符正向-gte/gt/contains/lte" component_type="接口">
+        <test_case>
+            <test_step action="send" model="HttpGet" data="ITEMS"/>
+            <test_step action="verify" model="ItemsResp" data="V_OPS"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC-HV-041-02" title="操作符正向-lt/lte边界/contains" component_type="接口">
+        <test_case>
+            <test_step action="send" model="HttpGet" data="ITEMS"/>
+            <test_step action="verify" model="ItemsResp" data="V_OPS2"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC-HV-041-03" title="gt边界相等必须失败" component_type="接口" expect_fail="是">
+        <test_case>
+            <test_step action="send" model="HttpGet" data="ITEMS"/>
+            <test_step action="verify" model="ItemsResp" data="N_GT"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC-HV-041-04" title="gte不满足必须失败" component_type="接口" expect_fail="是">
+        <test_case>
+            <test_step action="send" model="HttpGet" data="ITEMS"/>
+            <test_step action="verify" model="ItemsResp" data="N_GTE"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC-HV-041-05" title="lt边界相等必须失败" component_type="接口" expect_fail="是">
+        <test_case>
+            <test_step action="send" model="HttpGet" data="ITEMS"/>
+            <test_step action="verify" model="ItemsResp" data="N_LT"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC-HV-041-06" title="lte不满足必须失败" component_type="接口" expect_fail="是">
+        <test_case>
+            <test_step action="send" model="HttpGet" data="ITEMS"/>
+            <test_step action="verify" model="ItemsResp" data="N_LTE"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC-HV-041-07" title="字符串contains不满足必须失败" component_type="接口" expect_fail="是">
+        <test_case>
+            <test_step action="send" model="HttpGet" data="ITEMS"/>
+            <test_step action="verify" model="ItemsResp" data="N_CONTAINS_STR"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC-HV-041-08" title="数组contains不满足必须失败" component_type="接口" expect_fail="是">
+        <test_case>
+            <test_step action="send" model="HttpGet" data="ITEMS"/>
+            <test_step action="verify" model="ItemsResp" data="N_CONTAINS_ARR"/>
+        </test_case>
+    </case>
+</cases>

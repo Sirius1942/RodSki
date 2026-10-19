@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>assert 图片比对</title>
+<style>
+  body { margin: 0; background: #ffffff; }
+  /* 纯 CSS 色块图案（不含文字，避免字体渲染差异），固定在视口正中：
+     ImageMatcher 在截图与参考图尺寸不一致时按参考图尺寸「中心裁剪」后比对（rodski/core/assertion/image_matcher.py:241 _template_match），
+     因此参考图（240×160）与视口中心区域逐像素对应，与视口大小无关。 */
+  #pattern { position: fixed; left: calc(50% - 120px); top: calc(50% - 80px); width: 240px; height: 160px; display: grid;
+             grid-template-columns: repeat(4, 60px); grid-template-rows: repeat(2, 80px); }
+  #pattern div:nth-child(1) { background: #d7263d; }
+  #pattern div:nth-child(2) { background: #f46036; }
+  #pattern div:nth-child(3) { background: #2e294e; }
+  #pattern div:nth-child(4) { background: #1b998b; }
+  #pattern div:nth-child(5) { background: #c5d86d; }
+  #pattern div:nth-child(6) { background: #3f88c5; }
+  #pattern div:nth-child(7) { background: #ffba08; }
+  #pattern div:nth-child(8) { background: #6a4c93; }
+</style></head>
+<body>
+<div id="pattern"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>
+</body>
+</html>

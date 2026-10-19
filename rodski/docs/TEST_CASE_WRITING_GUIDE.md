@@ -218,6 +218,7 @@ case/
 | `description` | 否 | 用例描述 | 详细说明（可选） |
 | `component_type` | 否 | 测试类别 | `界面` / `接口` / `数据库`（与 `case.xsd` 一致），仅做分类标记 |
 | `priority` | 否 | 优先级 | `P0` / `P1` / `P2` / `P3`，CLI 可按优先级过滤 |
+| `tags` | 否 | 用例标签 | 逗号分隔；与 `<cases tags>` 合并后参与 `--tags` / `--exclude-tags` 过滤（v11.8.9） |
 | `expect_fail` | 否 | 预期失败 | `是` / `否`（默认 `否`），标记为预期失败的用例失败时不计入 FAIL |
 | `roam` | 否 | 是否允许显式漫游 | `是` / `否`（默认 `否`）。仅 UI 用例可设为 `是`：`component_type` 可为空或为 `界面`；非空且不是 `界面` 时抛 `SKI803` |
 
@@ -465,12 +466,12 @@ case/
 
 | type 值 | 转换规则 | 示例 |
 |---------|---------|------|
-| `id` | → CSS `#定位值` | `<location type="id">username</location>` → `#username` |
-| `class` | → CSS `.定位值` | `<location type="class">btn-submit</location>` → `.btn-submit` |
+| `id` | → id 属性选择器 | `<location type="id">username</location>` → `[id="username"]`（等价于 `#username`，id 含 `.`/`:` 或以数字开头也可用） |
+| `class` | → CSS `.定位值`；多个类名空格分隔表示同时具备 | `<location type="class">btn-submit</location>` → `.btn-submit`；`btn primary` → `.btn.primary`（可直接照抄元素的 class 属性） |
 | `css` | → 原样使用 | `<location type="css">input[name="user"]</location>` |
-| `xpath` | → 原样使用 | `<location type="xpath">//input[@id='user']</location>` |
+| `xpath` | → `xpath=值` | `<location type="xpath">//input[@id='user']</location>`；`(//a)[1]` 这类写法同样可用 |
 | `text` | → Playwright `text=...` | `<location type="text">登录</location>` → `text=登录` |
-| `tag` | → 标签名选择器 | `<location type="tag">button</location>` |
+| `tag` | → 标签名选择器 | `<location type="tag">button</location>` → `button`（匹配多个时取第一个） |
 | `name` | name 属性选择器 | 按框架解析规则使用 |
 | `static` | 静态字面量 | 常用于接口 `_method`、固定 URL 等 |
 | `field` | 接口字段映射 | 常用于接口 body / query 字段名 |
@@ -608,7 +609,7 @@ case/
 | D_ACCEPT | `accept` | `click` | `BLANK` | 点删除，确认弹窗 |
 | D_DISMISS | `dismiss` | `click` | `BLANK` | 点删除，取消弹窗 |
 
-prompt 弹窗填 `accept:输入文本`，例如 `accept:加急` 表示输入「加急」后确认（完整示例见 `rodski-demo/DEMO/demo_authoring_v116/`）。
+prompt 弹窗填 `accept:输入文本`，例如 `accept:加急` 表示输入「加急」后确认（完整示例见 `rodski-demo/local/authoring/`）。
 
 | DialogPage_verify | dialog | deleteBtn | status |
 |-------------------|--------|-----------|--------|
@@ -874,9 +875,11 @@ rodski data set product/shop/order OrderDB_verify V_OK n=2
 | 特殊值 | Web 行为 | 接口行为 |
 |--------|---------|---------|
 | `.Password` 后缀 | 输入时去掉后缀，日志中显示 `***` | — |
-| 空值（省略 field） | 跳过该元素（不输入） | — |
+| 空值（字段值为空串；v6.7.6 起字段不可省略） | 跳过该元素（不输入；只含空格的值照常输入） | — |
 | `BLANK` | 跳过（UI）/ 空字符串（接口） | 传空字符串 |
-| `NULL` / `NONE` | 跳过（UI） | 传 null / none |
+| `NULL` / `NONE` | 跳过（UI） | `NULL` 传 null；`NONE` 不发送该字段 |
+
+verify 中：`BLANK` 在 UI / DB 模型跳过、接口模型期望空字符串；`NULL` 期望 null（UI 跳过）；`NONE` 一律跳过该字段（CORE §4.1）。
 
 #### UI 动作关键字
 
@@ -913,6 +916,8 @@ rodski data set product/shop/order OrderDB_verify V_OK n=2
 | F 功能键 | `F1` `F5` `F12` | `key_press【F5】` |
 
 > 组合键使用 `+` 连接，修饰键在前、普通键在后。macOS 上 `Control` 对应 `Command` 键行为。
+>
+> 按键作用于该字段对应的元素：Web 驱动先聚焦该元素再按键（v11.8.27 起；此前发往当前焦点元素）。macOS 上组合键中的 `Control` 修饰键按 `Command` 执行（`Control+A` 全选），单独按 `Control` 不转换。
 
 #### 示例：含动作关键字的数据表
 
@@ -1054,6 +1059,7 @@ UI 模型的 `verify` 会在自动等待 `DefaultValue.AutoWait` 毫秒内（例
 
 - strict 模式下某行一半以上字段都是 `BLANK` 时，`rodski case lint` 会提示改用 `match_mode="subset"`（INFO）。
 - 缺字段的报错会直接给出这两种修法。
+- 接口模型（v11.8.14 起）不受"全部字段"约束：只比较 `_verify` 行中写出的字段，请求字段与 `_method` / `_url` 等控制元素不用写进 `_verify`；`status` 列即使模型没有声明 `status` 元素也按 HTTP 状态码校验。
 
 #### 5.7.4 什么时候还用 evaluate
 
@@ -1616,7 +1622,8 @@ INSERT INTO rs_field VALUES ('PayAPI', 'D001', 'txn_no', 'TXN${date(today, %Y%m%
 </datatable>
 ```
 
-> `status` 字段：期望的 HTTP 状态码。其他字段：期望的响应字段值。
+> `status` 字段：期望的 HTTP 状态码。其他字段：期望的响应字段值（JSON 对象响应的字段平铺到顶层）。
+> 响应体自带同名 `status` 字段时，`status` 仍是 HTTP 状态码，响应体字段用 `${Return[-1].body.status}` 读取（v11.8.12）。
 
 **Case XML 写法**：
 
@@ -1854,19 +1861,19 @@ product/DEMO/demo_site/
 
 ```bash
 # 方式1：指定 case XML 文件
-rodski run rodski-demo/DEMO/demo_full/case/demo_case.xml
+rodski run rodski-demo/demosite/full/case/demo_case.xml
 
 # 方式2：指定 case 目录（递归执行该目录下所有 XML，任意层级，v11.5.0 起）
-rodski run rodski-demo/DEMO/demo_full/case/
+rodski run rodski-demo/demosite/full/case/
 
 # 方式2b：指定 case 下的任意子目录（同样递归，v11.5.0 起）
-rodski run rodski-demo/DEMO/demo_full/case/order/
+rodski run rodski-demo/demosite/full/case/order/
 
 # 方式3：指定测试模块目录
-rodski run rodski-demo/DEMO/demo_full/
+rodski run rodski-demo/demosite/full/
 
 # 方式4：文件 + --case-id，只执行该文件中的指定用例（v11.5.0 起，可逗号分隔多个）
-rodski run rodski-demo/DEMO/demo_full/case/order/order_basic.xml --case-id TC002
+rodski run rodski-demo/demosite/full/case/order/order_basic.xml --case-id TC002
 
 # 按标签过滤（OR 匹配，命中任一即可）
 rodski run case/ --tags smoke
@@ -2060,11 +2067,13 @@ rodski plan create invoice_smoke --kind suite --default-execute 否 --title "开
 # 向计划添加 case 和 scenario（v11.5.0 起 add-case 为 3 个参数：计划、用例文件、用例 ID）
 rodski plan add-case invoice_smoke case/order/invoice_apply.xml TC040
 rodski plan add-scenario invoice_smoke TC040 INV-001
+# 计划中还没有该用例时自动新建 <case> 并按 ID 补全 file；同名 ID 出现在多个用例文件时需指定（v11.8.30）
+rodski plan add-scenario invoice_smoke TC040 INV-001 --file order/invoice.xml
 
 # 按目录整体添加（v11.5.0 新增，递归选入该目录下 execute="是" 的用例）
 rodski plan add-dir invoice_smoke case/order/invoice
 
-# 从 tag 选择结果生成计划
+# 从 tag 选择结果生成计划（范围与 rodski run --tag smoke 一致；生成的 <case> 带 file）
 rodski plan create invoice_smoke --kind suite --from-tag smoke --title "开票冒烟"
 
 # 迁移存量 plan：为省略 file 的 <case> 自动补全（能唯一定位时），有歧义的列出待人工处理（v11.5.0 新增）
@@ -2160,6 +2169,8 @@ rodski plan debug-scenario inv_debug --case TC040 --scenario INV-001 --prepare a
 
 # 创建 step 调试计划
 rodski plan debug-step inv_step_debug --case TC040 --scenario INV-001 --step 2 --step-mode only --prepare auto --cleanup 否
+
+# 生成的 <case> 会按用例 ID 自动补 file；同名 ID 出现在多个用例文件时加 --file order/invoice.xml（v11.8.31）
 
 # 执行调试
 rodski run @inv_debug --debug
@@ -3086,7 +3097,7 @@ rodski business debug     <module> --id login_flow --flow F_LOGIN_SUCCESS \
                           --input LOGIN_OK_01 --expect LOGIN_OK_01   # 仅调试，不产生正式结果
 ```
 
-正式执行仍用 `rodski run <module>/case/...`。完整可运行示例见 `rodski-demo/DEMO/demo_business_model/`。
+正式执行仍用 `rodski run <module>/case/...`。完整可运行示例见 `rodski-demo/mock_api/business_model/`。
 
 ### 17.10 编写顺序建议
 

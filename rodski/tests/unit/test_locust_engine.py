@@ -366,3 +366,18 @@ class TestResolveHost:
         ctx = _make_shared_ctx(global_values={})
         engine = LocustLoadEngine(_make_plan(), ctx)
         assert engine._resolve_host() == "http://localhost"
+
+
+class TestBrowserModeRejected:
+    """BUG-A32：mode=browser 尚未实现，run() 必须报 SKI605，不能静默按 api 执行"""
+
+    def test_browser_mode_raises_before_running(self):
+        from rodski.core.exceptions import LoadBrowserModeNotSupportedError
+        plan = _make_plan(profile={"mode": "browser", "concurrency": 1, "duration_seconds": 1})
+        plan["id"] = "load_extra_browser"
+        engine = LocustLoadEngine(plan, _make_shared_ctx())
+        with patch("rodski.load.locust_engine._require_locust") as req:
+            with pytest.raises(LoadBrowserModeNotSupportedError, match="load_extra_browser") as exc:
+                engine.run()
+        req.assert_not_called()
+        assert exc.value.error_code == "SKI605"

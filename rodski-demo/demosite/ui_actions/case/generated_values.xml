@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  F059 数据表字段值中的 random() / date() / timestamp36()（TEST_CASE_WRITING_GUIDE §7.7；CORE §4.4）
+  生成值经 type 写入页面输入框，页面按 GUIDE §7.7 结果示例的格式规则给出 OK / BAD:原值，verify 断言 OK；
+  random(int, 1000, 9999) 另用 $gte / $lte 断言范围，user_ 前缀用 $contains 断言。
+  「每次执行时重新计算，不缓存结果」：两次 type 的 uuid 必须不同。
+-->
+<cases tags="ui_actions,F059">
+    <case execute="是" id="GEN_FORMAT" title="random/date/timestamp36 生成值格式正确" component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/gen.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="GenForm" data="G001"/>
+            <test_step action="verify" model="GenView" data="V001"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="GEN_REEVAL" title="两次求值 uuid 不同（不缓存）" component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/gen.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="GenForm" data="G001"/>
+            <test_step action="type" model="GenForm" data="G_UUID"/>
+            <test_step action="verify" model="GenView" data="V_UUID"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="GEN_NEG" title="负向：不合规字面值 user_abcd 必须被格式断言拦下" component_type="界面" priority="P2" expect_fail="是">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/gen.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="GenForm" data="G_BAD"/>
+            <test_step action="verify" model="GenView" data="V_BAD"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+</cases>

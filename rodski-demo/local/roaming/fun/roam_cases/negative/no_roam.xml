@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- F110：用例未声明 roam（默认 否）。
+     rodski roam 定向漫游应报 SKI802（CORE §8.9、GUIDE §11.6）；rodski run 加 roam 参数的批量模式应静默跳过漫游、正常执行用例。 -->
+<cases tags="roaming,negative">
+    <case execute="是" id="RT_NOROAM" title="未声明 roam 的界面用例" component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Demo.URL"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="RoamForm" data="D001"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+</cases>

@@ -196,7 +196,7 @@ rodski run @my_load_plan
 
 | 参数 | 必填 | 类型 | 默认 | 说明 |
 |------|------|------|------|------|
-| `mode` 属性 | 否 | `api` \| `browser` | `api` | 压测引擎选择。v8.0 只支持 `api`（Locust） |
+| `mode` 属性 | 否 | `api` \| `browser` | `api` | 压测引擎选择。v8.0 只支持 `api`（Locust）；写 `browser` 时运行报 SKI605 并以非 0 退出（v11.8.29 起，此前被静默按 api 执行） |
 | `concurrency` | ✅ | 正整数 | — | 并发虚拟用户数（VU）。建议从 10 起步，逐步调大 |
 | `duration_seconds` | ✅ | 正整数 | — | 压测持续时长（秒）。建议最少 30s，稳态测试 300s+ |
 | `ramp_up_seconds` | 否 | 非负整数 | `0` | 从 0 爬坡到目标 VU 的时长。0 表示立即达到目标并发 |
@@ -777,6 +777,7 @@ def on_start(self):
 | SKI602 | `LoadModeUnsupportedCaseError` | `mode=api` 计划引用了 UI case | 修改 plan，只引用接口 case |
 | SKI603 | `LoadDependencyMissingError` | locust 未安装 | `pip install rodski[load]` |
 | SKI604 | `LoadBrowserModeUnsupportedCaseError` | `mode=browser` 计划引用了接口 case | 修改 plan 或换 `mode=api` |
+| SKI605 | `LoadBrowserModeNotSupportedError` | 计划声明了 `mode="browser"`（当前版本未实现） | 改为 `mode="api"`，只引用接口 case |
 
 ---
 

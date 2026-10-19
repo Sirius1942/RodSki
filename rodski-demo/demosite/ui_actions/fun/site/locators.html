@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>class/tag/text 定位器</title></head>
+<body>
+<h2>标签定位标题</h2>
+<p>单类名输入 <input class="cls-single" autocomplete="off"> <span id="clsEcho">CLS:</span></p>
+<!-- 干扰项：只有 btn 类、或 primary 在后代元素上；多类名定位必须只命中同时带 btn 与 primary 的按钮 -->
+<p>
+  <button class="btn" id="plainBtn">普通按钮</button>
+  <button class="btn primary" id="multiBtn">多类名按钮</button>
+  <span id="multiResult">MULTI:none</span>
+</p>
+<p>页面唯一 textarea <textarea rows="2"></textarea> <span id="tagEcho">TAG:</span></p>
+<p><button id="textBtnEl">文本定位按钮</button></p>
+<div id="textResultBox"></div>
+<p><span class="note">单类名文本</span></p>
+<p><span class="badge info">MULTI-CLASS-TEXT</span> <span class="badge">BADGE-ONLY</span></p>
+<script>
+  const cls = document.querySelector('.cls-single');
+  cls.addEventListener('input', () => { document.getElementById('clsEcho').textContent = 'CLS:' + cls.value; });
+  document.getElementById('plainBtn').addEventListener('click', () => {
+    document.getElementById('multiResult').textContent = 'MULTI:wrong-plain';
+  });
+  document.getElementById('multiBtn').addEventListener('click', () => {
+    document.getElementById('multiResult').textContent = 'MULTI:clicked';
+  });
+  const ta = document.querySelector('textarea');
+  ta.addEventListener('input', () => { document.getElementById('tagEcho').textContent = 'TAG:' + ta.value; });
+  document.getElementById('textBtnEl').addEventListener('click', () => {
+    const p = document.createElement('p');
+    p.id = 'textResult';
+    p.textContent = '文本按钮已点击';
+    document.getElementById('textResultBox').appendChild(p);
+  });
+</script>
+</body>
+</html>

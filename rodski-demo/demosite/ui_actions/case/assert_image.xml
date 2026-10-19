@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  F011 assert 图片比对（TEST_CASE_WRITING_GUIDE 附录 A「assert」、§7.5「assert 返回断言结果」；
+  参数格式见 rodski/core/keyword_engine.py _kw_assert 文档字符串：type=image,reference=...,threshold=...，
+  reference 相对模块 images/assert/）。参考图 pattern_ref.png 由 fun/make_assert_refs.py 按 assert.html 视口正中色块的 CSS 颜色绘制（ImageMatcher 按参考图尺寸中心裁剪截图比对）；
+  pattern_other.png 为不同配色的同尺寸图案（负向）。
+-->
+<cases tags="ui_actions,F011">
+    <case execute="是" id="ASSERT_IMG_POS" title="页面包含参考色块，相似度 ≥ 0.95" component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/assert.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="assert" model="" data="type=image,reference=pattern_ref.png,threshold=0.95"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="ASSERT_IMG_NEG" title="负向：参考图不在页面中，assert 必须失败" component_type="界面" priority="P1" expect_fail="是">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/assert.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="assert" model="" data="type=image,reference=pattern_other.png,threshold=0.95"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+</cases>

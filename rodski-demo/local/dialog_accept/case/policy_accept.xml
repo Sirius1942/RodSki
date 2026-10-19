@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- F072 DialogPolicy=accept：未注册一次性处理器的 alert / confirm / prompt 全部自动确认（GUIDE §6.4.3、CORE §7.4）；
+     一次性处理器优先于全局策略且只生效一次（CORE §2.5.6 第 4 条） -->
+<cases tags="f072,dialog_policy,accept">
+  <case execute="是" id="TC001" title="alert 自动确认，页面继续执行" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/dialog.html"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="DialogPolicyPage" data="D_ALERT"/>
+      <test_step action="verify" model="DialogPolicyPage" data="V_ALERT"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+  <case execute="是" id="TC002" title="confirm 自动确认返回 true" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/dialog.html"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="DialogPolicyPage" data="D_CONFIRM"/>
+      <test_step action="verify" model="DialogPolicyPage" data="V_CONFIRM_TRUE"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+  <case execute="是" id="TC003" title="prompt 按默认值确认" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/dialog.html"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="DialogPolicyPage" data="D_PROMPT"/>
+      <test_step action="verify" model="DialogPolicyPage" data="V_PROMPT_DEFAULT"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+  <case execute="是" id="TC004" title="一次性 dismiss 覆盖全局 accept 且只生效一次" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/dialog.html"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="DialogPolicyPage" data="D_ONCE_DISMISS_CONFIRM"/>
+      <test_step action="type" model="DialogPolicyPage" data="D_CONFIRM"/>
+      <test_step action="verify" model="DialogPolicyPage" data="V_LOG_FALSE_TRUE"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+  <case execute="是" id="TC005" title="一次性 accept:加急 覆盖 prompt 默认值" component_type="界面" priority="P0">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Site.URL/dialog.html"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="DialogPolicyPage" data="D_ONCE_TEXT_PROMPT"/>
+      <test_step action="verify" model="DialogPolicyPage" data="V_PROMPT_TEXT"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+</cases>

@@ -1,6 +1,192 @@
 # Changelog
 
 
+## [11.8.32] - 2026-10-15
+
+### Fixed
+
+- BUG-A13：调试计划 prepare=none 跳过 pre_process 后访问只在 _run_steps 中初始化的 _phase_runtime_seq，AttributeError 导致目标步骤一步不执行；执行器初始化该计数器，调试目标阶段开始时重置（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
+## [11.8.31] - 2026-10-15
+
+### Fixed
+
+- BUG-A12：plan debug-scenario / debug-step 生成的调试计划 <case> 缺少 file，多用例文件模块 SKI207、--debug 一步不执行；与 add-scenario 共用节点生成（按 ID 唯一定位补 file，新增 --file 参数），GUIDE §10.7 同步（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
+## [11.8.30] - 2026-10-15
+
+### Fixed
+
+- BUG-A11：plan add-scenario（计划中尚无该用例时）与 plan create --from-tag 生成的 <case> 缺少 file，多用例文件模块报 SKI207；新建节点按 ID 在 case/ 中唯一定位补 file（同名 ID 多文件时报错并要求新增的 --file 参数），--from-tag 写入选择项的 case_file，不含 scenario 的用例只生成 <case>；GUIDE §10.3 同步（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
+## [11.8.29] - 2026-10-15
+
+### Fixed
+
+- BUG-A32：mode=browser 压测计划未被拒绝，按 api 模式照常压测并退出 0（mode 从未被运行链路读取）；新增 SKI605 LoadBrowserModeNotSupportedError，LocustLoadEngine.run 入口拒绝非 api 模式且不生成结果；LOAD 指南 §4.2 与错误码表同步（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
+## [11.8.28] - 2026-10-15
+
+### Fixed
+
+- BUG-A30：wait_for_response 调用同步 API 不存在的 page.wait_for_response，每次抛 AttributeError 又被包装成"等待网络响应超时"（超时负向用例假通过）；改用 page.expect_response 等待调用之后到达的匹配响应，只有 Playwright TimeoutError 报为超时；单测改用 spec=Page 的 mock（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
+## [11.8.27] - 2026-10-15
+
+### Fixed
+
+- BUG-A28（含 B06/D3）：macOS 上 key_press【Control+A】未映射为 Command（Chromium 解释为行首，不会全选）；组合键中的 Control 修饰键在 macOS 上映射为 ControlOrMeta，单独 Control 不变。同时按 D3 修 B06：key_press 改为先聚焦字段对应元素再按键（element.press），此前发往当前焦点；iframe 内同样生效，GUIDE §6.4 说明同步（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
+## [11.8.26] - 2026-10-15
+
+### Fixed
+
+- BUG-A26：Web 驱动 launch 非 http(s) 目标（不存在的应用名、ftp://、漏写协议）时 PlaywrightDriver.launch 忽略 app_path 返回 None，步骤静默成功；改为报参数错误并提示写完整 URL / 改用 navigate / 使用 Desktop 模型；驱动异常导入回退统一为 rodski.core（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
+## [11.8.25] - 2026-10-15
+
+### Fixed
+
+- BUG-A24/A25：Web 定位器两套转换实现不一致：驱动 _convert_locator 把 class 多类名 "btn primary" 拼成后代选择器 .btn primary、tag 定位器原样下发（Unknown engine "tag"），只有元素状态断言的 _web_selector 正确；合并为 drivers/web_selector.py 唯一实现（class → .a.b、tag → 标签名、id → [id="..."]、xpath 显式 xpath= 前缀），GUIDE / CORE 定位器表同步（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
+## [11.8.24] - 2026-10-15
+
+### Fixed
+
+- BUG-A18：set 中 $${random(...)} 转义被二次解析：执行器 resolve_case_data 已还原转义，_kw_set 再 resolve_with_return 把字面量 ${random(...)} 当调用求值（同时绕过规则 5）；执行器传 resolved 标记，_kw_set 不再二次解析，Python API 直接调用仍解析（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
+## [11.8.23] - 2026-10-15
+
+### Fixed
+
+- BUG-A17：rodski data import 以各行字段并集为 schema、缺字段行少写记录且不报错，产出违反字段集合一致约束的 data.sqlite；写库前逐表校验，不一致时列出 表.行: missing=[...] 并提示 BLANK/NULL/NONE，整体不写入、退出码 1（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
+## [11.8.22] - 2026-10-15
+
+### Fixed
+
+- BUG-A16：type 返回值历史的 DEBUG 日志（history[N]=...）原样打印 .Password 字段明文，落入 execution.log；步骤摘要日志中的 history / named / capture 统一脱敏为 ***（Return 本体是否脱敏待 C07 决定）（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
+## [11.8.21] - 2026-10-15
+
+### Fixed
+
+- BUG-A14：UI type 字段值为空串时按空串输入、清空预填内容（v6.7.6 起字段不可省略，空串是"空值"唯一写法）；空值（空串 / NULL）改为跳过（CORE §4.1），只含空格的值照常输入；GUIDE 控制值表更正"空值"定义（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
+## [11.8.20] - 2026-10-15
+
+### Fixed
+
+- BUG-A33：python rodski/cli_main.py 入口下 rodski_cli 以顶层包导入，相对导入全部进入回退分支，run.py 两处回退分别落到 core.* 与 rodski.core.*，DriverFactory 缓存分裂（移动端第 2 条用例起复用已关闭会话）；cli_main 改为以 rodski.rodski_cli 包名导入，rodski_cli 内 29 处 core./drivers. 顶层回退与 model.py 无条件 from data. 统一为 rodski.*（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
+## [11.8.19] - 2026-10-15
+
+### Fixed
+
+- BUG-A31：暂停中下发 terminate / force_terminate 后执行器仍处于暂停态，后处理与后续用例在 wait_unpaused 处卡死；终止命令同时解除暂停（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
+## [11.8.18] - 2026-10-15
+
+### Fixed
+
+- BUG-A29：DialogPolicy=accept 时 prompt 以空字符串确认（Playwright accept() 不带参数）；未指定输入时改为按 prompt 默认值 default_value 确认（GUIDE §6.6）（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
+## [11.8.17] - 2026-10-15
+
+### Fixed
+
+- BUG-A27：assert type=image 读取截图时 name cv2 is not defined（a8cfe75 移除模块级 import 后使用处未导入）；改为使用处导入并在缺依赖时提示安装 rodski[vision]。修复后暴露同根问题：图片/视频断言不匹配时只返回 False，步骤仍记为 PASS，负向用例永远无法失败；改为抛 AssertionFailedError（附相似度与失败截图）（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
+## [11.8.16] - 2026-10-15
+
+### Fixed
+
+- BUG-A23：DB verify 不支持 $gt/$gte/$lt/$lte/$contains 断言操作符（直接按字符串比较，GUIDE §5.7.1 写明适用 DB）；_batch_verify_db 按查询结果原始值求值操作符，失败附原因，元素状态操作符报参数错误（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
+## [11.8.15] - 2026-10-15
+
+### Fixed
+
+- BUG-A15：接口 / DB verify 中 NONE 被当作期望字符串 "none" 比较；按 CORE §4.1 改为跳过该字段（DB 模型字段缺失也不报错），GUIDE 控制值表同步更正 NONE 在 send 中"不发送该字段"并补 verify 行为说明（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
+## [11.8.14] - 2026-10-15
+
+### Fixed
+
+- BUG-A21/A22：接口模型 verify 的字段范围：strict 要求 _verify 行包含请求字段与 _method/_url 控制元素（GUIDE §8.2 示例照写即失败），且模型未声明 status 元素时 status 列被静默忽略；接口模型改为只比较行内出现且模型已声明的字段，status 列恒按 HTTP 状态码比较，_ 前缀控制元素不参与比较（CORE §4.7.4 第 6 条、GUIDE §5.7.3）（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
+## [11.8.13] - 2026-10-15
+
+### Fixed
+
+- BUG-A19：case XML 步骤上的 match_mode="subset" 未传入 verify 参数，恒按 strict 校验；execute_step 将步骤 match_mode（解析器默认 strict、business_call 为 subset）传给关键字（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
+## [11.8.12] - 2026-10-15
+
+### Fixed
+
+- BUG-A20：响应体同名 status 字段覆盖 HTTP 状态码；send 与压测驱动统一由 build_http_result 组装，status 恒为 HTTP 状态码，响应体自带 status 时完整响应体放在 body（body.status）（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
+## [11.8.11] - 2026-10-15
+
+### Fixed
+
+- BUG-A10：不带用例路径的 rodski run --group/--tag 总是先解析默认计划，报 SKI703 冲突或未找到默认计划；有 selector 时改为在当前模块全部用例上临时选择（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
+## [11.8.10] - 2026-10-15
+
+### Fixed
+
+- BUG-A08：--priority P0,P1 多值时 scenario 选择只取第一个值（执行与 --dry-run 均如此）；selector 编译接受优先级列表（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
+## [11.8.9] - 2026-10-15
+
+### Fixed
+
+- BUG-A07：用例级 <case tags> 属性（case.xsd 允许）被解析器忽略；与 <cases tags> 合并后参与 --tags / --exclude-tags，GUIDE §3.2 属性表补充 tags（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
+## [11.8.8] - 2026-10-15
+
+### Fixed
+
+- BUG-A09：--tag 先被当作 --tags 按文件级 tags 做用例级过滤，只写在 scenario 上的 tag 选不中任何用例；selector 模式下只在 selector 编译阶段统一选择一次（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
+## [11.8.7] - 2026-10-15
+
+### Fixed
+
+- BUG-A06：selector 模式下不含 scenario 的用例一律 SKIP（--tags 0 条执行、退出码 0）；元数据为无 scenario 的用例生成用例级记录，命中时整条用例选中（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
+## [11.8.6] - 2026-10-15
+
+### Fixed
+
+- BUG-A04：<loop> 内的 <if>/<elif>/<else> 被解析器静默丢弃；循环体改用与阶段容器相同的解析（支持 if/elif/else 链）（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
+## [11.8.5] - 2026-10-15
+
+### Fixed
+
+- BUG-A03：element_exists 恒假 / element_not_exists 恒真：以单参调用 locate_element(type, value) 且异常被吞；改为按 CORE 约定拆分 type=value（否则按 CSS），定位异常按条件无法评估处理（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
+## [11.8.4] - 2026-10-15
+
+### Fixed
+
+- BUG-A02：Return 条件恒为假：条件求值器持有的 Return 历史在构造时（空列表被替换）和用例间重建 KeywordEngine 时都与真实历史脱钩；改为共享并在重建时改绑，同时支持 GUIDE 写法 ${Return[-1].x} == v 与 CORE 写法 ${Return[-1].x == v}、嵌套字段（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
+## [11.8.3] - 2026-10-15
+
+### Fixed
+
+- BUG-A01：条件中的 ${name} 变量引用不解析、set 定义的变量在条件里不可见；条件操作数改为从 loop 变量与 set 模板变量取值，未定义变量按条件无法评估处理（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
+## [11.8.2] - 2026-10-15
+
+### Fixed
+
+- BUG-A05：条件运算符 >= / <= 被 > / < 先拆开导致整个条件块被跳过；改为按长度优先匹配运算符（问题单 `.pb/iterations/iteration-66/BUG_REPORT.md`）
+
 ## [11.8.1] - 2026-10-15
 
 修复版本：调试参数接线、`--group` 选择、`loop` 变量解析；重写 REQ-012 验收用例为真实执行判定。

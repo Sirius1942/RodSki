@@ -20,7 +20,9 @@ class DynamicExecutor:
     def __init__(self, data_resolver, return_values: Optional[List[Any]] = None):
         self.data_resolver = data_resolver
         self.variables: Dict[str, Any] = {}
-        self._return_values = return_values or []  # 历史 verify/Return 结果
+        # 必须保留调用方传入的同一个列表（RuntimeContext.history）：构造时它还是空列表，
+        # 若写成 `return_values or []` 会另建新列表而与关键字引擎的 Return 历史脱钩
+        self._return_values = return_values if return_values is not None else []
 
     def set_variable(self, name: str, value: Any) -> None:
         """设置变量"""
@@ -29,6 +31,10 @@ class DynamicExecutor:
     def get_variable(self, name: str) -> Any:
         """获取变量"""
         return self.variables.get(name)
+
+    def bind_return_history(self, history: List[Any]) -> None:
+        """改绑 Return 历史（执行器在 close 后重建 KeywordEngine 时必须调用）。"""
+        self._return_values = history
 
     def add_return_value(self, value: Any) -> None:
         """记录一个 verify/Return 结果（用于 verify_fail 判断）"""
@@ -86,29 +92,44 @@ class DynamicExecutor:
         if 'text_contains' in c_lower or 'text_not_contains' in c_lower:
             return self._eval_text_contains(condition, driver)
 
-        # 5. 变量比较（原有逻辑）
-        for op in ['==', '!=', '>', '<', '>=', '<=']:
-            if op in condition:
-                parts = condition.split(op, 1)
-                if len(parts) == 2:
-                    left = self._resolve_value(parts[0].strip())
-                    right = self._resolve_value(parts[1].strip())
-                    if op == '==':
-                        return str(left) == str(right)
-                    elif op == '!=':
-                        return str(left) != str(right)
-                    elif op == '>':
-                        return float(left) > float(right)
-                    elif op == '<':
-                        return float(left) < float(right)
-                    elif op == '>=':
-                        return float(left) >= float(right)
-                    elif op == '<=':
-                        return float(left) <= float(right)
+        # 5. 变量比较
+        parsed = self._split_comparison(condition)
+        if parsed:
+            left, op, right = parsed
+            return self._compare(self._resolve_value(left), op, self._resolve_value(right))
 
         # 未知条件默认为 False
         logger.warning(f"[IF] 未知条件类型: {condition}")
         return False
+
+    # 双字符运算符必须排在单字符之前，否则 `a >= 3` 会在 `>` 处被拆成 `a` 与 `= 3`
+    _COMPARE_RE = re.compile(r'^(.+?)\s*(==|!=|>=|<=|>|<|\bcontains\b)\s*(.+)$', re.S)
+
+    @classmethod
+    def _split_comparison(cls, condition: str):
+        """拆成 (左, 运算符, 右)；不是比较表达式返回 None。"""
+        m = cls._COMPARE_RE.match(condition.strip())
+        if not m:
+            return None
+        return m.group(1).strip(), m.group(2), m.group(3).strip()
+
+    @staticmethod
+    def _compare(left: Any, op: str, right: Any) -> bool:
+        """==/!=/contains 按字符串比较，> < >= <= 按数值比较（无法转数值时抛 ValueError）。"""
+        if op == 'contains':
+            return str(right) in str(left)
+        if op == '==':
+            return str(left) == str(right)
+        if op == '!=':
+            return str(left) != str(right)
+        lf, rf = float(left), float(right)
+        if op == '>':
+            return lf > rf
+        if op == '<':
+            return lf < rf
+        if op == '>=':
+            return lf >= rf
+        return lf <= rf
 
     def _split_outside_quotes(
         self, s: str, sep: str, case_sensitive: bool = True
@@ -163,37 +184,46 @@ class DynamicExecutor:
             return last.get('passed', last.get('_verify_passed', True)) is False
         return last is False
 
+    # CORE §12.3 写法：比较写在花括号内 `${Return[-1].status == 200}`（容忍漏写右花括号）
+    _RETURN_INLINE_RE = re.compile(
+        r'^\$\{Return\[(-?\d+)\]((?:\.\w+)+)\s*(contains|==|!=|>=|<=|>|<)\s*(.+?)\s*\}?$', re.S)
+    # 操作数写法：`${Return[-1].status}`（GUIDE §3.8：`${Return[-1].status} == 200`）
+    _RETURN_OPERAND_RE = re.compile(r'^\$\{Return\[(-?\d+)\]((?:\.\w+)*)\}$')
+
     def _eval_return_condition(self, condition: str) -> bool:
-        """${Return[N].field ==/contains value}"""
-        m = re.search(r'\$\{Return\[(-?\d+)\]\.(\w+)\s*(contains|==|!=|>|<|>=|<=)\s*[\'""]?(.+?)[\'""]?\}', condition)
-        if not m:
+        """${Return[N].field ==/contains value}（CORE 写法）或 ${Return[N].field} == value（GUIDE 写法）"""
+        try:
+            return self._eval_return_comparison(condition)
+        except IndexError as e:
+            logger.info(f"[IF] {e}，条件按 False 处理: {condition}")
             return False
-        idx_str, field, op, value = m.group(1), m.group(2), m.group(3), m.group(4)
-        idx = int(idx_str)
-        values = self._return_values
-        if not values or abs(idx) > len(values):
-            return False
-        actual = values[idx]
-        if isinstance(actual, dict):
-            actual = actual.get(field, '')
-        else:
-            actual = str(actual)
-        value = value.strip().strip('"\'')
-        if op == 'contains':
-            return value in actual
-        elif op == '==':
-            return str(actual) == value
-        elif op == '!=':
-            return str(actual) != value
-        elif op == '>':
-            return float(actual) > float(value)
-        elif op == '<':
-            return float(actual) < float(value)
-        elif op == '>=':
-            return float(actual) >= float(value)
-        elif op == '<=':
-            return float(actual) <= float(value)
+
+    def _eval_return_comparison(self, condition: str) -> bool:
+        m = self._RETURN_INLINE_RE.match(condition.strip())
+        if m:
+            actual = self._lookup_return(int(m.group(1)), m.group(2))
+            return self._compare(actual, m.group(3), self._resolve_value(m.group(4)))
+        parsed = self._split_comparison(condition)
+        if parsed:
+            left, op, right = parsed
+            return self._compare(self._resolve_value(left), op, self._resolve_value(right))
+        logger.warning(f"[IF] 无法识别的 Return 条件，按 False 处理: {condition}")
         return False
+
+    def _lookup_return(self, index: int, path: str) -> Any:
+        """按 Return 历史下标取值，path 形如 `.body.status`。
+
+        下标越界抛 IndexError（条件按 False 处理，与既有语义一致）；字段不存在返回空串。
+        """
+        values = self._return_values
+        if index >= len(values) or -index > len(values):
+            raise IndexError(f"Return[{index}] 不存在（当前共 {len(values)} 个返回值）")
+        current = values[index]
+        for part in [p for p in path.split('.') if p]:
+            if not isinstance(current, dict) or part not in current:
+                return ''
+            current = current[part]
+        return current
 
     def _eval_element_exists(self, condition: str, driver: Any = None) -> bool:
         """element_exists(locator) 或 element_not_exists(locator)"""
@@ -205,12 +235,23 @@ class DynamicExecutor:
         if driver is None:
             logger.warning(f"[IF] element_exists 需要 driver，但 driver 为 None")
             return False
-        try:
-            bbox = driver.locate_element(locator)
-            exists = bbox is not None
-            return not exists if neg else exists
-        except Exception:
-            return True if neg else False
+        locator_type, locator_value = self._split_locator(locator)
+        # 驱动接口为 locate_element(locator_type, locator_value)；定位异常向上抛，
+        # 按"条件无法评估"处理（CORE §12.4），不再吞成固定的 True/False
+        bbox = driver.locate_element(locator_type, locator_value)
+        exists = bbox is not None
+        return not exists if neg else exists
+
+    _LOCATOR_TYPES = ('id', 'class', 'css', 'xpath', 'text', 'name', 'tag')
+
+    @classmethod
+    def _split_locator(cls, locator: str):
+        """CORE §12.3 Locator 格式：`type=value`（如 `xpath=//button`），否则按 CSS 选择器处理（如 `#dialog`）。"""
+        locator = locator.strip().strip('"\'')
+        prefix, sep, rest = locator.partition('=')
+        if sep and prefix.strip() in cls._LOCATOR_TYPES:
+            return prefix.strip(), rest
+        return 'css', locator
 
     def _eval_text_contains(self, condition: str, driver: Any = None) -> bool:
         """text_contains(text) 或 text_not_contains(text)"""
@@ -229,18 +270,36 @@ class DynamicExecutor:
         except Exception:
             return False
 
+    # `${name}`（文档写法）与 `$name`（兼容写法）
+    _VAR_RE = re.compile(r'^\$\{(\w+)\}$|^\$(\w+)$')
+
     def _resolve_value(self, value: str) -> Any:
-        """解析值（变量或字面量）"""
+        """解析比较操作数：引号字面量 / 变量引用 / 其余交给 DataResolver。
+
+        变量依次查 loop 变量（self.variables）与 set 写入的模板变量
+        （DataResolver.data_source，set 关键字通过 set_var 写入）。
+        引用了未定义的变量时抛 ValueError，由调用方按"条件无法评估"处理，
+        不再把 `${x}` 字面量拿去比较而静默走错分支。
+        """
         value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in '"\'':
+            return value[1:-1]
 
-        # 检查是否是变量引用
-        if value.startswith('$'):
-            var_name = value[1:]
-            return self.variables.get(var_name, value)
+        m = self._RETURN_OPERAND_RE.match(value)
+        if m:
+            return self._lookup_return(int(m.group(1)), m.group(2))
 
-        # 使用数据解析器解析
-        resolved = self.data_resolver.resolve(value)
-        return resolved
+        m = self._VAR_RE.match(value)
+        if m:
+            name = m.group(1) or m.group(2)
+            if name in self.variables:
+                return self.variables[name]
+            source = getattr(self.data_resolver, 'data_source', None)
+            if isinstance(source, dict) and name in source:
+                return source[name]
+            raise ValueError(f"条件引用了未定义的变量: {value}")
+
+        return self.data_resolver.resolve(value)
 
     def parse_loop_range(self, loop_spec: str) -> List[Any]:
         """解析循环范围

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- F059 数据生成类内置函数（写在数据表字段值中）的格式 / 范围
+     依据：TEST_CASE_WRITING_GUIDE.md §7.7（random/date 写法表、字符串拼接、注意事项：每次执行重新计算、$${ 转义）；
+           CORE_DESIGN_CONSTRAINTS.md §4.4.1~4.4.3（timestamp/timestamp_ms/timestamp36、date offset）、§4.4.6 规则 4/7
+     GenAPI 两行（G001/G002）字段完全相同，send 到 mock 后由 fun/check_generated.py 逐字段断言并比较两次求值不同 -->
+<cases tags="data_rules,f059">
+    <case execute="是" id="F059_GENERATORS" title="random/date/timestamp*/拼接/转义 生成值格式与范围正确，每次重新求值" component_type="接口" priority="P0">
+        <pre_process>
+            <test_step action="run" model="" data="mock_server.py ensure"/>
+        </pre_process>
+        <test_case>
+            <test_step action="send" model="GenAPI" data="G001"/>
+            <test_step action="send" model="GenAPI" data="G002"/>
+            <test_step action="run" model="" data="check_generated.py"/>
+        </test_case>
+    </case>
+</cases>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<globalvalue>
+  <group name="DefaultValue">
+    <var name="WaitTime" value="0"/>
+    <!-- 自动等待（毫秒）；verify 期望值不出现时约 2000ms 后失败（缩短 CLI 覆盖为 isolated 时的负向耗时） -->
+    <var name="AutoWait" value="2000"/>
+    <!-- F073：用例间共用同一 context 和页面，不隔离（CORE §23.1、GUIDE §6.4.4）；CLI 参数 session-mode 可覆盖 -->
+    <var name="SessionMode" value="shared_session"/>
+  </group>
+  <group name="Site">
+    <!-- 由 run_acceptance.py 以 fun/site 为根目录启动的本地服务 -->
+    <var name="URL" value="http://127.0.0.1:18131"/>
+  </group>
+</globalvalue>

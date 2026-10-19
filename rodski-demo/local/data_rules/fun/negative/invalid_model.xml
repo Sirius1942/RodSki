@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- F086 负向样例：v5.4.0 已移除的简化定位器格式（type/value 属性、无 <location>），model.xsd 校验必须失败 -->
+<models>
+    <model name="Legacy" type="ui" servicename="">
+        <element name="loginBtn" type="id" value="loginBtn"/>
+    </model>
+</models>

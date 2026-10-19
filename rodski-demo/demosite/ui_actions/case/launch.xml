@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  F017 launch 非法目标（负向）
+  文档：CORE §1.3 / GUIDE §13.2 / SKILL_REFERENCE §2.1：launch 的 data 为「应用路径或应用名」，
+  应用未运行 → 启动应用；Web/Mobile 不使用 launch。目标既不是可启动的应用也不是合法页面时，步骤应报错，
+  不能静默成功。
+-->
+<cases tags="ui_actions,F017">
+    <case execute="是" id="LAUNCH_BAD_APP" title="负向：launch 不存在的应用" component_type="界面" priority="P2" expect_fail="是">
+        <test_case>
+            <test_step action="launch" model="" data="rodski_no_such_app_xyz_20261015"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="LAUNCH_BAD_SCHEME" title="负向：launch 非 http 目标 ftp://" component_type="界面" priority="P2" expect_fail="是">
+        <test_case>
+            <test_step action="launch" model="" data="ftp://127.0.0.1:18140/keys.html"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="LAUNCH_EMPTY" title="负向：launch 缺少目标" component_type="界面" priority="P2" expect_fail="是">
+        <test_case>
+            <test_step action="launch" model="" data=""/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+</cases>

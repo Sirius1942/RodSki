@@ -8,8 +8,10 @@ from typing import Dict, Any, Optional, List, Tuple, Union, Callable
 from pathlib import Path
 try:
     from ..drivers.base_driver import BaseDriver
+    from ..drivers.web_selector import to_playwright_selector
 except ImportError:
     from rodski.drivers.base_driver import BaseDriver
+    from rodski.drivers.web_selector import to_playwright_selector
 from .performance import monitor_performance
 from .exceptions import (
     UnknownKeywordError,
@@ -28,7 +30,7 @@ from .exceptions import (
     is_retryable_error,
     is_critical_error,
 )
-from .assertion.image_matcher import ImageMatcher
+from .assertion.image_matcher import ImageMatcher, _require_cv_deps
 from .assertion.video_analyzer import VideoAnalyzer
 from .assertion_engine import AssertionEngine
 from .assertion_engine import AssertionError as AssertOpError
@@ -199,6 +201,17 @@ class HookResult:
         self.status = status
         self.attempts = attempts
         self.elapsed = elapsed
+
+
+def _mask_passwords(value: Any) -> Any:
+    """日志输出用：把以 `.Password` 结尾的字符串（含嵌套 dict/list 中的）替换为 `***`。"""
+    if isinstance(value, str):
+        return '***' if value.endswith('.Password') else value
+    if isinstance(value, dict):
+        return {k: _mask_passwords(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return type(value)(_mask_passwords(v) for v in value)
+    return value
 
 
 class KeywordEngine:
@@ -709,12 +722,17 @@ class KeywordEngine:
     @staticmethod
     def _accepts_timeout_ms(fn) -> bool:
         """驱动方法是否显式声明了 timeout_ms 参数（**kwargs 不算：Playwright 会把未知参数透传给 page.click）。"""
+        return KeywordEngine._accepts_param(fn, 'timeout_ms')
+
+    @staticmethod
+    def _accepts_param(fn, name: str) -> bool:
+        """驱动方法是否显式声明了参数 name（**kwargs 不算）。"""
         import inspect
         try:
             params = inspect.signature(fn).parameters
         except (TypeError, ValueError):
             return False
-        p = params.get('timeout_ms')
+        p = params.get(name)
         return p is not None and p.kind in (p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY)
 
     def _call_driver(self, fn, *args, timeout_ms: Optional[int] = None, **kwargs):
@@ -866,7 +884,7 @@ class KeywordEngine:
         if isinstance(last, dict) and '_capture' in last:
             return_source = 'auto_capture'
             cap = last.get('_capture', {})
-            extra = f" capture={cap}"
+            extra = f" capture={_mask_passwords(cap)}"
         elif keyword == 'evaluate':
             return_source = 'evaluate'
             extra = ''
@@ -887,9 +905,10 @@ class KeywordEngine:
         logger.info(f"[STEP] action={keyword} model={model} status=OK source={return_source}{extra}")
 
         if logger.isEnabledFor(logging.DEBUG):
-            logger.debug(f"  history[{len(history)-1}]={repr(last)[:200]}")
+            # v11.8.22 (BUG-A16)：返回值中的 .Password 字段在日志中脱敏（CORE §4.1）
+            logger.debug(f"  history[{len(history)-1}]={repr(_mask_passwords(last))[:200]}")
             if self._context.named:
-                logger.debug(f"  named={self._context.named}")
+                logger.debug(f"  named={_mask_passwords(self._context.named)}")
 
     def _should_retry(self, error_message: str, retry_on_errors: List[str]) -> bool:
         """检查错误是否应该重试"""
@@ -1542,13 +1561,15 @@ class KeywordEngine:
             logger.debug(f"{element_name}: {value_lower} {locator}")
             return (value_lower, element_name, call(fn, locator))
 
-        # 带参数的动作：key_press【按键】（按键发往当前焦点元素；目标元素已在定位阶段等到）
+        # 带参数的动作：key_press【按键】—— 作用于字段对应元素（v11.8.27 B06/D3：驱动支持时先聚焦该元素再按键）
         if value_lower.startswith('key_press'):
             key = self._extract_bracket_value(value)
             if not key:
                 logger.warning(f"{element_name}: key_press 缺少按键参数，格式应为 key_press【按键】")
                 return None
-            logger.debug(f"{element_name}: 按键 '{key}'")
+            logger.debug(f"{element_name}: 按键 '{key}' @ {locator}")
+            if self._accepts_param(target_driver.key_press, 'locator'):
+                return ('key_press', element_name, call(target_driver.key_press, key, locator=locator))
             return ('key_press', element_name, target_driver.key_press(key))
 
         # 带参数的动作：select【选项值】
@@ -1606,7 +1627,10 @@ class KeywordEngine:
             return ('select', element_name,
                     self._call_driver(target_driver.select, locator, select_value, timeout_ms=tmo, frame=frame))
         if value_lower.startswith('key_press'):
-            # 键盘事件发往当前焦点元素，与 frame 无关
+            key = self._extract_bracket_value(value)
+            if key and self._accepts_param(target_driver.key_press, 'locator'):
+                return ('key_press', element_name,
+                        self._call_driver(target_driver.key_press, key, locator=locator, frame=frame, timeout_ms=tmo))
             return self._execute_element_action(value, locator, element_name, driver=target_driver)
         if value_lower == 'scroll' or value_lower.startswith('scroll【') or value_lower.startswith('drag'):
             raise InvalidParameterError(
@@ -1774,7 +1798,13 @@ class KeywordEngine:
                     param_name="data",
                     reason=f"type 批量输入失败: 模型元素 '{element_name}' 在数据行 '{data_id}' 中缺少对应字段"
                 )
-            value = str(data_row[element_name])
+            raw_value = data_row[element_name]
+            if raw_value is None or raw_value == '':
+                # 空值 → 跳过（CORE §4.1；v11.8.21 BUG-A14：此前按空串输入，清空了预填内容）
+                logger.debug(f"{element_name}: 空值 → 跳过")
+                resolved_values[element_name] = None
+                continue
+            value = str(raw_value)
             if self.data_resolver:
                 value = self.data_resolver.resolve_with_return(value)
 
@@ -2025,9 +2055,9 @@ class KeywordEngine:
             )
 
         try:
-            from ..api.rest_helper import RestHelper
+            from ..api.rest_helper import RestHelper, build_http_result
         except ImportError:
-            from rodski.api.rest_helper import RestHelper
+            from rodski.api.rest_helper import RestHelper, build_http_result
 
         # 从浏览器获取 cookies 以共享登录态
         browser_cookies = None
@@ -2081,17 +2111,13 @@ class KeywordEngine:
         except Exception as e:
             raise DriverError(f"HTTP {method} 请求失败: {url} - {e}")
 
-        result_data = {"status": response.status_code}
         try:
             json_body = response.json()
-            if isinstance(json_body, dict):
-                result_data.update(json_body)
-            else:
-                result_data["body"] = json_body
             logger.debug(f"响应体: {json_body}")
         except (ValueError, TypeError):
-            result_data["body"] = response.text
+            json_body = response.text
             logger.debug(f"响应文本(前500字): {response.text[:500]}")
+        result_data = build_http_result(response.status_code, json_body)
 
         self.store_return(result_data)
 
@@ -2339,6 +2365,9 @@ class KeywordEngine:
             screenshot_path = self.driver.take_screenshot()
             if screenshot_path is None:
                 raise DriverError("截图失败，无法执行视觉断言")
+            # v11.8.17 (BUG-A27): cv2 为可选依赖（rodski[vision]），使用处再导入；缺失时给出安装提示
+            _require_cv_deps()
+            import cv2
             screenshot = cv2.imread(screenshot_path)
             if screenshot is None:
                 raise DriverError(f"无法读取截图文件: {screenshot_path}")
@@ -2370,7 +2399,15 @@ class KeywordEngine:
                     logger.info(f"失败截图已保存: {saved_path}")
 
             self.store_return(result)
-            return result["matched"]
+            if not result["matched"]:
+                # v11.8.17 (BUG-A27)：不匹配必须使步骤失败；此前返回 False 仍被记为 PASS
+                raise AssertionFailedError(
+                    message=(f"图片断言失败: similarity={result['similarity']} < threshold={threshold}, "
+                             f"reference={reference}"),
+                    details={'similarity': result['similarity'], 'threshold': threshold,
+                             'failure_screenshot': result.get('failure_screenshot')},
+                )
+            return True
 
         # ── type=video ─────────────────────────────────────────────
         elif assert_type == "video":
@@ -2426,7 +2463,14 @@ class KeywordEngine:
                 result["failure_recording"] = recording_path
 
             self.store_return(result)
-            return result["matched"]
+            if not result["matched"]:
+                raise AssertionFailedError(
+                    message=(f"视频断言失败: similarity={result['similarity']} < threshold={threshold}, "
+                             f"reference={reference}"),
+                    details={'similarity': result['similarity'], 'threshold': threshold,
+                             'failure_recording': result.get('failure_recording')},
+                )
+            return True
 
         else:
             raise InvalidParameterError(
@@ -2536,7 +2580,14 @@ class KeywordEngine:
             return self._batch_verify_db(data_row, model_name)
 
         # v11.0.0: 根据 match_mode 选择迭代策略
-        if match_mode == "subset":
+        if model_type == MODEL_TYPE_INTERFACE:
+            # v11.8.14 (BUG-A21/A22): 接口模型同时声明请求与响应字段，_verify 只比较行内出现的字段；
+            # status（HTTP 状态码，CORE §4.1）即使模型未声明也从 Return[-1] 取值比较，不能静默忽略；
+            # 其余未在模型中声明的列按 CORE §4.7 跳过；`_` 前缀控制元素任何模式下都不参与比较
+            fields_to_verify = [(name, model.get(name)) for name in data_row.keys()
+                               if not name.startswith('_') and (name in model or name == 'status')]
+            logger.debug(f"接口模型: 验证 _verify 行内 {len(fields_to_verify)} 个字段")
+        elif match_mode == "subset":
             # 子集模式：迭代 data_row 中的字段，只验证声明的字段
             fields_to_verify = [(name, model.get(name)) for name in data_row.keys()
                                if not name.startswith('__') and name in model]
@@ -2669,20 +2720,8 @@ class KeywordEngine:
 
     @staticmethod
     def _web_selector(locator_type: str, locator_value: str) -> str:
-        """把模型定位器转换为 Playwright 选择器（用于元素数量 / 可见性断言）。"""
-        if locator_type == 'id':
-            return f'[id="{locator_value}"]'
-        if locator_type == 'class':
-            return ''.join(f'.{c}' for c in locator_value.split())
-        if locator_type in ('css', 'tag'):
-            return locator_value
-        if locator_type == 'xpath':
-            return f'xpath={locator_value}'
-        if locator_type == 'text':
-            return f'text={locator_value}'
-        if locator_type == 'name':
-            return f'[name="{locator_value}"]'
-        return f'{locator_type}={locator_value}'
+        """把模型定位器转换为 Playwright 选择器（与驱动 _convert_locator 同一实现）。"""
+        return to_playwright_selector(locator_type, locator_value)
 
     def _read_element_state(self, target_driver, operator: str, element_name: str,
                             locator_type: str, locator_value: str, frame: Optional[str]):
@@ -2731,8 +2770,8 @@ class KeywordEngine:
             if element_name.startswith('__'):
                 continue
 
-            # subset 模式：element_info 可能为 None（字段不在 model 中）
-            if match_mode == "subset" and element_info is None:
+            # subset 模式：element_info 可能为 None（字段不在 model 中）；接口模型按字段名从 Return 取值
+            if match_mode == "subset" and element_info is None and model_type != MODEL_TYPE_INTERFACE:
                 logger.debug(f"{element_name}: 不在模型中，跳过（subset 模式）")
                 continue
 
@@ -2764,8 +2803,13 @@ class KeywordEngine:
                     continue
                 expected = ''
 
-            # NULL → 接口期望 "null"; NONE → 接口期望 "none"; UI 均跳过
-            if expected_upper in ('NULL', 'NONE'):
+            # NONE → 跳过验证（CORE §4.1，v11.8.15 BUG-A15：此前接口模型当作期望字符串 "none"）
+            if expected_upper == 'NONE':
+                logger.debug(f"{element_name}: NONE → 跳过验证")
+                continue
+
+            # NULL → 接口期望 null; UI 跳过
+            if expected_upper == 'NULL':
                 if model_type == MODEL_TYPE_UI:
                     logger.debug(f"{element_name}: {expected_upper} → 跳过验证")
                     continue
@@ -2807,8 +2851,9 @@ class KeywordEngine:
                     ),
                 )
 
-            locator_type = element_info['locator_type']
-            locator_value = element_info['locator_value']
+            element_info = element_info or {}
+            locator_type = element_info.get('locator_type', '')
+            locator_value = element_info.get('locator_value', '')
             frame = element_info.get('frame')
             # 平台感知过滤（WI-48）：移动端按当前平台选取主定位器
             if model_type == MODEL_TYPE_UI:
@@ -3012,9 +3057,10 @@ class KeywordEngine:
 
             expected_upper = expected.strip().upper()
 
-            # BLANK → 跳过该字段不验证
-            if expected_upper == 'BLANK':
-                logger.debug(f"{field}: BLANK → 跳过验证")
+            # BLANK / NONE → 跳过该字段不验证
+            if expected_upper in ('BLANK', 'NONE'):
+                # NONE 跳过验证（CORE §4.1，v11.8.15 BUG-A15），字段缺失也不报错
+                logger.debug(f"{field}: {expected_upper} → 跳过验证")
                 continue
 
             # 检查字段是否存在于实际结果中
@@ -3032,8 +3078,8 @@ class KeywordEngine:
 
             actual_val = actual_data[field]
 
-            # NULL/NONE 特殊处理
-            if expected_upper in ('NULL', 'NONE'):
+            # NULL 特殊处理
+            if expected_upper == 'NULL':
                 expected_mapped = expected.lower()
                 actual_str = str(actual_val) if actual_val is not None else "null"
                 results[field] = actual_val
@@ -3047,6 +3093,38 @@ class KeywordEngine:
             actual_str = str(actual_val) if actual_val is not None else ""
             results[field] = actual_str
             compared_count += 1
+
+            # v11.8.16 (BUG-A23): 断言操作符（GUIDE §5.7.1 适用 DB），按查询结果原始值求值
+            operator = None
+            if expected.strip().startswith('{'):
+                try:
+                    parsed = json.loads(expected)
+                    if AssertionEngine.is_operator_dict(parsed):
+                        operator = parsed
+                except json.JSONDecodeError:
+                    pass
+            if operator is not None:
+                if AssertionEngine.is_element_operator(operator):
+                    raise InvalidParameterError(
+                        keyword="verify", param_name=field,
+                        reason=(
+                            f"{next(iter(operator))} 是元素状态断言，只能用于 UI 模型；"
+                            f"接口/DB 结果请用 $gt/$gte/$lt/$lte/$contains 或字面值比较"
+                        ),
+                    )
+                try:
+                    AssertionEngine.evaluate(actual_val, operator)
+                    logger.debug(f"{field}: 实际={actual_val}, 操作符={operator} → OK")
+                except ValueError as ve:
+                    raise InvalidParameterError(keyword="verify", param_name=field, reason=str(ve))
+                except AssertOpError as ae:
+                    logger.debug(f"{field}: 断言操作符失败 - {ae}")
+                    mismatches.append({
+                        'element': field, 'expected': str(operator),
+                        'actual': actual_str, 'reason': str(ae),
+                    })
+                continue
+
             matched = actual_str == expected
             logger.debug(f"{field}: 实际='{actual_str}', 期望='{expected}' → {'OK' if matched else 'FAIL'}")
 
@@ -3332,7 +3410,9 @@ class KeywordEngine:
         key = key.strip()
         if not key:
             raise InvalidParameterError(keyword="set", param_name="data", reason="key 不能为空")
-        if self.data_resolver:
+        # 执行器已用 resolve_case_data 解析过（resolved=True）时不再解析：二次解析会把
+        # $${random(...)} 转义还原出的字面量 ${random(...)} 当作调用求值（v11.8.24 BUG-A18）
+        if self.data_resolver and not params.get("resolved"):
             value = self.data_resolver.resolve_with_return(value)
         logger.info(f"set: {key} = '{value}'")
         self._context.named[key] = value

@@ -194,7 +194,7 @@
 | D_ACCEPT | `accept` | `click` | `BLANK` | 点删除，确认弹窗 |
 | D_DISMISS | `dismiss` | `click` | `BLANK` | 点删除，取消弹窗 |
 
-prompt 弹窗填 `accept:输入文本`，例如 `accept:加急` 表示输入「加急」后确认（完整示例见 `rodski-demo/DEMO/demo_authoring_v116/`）。
+prompt 弹窗填 `accept:输入文本`，例如 `accept:加急` 表示输入「加急」后确认（完整示例见 `rodski-demo/local/authoring/`）。
 
 | DialogPage_verify | dialog | deleteBtn | status |
 |-------------------|--------|-----------|--------|

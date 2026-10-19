@@ -1,0 +1,540 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ui_actions 模块模型：元素名 = 数据表字段名（TEST_CASE_WRITING_GUIDE §4.6） -->
+<models>
+    <!-- F023 key_press：同一输入框上的多个按键字段 + 另一个输入框 -->
+    <model name="KeyPress" type="ui" driver_type="web" servicename="">
+        <element name="kpInput" type="web">
+            <type>input</type>
+            <location type="id">kpInput</location>
+            <desc>输入文本（输入后焦点在此）</desc>
+        </element>
+        <element name="kpEnter" type="web">
+            <type>input</type>
+            <location type="id">kpInput</location>
+            <desc>key_press【Enter】</desc>
+        </element>
+        <element name="kpSelAll" type="web">
+            <type>input</type>
+            <location type="id">kpInput</location>
+            <desc>key_press【Control+A】</desc>
+        </element>
+        <element name="kpDel" type="web">
+            <type>input</type>
+            <location type="id">kpInput</location>
+            <desc>key_press【Backspace】</desc>
+        </element>
+        <element name="kpTab" type="web">
+            <type>input</type>
+            <location type="id">kpInput</location>
+            <desc>key_press【Tab】</desc>
+        </element>
+        <element name="kpOther" type="web">
+            <type>input</type>
+            <location type="id">kpOther</location>
+            <desc>目标元素不是当前焦点时的 key_press</desc>
+        </element>
+    </model>
+    <!-- F023 断言区 -->
+    <model name="KeyPressView" type="ui" driver_type="web" servicename="">
+        <element name="kpEcho" type="web">
+            <type>text</type>
+            <location type="id">kpEcho</location>
+        </element>
+        <element name="kpResult" type="web">
+            <type>text</type>
+            <location type="id">kpResult</location>
+        </element>
+        <element name="kpOtherResult" type="web">
+            <type>text</type>
+            <location type="id">kpOtherResult</location>
+        </element>
+        <element name="focusState" type="web">
+            <type>text</type>
+            <location type="id">focusState</location>
+        </element>
+    </model>
+    <!-- demosite 首页登录（admin / 123456） -->
+    <model name="LoginForm" type="ui" driver_type="web" servicename="">
+        <element name="username" type="web">
+            <type>input</type>
+            <location type="id">loginUsername</location>
+        </element>
+        <element name="password" type="web">
+            <type>input</type>
+            <location type="id">loginPassword</location>
+        </element>
+        <element name="loginBtn" type="web">
+            <type>button</type>
+            <location type="id">loginBtn</location>
+        </element>
+    </model>
+    <!-- demosite 导航到功能测试区 -->
+    <model name="NavMenu" type="ui" driver_type="web" servicename="">
+        <element name="testLink" type="web">
+            <type>link</type>
+            <location type="id">navTest</location>
+        </element>
+    </model>
+    <!-- F024 demosite 首页拖拽源 -->
+    <model name="DemoDrag" type="ui" driver_type="web" servicename="">
+        <element name="dragSource" type="web">
+            <type>div</type>
+            <location type="id">dragSource</location>
+        </element>
+    </model>
+    <!-- F024 demosite 首页拖拽结果 -->
+    <model name="DemoDragView" type="ui" driver_type="web" servicename="">
+        <element name="dropZone" type="web">
+            <type>div</type>
+            <location type="id">dropZone</location>
+        </element>
+        <element name="actionResult" type="web">
+            <type>text</type>
+            <location type="id">actionResult</location>
+        </element>
+    </model>
+    <!-- F024 双放置区页面拖拽源 -->
+    <model name="DragPage" type="ui" driver_type="web" servicename="">
+        <element name="card" type="web">
+            <type>div</type>
+            <location type="id">card</location>
+        </element>
+    </model>
+    <!-- F024 双放置区断言 -->
+    <model name="DragPageView" type="ui" driver_type="web" servicename="">
+        <element name="dropA" type="web">
+            <type>div</type>
+            <location type="id">dropA</location>
+        </element>
+        <element name="dropB" type="web">
+            <type>div</type>
+            <location type="id">dropB</location>
+        </element>
+        <element name="dropLog" type="web">
+            <type>text</type>
+            <location type="id">dropLog</location>
+        </element>
+    </model>
+    <!-- F025 scroll 字段（定位页面左上角锚点） -->
+    <model name="ScrollPage" type="ui" driver_type="web" servicename="">
+        <element name="anchor" type="web">
+            <type>div</type>
+            <location type="id">anchor</location>
+        </element>
+    </model>
+    <!-- F025 滚动位置 / 远处元素可视状态 -->
+    <model name="ScrollView" type="ui" driver_type="web" servicename="">
+        <element name="pos" type="web">
+            <type>text</type>
+            <location type="id">pos</location>
+            <desc>scrollX,scrollY</desc>
+        </element>
+        <element name="farState" type="web">
+            <type>text</type>
+            <location type="id">farState</location>
+            <desc>in-view / out-of-view</desc>
+        </element>
+    </model>
+    <!-- F026 type 中的 BLANK / NULL / NONE -->
+    <model name="ControlInput" type="ui" driver_type="web" servicename="">
+        <element name="fb" type="web">
+            <type>input</type>
+            <location type="id">fb</location>
+        </element>
+        <element name="fn" type="web">
+            <type>input</type>
+            <location type="id">fn</location>
+        </element>
+        <element name="fo" type="web">
+            <type>input</type>
+            <location type="id">fo</location>
+        </element>
+        <element name="fp" type="web">
+            <type>input</type>
+            <location type="id">fp</location>
+        </element>
+        <element name="ghost" type="web">
+            <type>input</type>
+            <location type="id">ghostMissing</location>
+            <desc>页面上不存在的元素</desc>
+        </element>
+    </model>
+    <!-- F026 断言区 -->
+    <model name="ControlView" type="ui" driver_type="web" servicename="">
+        <element name="eb" type="web">
+            <type>text</type>
+            <location type="id">eb</location>
+        </element>
+        <element name="en" type="web">
+            <type>text</type>
+            <location type="id">en</location>
+        </element>
+        <element name="eo" type="web">
+            <type>text</type>
+            <location type="id">eo</location>
+        </element>
+        <element name="ep" type="web">
+            <type>text</type>
+            <location type="id">ep</location>
+        </element>
+        <element name="cb" type="web">
+            <type>text</type>
+            <location type="id">cb</location>
+            <desc>fb 聚焦次数</desc>
+        </element>
+        <element name="cn" type="web">
+            <type>text</type>
+            <location type="id">cn</location>
+            <desc>fn 聚焦次数</desc>
+        </element>
+        <element name="co" type="web">
+            <type>text</type>
+            <location type="id">co</location>
+            <desc>fo 聚焦次数</desc>
+        </element>
+        <element name="noise" type="web">
+            <type>text</type>
+            <location type="id">noise</location>
+            <desc>文本为 random-noise</desc>
+        </element>
+        <element name="missingEl" type="web">
+            <type>text</type>
+            <location type="id">missingEl</location>
+            <desc>页面上不存在的元素</desc>
+        </element>
+    </model>
+    <!-- F031 class 定位器（单类名）用于 type -->
+    <model name="LocClassInput" type="ui" driver_type="web" servicename="">
+        <element name="clsInput" type="web">
+            <type>input</type>
+            <location type="class">cls-single</location>
+        </element>
+    </model>
+    <!-- F031 class 定位器（多类名）用于 type -->
+    <model name="LocMultiClass" type="ui" driver_type="web" servicename="">
+        <element name="multiBtn" type="web">
+            <type>button</type>
+            <location type="class">btn primary</location>
+        </element>
+    </model>
+    <!-- F031 tag 定位器用于 type -->
+    <model name="LocTagInput" type="ui" driver_type="web" servicename="">
+        <element name="tagArea" type="web">
+            <type>textarea</type>
+            <location type="tag">textarea</location>
+        </element>
+    </model>
+    <!-- F031 text 定位器用于 type -->
+    <model name="LocTextBtn" type="ui" driver_type="web" servicename="">
+        <element name="textBtn" type="web">
+            <type>button</type>
+            <location type="text">文本定位按钮</location>
+        </element>
+    </model>
+    <!-- F031 用 id 定位的同一个文本按钮（隔离 text 定位器的 verify 用例，不依赖 text 定位器的 type） -->
+    <model name="LocTextBtnById" type="ui" driver_type="web" servicename="">
+        <element name="textBtnById" type="web">
+            <type>button</type>
+            <location type="id">textBtnEl</location>
+        </element>
+    </model>
+    <!-- F031 type 结果（id 定位） -->
+    <model name="LocResultView" type="ui" driver_type="web" servicename="">
+        <element name="clsEcho" type="web">
+            <type>text</type>
+            <location type="id">clsEcho</location>
+        </element>
+        <element name="multiResult" type="web">
+            <type>text</type>
+            <location type="id">multiResult</location>
+        </element>
+        <element name="tagEcho" type="web">
+            <type>text</type>
+            <location type="id">tagEcho</location>
+        </element>
+        <element name="textResult" type="web">
+            <type>text</type>
+            <location type="id">textResult</location>
+        </element>
+    </model>
+    <!-- F031 class 定位器（单类名）用于 verify -->
+    <model name="LocVerifyClass" type="ui" driver_type="web" servicename="">
+        <element name="noteCls" type="web">
+            <type>text</type>
+            <location type="class">note</location>
+        </element>
+    </model>
+    <!-- F031 class 定位器（多类名）用于 verify -->
+    <model name="LocVerifyMulti" type="ui" driver_type="web" servicename="">
+        <element name="badgeMulti" type="web">
+            <type>text</type>
+            <location type="class">badge info</location>
+        </element>
+    </model>
+    <!-- F031 tag 定位器用于 verify -->
+    <model name="LocVerifyTag" type="ui" driver_type="web" servicename="">
+        <element name="h2Tag" type="web">
+            <type>text</type>
+            <location type="tag">h2</location>
+        </element>
+    </model>
+    <!-- F031 text 定位器用于 verify -->
+    <model name="LocVerifyText" type="ui" driver_type="web" servicename="">
+        <element name="textLoc" type="web">
+            <type>text</type>
+            <location type="text">文本按钮已点击</location>
+        </element>
+    </model>
+    <!-- F040 元素级操作符 -->
+    <model name="ElemOps" type="ui" driver_type="web" servicename="">
+        <element name="items" type="web">
+            <type>list</type>
+            <location type="css">#list li.item</location>
+            <desc>5 个（其中 1 个隐藏）</desc>
+        </element>
+        <element name="items2" type="web">
+            <type>list</type>
+            <location type="css">#list li.item</location>
+            <desc>同一列表，第二个操作符</desc>
+        </element>
+        <element name="present" type="web">
+            <type>text</type>
+            <location type="id">present</location>
+        </element>
+        <element name="absent" type="web">
+            <type>text</type>
+            <location type="id">absent</location>
+            <desc>不存在</desc>
+        </element>
+        <element name="shown" type="web">
+            <type>text</type>
+            <location type="id">shown</location>
+        </element>
+        <element name="hiddenEl" type="web">
+            <type>text</type>
+            <location type="id">hiddenEl</location>
+            <desc>display:none</desc>
+        </element>
+    </model>
+    <!-- F041 数值 / 包含操作符 -->
+    <model name="CmpOps" type="ui" driver_type="web" servicename="">
+        <element name="pGt" type="web">
+            <type>text</type>
+            <location type="id">price</location>
+            <desc>128.50</desc>
+        </element>
+        <element name="pGte" type="web">
+            <type>text</type>
+            <location type="id">price</location>
+            <desc>128.50</desc>
+        </element>
+        <element name="pLt" type="web">
+            <type>text</type>
+            <location type="id">price</location>
+            <desc>128.50</desc>
+        </element>
+        <element name="pLte" type="web">
+            <type>text</type>
+            <location type="id">price</location>
+            <desc>128.50</desc>
+        </element>
+        <element name="qty" type="web">
+            <type>text</type>
+            <location type="id">qty</location>
+            <desc>7</desc>
+        </element>
+        <element name="msg" type="web">
+            <type>text</type>
+            <location type="id">msg</location>
+            <desc>订单 ORD-2026 已创建</desc>
+        </element>
+    </model>
+    <!-- F017 买家浏览器输入 -->
+    <model name="BuyerForm" type="ui" driver_type="web" servicename="">
+        <element name="msg" type="web">
+            <type>input</type>
+            <location type="id">msg</location>
+        </element>
+        <element name="sendBtn" type="web">
+            <type>button</type>
+            <location type="id">sendBtn</location>
+        </element>
+    </model>
+    <!-- F017 买家浏览器结果 -->
+    <model name="BuyerView" type="ui" driver_type="web" servicename="">
+        <element name="status" type="web">
+            <type>text</type>
+            <location type="id">status</location>
+        </element>
+    </model>
+    <!-- F017 卖家浏览器 -->
+    <model name="SellerView" type="ui" driver_type="web" servicename="">
+        <element name="title" type="web">
+            <type>text</type>
+            <location type="id">title</location>
+        </element>
+        <element name="inbox" type="web">
+            <type>text</type>
+            <location type="id">inbox</location>
+        </element>
+    </model>
+    <!-- F055 get 模型模式读取随机订单号 -->
+    <model name="OrderSrc" type="ui" driver_type="web" servicename="">
+        <element name="orderNo" type="web">
+            <type>text</type>
+            <location type="id">orderNo</location>
+        </element>
+        <element name="otherNo" type="web">
+            <type>text</type>
+            <location type="id">otherNo</location>
+        </element>
+    </model>
+    <!-- F055 点击复制 -->
+    <model name="OrderCopy" type="ui" driver_type="web" servicename="">
+        <element name="copyBtn" type="web">
+            <type>button</type>
+            <location type="id">copyBtn</location>
+        </element>
+    </model>
+    <!-- F055 UI verify 期望值引用 Return -->
+    <model name="OrderCopyView" type="ui" driver_type="web" servicename="">
+        <element name="copied" type="web">
+            <type>text</type>
+            <location type="id">copied</location>
+        </element>
+        <element name="orderNoMirror" type="web">
+            <type>text</type>
+            <location type="id">orderNoMirror</location>
+        </element>
+    </model>
+    <!-- F059 数据表字段值中的 random() / date() 生成值 -->
+    <model name="GenForm" type="ui" driver_type="web" servicename="">
+        <element name="gUser" type="web">
+            <type>input</type>
+            <location type="id">gUser</location>
+        </element>
+        <element name="gInt" type="web">
+            <type>input</type>
+            <location type="id">gInt</location>
+        </element>
+        <element name="gDigits" type="web">
+            <type>input</type>
+            <location type="id">gDigits</location>
+        </element>
+        <element name="gStr" type="web">
+            <type>input</type>
+            <location type="id">gStr</location>
+        </element>
+        <element name="gPhone" type="web">
+            <type>input</type>
+            <location type="id">gPhone</location>
+        </element>
+        <element name="gEmail" type="web">
+            <type>input</type>
+            <location type="id">gEmail</location>
+        </element>
+        <element name="gUuid" type="web">
+            <type>input</type>
+            <location type="id">gUuid</location>
+        </element>
+        <element name="gChoice" type="web">
+            <type>input</type>
+            <location type="id">gChoice</location>
+        </element>
+        <element name="gToday" type="web">
+            <type>input</type>
+            <location type="id">gToday</location>
+        </element>
+        <element name="gNow" type="web">
+            <type>input</type>
+            <location type="id">gNow</location>
+        </element>
+        <element name="gOffset" type="web">
+            <type>input</type>
+            <location type="id">gOffset</location>
+        </element>
+        <element name="gTs36" type="web">
+            <type>input</type>
+            <location type="id">gTs36</location>
+        </element>
+    </model>
+    <!-- F059 生成值格式断言 -->
+    <model name="GenView" type="ui" driver_type="web" servicename="">
+        <element name="ok_gUser" type="web">
+            <type>text</type>
+            <location type="id">ok_gUser</location>
+            <desc>页面格式判定 OK / BAD:原值</desc>
+        </element>
+        <element name="ok_gInt" type="web">
+            <type>text</type>
+            <location type="id">ok_gInt</location>
+            <desc>页面格式判定 OK / BAD:原值</desc>
+        </element>
+        <element name="ok_gDigits" type="web">
+            <type>text</type>
+            <location type="id">ok_gDigits</location>
+            <desc>页面格式判定 OK / BAD:原值</desc>
+        </element>
+        <element name="ok_gStr" type="web">
+            <type>text</type>
+            <location type="id">ok_gStr</location>
+            <desc>页面格式判定 OK / BAD:原值</desc>
+        </element>
+        <element name="ok_gPhone" type="web">
+            <type>text</type>
+            <location type="id">ok_gPhone</location>
+            <desc>页面格式判定 OK / BAD:原值</desc>
+        </element>
+        <element name="ok_gEmail" type="web">
+            <type>text</type>
+            <location type="id">ok_gEmail</location>
+            <desc>页面格式判定 OK / BAD:原值</desc>
+        </element>
+        <element name="ok_gUuid" type="web">
+            <type>text</type>
+            <location type="id">ok_gUuid</location>
+            <desc>页面格式判定 OK / BAD:原值</desc>
+        </element>
+        <element name="ok_gChoice" type="web">
+            <type>text</type>
+            <location type="id">ok_gChoice</location>
+            <desc>页面格式判定 OK / BAD:原值</desc>
+        </element>
+        <element name="ok_gToday" type="web">
+            <type>text</type>
+            <location type="id">ok_gToday</location>
+            <desc>页面格式判定 OK / BAD:原值</desc>
+        </element>
+        <element name="ok_gNow" type="web">
+            <type>text</type>
+            <location type="id">ok_gNow</location>
+            <desc>页面格式判定 OK / BAD:原值</desc>
+        </element>
+        <element name="ok_gOffset" type="web">
+            <type>text</type>
+            <location type="id">ok_gOffset</location>
+            <desc>页面格式判定 OK / BAD:原值</desc>
+        </element>
+        <element name="ok_gTs36" type="web">
+            <type>text</type>
+            <location type="id">ok_gTs36</location>
+            <desc>页面格式判定 OK / BAD:原值</desc>
+        </element>
+        <element name="intGte" type="web">
+            <type>text</type>
+            <location type="id">echo_gInt</location>
+        </element>
+        <element name="intLte" type="web">
+            <type>text</type>
+            <location type="id">echo_gInt</location>
+        </element>
+        <element name="userEcho" type="web">
+            <type>text</type>
+            <location type="id">echo_gUser</location>
+        </element>
+        <element name="uuidChanged" type="web">
+            <type>text</type>
+            <location type="id">uuidChanged</location>
+        </element>
+    </model>
+</models>

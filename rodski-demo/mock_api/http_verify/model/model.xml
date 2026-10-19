@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<models>
+
+<!-- ═══ 文档示例照写：TEST_CASE_WRITING_GUIDE.md §8.2「接口模型示例」（仅 URL 改为本模块 mock） ═══ -->
+<model name="LoginAPI" servicename="">
+    <element name="_method" type="interface">
+        <location type="static">POST</location>
+    </element>
+    <element name="_url" type="interface">
+        <location type="static">http://127.0.0.1:18150/api/login</location>
+    </element>
+    <element name="username" type="interface">
+        <location type="field">username</location>
+    </element>
+    <element name="password" type="interface">
+        <location type="field">password</location>
+    </element>
+</model>
+
+<!-- ═══ 通用 GET 请求：_url 由数据行给出 ═══ -->
+<model name="HttpGet" type="interface" servicename="">
+    <element name="_method" type="http_method">
+        <location type="static">GET</location>
+    </element>
+    <element name="_url" type="http_url">
+        <location type="static">http://127.0.0.1:18150/api/profile</location>
+    </element>
+</model>
+
+<!-- ═══ F026：POST 回显，验证 BLANK / NULL / NONE 的发送语义 ═══ -->
+<model name="EchoAPI" type="interface" servicename="">
+    <element name="_method" type="http_method">
+        <location type="static">POST</location>
+    </element>
+    <element name="_url" type="http_url">
+        <location type="static">http://127.0.0.1:18150/api/echo</location>
+    </element>
+    <element name="nickname" type="field">
+        <location type="field">nickname</location>
+    </element>
+    <element name="remark" type="field">
+        <location type="field">remark</location>
+    </element>
+    <element name="memo" type="field">
+        <location type="field">memo</location>
+    </element>
+    <element name="name" type="field">
+        <location type="field">name</location>
+    </element>
+</model>
+
+<!-- ═══ 响应模型（verify 用，实际值来自 send 的 Return[-1]） ═══ -->
+<model name="ProfileResp" type="interface" servicename="">
+    <element name="status" type="field"><location type="field">status</location></element>
+    <element name="name" type="field"><location type="field">name</location></element>
+    <element name="age" type="field"><location type="field">age</location></element>
+    <element name="score" type="field"><location type="field">score</location></element>
+    <element name="email" type="field"><location type="field">email</location></element>
+    <element name="city" type="field"><location type="field">profile.city</location></element>
+</model>
+
+<!-- 与 ProfileResp 元素相同；ProfileSubset_verify 只声明 name + 模型未定义的 ghost，用于 match_mode="subset" -->
+<model name="ProfileSubset" type="interface" servicename="">
+    <element name="status" type="field"><location type="field">status</location></element>
+    <element name="name" type="field"><location type="field">name</location></element>
+    <element name="age" type="field"><location type="field">age</location></element>
+    <element name="score" type="field"><location type="field">score</location></element>
+    <element name="email" type="field"><location type="field">email</location></element>
+    <element name="city" type="field"><location type="field">profile.city</location></element>
+</model>
+
+<model name="MissingResp" type="interface" servicename="">
+    <element name="status" type="field"><location type="field">status</location></element>
+    <element name="error" type="field"><location type="field">error</location></element>
+    <element name="message" type="field"><location type="field">message</location></element>
+</model>
+
+<model name="OrderResp" type="interface" servicename="">
+    <element name="status" type="field"><location type="field">status</location></element>
+    <element name="order_no" type="field"><location type="field">order_no</location></element>
+</model>
+
+<model name="ItemsResp" type="interface" servicename="">
+    <element name="count" type="field"><location type="field">count</location></element>
+    <element name="price" type="field"><location type="field">price</location></element>
+    <element name="title" type="field"><location type="field">title</location></element>
+    <element name="names" type="field"><location type="field">names</location></element>
+    <element name="ids" type="field"><location type="field">ids</location></element>
+    <element name="items_len" type="field"><location type="field">items.length</location></element>
+</model>
+
+<model name="FieldsResp" type="interface" servicename="">
+    <element name="empty_field" type="field"><location type="field">empty_field</location></element>
+    <element name="null_field" type="field"><location type="field">null_field</location></element>
+    <element name="text_field" type="field"><location type="field">text_field</location></element>
+</model>
+
+<model name="EchoResp" type="interface" servicename="">
+    <element name="nickname_kind" type="field"><location type="field">nickname_kind</location></element>
+    <element name="remark_kind" type="field"><location type="field">remark_kind</location></element>
+    <element name="memo_kind" type="field"><location type="field">memo_kind</location></element>
+    <element name="raw_keys" type="field"><location type="field">raw_keys</location></element>
+</model>
+
+<!-- ═══ F052：SQLite 数据库模型（连接组 verify_db → 模块根目录 verify_ops.db） ═══ -->
+<model name="OrderDB" type="database" connection="verify_db" servicename="">
+    <query name="by_no" remark="按订单号查询">
+        <sql>SELECT order_no, qty, amount, remark FROM orders WHERE order_no = :order_no</sql>
+    </query>
+    <element name="order_no" type="database"><location type="field">order_no</location></element>
+    <element name="qty" type="database"><location type="field">qty</location></element>
+    <element name="amount" type="database"><location type="field">amount</location></element>
+    <element name="remark" type="database"><location type="field">remark</location></element>
+</model>
+
+</models>

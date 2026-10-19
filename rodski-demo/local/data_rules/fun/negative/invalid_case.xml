@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- F086 负向样例：click 不是关键字（UI 原子动作只能写在数据表字段值中），case.xsd 校验必须失败 -->
+<cases>
+    <case execute="是" id="NEG001" title="非法关键字 click">
+        <test_case>
+            <test_step action="click" model="PwdForm" data="P001"/>
+        </test_case>
+    </case>
+</cases>

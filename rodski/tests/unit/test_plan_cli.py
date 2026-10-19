@@ -327,3 +327,63 @@ class TestPlanDebugStep:
         sc_node = case_node.find("scenario")
         step_node = sc_node.find("step")
         assert step_node.get("no") == "3"
+
+
+def _write_cases(project_path: Path, rel: str, xml: str):
+    path = project_path / "case" / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(xml, encoding="utf-8")
+
+
+class TestGeneratedPlanHasFile:
+    """BUG-A11：多用例文件模块中，生成类子命令写出的 <case> 必须带 file（否则 SKI207）"""
+
+    @pytest.fixture
+    def multi(self, project):
+        _write_cases(project, "checkout/flow.xml", '''<cases>
+  <case execute="是" id="CHK_001" title="c"><test_case>
+    <scenario id="S01" tag="smoke"><test_step action="set" model="" data="a=1"/></scenario><scenario id="S03" tag="slow"><test_step action="set" model="" data="a=1"/></scenario>
+  </test_case></case>
+</cases>''')
+        _write_cases(project, "catalog/list.xml", '''<cases>
+  <case execute="是" id="CAT_001" title="c" tags="smoke"><test_case><test_step action="set" model="" data="a=1"/></test_case></case>
+</cases>''')
+        _write_cases(project, "dup/a.xml", '<cases><case execute="是" id="DUP" title="d"><test_case><test_step action="set" model="" data="a=1"/></test_case></case></cases>')
+        _write_cases(project, "dup/b.xml", '<cases><case execute="是" id="DUP" title="d"><test_case><test_step action="set" model="" data="a=1"/></test_case></case></cases>')
+        handle(Namespace(plan_action="init", kind="suite", default_execute="是", force=False))
+        return project
+
+    def test_add_scenario_new_case_gets_file(self, multi):
+        assert handle(Namespace(plan_action="add-scenario", plan_id="project_full",
+                                case_id="CHK_001", scenario_id="S03")) == 0
+        node = ET.parse(multi / "plan" / "project_full.xml").getroot().find("case[@id='CHK_001']")
+        assert node.get("file") == "checkout/flow.xml"
+
+    def test_add_scenario_ambiguous_id_requires_file(self, multi, capsys):
+        with pytest.raises(SystemExit):
+            handle(Namespace(plan_action="add-scenario", plan_id="project_full",
+                             case_id="DUP", scenario_id="S01"))
+        assert "--file" in capsys.readouterr().err
+        assert handle(Namespace(plan_action="add-scenario", plan_id="project_full",
+                                case_id="DUP", scenario_id="S01", file="dup/b.xml")) == 0
+        node = ET.parse(multi / "plan" / "project_full.xml").getroot().find("case[@id='DUP']")
+        assert node.get("file") == "dup/b.xml"
+
+    def test_from_tag_writes_file_and_scenarioless_case(self, multi):
+        assert handle(Namespace(plan_action="create", plan_id="smoke", kind="suite", default_execute="否",
+                                title="s", from_tag="smoke", from_group=None, force=False)) == 0
+        root = ET.parse(multi / "plan" / "smoke.xml").getroot()
+        got = {(c.get("file"), c.get("id")): [s.get("id") for s in c.findall("scenario")]
+               for c in root.findall("case")}
+        assert got == {("checkout/flow.xml", "CHK_001"): ["S01"], ("catalog/list.xml", "CAT_001"): []}
+
+    def test_debug_plans_get_file(self, multi):
+        """BUG-A12：debug-scenario / debug-step 生成的 <case> 也带 file"""
+        assert handle(Namespace(plan_action="debug-scenario", plan_id="dbg_s", case_id="CHK_001",
+                                scenario_id="S03", prepare="auto", cleanup="否")) == 0
+        assert handle(Namespace(plan_action="debug-step", plan_id="dbg_t", case_id="DUP", file="dup/a.xml",
+                                scenario_id="S01", step_no=1, step_mode="only", prepare="none",
+                                cleanup="否")) == 0
+        s = ET.parse(multi / "plan" / "dbg_s.xml").getroot().find("case")
+        t = ET.parse(multi / "plan" / "dbg_t.xml").getroot().find("case")
+        assert (s.get("file"), t.get("file")) == ("checkout/flow.xml", "dup/a.xml")

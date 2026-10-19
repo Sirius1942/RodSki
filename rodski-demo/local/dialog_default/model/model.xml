@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- F072 DialogPolicy 验收模型（dialog_accept / dialog_dismiss / dialog_default 共用同一份定义）
+     页面：dialog_accept/fun/site/dialog.html，由 dialog_accept/run_acceptance.py 在 127.0.0.1:18130 启动。
+     dialog 元素（page=dialog）必须排在触发弹窗的按钮之前（type 按模型元素顺序执行，CORE §2.5.6）。 -->
+<models>
+  <model name="DialogPolicyPage" type="ui">
+    <element name="dialog" type="web">
+      <location type="page">dialog</location>
+    </element>
+    <element name="alertBtn" type="web">
+      <location type="id">alertBtn</location>
+    </element>
+    <element name="confirmBtn" type="web">
+      <location type="id">confirmBtn</location>
+    </element>
+    <element name="promptBtn" type="web">
+      <location type="id">promptBtn</location>
+    </element>
+    <element name="alertResult" type="web">
+      <location type="id">alertResult</location>
+    </element>
+    <element name="confirmResult" type="web">
+      <location type="id">confirmResult</location>
+    </element>
+    <element name="confirmLog" type="web">
+      <location type="id">confirmLog</location>
+    </element>
+    <element name="promptResult" type="web">
+      <location type="id">promptResult</location>
+    </element>
+  </model>
+</models>

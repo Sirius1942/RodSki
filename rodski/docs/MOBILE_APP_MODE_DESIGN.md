@@ -514,7 +514,7 @@ Agent 生成移动端 XML 时应遵循：
 |------|------|
 | 单元测试 | DriverFactory、ModelParser、KeywordEngine 路由、AppiumDriver mock |
 | Schema 校验 | 含 `driver_type="android"` 的 model.xml 可通过 XSD |
-| demo 预留 | `rodski-demo/DEMO/mobile_app/` 形成标准目录骨架 |
+| demo 预留 | `rodski-demo/mobile/app/` 形成标准目录骨架 |
 
 ### P1：移动端 verify 和定位器
 
@@ -566,7 +566,7 @@ Agent 生成移动端 XML 时应遵循：
 建议目录：
 
 ```text
-rodski-demo/DEMO/mobile_app/
+rodski-demo/mobile/app/
 ├── case/
 │   └── login.xml
 ├── model/
@@ -671,7 +671,7 @@ Agent 不应绕过 `data.sqlite` 直接生成旧 XML 数据文件。
 4. 修复 `AppiumDriver.get_text()`，让移动端 `verify` 具备真实断言能力。
 5. 把 Appium 旧 locator string API 收敛到 `<location type="...">` 解析后的内部实现。
 6. 增加 `scroll`、`drag`、`key_press` 字段动作在移动端的确定性映射。
-7. 创建 `rodski-demo/DEMO/mobile_app/` 标准模块和 README，记录设备前置条件。
+7. 创建 `rodski-demo/mobile/app/` 标准模块和 README，记录设备前置条件。
 8. 补充单元测试和至少一个可在本地设备执行的 demo 验收用例。
 
 ---
@@ -704,7 +704,7 @@ Agent 不应绕过 `data.sqlite` 直接生成旧 XML 数据文件。
 **一键环境准备脚本**：
 
 ```bash
-bash rodski-demo/DEMO/mobile_app/scripts/setup_ios.sh
+bash rodski-demo/mobile/app/scripts/setup_ios.sh
 ```
 
 该脚本完成：Xcode/Appium/xcuitest 检查 → 启动 iPhone 16 Simulator → 构建并安装 demo_ios_app → 提示启动 Appium server。
@@ -801,7 +801,7 @@ cp data/globalvalue_ios.xml data/globalvalue.xml
 appium --address 127.0.0.1 --port 4723
 
 # 运行 iOS 冒烟计划（APP001/APP002/APP003）
-cd rodski-demo/DEMO/mobile_app
+cd rodski-demo/mobile/app
 rodski run @ios_app_smoke
 ```
 
@@ -927,7 +927,7 @@ WebDriverAgent**，表现为随机的元素定位失败（`SKI302 所有定位�
 ### 18.6 双设备验收
 
 ```bash
-bash rodski-demo/DEMO/mobile_app/scripts/run_dual_device_demo.sh
+bash rodski-demo/mobile/app/scripts/run_dual_device_demo.sh
 ```
 
 脚本解析并启动两台模拟器 → 安装预编译 App → 跑并行（Run A）+ 单设备串行（Run B，负对照）
@@ -1031,7 +1031,7 @@ rodski queue --list-devices --platform ios
 
 ```bash
 # 自动探测唯一一台 wired+paired 真机；多台时用 DEVICE_UDID 指定
-bash rodski-demo/DEMO/mobile_app/demo_ios_app/build_ios_device_app.sh install
+bash rodski-demo/mobile/app/demo_ios_app/build_ios_device_app.sh install
 ```
 
 | 前置 | 怎么确认 | 不满足的后果 |
@@ -1052,7 +1052,7 @@ bash rodski-demo/DEMO/mobile_app/demo_ios_app/build_ios_device_app.sh install
 ### 19.5 验收
 
 ```bash
-bash rodski-demo/DEMO/mobile_app/scripts/run_mixed_device_demo.sh
+bash rodski-demo/mobile/app/scripts/run_mixed_device_demo.sh
 ```
 
 真机 UDID 走 `devicectl`，模拟器 UDID 走 `simctl`，两者都动态解析、不硬编码。

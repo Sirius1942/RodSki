@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  F031 class / tag / text 定位器在 type 与 verify 中可用（TEST_CASE_WRITING_GUIDE §4.3.1；CORE §2.5.1）
+  class → CSS .定位值；tag → 标签名选择器；text → Playwright text=...
+  多类名：<location type="class">btn primary</location> 应只命中同时带两个类的元素（页面有只带 btn 的干扰按钮）。
+-->
+<cases tags="ui_actions,F031">
+    <case execute="是" id="LOC_CLASS_TYPE" title="class 单类名定位用于 type" component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/locators.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="LocClassInput" data="L001"/>
+            <test_step action="verify" model="LocResultView" data="V_CLS"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="LOC_MULTI_TYPE" title="class 多类名定位用于 type（click）" component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/locators.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="LocMultiClass" data="L001"/>
+            <test_step action="verify" model="LocResultView" data="V_MULTI"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="LOC_TAG_TYPE" title="tag 定位用于 type" component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/locators.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="LocTagInput" data="L001"/>
+            <test_step action="verify" model="LocResultView" data="V_TAG"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="LOC_TEXT_TYPE" title="text 定位用于 type（click）" component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/locators.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="LocTextBtn" data="L001"/>
+            <test_step action="verify" model="LocResultView" data="V_TEXT"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="LOC_CLASS_VERIFY" title="class 单类名定位用于 verify" component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/locators.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="verify" model="LocVerifyClass" data="V001"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="LOC_MULTI_VERIFY" title="class 多类名定位用于 verify" component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/locators.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="verify" model="LocVerifyMulti" data="V001"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="LOC_TAG_VERIFY" title="tag 定位用于 verify" component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/locators.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="verify" model="LocVerifyTag" data="V001"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="LOC_TEXT_VERIFY" title="text 定位用于 verify（按钮用 id 点击，隔离 text 的 type）" component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/locators.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="LocTextBtnById" data="L001"/>
+            <test_step action="verify" model="LocVerifyText" data="V001"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+</cases>

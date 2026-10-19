@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- F060 数据生成类函数不能写在 Case XML data 属性（含 set）中
+     依据：CORE_DESIGN_CONSTRAINTS.md §4.4.6 规则 5（数据生成类 Case XML data 属性 ❌ 报错；纯函数 ✅）、规则 7（$${ 转义不报错）；
+           TEST_CASE_WRITING_GUIDE.md §7.6.2、§7.7 表格
+     负向用例 expect_fail="是"；run_acceptance.py 另外断言失败原因是「只能写在 data.sqlite 字段值中」 -->
+<cases tags="data_rules,f060">
+    <case execute="是" id="F060_PURE_OK" title="set 中纯函数允许（toUpperCase）" component_type="接口" priority="P1">
+        <pre_process>
+            <test_step action="run" model="" data="mock_server.py ensure"/>
+        </pre_process>
+        <test_case>
+            <test_step action="set" model="" data="raw=abc"/>
+            <test_step action="set" model="" data="up=${toUpperCase(${raw})}"/>
+            <test_step action="send" model="EchoUp" data="D001"/>
+            <test_step action="verify" model="EchoUpResult" data="V001"/>
+        </test_case>
+    </case>
+    <case execute="是" id="F060_SET_ESCAPE" title="set 中 $${random(...)} 转义：不报错、不被当作调用" component_type="接口" priority="P1">
+        <pre_process>
+            <test_step action="run" model="" data="mock_server.py ensure"/>
+        </pre_process>
+        <test_case>
+            <test_step action="set" model="" data="lit=$${random(int, 1, 9)}"/>
+            <test_step action="send" model="EchoLit" data="D001"/>
+            <test_step action="verify" model="EchoLitResult" data="V001"/>
+        </test_case>
+    </case>
+    <case execute="是" id="F060_SET_RANDOM" title="set 中写 random 报错" component_type="接口" priority="P1" expect_fail="是">
+        <test_case>
+            <test_step action="set" model="" data="u=user_${random(int, 4)}"/>
+        </test_case>
+    </case>
+    <case execute="是" id="F060_SET_DATE" title="set 中写 date 报错" component_type="接口" priority="P1" expect_fail="是">
+        <test_case>
+            <test_step action="set" model="" data="d=${date(today)}"/>
+        </test_case>
+    </case>
+    <case execute="是" id="F060_SET_TS36" title="set 中写 timestamp36 报错" component_type="接口" priority="P1" expect_fail="是">
+        <test_case>
+            <test_step action="set" model="" data="t=${timestamp36()}"/>
+        </test_case>
+    </case>
+    <case execute="是" id="F060_NAVIGATE_RANDOM" title="navigate 的 data 属性中写 random 报错" component_type="界面" priority="P2" expect_fail="是">
+        <pre_process>
+            <test_step action="run" model="" data="mock_server.py ensure"/>
+        </pre_process>
+        <test_case>
+            <test_step action="navigate" model="" data="GlobalValue.Site.Pages/ret.html?x=${random(int, 4)}"/>
+        </test_case>
+    </case>
+</cases>

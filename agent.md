@@ -117,40 +117,36 @@ product/
 
 ### 5.1 默认稳定回归
 
-默认浏览器/API/SQLite 回归位于 `rodski-demo/DEMO/demo_full/`。从仓库根目录执行：
+默认浏览器/API/SQLite 回归位于 `rodski-demo/demosite/full/`。从仓库根目录执行：
 
 ```bash
-cd rodski-demo/DEMO/demo_full
-python3 init_db.py
-python3 demosite/app.py                 # 单独终端启动服务，默认 http://localhost:8000
+python3 rodski-demo/_sites/demosite/app.py   # 单独终端启动共享被测站点，默认 http://localhost:8000
+python3 rodski-demo/demosite/full/init_db.py # 重置 DB 用例使用的模块内 demo.db
 
 # 回到仓库根目录后执行默认稳定回归
 cd <仓库根目录>
-rodski run rodski-demo/DEMO/demo_full/case/demo_case.xml
+rodski run rodski-demo/demosite/full/case/demo_case.xml
 ```
 
-也可以使用 Demo 自带入口（会初始化数据库）：
+全量回归（按环境自动起停服务）：
 
 ```bash
-cd rodski-demo/DEMO/demo_full
-./run_demo.sh
-# 或
-python3 run_demo.py
+python3 rodski-demo/run_regression.py
 ```
 
-默认稳定回归覆盖浏览器/API/SQLite 关键路径。修改其他能力时，不能只运行默认集合，应按影响范围执行 `rodski-demo/DEMO/` 下对应 Demo 的 README、`run_demo.py`、脚本或专用测试入口。
+默认稳定回归覆盖浏览器/API/SQLite 关键路径。修改其他能力时，不能只运行默认集合，应按影响范围执行 `rodski-demo/` 下对应 Demo 的 README、`run_demo.py`、脚本或专用测试入口。
 
 ### 5.2 变更到专项能力时
 
 至少补跑对应专项验收：
 
-- 数据、模型、Case、计划、关键字：`rodski-demo/DEMO/demo_full/`。
-- Hook：`rodski-demo/DEMO/demo_hooks/`。
-- 暂停、接管、运行时控制：`demo_pause_takeover/`、`demo_runtime_control/`。
-- 视觉感知：`demo_perception/`；需要额外模型或服务时，明确记录环境前置条件。
-- 漫游执行：`demo_roaming_test/`。
-- 性能压测：`demo_load/`，遵守 `LOAD_TESTING_GUIDE.md`。
-- Android/iOS、异构设备队列：`mobile_app/`，遵守其 README 和设备前置条件。
+- 数据、模型、Case、计划、关键字：`rodski-demo/demosite/full/`。
+- Hook：`rodski-demo/local/hooks/`。
+- 暂停、接管、运行时控制：`rodski-demo/demosite/pause_takeover/`、`rodski-demo/local/runtime_control/`。
+- 视觉感知：`rodski-demo/desktop_vision/perception/`；需要额外模型或服务时，明确记录环境前置条件。
+- 漫游执行：`rodski-demo/local/roaming/`。
+- 性能压测：`rodski-demo/demosite/load/`，遵守 `LOAD_TESTING_GUIDE.md`。
+- Android/iOS、异构设备队列：`rodski-demo/mobile/app/`，遵守其 README 和设备前置条件。
 - 浏览器插件、网站、桌面应用：执行对应 Demo，不得用普通 Web 回归替代。
 
 专项 Demo 如果因真实设备、浏览器、外部服务或 GUI 环境不可用而无法执行，不能默认为通过；应在最终报告中明确列出未执行项、原因和风险。
@@ -160,7 +156,7 @@ python3 run_demo.py
 发布流程至少包括：
 
 1. 运行受影响的单元/集成测试。
-2. 运行默认 `demo_full` 稳定回归。
+2. 运行默认 `rodski-demo/demosite/full` 稳定回归。
 3. 运行本次变更涉及的专项 Demo。
 4. 检查结果状态、退出码和 `result/` 中的错误，而不是只看命令是否启动。
 5. 通过后再执行构建和发布检查：
@@ -185,8 +181,8 @@ python3 rodski/selftest.py
 python3 -m pytest rodski/tests/unit -q
 
 # 运行 Demo 验收
-rodski run rodski-demo/DEMO/demo_full/case/demo_case.xml
-rodski run rodski-demo/DEMO/demo_full/case/
+rodski run rodski-demo/demosite/full/case/demo_case.xml
+rodski run rodski-demo/demosite/full/case/
 
 # 数据校验
 rodski data validate <模块路径> --strict
@@ -228,7 +224,7 @@ rodski run <case-or-module> --trace
 - [ ] 未破坏关键字清单、数据文件、模型定位器、计划和 Return 引用契约。
 - [ ] 代码、测试、Schema、文档和 Demo 资产已同步（若适用）。
 - [ ] 相关单元/集成测试通过。
-- [ ] `rodski-demo/DEMO/demo_full` 默认稳定回归通过。
+- [ ] `rodski-demo/demosite/full` 默认稳定回归通过。
 - [ ] 变更涉及的专项 Demo 已通过，或已明确记录无法执行的前置条件和风险。
 - [ ] 发布前已运行构建/发布检查，且没有用它替代 Demo 验收。
 - [ ] `git status` 中没有误生成或无关文件。

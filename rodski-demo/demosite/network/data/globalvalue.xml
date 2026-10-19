@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<globalvalue>
+    <group name="DefaultValue">
+        <!-- 自动等待（毫秒）：UI verify 在 5000ms 内重试到期望值 -->
+        <var name="AutoWait" value="5000"/>
+        <var name="URL" value="http://localhost:8000"/>
+        <var name="WaitTime" value="0"/>
+    </group>
+</globalvalue>

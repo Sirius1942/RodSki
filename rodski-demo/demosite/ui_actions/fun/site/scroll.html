@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>scroll</title>
+<style>
+  body { margin: 0; }
+  #canvas { position: relative; width: 4000px; height: 4000px;
+            background: linear-gradient(#fafafa, #e8e8ff); }
+  #anchor { position: absolute; left: 10px; top: 60px; width: 120px; height: 30px; background: #ccd; }
+  #far { position: absolute; left: 10px; top: 1200px; width: 200px; height: 40px; background: #8c8; }
+  #hud { position: fixed; right: 10px; top: 10px; background: #fff; border: 1px solid #999; padding: 4px 8px; }
+</style></head>
+<body>
+<div id="canvas">
+  <div id="anchor">scroll anchor</div>
+  <div id="far">far target</div>
+</div>
+<div id="hud">位置 <span id="pos">0,0</span> | far <span id="farState">init</span></div>
+<script>
+  const pos = document.getElementById('pos');
+  const update = () => { pos.textContent = Math.round(window.scrollX) + ',' + Math.round(window.scrollY); };
+  window.addEventListener('scroll', update);
+  update();
+  new IntersectionObserver((entries) => {
+    for (const en of entries) {
+      document.getElementById('farState').textContent = en.isIntersecting ? 'in-view' : 'out-of-view';
+    }
+  }).observe(document.getElementById('far'));
+</script>
+</body>
+</html>

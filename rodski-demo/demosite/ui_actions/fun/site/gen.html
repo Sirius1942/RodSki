@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>生成值格式</title></head>
+<body>
+<h1>random() / date() 生成值格式验收页</h1>
+<p>输入框收到的值回显到 echo_*，并由页面按格式规则判定 OK / BAD:原值</p>
+<table id="gen"></table>
+<p>uuid 是否每次重新生成 <span id="uuidChanged">init</span></p>
+<script>
+  const pad = (n) => String(n).padStart(2, '0');
+  const d = new Date();
+  const today = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  const todayCompact = today.replaceAll('-', '');
+  // 字段 → 格式规则（对应 TEST_CASE_WRITING_GUIDE §7.7 的结果示例）
+  const rules = {
+    gUser:   (v) => /^user_\d{4}$/.test(v),                       // user_${random(int, 4)}
+    gInt:    (v) => /^\d+$/.test(v) && +v >= 1000 && +v <= 9999,   // ${random(int, 1000, 9999)}
+    gDigits: (v) => /^\d{8}$/.test(v),                             // ${random(digits, 8)}
+    gStr:    (v) => /^[A-Za-z0-9]{6}$/.test(v),                    // ${random(str, 6)}
+    gPhone:  (v) => /^1\d{10}$/.test(v),                           // ${random(phone)}
+    gEmail:  (v) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v),          // ${random(email)}
+    gUuid:   (v) => /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(v),
+    gChoice: (v) => ['A', 'B', 'C'].includes(v),                   // ${random(choice, A, B, C)}
+    gToday:  (v) => v === today,                                    // ${date(today)}
+    gNow:    (v) => /^\d{8}_\d{6}$/.test(v) && v.startsWith(todayCompact), // ${date(now, %Y%m%d_%H%M%S)}
+    gOffset: (v) => /^\d{2}:\d{2}$/.test(v),                       // ${date(offset, -2h, %H:%M)}
+    gTs36:   (v) => /^[0-9A-Z]{6,}$/.test(v),                      // ${timestamp36()}
+  };
+  const table = document.getElementById('gen');
+  let lastUuid = null;
+  for (const [id, rule] of Object.entries(rules)) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${id}</td><td><input id="${id}" autocomplete="off"></td>` +
+                   `<td><span id="echo_${id}"></span></td><td><span id="ok_${id}">EMPTY</span></td>`;
+    table.appendChild(tr);
+    const input = tr.querySelector('input');
+    input.addEventListener('input', () => {
+      const v = input.value;
+      document.getElementById('echo_' + id).textContent = v;
+      document.getElementById('ok_' + id).textContent = v === '' ? 'EMPTY' : (rule(v) ? 'OK' : 'BAD:' + v);
+    });
+    if (id === 'gUuid') {
+      input.addEventListener('input', () => {
+        const v = input.value;
+        if (v === '') return;
+        if (lastUuid !== null) document.getElementById('uuidChanged').textContent = v !== lastUuid ? 'CHANGED' : 'SAME';
+        lastUuid = v;
+      });
+    }
+  }
+</script>
+</body>
+</html>

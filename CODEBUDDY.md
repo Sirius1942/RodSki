@@ -32,7 +32,7 @@ python3 -m pytest tests/integration -q              # 集成测试
 python3 selftest.py                                 # 框架自检
 
 # ---- 执行用例 ----
-rodski run rodski-demo/DEMO/demo_full/case/         # 官方验收基线
+rodski run rodski-demo/demosite/full/case/         # 官方验收基线
 rodski run <case/路径> --trace                       # 导出 trace.json 三层 span
 rodski run @plan_id --load-ui                        # 性能压测（v8.0+）
 rodski run <case/路径> --dry-run                     # 干跑不执行

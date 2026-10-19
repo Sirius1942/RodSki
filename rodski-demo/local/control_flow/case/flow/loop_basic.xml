@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  F069 <loop range var>（TEST_CASE_WRITING_GUIDE §3.8 <loop>）
+  - range="1-3" 闭区间；range="1,2,3" 逐个列举；"1,5" 只循环 1 和 5 两次
+  - var 循环变量可在内部步骤 data 中以 ${var} 引用（如 D00${i}）
+  每轮：run mark.py 记录轮次；DB CfQuery Q00${i} 执行该轮 SQL；verify CfQuery V00${i} 比对该轮期望，
+  DataID 解析错误会直接导致 DB/verify 失败（用例自检），轮次与顺序由 run_acceptance.py 按轨迹断言。
+-->
+<cases step_wait="0" tags="flow,loop">
+
+    <case execute="是" id="F069_01" title="F069 loop range 列举形式 1,2,3" component_type="数据库" priority="P1">
+        <test_case>
+            <loop range="1,2,3" var="i">
+                <test_step action="run" model="" data="mark.py F069_01_list_${i}"/>
+                <test_step action="DB" model="CfQuery" data="Q00${i}"/>
+                <test_step action="verify" model="CfQuery" data="V00${i}"/>
+            </loop>
+        </test_case>
+    </case>
+
+    <case execute="是" id="F069_02" title="F069 loop range 区间形式 1-3" component_type="数据库" priority="P1">
+        <test_case>
+            <loop range="1-3" var="n">
+                <test_step action="run" model="" data="mark.py F069_02_range_${n}"/>
+                <test_step action="DB" model="CfQuery" data="Q00${n}"/>
+                <test_step action="verify" model="CfQuery" data="V00${n}"/>
+            </loop>
+        </test_case>
+    </case>
+
+    <case execute="是" id="F069_03" title="F069 loop range 1,5 只循环 1 和 5 两次" component_type="数据库" priority="P2">
+        <test_case>
+            <loop range="1,5" var="k">
+                <test_step action="run" model="" data="mark.py F069_03_sparse_${k}"/>
+                <test_step action="DB" model="CfQuery" data="Q00${k}"/>
+                <test_step action="verify" model="CfQuery" data="V00${k}"/>
+            </loop>
+        </test_case>
+    </case>
+
+</cases>

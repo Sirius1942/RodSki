@@ -86,9 +86,9 @@ playwright install chromium
 RODSKI="${RODSKI_BIN:-$(command -v rodski)}"
 
 # 执行一个 case 文件、case 目录或测试模块
-"$RODSKI" run rodski-demo/DEMO/demo_full/case/demo_case.xml
-"$RODSKI" run rodski-demo/DEMO/demo_full/case/
-"$RODSKI" run rodski-demo/DEMO/demo_full/
+"$RODSKI" run rodski-demo/demosite/full/case/demo_case.xml
+"$RODSKI" run rodski-demo/demosite/full/case/
+"$RODSKI" run rodski-demo/demosite/full/
 
 # 输出 JSON，便于 Agent 解析
 "$RODSKI" run case/ --output-format json
@@ -126,19 +126,19 @@ RODSKI="${RODSKI_BIN:-$(command -v rodski)}"
 "$RODSKI" init /path/to/MyTestModule
 
 # 查看模块中的逻辑表
-"$RODSKI" data list rodski-demo/DEMO/demo_full/
+"$RODSKI" data list rodski-demo/demosite/full/
 
 # 查看逻辑表字段
-"$RODSKI" data schema rodski-demo/DEMO/demo_full/ RegisterAPI
+"$RODSKI" data schema rodski-demo/demosite/full/ RegisterAPI
 
 # 查看指定数据行
-"$RODSKI" data show rodski-demo/DEMO/demo_full/ RegisterAPI L001
+"$RODSKI" data show rodski-demo/demosite/full/ RegisterAPI L001
 
 # 查看逻辑表前 50 行，或通过 --limit 限制数量
-"$RODSKI" data query rodski-demo/DEMO/demo_full/ RegisterAPI --limit 20
+"$RODSKI" data query rodski-demo/demosite/full/ RegisterAPI --limit 20
 
 # 校验数据层
-"$RODSKI" data validate rodski-demo/DEMO/demo_full/
+"$RODSKI" data validate rodski-demo/demosite/full/
 
 # 从废弃 XML 数据迁移到 data.sqlite
 "$RODSKI" data import <module>
@@ -148,13 +148,13 @@ RODSKI="${RODSKI_BIN:-$(command -v rodski)}"
 业务模型（v11.4，模块下 `business/*.xml`；正式执行只能通过 Case 的 `<business_call>`）：
 
 ```bash
-"$RODSKI" business list      rodski-demo/DEMO/demo_business_model
-"$RODSKI" business flow-list rodski-demo/DEMO/demo_business_model --id login_flow
-"$RODSKI" business validate  rodski-demo/DEMO/demo_business_model
-"$RODSKI" business graph     rodski-demo/DEMO/demo_business_model --id login_flow --format mermaid
-"$RODSKI" business coverage  rodski-demo/DEMO/demo_business_model --id login_flow
+"$RODSKI" business list      rodski-demo/mock_api/business_model
+"$RODSKI" business flow-list rodski-demo/mock_api/business_model --id login_flow
+"$RODSKI" business validate  rodski-demo/mock_api/business_model
+"$RODSKI" business graph     rodski-demo/mock_api/business_model --id login_flow --format mermaid
+"$RODSKI" business coverage  rodski-demo/mock_api/business_model --id login_flow
 # 仅调试一次调用，不产生正式 Case 结果
-"$RODSKI" business debug rodski-demo/DEMO/demo_business_model --id login_flow \
+"$RODSKI" business debug rodski-demo/mock_api/business_model --id login_flow \
   --flow F_LOGIN_SUCCESS --input LOGIN_OK_01 --expect LOGIN_OK_01
 ```
 

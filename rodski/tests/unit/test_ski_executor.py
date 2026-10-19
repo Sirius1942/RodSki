@@ -436,6 +436,14 @@ class TestExecuteStep:
         assert report_step['status'] == 'fail'
         assert report_step['return_value'] == failure_payload
 
+    def test_match_mode_passed_to_keyword(self, executor):
+        """BUG-A19：case XML 上的 match_mode="subset" 必须传给 verify，不能恒为 strict"""
+        executor.keyword_engine.execute.return_value = True
+        executor.execute_step({'action': 'verify', 'model': 'Order', 'data': 'V001',
+                               'match_mode': 'subset'}, '用例')
+        params = executor.keyword_engine.execute.call_args.args[1]
+        assert params['match_mode'] == 'subset'
+
 
 # =====================================================================
 # pre_process / post_process 失败场景

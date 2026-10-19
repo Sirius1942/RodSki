@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- F073 SessionMode 验收模型。页面 fun/site/session.html，由 run_acceptance.py 在 127.0.0.1:18131 启动。 -->
+<models>
+  <model name="SessionPage" type="ui">
+    <element name="markBtn" type="web">
+      <location type="id">markBtn</location>
+    </element>
+    <element name="storageVal" type="web">
+      <location type="id">storageVal</location>
+    </element>
+    <element name="cookieVal" type="web">
+      <location type="id">cookieVal</location>
+    </element>
+  </model>
+</models>

@@ -10,6 +10,26 @@ from urllib3.util.retry import Retry
 logger = logging.getLogger(__name__)
 
 
+def build_http_result(status_code: int, body: Any) -> Dict[str, Any]:
+    """组装接口步骤的 Return / verify 数据（send 与压测驱动共用）。
+
+    - ``status`` 恒为 HTTP 状态码（CORE §3.3：`_verify` 的 status 列验证 HTTP 状态码）；
+    - JSON 对象响应的字段平铺到顶层；响应体自带的 ``status`` 字段不覆盖 HTTP 状态码，
+      此时完整响应体放在 ``body`` 中，用 ``body.status`` 读取；
+    - 非对象 JSON 或文本响应放在 ``body``；空响应（None / {}）只有 ``status``。
+    """
+    result: Dict[str, Any] = {}
+    if isinstance(body, dict):
+        result.update(body)
+        if "status" in body:
+            result.pop("status")
+            result.setdefault("body", body)
+    elif body not in (None, ""):
+        result["body"] = body
+    result["status"] = status_code
+    return result
+
+
 class RestHelper:
     """REST API 测试辅助类"""
 

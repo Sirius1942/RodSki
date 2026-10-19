@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- F094：scenario 调试计划（GUIDE §10.7）—— 只调试 CHK_001/S03，prepare=case（只执行 pre_process），cleanup=是（执行 post_process） -->
+<test_plan id="checkout_scenario_debug" title="CHK_001 S03 调试" kind="scenario_debug" default_execute="否">
+  <debug prepare="case" cleanup="是"/>
+  <case file="checkout/checkout_flow.xml" id="CHK_001" execute="是">
+    <scenario id="S03" execute="是"/>
+  </case>
+</test_plan>

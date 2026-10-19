@@ -226,6 +226,25 @@ class TestAdvancedKeywords:
         assert result is True
         assert engine._context.named["count"] == "42"
 
+    def test_set_escaped_function_stays_literal(self, mock_driver):
+        """BUG-A18：执行器已解析的 $${random(...)} 转义结果不能在 _kw_set 中被二次求值"""
+        from data.data_resolver import DataResolver
+        resolver = DataResolver()
+        engine = KeywordEngine(mock_driver, data_resolver=resolver)
+        resolved = resolver.resolve_case_data("lit=$${random(int, 1, 9)}")
+        assert resolved == "lit=${random(int, 1, 9)}"
+        engine.execute("set", {"value": resolved, "resolved": True})
+        assert engine._context.named["lit"] == "${random(int, 1, 9)}"
+
+    def test_set_unresolved_value_still_resolved(self, mock_driver):
+        """未经执行器解析的调用方（Python API）仍由 _kw_set 解析模板"""
+        from data.data_resolver import DataResolver
+        resolver = DataResolver()
+        engine = KeywordEngine(mock_driver, data_resolver=resolver)
+        engine.execute("set", {"data": "a=1"})
+        engine.execute("set", {"data": "b=${a}x"})
+        assert engine._context.named["b"] == "1x"
+
     def test_db_query_success(self, mock_driver, tmp_path):
         """DB 关键字: 模型驱动模式查询成功"""
         import sqlite3
@@ -1064,6 +1083,26 @@ class TestSpecialValues:
         assert len(calls) == 1
         assert calls[0][0][0] == 'id=uname'  # 定位器格式为 type=value
 
+    def test_type_empty_value_skips_field(self, mock_driver):
+        """BUG-A14：type 批量模式字段值为空串 → 跳过（CORE §4.1），不能输入空串清空预填内容；空白串仍照常输入"""
+        mock_model_parser = MagicMock()
+        mock_model_parser.get_model.return_value = {
+            '__model_type__': MODEL_TYPE_UI,
+            'field1': {'locator_type': 'id', 'locator_value': 'f1', 'model_type': MODEL_TYPE_UI},
+            'field2': {'locator_type': 'id', 'locator_value': 'f2', 'model_type': MODEL_TYPE_UI},
+            'field3': {'locator_type': 'id', 'locator_value': 'f3', 'model_type': MODEL_TYPE_UI},
+        }
+        mock_model_parser.get_model_type.return_value = MODEL_TYPE_UI
+        mock_data_manager = MagicMock()
+        mock_data_manager.get_data.return_value = {'field1': 'hello', 'field2': '', 'field3': ' '}
+
+        engine = KeywordEngine(mock_driver,
+                               model_parser=mock_model_parser,
+                               data_manager=mock_data_manager)
+        assert engine.execute("type", {"model": "Form", "data": "D001"}) is True
+        typed = [c[0][0] for c in mock_driver.type_locator.call_args_list]
+        assert typed == ['id=f1', 'id=f3']
+
     def test_type_null_skips_field(self, mock_driver):
         """type 批量模式：NULL 值应跳过该字段"""
         mock_model_parser = MagicMock()
@@ -1154,3 +1193,47 @@ class TestSpecialValues:
         with pytest.raises(AssertionFailedError, match="比较字段数为 0"):
             engine.execute("verify", {"model": "Order", "data": "V001"})
 
+
+
+class TestPasswordMaskedInStepLog:
+    """BUG-A16：type 返回值历史的 DEBUG 日志不得出现 .Password 明文"""
+
+    def test_history_debug_line_masked(self, mock_driver, caplog):
+        import logging
+        mock_model_parser = MagicMock()
+        mock_model_parser.get_model.return_value = {
+            '__model_type__': MODEL_TYPE_UI,
+            'username': {'locator_type': 'id', 'locator_value': 'u', 'model_type': MODEL_TYPE_UI},
+            'password': {'locator_type': 'id', 'locator_value': 'p', 'model_type': MODEL_TYPE_UI},
+        }
+        mock_model_parser.get_model_type.return_value = MODEL_TYPE_UI
+        mock_data_manager = MagicMock()
+        mock_model_parser.get_auto_capture.return_value = []
+        mock_data_manager.get_data.return_value = {'username': 'alice', 'password': 'S3cret!.Password'}
+        engine = KeywordEngine(mock_driver, model_parser=mock_model_parser, data_manager=mock_data_manager)
+        with caplog.at_level(logging.DEBUG, logger="rodski"):
+            engine.execute("type", {"model": "Login", "data": "D001"})
+        assert "S3cret!" not in caplog.text
+        assert "history[" in caplog.text
+
+
+class TestKeyPressTarget:
+    """B06（D3）：type 批量中 key_press 把字段对应元素的定位器交给驱动（驱动支持时）"""
+
+    def test_locator_passed_to_driver(self):
+        from typing import Optional
+
+        class _Drv:
+            def __init__(self):
+                self.calls = []
+
+            def key_press(self, key: str, locator: Optional[str] = None, frame: Optional[str] = None,
+                          timeout_ms: Optional[float] = None):
+                self.calls.append((key, locator))
+                return True
+
+        drv = _Drv()
+        engine = KeywordEngine(MagicMock())
+        result = engine._execute_element_action('key_press【Enter】', 'id=kpOther', 'kpOther', driver=drv)
+        assert result[0] == 'key_press'
+        assert drv.calls == [('Enter', 'id=kpOther')]

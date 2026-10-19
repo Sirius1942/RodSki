@@ -71,9 +71,16 @@ class TestActions:
     def test_locator_conversion(self):
         d, _ = _driver()
         d.select("id=region", "x", timeout_ms=10)
-        d.page.locator.assert_called_with("#region")
+        d.page.locator.assert_called_with('[id="region"]')
         d.hover_locator("name=q", timeout_ms=10)
         d.page.locator.assert_called_with('[name="q"]')
+        # BUG-A24 / A25：class 多类名 = 同时具备；tag = 标签名选择器（与 KeywordEngine._web_selector 同一实现）
+        d.hover_locator("class=btn primary", timeout_ms=10)
+        d.page.locator.assert_called_with('.btn.primary')
+        d.hover_locator("tag=textarea", timeout_ms=10)
+        d.page.locator.assert_called_with('textarea')
+        d.hover_locator("xpath=(//a)[1]", timeout_ms=10)
+        d.page.locator.assert_called_with('xpath=(//a)[1]')
 
     def test_frame_scope(self):
         d, _ = _driver()
@@ -143,7 +150,7 @@ class TestProbeAndRead:
         assert d.probe("#x") is False
         d.page.locator.return_value.count.return_value = 2
         assert d.probe("id=x") is True
-        d.page.locator.assert_called_with("#x")
+        d.page.locator.assert_called_with('[id="x"]')
 
     def test_probe_translates_navigation_error(self):
         d, _ = _driver()
@@ -167,3 +174,50 @@ class TestProbeAndRead:
         el.text_content.return_value = "Hello World"
         assert d.assert_element("#e", "Hello", timeout_ms=10) is True
         assert d.assert_element("#e", "Bye", timeout_ms=10) is False
+
+
+class TestLaunchNonUrl:
+    """BUG-A26：Web 驱动 launch 非 http(s) 目标必须报错，不能静默成功"""
+
+    @pytest.mark.parametrize("target", ["rodski_no_such_app", "ftp://127.0.0.1/x.html", "localhost:8000/x"])
+    def test_app_path_rejected(self, target):
+        from rodski.core.exceptions import InvalidParameterError as IPE
+        d, _ = _driver()
+        with pytest.raises(Exception) as exc:
+            d.launch(app_path=target)
+        assert type(exc.value).__name__ == IPE.__name__
+        assert target in str(exc.value) and "navigate" in str(exc.value)
+
+    def test_url_still_navigates(self):
+        d, _ = _driver()
+        d.navigate = MagicMock(return_value=True)
+        d.launch(url="http://localhost:8000/")
+        d.navigate.assert_called_once_with("http://localhost:8000/")
+
+
+class TestKeyPress:
+    """BUG-A28 / B06（D3）：key_press 作用于字段对应元素；macOS 上组合键 Control → Command"""
+
+    def test_locator_presses_on_element(self):
+        d, el = _driver()
+        assert d.key_press("Enter", locator="id=other", timeout_ms=100) is True
+        d.page.locator.assert_called_with('[id="other"]')
+        el.press.assert_called_once()
+        assert el.press.call_args.args[0] == "Enter"
+        d.page.keyboard.press.assert_not_called()
+
+    def test_without_locator_uses_focused_element(self):
+        d, _ = _driver()
+        d.key_press("Tab")
+        d.page.keyboard.press.assert_called_once_with("Tab")
+
+    @pytest.mark.parametrize("platform,key,expected", [
+        ("darwin", "Control+A", "ControlOrMeta+A"),
+        ("darwin", "Control+Shift+Z", "ControlOrMeta+Shift+Z"),
+        ("darwin", "Control", "Control"),
+        ("darwin", "Shift+Tab", "Shift+Tab"),
+        ("linux", "Control+A", "Control+A"),
+    ])
+    def test_modifier_mapping(self, platform, key, expected):
+        with patch("sys.platform", platform):
+            assert PlaywrightDriver._map_modifiers(key) == expected

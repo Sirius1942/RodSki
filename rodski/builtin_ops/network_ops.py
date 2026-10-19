@@ -124,12 +124,18 @@ def wait_for_response(
     def predicate(response):
         return url_pattern in response.url
 
+    # v11.8.28 (BUG-A30)：同步 API 没有 page.wait_for_response（那是 JS / async 写法），
+    # 用 expect_response 等待「调用之后」到达的匹配响应；只有 Playwright 超时才报为超时，
+    # 其他异常按原因报错，不再伪装成超时
     try:
-        response = page.wait_for_response(
-            predicate,
-            timeout=timeout * 1000,  # Playwright 使用毫秒
-        )
-    except Exception as e:
+        from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+    except ImportError:  # pragma: no cover - 无 playwright 时 _get_playwright_page 已报错
+        PlaywrightTimeoutError = TimeoutError
+    try:
+        with page.expect_response(predicate, timeout=timeout * 1000) as response_info:  # Playwright 使用毫秒
+            pass
+        response = response_info.value
+    except PlaywrightTimeoutError as e:
         raise RuntimeError(
             f"等待网络响应超时 ({timeout}s): {url_pattern} - {e}"
         )

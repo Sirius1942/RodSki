@@ -414,3 +414,54 @@ class TestCaseParserScenario:
             'scenario_tags': ['login', 'smoke'],
             'effective_tags': ['suite', 'smoke', 'login'],
         }]
+
+
+class TestLoopBody:
+    @patch('core.case_parser.RodskiXmlValidator.validate_file')
+    def test_if_elif_else_inside_loop_kept(self, mock_validate, tmp_path):
+        """BUG-A04：<loop> 内的 if/elif/else 不能被静默丢弃（case.xsd LoopContainerType 允许）"""
+        case_xml = _write_xml(tmp_path, '''\
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+  <case execute="是" id="lp001" title="循环内分支">
+    <test_case>
+      <loop range="1-3" var="i">
+        <test_step action="wait" model="" data="0"/>
+        <if condition="${i} == 1">
+          <test_step action="set" model="" data="a=1"/>
+        </if>
+        <elif condition="${i} == 2">
+          <test_step action="set" model="" data="a=2"/>
+        </elif>
+        <else>
+          <test_step action="set" model="" data="a=3"/>
+        </else>
+      </loop>
+    </test_case>
+  </case>
+</cases>''')
+        loop = CaseParser(case_xml).parse_cases()[0]['test_case'][0]
+        assert loop['type'] == 'loop'
+        assert [s.get('type', s.get('action')) for s in loop['steps']] == ['wait', 'if']
+        branch = loop['steps'][1]
+        assert branch['condition'] == '${i} == 1'
+        assert [e['condition'] for e in branch['elif_chain']] == ['${i} == 2']
+        assert branch['else_steps'][0]['data'] == 'a=3'
+
+
+class TestCaseLevelTags:
+    def test_case_tags_merged_with_suite_tags(self, tmp_path):
+        """BUG-A07：<case tags> 不能被忽略，与 <cases tags> 合并去重"""
+        case_xml = _write_xml(tmp_path, '''\
+<?xml version="1.0" encoding="UTF-8"?>
+<cases tags="suite,smoke">
+  <case execute="是" id="t1" title="a" tags="smoke, slow">
+    <test_case><test_step action="wait" model="" data="0"/></test_case>
+  </case>
+  <case execute="是" id="t2" title="b">
+    <test_case><test_step action="wait" model="" data="0"/></test_case>
+  </case>
+</cases>''')
+        cases = CaseParser(case_xml).parse_cases()
+        assert cases[0]['tags'] == ['suite', 'smoke', 'slow']
+        assert cases[1]['tags'] == ['suite', 'smoke']

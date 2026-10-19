@@ -142,6 +142,9 @@ class SKIExecutor:
         self._business_models = None
         self.driver_factory = driver_factory
         self._driver_closed = False
+        # 当前阶段的步骤序号（日志用）；_run_steps 每阶段重置。调试计划 prepare=none 不经过 _run_steps，
+        # 必须有初值（v11.8.32 BUG-A13：否则 AttributeError，目标步骤一步不执行）
+        self._phase_runtime_seq = 0
 
         # 推导测试模块目录（必须为绝对路径，否则 run/subprocess 与 DB 相对路径会错位）
         if module_dir:
@@ -395,6 +398,11 @@ class SKIExecutor:
                 )
                 self.data_resolver.return_provider = self.keyword_engine.get_return
                 self.keyword_engine.data_resolver = self.data_resolver
+                # 新引擎带来新的 RuntimeContext：条件求值必须改读新的 Return 历史
+                dynamic_executor = getattr(self, 'dynamic_executor', None)
+                if dynamic_executor is not None:
+                    dynamic_executor.bind_return_history(self.keyword_engine._context.history)
+                    self.keyword_engine._dynamic_executor = dynamic_executor
                 self.keyword_engine.before_keyword_hooks = list(
                     getattr(self, "_hooks", {}).get("before_keyword", [])
                 )
@@ -454,7 +462,13 @@ class SKIExecutor:
         if filter_case_ids:
             cases = [case for case in cases if case.get('case_id') in filter_case_ids]
 
-        cases = self._filter_cases(cases, filter_tags, filter_priority, exclude_tags)
+        if self._selector_active():
+            # selector 模式（CLI --tag/--tags/--priority/--exclude-tag/--group）只在
+            # _compile_plan_selection 中按"文件 tags + scenario tag"统一选择一次；
+            # 若这里再按文件级 tags 先过滤，只写在 scenario 上的 tag 永远选不中
+            pass
+        else:
+            cases = self._filter_cases(cases, filter_tags, filter_priority, exclude_tags)
         plan_selection = self._compile_plan_selection(cases)
         cases = self._filter_cases_by_plan_scope(cases, plan_selection)
         cases, plan_case_skips = self._apply_plan_selection(cases, plan_selection)
@@ -619,6 +633,16 @@ class SKIExecutor:
 
         return [c for c in cases if _uid(c) in touched]
 
+    def _selector_active(self) -> bool:
+        """CLI selector（无 @plan_id 时）是否生效。"""
+        if getattr(self, 'plan_path', None):
+            return False
+        selector_filters = getattr(self, 'selector_filters', None) or {}
+        return any(
+            selector_filters.get(k)
+            for k in ("filter_tags", "filter_group", "exclude_tags", "filter_priority")
+        )
+
     def _compile_plan_selection(self, cases: List[Dict[str, Any]]) -> Optional[Dict[str, List[Dict[str, Any]]]]:
         """Parse ``self.plan_path`` or compile selector filters into plan selection metadata."""
         plan_path = getattr(self, 'plan_path', None)
@@ -633,25 +657,18 @@ class SKIExecutor:
 
         # Selector mode: compile from CLI filters if any are active
         selector_filters = getattr(self, 'selector_filters', None) or {}
-        has_active = any(
-            selector_filters.get(k)
-            for k in ("filter_tags", "filter_group", "exclude_tags", "filter_priority")
-        )
-        if not has_active:
+        if not self._selector_active():
             self.plan_selection_result = None
             return None
 
         from .test_plan_selection import compile_from_selector
         metadata = CaseParser.collect_scenario_metadata_from_cases(cases)
-        # compile_from_selector expects filter_priority as a single string
-        raw_priority = selector_filters.get("filter_priority")
-        priority_str = raw_priority[0] if isinstance(raw_priority, list) and raw_priority else raw_priority
         selection = compile_from_selector(
             metadata,
             filter_tags=selector_filters.get("filter_tags"),
             filter_group=selector_filters.get("filter_group"),
             exclude_tags=selector_filters.get("exclude_tags"),
-            filter_priority=priority_str,
+            filter_priority=selector_filters.get("filter_priority"),
         )
         self.plan_selection_result = selection
         return selection
@@ -1184,6 +1201,7 @@ class SKIExecutor:
             # prepare=none: 不执行 pre_process
 
             if err is None:
+                self._phase_runtime_seq = 0
                 # Phase 2: scenario 步骤执行
                 if plan_kind == 'scenario_debug':
                     # scenario_debug: 执行完整 scenario
@@ -2386,13 +2404,16 @@ class SKIExecutor:
             logger.info("SessionMode=shared_session：close 保留浏览器会话，供后续用例复用（run 结束时统一关闭）")
             self.keyword_engine.store_return(True)
         elif action_key == 'set':
-            params = {'var_name': model, 'value': resolved_data}
+            # value 已经过 resolve_case_data 完整解析（含 $${ 转义还原），标记 resolved 避免 _kw_set 二次解析
+            params = {'var_name': model, 'value': resolved_data, 'resolved': True}
             self.keyword_engine.execute(action, params)
-            # 同步到动态执行器
-            if hasattr(self, 'dynamic_executor'):
-                self.dynamic_executor.set_variable(model, resolved_data)
+            # set 的变量由 _kw_set 写入 DataResolver.data_source，条件求值从那里读取
         else:
             params = {'model': model, 'data': resolved_data}
+            # case XML 上的 match_mode（解析器默认 strict）以及 business_call 节点的 subset
+            # 都要传给 verify，否则恒按 strict 执行
+            if step.get('match_mode'):
+                params['match_mode'] = step['match_mode']
             try:
                 self.keyword_engine.execute(action, params)
             except AssertionFailedError as exc:

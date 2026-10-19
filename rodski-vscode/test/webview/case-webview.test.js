@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 
 const DEMO_XML = fs.readFileSync(
-  path.join(__dirname, '../../../rodski-demo/DEMO/demo_full/case/demo_case.xml'), 'utf8'
+  path.join(__dirname, '../../../rodski-demo/demosite/full/case/demo_case.xml'), 'utf8'
 );
 
 function createDOM(xml) {

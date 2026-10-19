@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>F027 Password</title></head>
+<body>
+<!-- 结果只显示用户名、密码长度与字符码之和，页面与结果均不含密码明文 -->
+<input id="user" type="text">
+<input id="pwd" type="password">
+<button id="go" onclick="var p=document.getElementById('pwd').value,s=0;for(var i=0;i<p.length;i++){s+=p.charCodeAt(i);}document.getElementById('result').textContent='user='+document.getElementById('user').value+';len='+p.length+';sum='+s;">登录</button>
+<div id="result"></div>
+</body></html>

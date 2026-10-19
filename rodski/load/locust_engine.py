@@ -46,6 +46,14 @@ class LocustLoadEngine:
 
     def run(self) -> "LoadStats":
         """执行压测，返回 LoadStats。"""
+        # v11.8.29 (BUG-A32)：mode=browser 尚未实现，不能静默按 api 模式执行
+        mode = (self.plan.get("load_profile", {}).get("mode") or "api").strip()
+        if mode != "api":
+            try:
+                from ..core.exceptions import LoadBrowserModeNotSupportedError
+            except ImportError:
+                from rodski.core.exceptions import LoadBrowserModeNotSupportedError
+            raise LoadBrowserModeNotSupportedError(self.plan.get("plan_id") or self.plan.get("id") or "")
         _require_locust()
 
         # gevent monkey-patch 按需执行（仅在压测模式）
@@ -63,7 +71,7 @@ class LocustLoadEngine:
         try:
             from ..core.exceptions import LoadModeUnsupportedCaseError
         except ImportError:
-            from core.exceptions import LoadModeUnsupportedCaseError
+            from rodski.core.exceptions import LoadModeUnsupportedCaseError
 
         profile = self.plan.get("load_profile", {})
         concurrency    = int(profile.get("concurrency", 1))
@@ -144,7 +152,7 @@ class LocustLoadEngine:
         try:
             from ..core.exceptions import LoadModeUnsupportedCaseError
         except ImportError:
-            from core.exceptions import LoadModeUnsupportedCaseError
+            from rodski.core.exceptions import LoadModeUnsupportedCaseError
 
         for case_cfg in plan_cases:
             case_id = case_cfg["id"]

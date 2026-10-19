@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<globalvalue>
+  <group name="DefaultValue">
+    <!-- 步骤间不固定等待（毫秒） -->
+    <var name="WaitTime" value="0"/>
+  </group>
+</globalvalue>

@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+    <!-- F077：wait_for_response / reset_request_log / get_request_log
+         依据：TEST_CASE_WRITING_GUIDE.md §8.6 内置函数表；CORE_DESIGN_CONSTRAINTS.md §1.4 已注册内置函数清单
+         wait_for_response 是阻塞等待「之后」到达的响应：用 evaluate 安排 1.5s 后发起 fetch，
+         避免请求在等待开始前已完成（evaluate 仅用于制造延迟请求，断言全部走 verify）。 -->
+
+    <case execute="是" id="TC-NET-077-01" title="wait_for_response等待真实订单接口" component_type="界面">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.DefaultValue.URL"/>
+        </pre_process>
+        <test_case>
+            <test_step action="evaluate" model="" data="setTimeout(function () { fetch('/api/orders'); }, 1500)"/>
+            <test_step action="run" model="" data="wait_for_response(url_pattern='/api/orders', timeout=10)"/>
+            <test_step action="verify" model="NetResp" data="V_REAL"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="TC-NET-077-02" title="wait_for_response拿到mock_route伪造的响应" component_type="界面">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.DefaultValue.URL"/>
+        </pre_process>
+        <test_case>
+            <test_step action="run" model="" data="mock_route(url_pattern='**/api/orders', status=200, body='{&quot;success&quot;:true,&quot;data&quot;:[{&quot;order_id&quot;:&quot;MOCK-0001&quot;,&quot;customer&quot;:&quot;Mock客户&quot;,&quot;amount&quot;:66,&quot;status&quot;:&quot;paid&quot;}]}')"/>
+            <test_step action="evaluate" model="" data="setTimeout(function () { fetch('/api/orders'); }, 1500)"/>
+            <test_step action="run" model="" data="wait_for_response(url_pattern='/api/orders', timeout=10)"/>
+            <test_step action="verify" model="NetResp" data="V_MOCK"/>
+            <test_step action="run" model="" data="clear_routes()"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="TC-NET-077-03" title="wait_for_response无匹配请求超时必须失败" component_type="界面" expect_fail="是">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.DefaultValue.URL"/>
+        </pre_process>
+        <test_case>
+            <test_step action="run" model="" data="wait_for_response(url_pattern='/api/never-called', timeout=2)"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="TC-NET-077-04" title="reset_request_log清空请求日志" component_type="界面">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.DefaultValue.URL"/>
+        </pre_process>
+        <test_case>
+            <test_step action="run" model="" data="reset_request_log()"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="TC-NET-077-05" title="get_request_log获取登录产生的请求" component_type="界面">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.DefaultValue.URL"/>
+        </pre_process>
+        <test_case>
+            <test_step action="run" model="" data="reset_request_log()"/>
+            <test_step action="type" model="LoginForm" data="L001"/>
+            <test_step action="verify" model="Dashboard" data="V_REAL"/>
+            <test_step action="run" model="" data="get_request_log()"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+</cases>

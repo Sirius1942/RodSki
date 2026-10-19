@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  F062 三阶段失败语义（TEST_CASE_WRITING_GUIDE §3.3；CORE §7.2 执行语义）
+  - 预处理失败：跳过用例阶段，仍执行后处理
+  - 用例阶段失败：仍执行后处理
+  - 后处理失败：整条用例记为失败
+  三条用例都"按文档应失败"，因此标 expect_fail="是"（GUIDE §3.2：失败时不计入 FAIL）；
+  run_acceptance.py 进一步断言 result.xml 的 error_message 带 [预期失败] 前缀（证明框架内部判定为失败），
+  并按 fun/mark.py 的执行轨迹断言哪些阶段真实执行过。
+  module 级 WaitTime=500 只服务旧 v7 演示，这里 step_wait="0" 覆盖（GUIDE §3.2 / §6.4.1）。
+-->
+<cases step_wait="0" tags="flow,phase">
+
+    <case execute="是" id="F062_01" title="F062 预处理失败：跳过用例阶段，仍执行后处理"
+          component_type="接口" priority="P1" expect_fail="是">
+        <pre_process>
+            <test_step action="run" model="" data="mark.py F062_01_pre_1"/>
+            <test_step action="run" model="" data="fail.py F062_01_pre_2_intended"/>
+            <test_step action="run" model="" data="mark.py F062_01_pre_3_should_not_run"/>
+        </pre_process>
+        <test_case>
+            <test_step action="run" model="" data="mark.py F062_01_tc_should_not_run"/>
+        </test_case>
+        <post_process>
+            <test_step action="run" model="" data="mark.py F062_01_post"/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="F062_02" title="F062 用例阶段失败：仍执行后处理"
+          component_type="接口" priority="P1" expect_fail="是">
+        <pre_process>
+            <test_step action="run" model="" data="mark.py F062_02_pre"/>
+        </pre_process>
+        <test_case>
+            <test_step action="run" model="" data="mark.py F062_02_tc_1"/>
+            <test_step action="run" model="" data="fail.py F062_02_tc_2_intended"/>
+            <test_step action="run" model="" data="mark.py F062_02_tc_3_should_not_run"/>
+        </test_case>
+        <post_process>
+            <test_step action="run" model="" data="mark.py F062_02_post"/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="F062_03" title="F062 用例阶段通过但后处理失败：整条用例记为失败"
+          component_type="接口" priority="P1" expect_fail="是">
+        <test_case>
+            <test_step action="run" model="" data="mark.py F062_03_tc"/>
+        </test_case>
+        <post_process>
+            <test_step action="run" model="" data="fail.py F062_03_post_intended"/>
+        </post_process>
+    </case>
+
+</cases>

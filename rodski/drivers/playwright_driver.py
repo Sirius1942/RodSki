@@ -17,6 +17,8 @@ import tempfile
 import time
 from pathlib import Path
 from typing import Optional, Tuple, Union, Dict, Any
+
+from .web_selector import convert_locator
 try:
     from .base_driver import BaseDriver
     from ..core.exceptions import (
@@ -24,17 +26,19 @@ try:
         DriverStoppedError,
         ElementNotFoundError,
         ElementNotInteractableError,
+        InvalidParameterError,
         StaleElementError,
         TimeoutError,
         is_critical_error,
     )
 except ImportError:
     from rodski.drivers.base_driver import BaseDriver
-    from core.exceptions import (
+    from rodski.core.exceptions import (
         DriverError,
         DriverStoppedError,
         ElementNotFoundError,
         ElementNotInteractableError,
+        InvalidParameterError,
         StaleElementError,
         TimeoutError,
         is_critical_error,
@@ -357,25 +361,8 @@ class PlaywrightDriver(BaseDriver):
             )
 
     def _convert_locator(self, locator: str) -> str:
-        """转换定位器格式为 Playwright 支持的选择器"""
-        if locator.startswith('id='):
-            return '#' + locator[3:]
-        elif locator.startswith('class='):
-            return '.' + locator[6:]
-        elif locator.startswith('css='):
-            return locator[4:]
-        elif locator.startswith('xpath='):
-            # 移除 xpath= 前缀，Playwright 原生支持 XPath
-            return locator[6:]  # 返回纯 XPath 字符串
-        elif locator.startswith('text='):
-            # Playwright text locator: text=内容
-            return locator  # 保持原格式
-        elif locator.startswith('name='):
-            return f'[name="{locator[5:]}"]'
-        elif locator.startswith('#') or locator.startswith('.'):
-            return locator
-        else:
-            return locator
+        """转换定位器格式为 Playwright 支持的选择器（统一实现见 drivers/web_selector.py）"""
+        return convert_locator(locator)
 
     def _handle_error(self, operation: str, locator: str, error: Exception) -> None:
         """统一错误处理"""
@@ -729,10 +716,23 @@ class PlaywrightDriver(BaseDriver):
         time.sleep(seconds)
 
     def launch(self, **kwargs) -> None:
-        """启动应用或打开页面（BaseDriver 接口）"""
+        """启动应用或打开页面（BaseDriver 接口）
+
+        Web 驱动只能打开 http(s) 页面；收到应用名 / 其他协议（app_path）时报参数错误，
+        不能静默忽略后让步骤判为成功（v11.8.26 BUG-A26，CORE §1：Web 不使用 launch 启动应用）。
+        """
         url = kwargs.get('url')
         if url:
             self.navigate(url)
+            return
+        target = kwargs.get('app_path') or ''
+        raise InvalidParameterError(
+            keyword="launch", param_name="data",
+            reason=(
+                f"Web 驱动无法启动 '{target}'：只能打开 http:// 或 https:// 页面。"
+                f"打开页面请写完整 URL 或改用 navigate；启动桌面应用请使用 Desktop 模型"
+            ),
+        )
 
     def navigate(self, url: str) -> bool:
         """导航到URL，等待页面加载完成"""
@@ -827,11 +827,30 @@ class PlaywrightDriver(BaseDriver):
         return self._element_action("右键点击", locator,
                                     lambda el, t: el.click(button="right", timeout=t), frame, timeout_ms)
 
-    def key_press(self, key: str) -> bool:
-        """按键"""
+    @staticmethod
+    def _map_modifiers(key: str) -> str:
+        """macOS 上组合键中的 Control 修饰键按 Command 行为执行（GUIDE §6.4：Control+A 全选）。
+
+        只替换组合键中的修饰键位置；单独按 Control 键不替换。ControlOrMeta 需 Playwright ≥ 1.45。
+        """
+        if sys.platform != "darwin" or "+" not in key:
+            return key
+        parts = key.split("+")
+        return "+".join(
+            "ControlOrMeta" if part == "Control" and i < len(parts) - 1 else part
+            for i, part in enumerate(parts)
+        )
+
+    def key_press(self, key: str, locator: Optional[str] = None, frame: Optional[str] = None,
+                  timeout_ms: Optional[float] = None) -> bool:
+        """按键。给出 locator 时先聚焦该元素再按键（v11.8.27 BUG-A28 / B06：GUIDE §6.4 key_press 作用于字段对应元素），
+        否则发往当前焦点；macOS 上组合键 Control 映射为 Command。"""
+        key = self._map_modifiers(key)
+        if locator:
+            return self._element_action("按键", locator, lambda el, t: el.press(key, timeout=t), frame, timeout_ms)
         self._check_driver_alive()
         self._ensure_browser()
-        
+
         try:
             self.page.keyboard.press(key)
             return True
@@ -1001,6 +1020,10 @@ class PlaywrightDriver(BaseDriver):
             if action == "accept":
                 if prompt_text is not None:
                     dialog.accept(prompt_text)
+                elif dialog_type == "prompt":
+                    # v11.8.18 (BUG-A29)：未指定输入时按 prompt 默认值确认（GUIDE §6.6），
+                    # Playwright 的 accept() 不带参数会以空串确认
+                    dialog.accept(dialog.default_value or "")
                 else:
                     dialog.accept()
                 handled = True

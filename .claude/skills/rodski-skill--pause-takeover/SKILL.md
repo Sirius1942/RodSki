@@ -97,7 +97,7 @@ rodski run product/你的模块/case/part2_continue.xml --cdp :9222
 ```
 
 part2 用**全新进程 + CDP 附加**验证 ③ 的操作结果与 ① 保留的会话态；参考
-`demo_pause_takeover/case/part2_continue.xml`（两条互补断言见下）。
+`rodski-demo/demosite/pause_takeover/case/part2_continue.xml`（两条互补断言见下）。
 
 ### ⑤ 探索类步骤：把探索动作也交给框架执行（可选）
 
@@ -139,7 +139,7 @@ rodski run product/你的模块/case/part3_post.xml --cdp :9222
 
 ## 可执行参考
 
-- **全自动闭环 demo**：`rodski-demo/DEMO/demo_pause_takeover/run_demo.py`
+- **全自动闭环 demo**：`rodski-demo/demosite/pause_takeover/run_demo.py`
   （真实 CDP 五段：run-1 登录 → agent 接管 → run-2 verify → explore 探索步骤 → run-3 后置 + close），
   仓库根目录直接跑。
 - 用例三段：`part1_login.xml`（进站登录）+ `part2_continue.xml`（verify agent 写入值 + 登录态）

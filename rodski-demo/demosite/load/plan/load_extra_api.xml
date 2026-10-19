@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<test_plan id="load_extra_api" title="F118 api 压测：断言 load_summary/RPS/错误率" kind="load">
+  <load_profile mode="api">
+    <concurrency>3</concurrency>
+    <duration_seconds>8</duration_seconds>
+    <ramp_up_seconds>0</ramp_up_seconds>
+    <think_time_ms min="50" max="150" />
+  </load_profile>
+  <case id="TC-LOAD-X01" weight="3" file="load_extra_cases.xml" />
+  <case id="TC-LOAD-X02" weight="1" file="load_extra_cases.xml" />
+</test_plan>

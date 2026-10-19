@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cases>
+    <!-- F044：send + verify 断言 HTTP 状态码与响应字段字面值
+         依据：TEST_CASE_WRITING_GUIDE.md §8.2「接口测试：send + verify」；CORE_DESIGN_CONSTRAINTS.md §3.2/§3.3/§4.7
+         被测：本模块 server.py（127.0.0.1:18150），由 run_acceptance.py 起停 -->
+
+    <case execute="是" id="TC-HV-044-01" title="状态码200+字面值全部匹配" component_type="接口">
+        <test_case>
+            <test_step action="send" model="HttpGet" data="PROFILE"/>
+            <test_step action="verify" model="ProfileResp" data="V_OK"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC-HV-044-02" title="状态码不匹配必须失败" component_type="接口" expect_fail="是">
+        <test_case>
+            <test_step action="send" model="HttpGet" data="PROFILE"/>
+            <test_step action="verify" model="ProfileResp" data="N_STATUS"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC-HV-044-03" title="字段字面值不匹配必须失败" component_type="接口" expect_fail="是">
+        <test_case>
+            <test_step action="send" model="HttpGet" data="PROFILE"/>
+            <test_step action="verify" model="ProfileResp" data="N_NAME"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC-HV-044-04" title="404响应不使send失败且可断言状态码与错误体" component_type="接口">
+        <test_case>
+            <test_step action="send" model="HttpGet" data="MISSING"/>
+            <test_step action="verify" model="MissingResp" data="V404"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC-HV-044-05" title="响应体同名status字段时status列仍表示HTTP状态码" component_type="接口">
+        <test_case>
+            <test_step action="send" model="HttpGet" data="ORDER"/>
+            <test_step action="verify" model="OrderResp" data="V_HTTP"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC-HV-044-06" title="status列写响应体同名字段值应失败" component_type="接口" expect_fail="是">
+        <test_case>
+            <test_step action="send" model="HttpGet" data="ORDER"/>
+            <test_step action="verify" model="OrderResp" data="N_BODY"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC-HV-044-07" title="subset模式下模型未定义字段跳过" component_type="接口">
+        <test_case>
+            <test_step action="send" model="HttpGet" data="PROFILE"/>
+            <test_step action="verify" model="ProfileSubset" data="V_GHOST" match_mode="subset"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC-HV-044-08" title="文档8.2接口示例照写通过" component_type="接口">
+        <test_case>
+            <test_step action="send" model="LoginAPI" data="D001"/>
+            <test_step action="verify" model="LoginAPI" data="V001"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC-HV-044-09" title="模型未声明status时status列写错仍必须失败" component_type="接口" expect_fail="是">
+        <test_case>
+            <test_step action="send" model="LoginAPI" data="D001"/>
+            <test_step action="verify" model="LoginAPI" data="V_BAD_STATUS" match_mode="subset"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="TC-HV-044-10" title="subset模式下声明字段不匹配必须失败" component_type="接口" expect_fail="是">
+        <test_case>
+            <test_step action="send" model="HttpGet" data="PROFILE"/>
+            <test_step action="verify" model="ProfileSubset" data="N_NAME" match_mode="subset"/>
+        </test_case>
+    </case>
+</cases>

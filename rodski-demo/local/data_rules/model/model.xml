@@ -1,0 +1,371 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- data_rules 模块模型：页面由 fun/mock_server.py 提供（127.0.0.1:18121/pages/），接口为同一 mock 的 /echo /fixed -->
+<models>
+    <!-- F027 .Password 后缀：登录表单 -->
+    <model name="PwdForm" type="ui" servicename="">
+        <element name="username" type="web">
+            <location type="id">user</location>
+        </element>
+        <element name="password" type="web">
+            <location type="id">pwd</location>
+        </element>
+        <element name="loginBtn" type="web">
+            <location type="id">go</location>
+        </element>
+    </model>
+
+    <!-- F027 结果：user=;len=;sum=（不含明文） -->
+    <model name="PwdResult" type="ui" servicename="">
+        <element name="result" type="web">
+            <location type="id">result</location>
+        </element>
+    </model>
+
+    <!-- F026 UI type 控制值：预填 keepN 的输入框 -->
+    <model name="SpecForm" type="ui" servicename="">
+        <element name="f1" type="web">
+            <location type="id">f1</location>
+        </element>
+        <element name="f2" type="web">
+            <location type="id">f2</location>
+        </element>
+        <element name="f3" type="web">
+            <location type="id">f3</location>
+        </element>
+        <element name="f4" type="web">
+            <location type="id">f4</location>
+        </element>
+        <element name="f5" type="web">
+            <location type="id">f5</location>
+        </element>
+        <element name="dumpBtn" type="web">
+            <location type="id">dumpBtn</location>
+        </element>
+    </model>
+
+    <!-- F026 输入框当前值汇总 -->
+    <model name="SpecDump" type="ui" servicename="">
+        <element name="dump" type="web">
+            <location type="id">dump</location>
+        </element>
+    </model>
+
+    <!-- F026 UI verify 控制值：固定文本 AAA/BBB/CCC -->
+    <model name="SpecText" type="ui" servicename="">
+        <element name="t1" type="web">
+            <location type="id">t1</location>
+        </element>
+        <element name="t2" type="web">
+            <location type="id">t2</location>
+        </element>
+        <element name="t3" type="web">
+            <location type="id">t3</location>
+        </element>
+    </model>
+
+    <!-- F055 UI 输入 Return 引用值 -->
+    <model name="RetForm" type="ui" servicename="">
+        <element name="inp" type="web">
+            <location type="id">inp</location>
+        </element>
+        <element name="showBtn" type="web">
+            <location type="id">showBtn</location>
+        </element>
+    </model>
+
+    <!-- F055 UI verify 跨源比对 ${Return[-N]} -->
+    <model name="RetOut" type="ui" servicename="">
+        <element name="out" type="web">
+            <location type="id">out</location>
+        </element>
+    </model>
+
+    <!-- F026 send 控制值：回显请求体 -->
+    <model name="EchoSpecial" type="interface" servicename="">
+        <element name="_method" type="http_method">
+            <location type="static">POST</location>
+        </element>
+        <element name="_url" type="http_url">
+            <location type="static">http://127.0.0.1:18121/echo/special</location>
+        </element>
+        <element name="f_blank" type="field">
+            <location type="field">f_blank</location>
+        </element>
+        <element name="f_null" type="field">
+            <location type="field">f_null</location>
+        </element>
+        <element name="f_none" type="field">
+            <location type="field">f_none</location>
+        </element>
+        <element name="f_text" type="field">
+            <location type="field">f_text</location>
+        </element>
+    </model>
+
+    <!-- F026 send 回显结果（verify 用，实际值取自 Return[-1]） -->
+    <model name="EchoSpecialResult" type="interface" servicename="">
+        <element name="keys" type="field">
+            <location type="field">keys</location>
+        </element>
+        <element name="types" type="field">
+            <location type="field">types</location>
+        </element>
+        <element name="f_blank" type="field">
+            <location type="field">f_blank</location>
+        </element>
+        <element name="f_null" type="field">
+            <location type="field">f_null</location>
+        </element>
+        <element name="f_text" type="field">
+            <location type="field">f_text</location>
+        </element>
+    </model>
+
+    <!-- F026 接口 verify 控制值：固定响应 -->
+    <model name="FixedAPI" type="interface" servicename="">
+        <element name="_method" type="http_method">
+            <location type="static">GET</location>
+        </element>
+        <element name="_url" type="http_url">
+            <location type="static">http://127.0.0.1:18121/fixed/specials</location>
+        </element>
+    </model>
+
+    <!-- F026 固定响应字段：v_empty="" v_null=null v_other=xyz v_text=hello -->
+    <model name="FixedResult" type="interface" servicename="">
+        <element name="v_empty" type="field">
+            <location type="field">v_empty</location>
+        </element>
+        <element name="v_null" type="field">
+            <location type="field">v_null</location>
+        </element>
+        <element name="v_other" type="field">
+            <location type="field">v_other</location>
+        </element>
+        <element name="v_text" type="field">
+            <location type="field">v_text</location>
+        </element>
+    </model>
+
+    <!-- F055 数据表字段值中的 Return[-2]/Return[-1]/表名.DataID.字段名 引用 -->
+    <model name="EchoRef" type="interface" servicename="">
+        <element name="_method" type="http_method">
+            <location type="static">POST</location>
+        </element>
+        <element name="_url" type="http_url">
+            <location type="static">http://127.0.0.1:18121/echo/ref</location>
+        </element>
+        <element name="r_m2" type="field">
+            <location type="field">r_m2</location>
+        </element>
+        <element name="r_m1" type="field">
+            <location type="field">r_m1</location>
+        </element>
+        <element name="ref" type="field">
+            <location type="field">ref</location>
+        </element>
+        <element name="ref_mixed" type="field">
+            <location type="field">ref_mixed</location>
+        </element>
+    </model>
+
+    <!-- F055 引用解析结果 -->
+    <model name="EchoRefResult" type="interface" servicename="">
+        <element name="r_m2" type="field">
+            <location type="field">r_m2</location>
+        </element>
+        <element name="r_m1" type="field">
+            <location type="field">r_m1</location>
+        </element>
+        <element name="ref" type="field">
+            <location type="field">ref</location>
+        </element>
+        <element name="ref_mixed" type="field">
+            <location type="field">ref_mixed</location>
+        </element>
+    </model>
+
+    <!-- F055 数据表字段值中的 Return[0] -->
+    <model name="EchoRef0" type="interface" servicename="">
+        <element name="_method" type="http_method">
+            <location type="static">POST</location>
+        </element>
+        <element name="_url" type="http_url">
+            <location type="static">http://127.0.0.1:18121/echo/ref0</location>
+        </element>
+        <element name="r_0" type="field">
+            <location type="field">r_0</location>
+        </element>
+    </model>
+
+    <!-- F055 Return[0] 解析结果 -->
+    <model name="EchoRef0Result" type="interface" servicename="">
+        <element name="r_0" type="field">
+            <location type="field">r_0</location>
+        </element>
+    </model>
+
+    <!-- F060 set 中的纯函数结果 -->
+    <model name="EchoUp" type="interface" servicename="">
+        <element name="_method" type="http_method">
+            <location type="static">POST</location>
+        </element>
+        <element name="_url" type="http_url">
+            <location type="static">http://127.0.0.1:18121/echo/up</location>
+        </element>
+        <element name="up" type="field">
+            <location type="field">up</location>
+        </element>
+    </model>
+
+    <!-- F060 纯函数结果回显 -->
+    <model name="EchoUpResult" type="interface" servicename="">
+        <element name="up" type="field">
+            <location type="field">up</location>
+        </element>
+    </model>
+
+    <!-- F060 set 中的 $${ 转义值 -->
+    <model name="EchoLit" type="interface" servicename="">
+        <element name="_method" type="http_method">
+            <location type="static">POST</location>
+        </element>
+        <element name="_url" type="http_url">
+            <location type="static">http://127.0.0.1:18121/echo/lit</location>
+        </element>
+        <element name="lit" type="field">
+            <location type="field">lit</location>
+        </element>
+    </model>
+
+    <!-- F060 转义值回显 -->
+    <model name="EchoLitResult" type="interface" servicename="">
+        <element name="lit" type="field">
+            <location type="field">lit</location>
+        </element>
+    </model>
+
+    <!-- F059 数据生成类函数：字段值经 send 发给 mock 记录，再由 fun/check_generated.py 断言 -->
+    <model name="GenAPI" type="interface" servicename="">
+        <element name="_method" type="http_method">
+            <location type="static">POST</location>
+        </element>
+        <element name="_url" type="http_url">
+            <location type="static">http://127.0.0.1:18121/echo/gen</location>
+        </element>
+        <element name="r_int_range" type="field">
+            <location type="field">r_int_range</location>
+        </element>
+        <element name="r_int_len" type="field">
+            <location type="field">r_int_len</location>
+        </element>
+        <element name="r_float" type="field">
+            <location type="field">r_float</location>
+        </element>
+        <element name="r_str" type="field">
+            <location type="field">r_str</location>
+        </element>
+        <element name="r_digits" type="field">
+            <location type="field">r_digits</location>
+        </element>
+        <element name="r_phone" type="field">
+            <location type="field">r_phone</location>
+        </element>
+        <element name="r_email" type="field">
+            <location type="field">r_email</location>
+        </element>
+        <element name="r_choice" type="field">
+            <location type="field">r_choice</location>
+        </element>
+        <element name="r_uuid" type="field">
+            <location type="field">r_uuid</location>
+        </element>
+        <element name="d_now" type="field">
+            <location type="field">d_now</location>
+        </element>
+        <element name="d_now_fmt" type="field">
+            <location type="field">d_now_fmt</location>
+        </element>
+        <element name="d_today" type="field">
+            <location type="field">d_today</location>
+        </element>
+        <element name="d_today_fmt" type="field">
+            <location type="field">d_today_fmt</location>
+        </element>
+        <element name="d_time" type="field">
+            <location type="field">d_time</location>
+        </element>
+        <element name="d_ts" type="field">
+            <location type="field">d_ts</location>
+        </element>
+        <element name="d_ts_ms" type="field">
+            <location type="field">d_ts_ms</location>
+        </element>
+        <element name="d_off_p30" type="field">
+            <location type="field">d_off_p30</location>
+        </element>
+        <element name="d_off_m7" type="field">
+            <location type="field">d_off_m7</location>
+        </element>
+        <element name="d_off_m2h" type="field">
+            <location type="field">d_off_m2h</location>
+        </element>
+        <element name="d_off_m2h_fmt" type="field">
+            <location type="field">d_off_m2h_fmt</location>
+        </element>
+        <element name="ts" type="field">
+            <location type="field">ts</location>
+        </element>
+        <element name="ts_ms" type="field">
+            <location type="field">ts_ms</location>
+        </element>
+        <element name="ts36" type="field">
+            <location type="field">ts36</location>
+        </element>
+        <element name="order_no" type="field">
+            <location type="field">order_no</location>
+        </element>
+        <element name="escaped" type="field">
+            <location type="field">escaped</location>
+        </element>
+    </model>
+
+    <!-- F056 接口 _verify 表中写 ${Return[-1]}（禁止） -->
+    <model name="EchoSelfRef" type="interface" servicename="">
+        <element name="tag" type="field">
+            <location type="field">tag</location>
+        </element>
+    </model>
+
+    <!-- F026 / F056 DB 模型：连接 biz_db（模块目录下 .runtime/biz.db，由 DB 步骤建表） -->
+    <model name="BizDB" type="database" connection="biz_db" servicename="">
+        <element name="c_id" type="database">
+            <location type="field">c_id</location>
+        </element>
+        <element name="c_text" type="database">
+            <location type="field">c_text</location>
+        </element>
+        <element name="c_null" type="database">
+            <location type="field">c_null</location>
+        </element>
+        <element name="c_other" type="database">
+            <location type="field">c_other</location>
+        </element>
+    </model>
+
+    <!-- F056 负向用：与 BizDB 同库，对应 BizDBSelf_verify（仅在 run_acceptance.py 的临时副本中存在） -->
+    <model name="BizDBSelf" type="database" connection="biz_db" servicename="">
+        <element name="c_id" type="database">
+            <location type="field">c_id</location>
+        </element>
+        <element name="c_text" type="database">
+            <location type="field">c_text</location>
+        </element>
+        <element name="c_null" type="database">
+            <location type="field">c_null</location>
+        </element>
+        <element name="c_other" type="database">
+            <location type="field">c_other</location>
+        </element>
+    </model>
+</models>

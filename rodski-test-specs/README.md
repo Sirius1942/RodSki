@@ -11,7 +11,7 @@ rodski-test-specs/
 
 ## 对应 Demo
 
-测试 demo 位于: `rodski-demo/DEMO/iteration-01-vision/`
+测试 demo 位于: `rodski-demo/iteration-01-vision/`
 
 ## 迭代概述
 

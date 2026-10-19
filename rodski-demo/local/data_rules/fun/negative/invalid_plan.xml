@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- F086 负向样例：缺少必填属性 kind，且 case 缺少必填 id，plan.xsd 校验必须失败 -->
+<test_plan id="invalid_plan" title="缺 kind">
+  <case file="f059_generators.xml"/>
+</test_plan>

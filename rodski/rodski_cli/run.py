@@ -452,7 +452,7 @@ def _apply_mobile_cli_overrides(executor, module_dir: Path, args) -> None:
             try:
                 from ..core.global_value_parser import GlobalValueParser as _GVP
             except ImportError:
-                from core.global_value_parser import GlobalValueParser as _GVP
+                from rodski.core.global_value_parser import GlobalValueParser as _GVP
             platform_vars = _GVP(str(platform_gv_path)).parse()
             # 深度合并：平台 globalvalue 的 group/var 覆盖默认值
             for group, vars_ in platform_vars.items():
@@ -590,6 +590,11 @@ def handle(args):
         if not plan_path.exists():
             print(f"错误: 测试计划不存在: {plan_path}", file=sys.stderr)
             return 1
+    elif raw_case is None and _has_active_selector(_build_selector_filters(args)):
+        # 无路径 + selector（GUIDE §10.5 `rodski run --group negative`）：在当前模块全部
+        # 用例上临时选择，不解析默认计划（@plan_id 与 selector 固定互斥，CORE §7.7）
+        module_dir = _resolve_module_dir_from_cwd()
+        case_path = _resolve_case_path(module_dir)
     elif raw_case is None:
         module_dir = _resolve_module_dir_from_cwd()
         try:
@@ -898,15 +903,12 @@ def _handle_dry_run(
         _print_plan_dry_run_selection(plan, selection)
     elif selector_filters and _has_active_selector(selector_filters):
         metadata = CaseParser.collect_scenario_metadata_from_cases(cases)
-        # compile_from_selector expects filter_priority as a single string
-        raw_priority = selector_filters.get("filter_priority")
-        priority_str = raw_priority[0] if isinstance(raw_priority, list) and raw_priority else raw_priority
         selection = compile_from_selector(
             metadata,
             filter_tags=selector_filters.get("filter_tags"),
             filter_group=selector_filters.get("filter_group"),
             exclude_tags=selector_filters.get("exclude_tags"),
-            filter_priority=priority_str,
+            filter_priority=selector_filters.get("filter_priority"),
         )
         _print_selector_dry_run_selection(selection)
 
@@ -1115,7 +1117,7 @@ def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional
         try:
             from ..core.driver_factory import DriverFactory
         except ImportError:
-            from core.driver_factory import DriverFactory
+            from rodski.core.driver_factory import DriverFactory
         return DriverFactory.get_driver(driver_type, **kwargs)
 
     driver = create_driver("web")

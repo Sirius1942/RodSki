@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- F024 drag【目标定位器】（TEST_CASE_WRITING_GUIDE §5.4：drag【#drop-zone】拖拽元素到目标位置） -->
+<cases tags="ui_actions,F024">
+    <case execute="是" id="DRAG_DEMOSITE" title="demosite 首页 drag【#dropZone】" component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Demo.URL"/>
+            <test_step action="type" model="LoginForm" data="L001"/>
+            <test_step action="type" model="NavMenu" data="N001"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="DemoDrag" data="D001"/>
+            <test_step action="verify" model="DemoDragView" data="V001"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="DRAG_TARGET_B" title="drag【#dropB】只落到 B 区" component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/drag.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="DragPage" data="D_B"/>
+            <test_step action="verify" model="DragPageView" data="V_B"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="DRAG_TARGET_A" title="drag【#dropA】只落到 A 区" component_type="界面" priority="P1">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Site.URL/drag.html"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="DragPage" data="D_A"/>
+            <test_step action="verify" model="DragPageView" data="V_A"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+</cases>

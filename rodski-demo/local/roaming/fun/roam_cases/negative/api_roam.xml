@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- F110：接口用例声明 roam="是"。roam 只允许 component_type 为空或「界面」，否则抛 SKI803（CORE §7.2 case.roam 行、§8.9）。 -->
+<cases tags="roaming,negative">
+    <case execute="是" id="RT_API" title="接口用例声明漫游" component_type="接口" roam="是" priority="P1">
+        <test_case>
+            <test_step action="wait" model="" data="0"/>
+        </test_case>
+    </case>
+</cases>

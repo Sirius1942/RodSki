@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  F070 step_wait 覆盖 WaitTime（TEST_CASE_WRITING_GUIDE §3.2 <cases> 属性 / §6.4.1）：
+  <cases step_wait="300"> 为毫秒，写了就覆盖 DefaultValue.WaitTime（包括旧秒值 WaitTime=1）。
+-->
+<cases step_wait="300" tags="flow,wait">
+
+    <case execute="是" id="F070_02" title="F070 step_wait=300ms 覆盖 WaitTime（3 步）" component_type="接口" priority="P2">
+        <test_case>
+            <test_step action="run" model="" data="mark.py F070_02_s1"/>
+            <test_step action="run" model="" data="mark.py F070_02_s2"/>
+            <test_step action="run" model="" data="mark.py F070_02_s3"/>
+        </test_case>
+    </case>
+
+</cases>

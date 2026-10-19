@@ -195,7 +195,7 @@ if [[ $TIER2 -eq 1 ]]; then
     info "═══════════════════════════════════════════════════════════"
 
     info "[1/4] 清理 demo_full 运行结果..."
-    TARGET="rodski-demo/DEMO/demo_full/result"
+    TARGET="rodski-demo/demosite/full/result"
     if [[ -d "$TARGET" ]]; then
         # 统计但保留被跟踪的历史结果
         TOTAL=$(find "$TARGET" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
@@ -212,7 +212,7 @@ if [[ $TIER2 -eq 1 ]]; then
     fi
 
     info "[2/4] 清理 mobile_app 运行结果..."
-    TARGET="rodski-demo/DEMO/mobile_app/result"
+    TARGET="rodski-demo/mobile/app/result"
     if [[ -d "$TARGET" ]]; then
         if [[ $DRY_RUN -eq 1 ]]; then
             SIZE=$(du -sh "$TARGET" 2>/dev/null | cut -f1)
@@ -225,9 +225,9 @@ if [[ $TIER2 -eq 1 ]]; then
 
     info "[3/4] 清理 iOS 构建产物..."
     IOS_TARGETS=(
-        "rodski-demo/DEMO/mobile_app/demo_ios_app/build"
-        "rodski-demo/DEMO/mobile_app/demo_ios_app/build_device"
-        "rodski-demo/DEMO/mobile_app/demo_ios_app/RodskiDemo.xcodeproj"
+        "rodski-demo/mobile/app/demo_ios_app/build"
+        "rodski-demo/mobile/app/demo_ios_app/build_device"
+        "rodski-demo/mobile/app/demo_ios_app/RodskiDemo.xcodeproj"
     )
     for t in "${IOS_TARGETS[@]}"; do
         if [[ -e "$t" ]]; then
@@ -243,10 +243,10 @@ if [[ $TIER2 -eq 1 ]]; then
 
     info "[4/4] 清理 Android 构建产物..."
     ANDROID_TARGETS=(
-        "rodski-demo/DEMO/mobile_app/demo_android_app/app/build"
-        "rodski-demo/DEMO/mobile_app/demo_android_app/.gradle"
-        "rodski-demo/DEMO/mobile_app/demo_android_app/.kotlin"
-        "rodski-demo/DEMO/mobile_app/demo_android_app/local.properties"
+        "rodski-demo/mobile/app/demo_android_app/app/build"
+        "rodski-demo/mobile/app/demo_android_app/.gradle"
+        "rodski-demo/mobile/app/demo_android_app/.kotlin"
+        "rodski-demo/mobile/app/demo_android_app/local.properties"
     )
     for t in "${ANDROID_TARGETS[@]}"; do
         if [[ -e "$t" ]]; then
@@ -262,7 +262,7 @@ if [[ $TIER2 -eq 1 ]]; then
 
     # LoadCompiler 生成的 perf/*.py
     info "清理 LoadCompiler 产物..."
-    PERF_DIR="rodski-demo/DEMO/demo_load/perf"
+    PERF_DIR="rodski-demo/demosite/load/perf"
     if [[ -d "$PERF_DIR" ]]; then
         if [[ $DRY_RUN -eq 1 ]]; then
             COUNT=$(git clean -Xdn "$PERF_DIR" 2>/dev/null | grep "\.py$" | wc -l | tr -d ' ')
