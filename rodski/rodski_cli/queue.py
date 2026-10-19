@@ -291,4 +291,9 @@ def _forward_run_args(args) -> List[str]:
                 forwarded.extend([flag, str(value)])
         elif value:
             forwarded.append(flag)
+    # v11.9.0 计划级数据驱动实例过滤（每台设备上执行同样的实例子集）
+    for attr, flag in (("data_id", "--data-id"), ("exclude_data_id", "--exclude-data-id")):
+        value = getattr(args, attr, None)
+        if value:
+            forwarded.extend([flag, str(value)])
     return forwarded

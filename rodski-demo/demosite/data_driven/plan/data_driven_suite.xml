@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 数据驱动只在计划中声明：<case data_driven="数据驱动表名">，驱动表存放在 data/data.sqlite（table_kind=driver） -->
+<test_plan id="data_driven_suite" kind="suite" title="计划级数据驱动全量验收">
+    <case file="form_flow.xml" id="DD_FORM" data_driven="FormMatrix"/>
+    <case file="form_flow.xml" id="DD_TWICE" data_driven="TwiceMatrix"/>
+    <case file="form_flow.xml" id="DD_LOOP" data_driven="LoopMatrix"/>
+    <case file="api_db.xml" id="DD_API" data_driven="ApiMatrix"/>
+    <case file="api_db.xml" id="DD_STATE" data_driven="StateMatrix"/>
+</test_plan>

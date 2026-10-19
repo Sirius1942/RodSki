@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 负向：某实例的数据实际走了 home 路径，与用例 flow=F_LOGIN_INVALID 不符 → 该实例失败（flow 不随数据改变） -->
+<test_plan id="login_path_mismatch_suite" kind="suite" title="数据驱动实例路径不符">
+    <case file="login_flows.xml" id="TC-BM-LOGIN-INVALID" data_driven="LoginPathMismatch"/>
+</test_plan>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Web + App 混合用例（REQ-013 DD-10，CORE §7.8）：同一用例中既有浏览器步骤（WebNote，订单备注后台）
+  也有 Android 步骤（LoginScreen），每个步骤只作用于一端。用例只带基础 DataID；
+  plan/web_app_mix_suite.xml 挂数据驱动表 MixMatrix，按实例分别替换 Web 步骤与 App 步骤的 DataID。
+  前置：mock_server.py + adb reverse tcp:8000 + Appium；验收脚本 scripts/run_data_driven_acceptance.py。
+-->
+<cases step_wait="0" tags="mobile,android,web,data-driven">
+  <case execute="是" id="DD_MIX" title="后台写备注后 App 错误登录提示" component_type="界面" priority="P1">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Web.NoteURL"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="WebNote" data="W001"/>
+      <test_step action="verify" model="WebNote" data="WV001"/>
+      <test_step action="navigate" model="" data="GlobalValue.Mobile.AppTarget"/>
+      <test_step action="type" model="LoginScreen" data="L002"/>
+      <test_step action="verify" model="LoginScreen" data="V002"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+</cases>

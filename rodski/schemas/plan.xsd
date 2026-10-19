@@ -33,6 +33,8 @@
     <xs:attribute name="file" type="xs:string" use="optional"/>
     <xs:attribute name="execute" type="ExecuteType" use="optional" default="是"/>
     <xs:attribute name="weight" type="xs:positiveInteger" use="optional" default="1"/>
+    <!-- v11.9.0 计划级数据驱动（CORE §7.8）：数据驱动表名（data.sqlite，table_kind=driver），只用于 kind="suite" -->
+    <xs:attribute name="data_driven" type="xs:string" use="optional"/>
   </xs:complexType>
 
   <xs:complexType name="PlanCaseDirType">

@@ -13,6 +13,7 @@
 
 | 版本 | 日期 | 主要变更 |
 |------|------|---------|
+| v11.9.0 | 2026-10-19 | 计划级数据驱动（§7.8 新增，不新增关键字，`case.xsd` 不变）：`plan.xsd` `<case data_driven="表名">`；`data.sqlite` 新增 `table_kind='driver'` 数据驱动表（计划 / 用例 / 步骤对应关系表，只存 DataID）；用例保留基础 DataID，按 `表名.基础DataID` 列替换；实例 `用例ID[DataID]` 隔离；`--data-id` / `--exclude-data-id` 实例过滤可与 `@plan_id` 同用 |
 | v11.7.1 | 2026-09-30 | `AutoWait` 取消隐含默认时长：**不设置或 `0` = 不自动等待**，要自动等待必须在 `globalvalue.xml` 显式写时长（如 `5000`）；`rodski init` 模板默认写 `AutoWait=5000`；rodski-demo 全部模块显式配置 |
 | v11.7.0 | 2026-09-30 | 自动等待统一接管元素查找（不新增关键字，`case.xsd` / `model.xsd` 不变）：`DefaultValue.AutoWait`（毫秒）成为所有驱动、所有查找测试对象步骤（`type` 每个字段、`verify`、`get`、`clear`、`upload_file`、视觉定位）的唯一等待上限；§13 重写（原"智能等待"从未接通）；删除 `smart_wait_*` 等死配置；驱动禁止内部等待与 force/JS 降级；新增 SKI326 / SKI327 |
 | v11.6.0 | 2026-09-29 | AI 编写效率、断言可靠性与执行性能（不新增关键字，`case.xsd` 不变）：`verify` 新增 `$count` / `$count_gte` / `$count_lte` / `$exists` / `$visible` 元素级操作符，0 匹配按实际数量 0 判定（§4.6）；UI 模型 `verify` 默认自动重试到期望值（自动等待 `DefaultValue.AutoWait`，毫秒，默认 5000，§4.6.5）；`model.xsd` 新增定位类型 `page`（url/title/path/dialog）与 `<location frame="...">` 属性（§2.5.6）；原生 dialog 策略 `DialogPolicy`；`evaluate` 支持 `file:` 引用模块内脚本（§1.5）；`run` 内置函数 `save_auth_state` / `use_auth_state`（§1.4）；`WaitTime` 与 `step_wait` 统一为毫秒、`SessionMode` / `EvidenceMode` / `--workers` / `--report junit`（§7.4、§23） |
@@ -165,7 +166,8 @@ data/globalvalue.xml   ← 全局变量（独立）
 ```
 
 **约束**：
-- 模型名与逻辑表名（`rs_datatable.table_name`）必须一致
+- 模型名与逻辑表名（`rs_datatable.table_name`）必须一致（`table_kind='data'` / `'verify'`）
+- `table_kind` 只有三种：`data`（模型输入表）、`verify`（模型期望表，`模型名_verify`）、`driver`（数据驱动表，v11.9.0，见 §7.8）。`driver` 表不对应任何模型，只存 DataID，不得被 `type/send/verify/DB/business_call` 当作数据表读取
 - `data.sqlite` 是唯一测试数据文件；`data.xml` / `data_verify.xml` 已在 v6.0.0 废弃
 - 若 `data.xml` 或 `data_verify.xml` 存在，运行时报错，必须先执行 `rodski data import <module>` 迁移
 - `globalvalue.xml` 不进入 SQLite，继续独立解析
@@ -595,7 +597,7 @@ pip install rodski[perception-remote]
 4. **数据唯一来源**：业务模型输入和输出只能使用 RodSki 现有 SQLite `data.sqlite` 的普通 Data/Verify 逻辑表。业务 XML 不得重复声明 `username`、`password`、端口或自定义字段；业务模型名与数据表的对应关系必须明确，字段由数据表定义。
 5. **XML Schema 强校验**：业务 XML 必须通过 `business.xsd`；根元素、模型 ID、节点 ID、边引用、条件边、流程类型、flow 路径以及 `business_call` 的必填属性必须满足 Schema 和静态图校验。流程图不得含环、不可达节点或悬空引用。
 6. **可追溯结果**：执行结果必须记录目标 flow、实际路径、输入/期望数据引用及路径/字段断言结果；coverage 只能从正式 Case 结果汇总，不能用模型静态定义冒充执行覆盖。
-7. **目录与表名约定**：业务模型放在测试模块下可选的 `business/*.xml`（`business_model@id` 在模块内唯一）。模型 `B` 的输入表固定为普通 `B`（`table_kind='data'`），期望表固定为 `B_verify`（`table_kind='verify'`）；`expected_path` 是 Verify 表保留字段，与实际路径比较。禁止业务专用元表或额外 `table_kind`。
+7. **目录与表名约定**：业务模型放在测试模块下可选的 `business/*.xml`（`business_model@id` 在模块内唯一）。模型 `B` 的输入表固定为普通 `B`（`table_kind='data'`），期望表固定为 `B_verify`（`table_kind='verify'`）；`expected_path` 是 Verify 表保留字段，与实际路径比较。禁止业务专用元表或额外 `table_kind`。（v11.9.0 的 `driver` 表属于测试计划的数据驱动，Web / 接口 / 业务用例通用，不是业务专用元表，见 §7.8.6。）
 8. **不新增关键字**：`<business_call>` 是 Case 结构元素（与 `scenario`/`if`/`loop` 同级），不属于 SUPPORTED 关键字；节点内步骤必须复用现有 `test_step` 与关键字实现，不得为业务模型另造关键字体系。
 9. **确定性分支**：图必须单入口、无环、无不可达节点；多出边节点的每条出边都必须有 `condition`。边条件只允许白名单 AST（比较、`and/or/not`、常量、`${Business.Actual.*}` 等变量），禁止 `eval` 或任意代码。运行时每个节点的出边必须恰好命中 1 条，0 条或多条均失败，不得默认取第一条。
 10. **校验先于副作用**：Schema 校验和图静态校验必须在启动浏览器、调用接口或执行脚本之前完成；定义无效时不得产生任何外部副作用。
@@ -1410,6 +1412,8 @@ rodski run @project_full --workers 4 --session-mode shared_browser --evidence co
 
 `--workers`、`--session-mode`、`--evidence`、`--report`、`--headless`、`--record*` 等只改变「怎么执行 / 产出什么」，不改变「执行哪些用例」，因此**不属于**执行范围 selector，不受上述互斥约束。
 
+`--data-id` / `--exclude-data-id`（v11.9.0）只在计划已选中的数据驱动用例内部过滤实例，不改变计划选中哪些用例，**不属于**执行范围 selector，可与 `@plan_id` 同用（见 §7.8.5）。
+
 若 selector 结果需要长期复用，必须先生成 plan XML，再以显式 plan 模式执行：
 
 ```bash
@@ -1447,6 +1451,78 @@ case XML 中 <case execute="否">
 - stale 引用（不存在的 case/scenario/step）必须记录在 selection / dry-run 输出中，不得导致执行崩溃。
 - step 选择的 `no` 是 scenario 内直接 `<test_step>` 的 1-based 序号；v6.3.0 首版只过滤 scenario 直接子步骤，不递归选择 `if` / `loop` 内部子步骤。
 - 裸 `<test_step>` 维持兼容规则：只要其所属 case 被执行，裸步骤不受 scenario 选择过滤影响。
+
+---
+
+### 7.8 计划级数据驱动约束（v11.9.0）
+
+同一个用例流程用多组数据各执行一次、每组得到独立结果。数据驱动**只在测试计划中声明**，用例 XML 与业务模型 XML 不感知数据驱动。
+
+#### 7.8.1 声明位置
+
+```xml
+<!-- plan/login_matrix.xml -->
+<test_plan id="login_matrix" kind="suite">
+  <case file="login/flow.xml" id="LOGIN_FLOW" data_driven="LoginFlow_matrix"/>
+</test_plan>
+```
+
+- `plan.xsd` `<case>` 的可选属性 `data_driven` = 数据驱动表名；计划 XML 只写表名，不写行、列、DataID。
+- Case XML、业务模型 XML **不得**声明数据驱动，不得出现 `${row}` 之类的行引用。
+- 只有 `kind="suite"` 计划可以使用 `data_driven`；调试计划（`scenario_debug` / `step_debug`）与压测计划（`load`）使用时报错。
+
+#### 7.8.2 基础 DataID
+
+- 用例必须带基础 DataID，不经计划也能独立运行（只执行一次，全部使用基础 DataID）。
+- 数据驱动只覆盖需要变化的引用；驱动表中没有列出的引用、或单元格为 `BLANK` 的，继续使用基础 DataID。
+
+#### 7.8.3 数据驱动表（`table_kind='driver'`）
+
+数据驱动表是**测试计划、测试用例、测试步骤三者的对应关系表**，存放在 `data/data.sqlite`：
+
+| 元表 | 含义 |
+|------|------|
+| `rs_datatable` | `table_kind='driver'`；`model_name` = 绑定用例 `case_file::case_id`；`row_mode='standard'`；`remark` **必填**（目的、所属计划） |
+| `rs_datatable_field` | 列 = `表名.基础DataID`（表名为该处引用实际读取的数据表：`type/send/DB` 为模型名，`verify` 为 `模型名_verify`，`business_call` 输入为 `ref`、期望为 `ref_verify`） |
+| `rs_row` | 行 = 实例；`data_id` 为实例 DataID，`remark` 为实例标题 |
+| `rs_field` | 单元格 = 替换后的 DataID 或 `BLANK` |
+
+- 单元格**只能是** DataID（必须存在于该列的表中）或 `BLANK`；不得写字段值、表达式、`${...}`。
+- 字段集合一致约束同样适用：每行必须有全部列。
+- 一张驱动表只绑定一个用例；同一用例可以有多张驱动表，由不同计划挂载。
+- 驱动表名不得与模型名、`模型名_verify`、业务模型 ID 同名。
+- 驱动表是测试数据，不是计划表；计划 XML 仍不写入 `data.sqlite`（§7.7）。
+
+#### 7.8.4 替换规则
+
+- 一个模型对应一张数据表**不变**：替换只改变读取的行，不改变读取的表。
+- 只替换用例 XML 中三阶段（含 `scenario` / `if` / `loop` 内）`type` / `send` / `DB` / `verify`（`check`）步骤 `data` 的**字面 DataID**，以及 `business_call@input` / `@expect`；`navigate` / `launch` 的 data 是 URL / 应用路径，不参与替换。
+- 不替换：动态 DataID（`${...}`、`L00${i}` 拼接、GlobalValue）、数据字段值中的 `表名.DataID.字段`、业务模型节点 XML 内的字面 DataID、`business_call@flow`。
+- 同一 `表名.基础DataID` 在用例中出现多次时一起替换。
+
+#### 7.8.5 实例
+
+- 驱动表每一行展开为一个实例，实例 ID = `用例ID[DataID]`，按行顺序执行。
+- 实例之间隔离：浏览器 / 移动端会话、Return 历史、`set` 变量；一个实例失败不影响后续实例。
+- 驱动表 0 行报错，不允许 0 个实例静默通过。
+- `--data-id a,b` / `--exclude-data-id c` 只过滤数据驱动实例（值可写 `DataID` 或 `用例ID[DataID]`），可与 `@plan_id` 同用；`--data-id` 的值匹配不到任何实例时报错，计划中没有数据驱动用例时使用二者也报错；`--case-id` 仍是与 `@plan_id` 互斥的 selector。
+- 同一用例在一个计划中只能挂一张驱动表；驱动表的实例 DataID 必须是字面值（不含空格、逗号、方括号、点等）。
+- 结果中每个实例一条记录：`case_id` 与 `instance_id` 均为 `用例ID[DataID]`，另带 `template_case_id`（模板用例 ID）、`driver`、`data_id`、`instance_title`（驱动表行备注）与 `replacements`（实际生效的替换，`表名.基础DataID=新DataID; ...`）。
+
+#### 7.8.6 业务模型
+
+- 数据驱动作用于**调用业务模型的用例**，不作用于业务模型本身；同一计划中调用同一业务模型的其他用例不受影响。
+- 只替换 `business_call@input` / `@expect`；`flow` 是用例的测试意图，不随数据改变，某个实例实际路径与 `flow` 不一致即该实例失败。
+- 业务模型节点内通过 `${Business.InputDataID}` 取得替换后的输入 DataID。
+
+#### 7.8.7 备注
+
+- 驱动表表备注必填（为空报错）；驱动表行备注作为实例标题。
+- 被驱动表引用的模型数据行**鼓励**写备注（所属计划 / 驱动表、用途）；缺失时输出 WARN，不阻断执行。
+
+#### 7.8.8 校验先于副作用
+
+以下校验在计划编译阶段完成，失败时不启动任何浏览器 / App、不发送请求：驱动表存在且 `table_kind='driver'`、绑定用例与计划 `<case file id>` 一致、表备注非空、至少 1 行、列名格式与列表存在、列的基础 DataID 在该用例中被字面引用、单元格 DataID 存在。每张驱动表在一次运行中只从 SQLite 读取一次。
 
 ---
 
@@ -2336,6 +2412,10 @@ python3 init_db.py
     <var name="password" value="test_pass"/>
 </group>
 ```
+
+### 16.3 多组数据（数据驱动）
+
+同一流程多组数据各得独立结果时，使用计划级数据驱动（§7.8）：用例保留基础 DataID，在 `data.sqlite` 建 `driver` 表，由计划 `<case data_driven="表名">` 挂载。不要复制用例，也不要用 `loop` 拼 DataID 代替（loop 只产生一个结果）。
 
 ---
 

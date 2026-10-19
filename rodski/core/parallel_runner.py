@@ -309,6 +309,8 @@ def worker_entry(spec: Dict[str, Any]) -> Dict[str, Any]:
         executor.selector_filters = selector_filters
         if spec.get("plan_path"):
             executor.plan_path = spec["plan_path"]
+        # v11.9.0 计划级数据驱动实例过滤（--data-id / --exclude-data-id）
+        executor.data_id_filters = dict(spec.get("data_id_filters") or {})
 
         def _on_cases_selected(cases, plan_case_skips):
             # 记录经 plan / selector 过滤后的用例清单：worker 中途异常时父进程只为这些用例补行

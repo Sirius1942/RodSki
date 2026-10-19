@@ -56,20 +56,21 @@ python3 rodski-demo/run_regression.py --desktop       # 额外执行会操作鼠
 | `load/` | 性能压测计划；load_summary/错误率、--load-ui/--no-compile/--dry-run、mode=browser | `rodski run @api_load_basic`（在模块目录下）、`run_acceptance_extra.py` |
 | `ui_actions/` | UI 原子动作（key_press/drag/scroll）、控制值、class/tag/text 定位器、verify 操作符、launch、assert 图片、Return 引用、生成值 | `run_acceptance.py` |
 | `network/` | mock_route/clear_routes、wait_for_response/request_log、JS 覆盖率 | `run_acceptance.py`（仓库根目录执行） |
+| `data_driven/` | 计划级数据驱动（v11.9，CORE §7.8）：driver 表展开实例、部分替换 / BLANK、Web + 接口 + DB、实例隔离与失败隔离、`--data-id`、执行前校验、`create-driver` 等数据命令与旧库迁移、备注 | `run_acceptance.py`（DD-01~07、11~14、17） |
 | `pause_takeover/` | CDP 共享浏览器暂停接管 | `run_demo.py` |
 
 ### `mock_api/`
 
 | 模块 | 验收内容 | 规定入口 |
 |------|---------|---------|
-| `business_model/` | 业务模型 business_call（v11.4），自带 `server.py` mock | `acceptance.py`；回归时改用 18001 端口 |
+| `business_model/` | 业务模型 business_call（v11.4），自带 `server.py` mock；计划级数据驱动只替换调用方用例的 input / expect（v11.9） | `acceptance.py`；`run_data_driven_acceptance.py`（DD-08/09）；回归时改用 18001 端口 |
 | `http_verify/` | send + verify：HTTP status 与响应字段、BLANK/NULL/NONE、断言操作符、DB verify 操作符；自带 `server.py`（18150） | `run_acceptance.py` |
 
 ### `mobile/` 需 Android 模拟器 + Appium
 
 | 模块 | 验收内容 | 规定入口 |
 |------|---------|---------|
-| `app/` | 自建 Android/iOS App、移动端 AutoWait、录像 | `scripts/run_autowait_acceptance.py`、`rodski run case/login.xml --udid emulator-5554` |
+| `app/` | 自建 Android/iOS App、移动端 AutoWait、录像；Web + App 混合用例的数据驱动（v11.9） | `scripts/run_autowait_acceptance.py`、`rodski run case/login.xml --udid emulator-5554`、`scripts/run_data_driven_acceptance.py`（DD-10） |
 | `qq_music/` | 第三方 App 示例 | 需安装 QQ 音乐 APK |
 
 ### `desktop_vision/` 需桌面会话或视觉服务

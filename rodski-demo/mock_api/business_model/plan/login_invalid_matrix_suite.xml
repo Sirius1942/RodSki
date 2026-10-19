@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  业务模型中的数据驱动（CORE §7.8.6）：数据驱动作用于调用业务模型的用例，不作用于业务模型本身。
+  只替换 business_call 的 input / expect；flow 不变。同一业务模型的其他用例（TC-BM-LOGIN-OK）不受影响。
+-->
+<test_plan id="login_invalid_matrix_suite" kind="suite" title="错误凭据数据驱动">
+    <case file="login_flows.xml" id="TC-BM-LOGIN-INVALID" data_driven="LoginInvalidMatrix"/>
+    <case file="login_flows.xml" id="TC-BM-LOGIN-OK"/>
+</test_plan>

@@ -161,6 +161,8 @@ def entries() -> List[Entry]:
         Entry("demosite", "demosite/load 扩展（summary/CLI）", [PY, str(D / "load/run_acceptance_extra.py")], service=demosite),
         Entry("demosite", "demosite/ui_actions", [PY, str(D / "ui_actions/run_acceptance.py")], service=demosite),
         Entry("demosite", "demosite/network", [PY, str(D / "network/run_acceptance.py")], service=demosite),
+        Entry("demosite", "demosite/data_driven 计划级数据驱动", [PY, str(D / "data_driven/run_acceptance.py")],
+              service=demosite),
         Entry("demosite", "demosite/load case/", rodski("run", str(D / "load/case"), "--headless"),
               expect="5/5", service=demosite),
         Entry("demosite", "demosite/core_keywords", rodski("run", str(D / "core_keywords/case"), "--headless"),
@@ -170,11 +172,15 @@ def entries() -> List[Entry]:
     # mock_api：自带 mock，回归时改用 18001 避免与 demosite :8000 冲突
     E.append(Entry("mock_api", "mock_api/http_verify", [PY, str(DEMO / "mock_api/http_verify/run_acceptance.py")]))
     E.append(Entry("mock_api", "mock_api/business_model (login_flows)", [PY, "-c", _BUSINESS_SNIPPET], expect="3/3"))
+    E.append(Entry("mock_api", "mock_api/business_model 数据驱动",
+                   [PY, str(DEMO / "mock_api/business_model/run_data_driven_acceptance.py")]))
     # mobile
     E += [
         Entry("mobile", "mobile/app autowait", [PY, str(M / "app/scripts/run_autowait_acceptance.py")],
               blocked=need_android),
         Entry("mobile", "mobile/app login.xml", [PY, "-c", _MOBILE_LOGIN_SNIPPET], expect="3/3", blocked=need_android),
+        Entry("mobile", "mobile/app Web + App 数据驱动", [PY, str(M / "app/scripts/run_data_driven_acceptance.py")],
+              blocked=need_android),
         Entry("mobile", "mobile/qq_music", blocked=lambda: "需 com.tencent.qqmusic APK，模拟器未安装"),
     ]
     # desktop_vision

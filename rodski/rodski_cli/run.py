@@ -143,6 +143,11 @@ def setup_parser(subparsers):
     parser.add_argument("--case-id", type=str, default=None, dest="case_id",
                         help="指定用例 ID（逗号分隔多个），必须与单个用例文件路径一起使用；"
                              "与 @plan_id 互斥；与 --tag/--priority 同用时在指定用例内过滤")
+    # v11.9.0 计划级数据驱动（CORE §7.8.5）：实例过滤，不属于执行范围 selector，可与 @plan_id 同用
+    parser.add_argument("--data-id", type=str, default=None, dest="data_id",
+                        help="只执行指定的数据驱动实例（逗号分隔；值为 DataID 或 用例ID[DataID]），需配合 @plan_id")
+    parser.add_argument("--exclude-data-id", type=str, default=None, dest="exclude_data_id",
+                        help="排除指定的数据驱动实例（逗号分隔；值为 DataID 或 用例ID[DataID]），需配合 @plan_id")
     parser.add_argument("--model", help="模型文件路径 (model.xml)，不指定则自动推断")
     parser.add_argument("--browser", choices=["chromium", "firefox", "webkit"],
                         default="chromium", help="浏览器类型 (默认: chromium)")
@@ -546,6 +551,8 @@ def _maybe_dispatch_to_queue(args, module_dir: Path) -> Optional[int]:
         trace=getattr(args, "trace", False),
         verbose=getattr(args, "verbose", False),
         coverage=getattr(args, "coverage", False),
+        data_id=getattr(args, "data_id", None),
+        exclude_data_id=getattr(args, "exclude_data_id", None),
     )
     return queue_cli.handle(ns)
 
@@ -625,6 +632,18 @@ def handle(args):
                     from rodski.core.exceptions import CaseIdRequiresFileError
                 print(f"错误: --case-id 必须与单个用例文件路径一起使用（给定的是目录或非 XML 文件）", file=sys.stderr)
                 return 1
+
+    # v11.9.0 计划级数据驱动：校验先于副作用（CORE §7.8.8）——在多设备转发、hooks、创建任何驱动之前完成
+    if (getattr(args, "data_id", None) or getattr(args, "exclude_data_id", None)) and plan_path is None:
+        print("错误: --data-id / --exclude-data-id 只能与测试计划（@plan_id）一起使用", file=sys.stderr)
+        return 1
+    if plan_path is not None:
+        dd_errors = _precheck_data_driven(plan_path, case_path, module_dir, args)
+        if dd_errors:
+            print("错误: 数据驱动配置无效（未执行任何用例）:", file=sys.stderr)
+            for line in dd_errors:
+                print(f"  - {line}", file=sys.stderr)
+            return 1
 
     # 执行层设备配置要求多设备时，自动转 `rodski queue`（复用同一条调度链路）。
     # 放在这里：module_dir 已定、任何执行副作用之前。`--udid` 一给即视为用户
@@ -796,7 +815,8 @@ def handle(args):
         logger.info("--roam-engine: 已注册引擎 %s", type(_engine).__name__)
 
     if dry_run:
-        return _handle_dry_run(case_path, model_path, verbose, plan_path=plan_path, selector_filters=selector_filters, module_dir=module_dir)
+        return _handle_dry_run(case_path, model_path, verbose, plan_path=plan_path, selector_filters=selector_filters,
+                               module_dir=module_dir, data_id_filters=_data_id_filters(args))
 
     if plan_path is not None:
         _plan_kind = _get_plan_kind(plan_path)
@@ -865,6 +885,7 @@ def _handle_dry_run(
     plan_path: Optional[Path] = None,
     selector_filters: Optional[Dict[str, Any]] = None,
     module_dir: Optional[Path] = None,
+    data_id_filters: Optional[Dict[str, List[str]]] = None,
 ) -> int:
     """验证用例可执行性但不实际执行"""
     try:
@@ -901,6 +922,7 @@ def _handle_dry_run(
             print(f"Plan 解析失败: {e}", file=sys.stderr)
             return 1
         _print_plan_dry_run_selection(plan, selection)
+        _print_data_driven_dry_run(plan, cases, selection, module_dir, data_id_filters or {})
     elif selector_filters and _has_active_selector(selector_filters):
         metadata = CaseParser.collect_scenario_metadata_from_cases(cases)
         selection = compile_from_selector(
@@ -936,6 +958,76 @@ def _handle_dry_run(
 
     print(f"\n验证通过: {len(cases)} 个用例可执行")
     return 0
+
+
+def _precheck_data_driven(plan_path: Path, case_path: Path, module_dir: Path, args=None) -> List[str]:
+    """计划中数据驱动配置与实例过滤的执行前校验（v11.9.0，CORE §7.8.8）；计划本身无效时交给后续流程报错。"""
+    try:
+        from ..core.plan_parser import PlanParser
+        from ..core.case_parser import CaseParser
+        from ..core import data_driven
+    except ImportError:
+        from rodski.core.plan_parser import PlanParser
+        from rodski.core.case_parser import CaseParser
+        from rodski.core import data_driven
+    try:
+        plan = PlanParser(str(plan_path)).parse_plan()
+    except Exception:
+        return []
+    filters = _data_id_filters(args) if args is not None else {"include": [], "exclude": []}
+    if not data_driven.plan_data_driven_entries(plan) and not (filters["include"] or filters["exclude"]):
+        return []
+    try:
+        cases = CaseParser(str(case_path)).parse_cases()
+    except Exception as e:  # noqa: BLE001 - 用例解析失败同样在副作用之前报出
+        return [f"解析用例失败，无法校验数据驱动配置: {e}"]
+    try:
+        errors = data_driven.precheck_plan(plan, cases, module_dir)
+        if errors:
+            return errors
+        errors, warnings = data_driven.check_instance_filters(
+            plan, cases, module_dir, filters["include"], filters["exclude"])
+        for line in warnings:
+            print(f"[WARN] {line}", file=sys.stderr)
+        return errors
+    except data_driven.DataDrivenError as e:
+        return e.errors
+
+
+def _print_data_driven_dry_run(plan: Dict[str, Any], cases: List[Dict[str, Any]], selection: Dict[str, Any],
+                               module_dir: Optional[Path], filters: Dict[str, List[str]]) -> None:
+    """--dry-run 时列出数据驱动实例（v11.9.0）：实例 ID、实例标题与替换内容。"""
+    try:
+        from ..core import data_driven
+    except ImportError:
+        from rodski.core import data_driven
+    if module_dir is None or not data_driven.plan_data_driven_entries(plan):
+        return
+    skips = {}
+    for entry in (selection or {}).get("skipped", []) or []:
+        if entry.get("type") == "case":
+            uid = f"{entry.get('case_file', '')}::{entry.get('case_id', '')}"
+            skips[uid] = entry.get("reason", "")
+    expanded = data_driven.expand_plan_cases(plan, list(cases), skips, module_dir,
+                                             include=filters.get("include") or (),
+                                             exclude=filters.get("exclude") or ())
+    instances = [c for c in expanded if c.get("_data_driven")]
+    print(f"\n  数据驱动实例（{len(instances)} 个）:")
+    for inst in instances:
+        dd = inst["_data_driven"]
+        title = f"  {dd['instance_title']}" if dd.get("instance_title") else ""
+        print(f"    {inst['case_id']}{title}  ← {dd['driver']}  替换: {dd['replacements'] or '（无，沿用基础 DataID）'}")
+
+
+def _data_id_filters(args) -> Dict[str, List[str]]:
+    try:
+        from ..core.data_driven import parse_id_list
+    except ImportError:
+        from rodski.core.data_driven import parse_id_list
+    return {
+        "include": parse_id_list(getattr(args, "data_id", None)),
+        "exclude": parse_id_list(getattr(args, "exclude_data_id", None)),
+    }
 
 
 def _has_active_selector(selector_filters: Dict[str, Any]) -> bool:
@@ -1179,6 +1271,7 @@ def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional
         }
         if plan_path is not None:
             executor.plan_path = str(plan_path)
+        executor.data_id_filters = _data_id_filters(args)
         if getattr(args, "debug", False):
             executor.debug_mode = True
 
@@ -1430,6 +1523,7 @@ def _handle_parallel_execute(case_path: Path, module_dir: Path, args, workers: i
                              if k in config.config},
         "plan_path": str(plan_path) if plan_path else None,
         "selector_filters": selector_filters or {},
+        "data_id_filters": _data_id_filters(args),
         "on_case_failure_specs": hooks_cfg.get("on_case_failure"),
         "hook_context": getattr(args, "_hook_context", {}) or {},
     }, default=str))

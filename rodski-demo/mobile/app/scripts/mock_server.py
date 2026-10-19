@@ -94,6 +94,22 @@ def health():
     return jsonify({"ok": True})
 
 
+# 后台备注页（Web）：供「Web + App 混合用例」的浏览器步骤使用（REQ-013 DD-10，case/web_app_mix.xml）
+WEB_NOTE_PAGE = """<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>订单备注后台</title></head>
+<body>
+  <h1>订单备注后台</h1>
+  <input id="note" placeholder="备注内容">
+  <button id="saveBtn" onclick="document.getElementById('noteResult').textContent='已保存: '+document.getElementById('note').value">保存</button>
+  <div id="noteResult"></div>
+</body></html>"""
+
+
+@app.get("/web/note")
+def web_note():
+    return WEB_NOTE_PAGE, 200, {"Content-Type": "text/html; charset=utf-8"}
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="RodSki mobile demo mock backend")
     parser.add_argument("--host", default="0.0.0.0", help="监听地址（默认 0.0.0.0）")

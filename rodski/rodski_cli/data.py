@@ -56,7 +56,8 @@ def setup_parser(subparsers):
     pst.add_argument("module", help="测试模块目录")
     pst.add_argument("table", help="逻辑表名")
     pst.add_argument("data_id", help="DataID")
-    pst.add_argument("assignments", nargs="+", metavar="field=value", help="要修改的字段，可多个")
+    pst.add_argument("assignments", nargs="*", metavar="field=value", help="要修改的字段，可多个")
+    pst.add_argument("--remark", default=None, help="修改行备注（v11.9.0；可单独使用）")
 
     par = sub.add_parser("add-row", help="新增数据行（必须提供表的完整字段集合）")
     par.add_argument("module", help="测试模块目录")
@@ -64,6 +65,15 @@ def setup_parser(subparsers):
     par.add_argument("data_id", help="新行的 DataID")
     par.add_argument("assignments", nargs="*", metavar="field=value", help="全部字段的值")
     par.add_argument("--remark", default="", help="行备注")
+
+    # v11.9.0 计划级数据驱动（CORE §7.8）
+    pcd = sub.add_parser("create-driver", help="新建数据驱动表（table_kind=driver，计划 / 用例 / 步骤对应关系表）")
+    pcd.add_argument("module", help="测试模块目录")
+    pcd.add_argument("table", help="数据驱动表名（不得与模型同名）")
+    pcd.add_argument("--case", required=True, dest="case_uid", metavar="CASE_FILE::CASE_ID",
+                     help="绑定的用例，如 login/flow.xml::LOGIN_FLOW")
+    pcd.add_argument("--remark", required=True, help="表备注（必填）：目的、所属计划")
+    pcd.add_argument("--columns", required=True, help="驱动列，逗号分隔，每列为 表名.基础DataID")
 
     pdr = sub.add_parser("delete-row", help="删除数据行")
     pdr.add_argument("module", help="测试模块目录")
@@ -88,20 +98,29 @@ def _load(module: str):
 def handle(args):
     cmd = getattr(args, "data_cmd", None)
     if not cmd:
-        print("用法: rodski data <list|schema|show|query|validate|import|dump|add-field|set|add-row|delete-row> ...", file=sys.stderr)
+        print("用法: rodski data <list|schema|show|query|validate|import|dump|add-field|set|add-row|delete-row|create-driver> ...", file=sys.stderr)
         return 1
 
     if cmd == "list":
         dm = _load(args.module)
         names = sorted(dm.tables.keys())
-        if not names:
+        drivers = _driver_tables_meta(args.module)
+        if not names and not drivers:
             print("(无数据表)")
         else:
             for n in names:
                 print(f"  {n}  ({len(dm.tables[n])} 行)")
+            for n, (case_uid, remark, count) in sorted(drivers.items()):
+                print(f"  {n}  ({count} 行)  driver  绑定 {case_uid}  {remark}")
 
     elif cmd == "schema":
         dm = _load(args.module)
+        if args.table in dm.driver_tables:
+            meta = _driver_tables_meta(args.module)[args.table]
+            print(f"[{args.table}]  driver  绑定 {meta[0]}")
+            for column in _driver_columns(args.module, args.table):
+                print(f"  {column}")
+            return 0
         rows = dm.tables.get(args.table)
         if rows is None:
             print(f"错误: 逻辑表 '{args.table}' 不存在", file=sys.stderr)
@@ -113,11 +132,17 @@ def handle(args):
 
     elif cmd == "show":
         dm = _load(args.module)
-        row = dm.get_data(args.table, args.data_id)
+        if args.table in dm.driver_tables:
+            row = _driver_row(args.module, args.table, args.data_id)
+        else:
+            row = dm.get_data(args.table, args.data_id)
         if not row:
             print(f"错误: '{args.table}' 中找不到 DataID='{args.data_id}'", file=sys.stderr)
             return 1
         print(f"[{args.table} / {args.data_id}]")
+        remark = _row_remark(args.module, args.table, args.data_id)
+        if remark:
+            print(f"  备注: {remark}")
         for k, v in sorted(row.items()):
             print(f"  {k}: {v}")
 
@@ -145,10 +170,15 @@ def handle(args):
             print(f"[FAIL] {e}", file=sys.stderr)
             return 1
 
+        driver_errors = _validate_driver_tables(args.module)
+        if driver_errors:
+            for line in driver_errors:
+                print(f"[FAIL] {line}", file=sys.stderr)
+            return 1
         if getattr(args, "orphans", False):
             return _validate_orphans(args.module, dm)
-        else:
-            print(f"[OK] {len(dm.tables)} 张逻辑表校验通过")
+        drivers = len(_driver_tables_meta(args.module))
+        print(f"[OK] {len(dm.tables)} 张逻辑表校验通过" + (f"，{drivers} 张数据驱动表校验通过" if drivers else ""))
 
     elif cmd == "import":
         try:
@@ -164,7 +194,10 @@ def handle(args):
         return _add_field(args.module, args.table, args.field, args.default)
 
     elif cmd == "set":
-        return _set_row(args.module, args.table, args.data_id, args.assignments)
+        return _set_row(args.module, args.table, args.data_id, args.assignments, args.remark)
+
+    elif cmd == "create-driver":
+        return _create_driver(args.module, args.table, args.case_uid, args.remark, args.columns)
 
     elif cmd == "add-row":
         return _add_row(args.module, args.table, args.data_id, args.assignments, args.remark)
@@ -284,6 +317,10 @@ def _dump(module_or_file: str, format: str) -> int:
     try:
         ds = SQLiteDataSource(str(sqlite_file))
         tables = ds.load_tables()
+        try:
+            drivers = ds.load_driver_tables()
+        except Exception:  # 非 RodSki 结构或缺字段的 sqlite：只输出普通逻辑表
+            drivers = {}
         ds.close()
     except Exception as e:
         print(f"错误: 读取 SQLite 失败: {e}", file=sys.stderr)
@@ -297,6 +334,14 @@ def _dump(module_or_file: str, format: str) -> int:
             sorted_fields = dict(sorted(tables[table_name][data_id].items()))
             sorted_rows[data_id] = sorted_fields
         sorted_tables[table_name] = sorted_rows
+    # v11.9.0 数据驱动表：键名带 driver: 前缀，与模型数据表区分（git textconv 也能看到驱动表的改动）
+    for name in sorted(drivers):
+        meta = drivers[name]
+        sorted_tables[f"driver:{name}"] = {
+            "_meta": {"bound_case": meta["model_name"], "remark": meta["remark"]},
+            **{data_id: {"_remark": row["remark"], **dict(sorted(row["cells"].items()))}
+               for data_id, row in sorted(meta["rows"].items())},
+        }
 
     # 输出
     if format == "json":
@@ -337,6 +382,13 @@ def _add_field(module: str, table: str, field: str, default: str) -> int:
         cur.execute("SELECT COUNT(*) FROM rs_datatable WHERE table_name = ?", (table,))
         if cur.fetchone()[0] == 0:
             print(f"错误: 逻辑表 '{table}' 不存在", file=sys.stderr)
+            conn.close()
+            return 1
+
+        # v11.9.0：数据驱动表新增的是驱动列（表名.基础DataID），须通过列校验
+        err = _check_driver_column(module, cur, table, field, default)
+        if err:
+            print(f"错误: {err}", file=sys.stderr)
             conn.close()
             return 1
 
@@ -448,8 +500,11 @@ def _check_return_self_ref(module: str, table: str, values) -> str:
     return ""
 
 
-def _set_row(module: str, table: str, data_id: str, assignments) -> int:
-    """修改已有行的字段值：先校验（表/行/字段均存在、值非空）再写入。"""
+def _set_row(module: str, table: str, data_id: str, assignments, remark=None) -> int:
+    """修改已有行的字段值 / 行备注：先校验（表/行/字段均存在、值非空）再写入。"""
+    if not assignments and remark is None:
+        print("错误: 至少提供一个 field=value 或 --remark", file=sys.stderr)
+        return 1
     values, err = _parse_assignments(assignments)
     if err:
         print(f"错误: {err}", file=sys.stderr)
@@ -472,11 +527,13 @@ def _set_row(module: str, table: str, data_id: str, assignments) -> int:
             print(f"错误: 表 '{table}' 没有字段 {', '.join(unknown)}；现有字段: {', '.join(fields)}"
                   f"（新增字段请用 rodski data add-field）", file=sys.stderr)
             return 1
-        err = _check_return_self_ref(module, table, values)
+        err = _check_return_self_ref(module, table, values) or _check_driver_cells(cur, table, data_id, values)
         if err:
             print(f"错误: {err}", file=sys.stderr)
             return 1
 
+        if remark is not None:
+            cur.execute("UPDATE rs_row SET remark = ? WHERE table_name = ? AND data_id = ?", (remark, table, data_id))
         for field, value in values.items():
             cur.execute(
                 "UPDATE rs_field SET field_value = ? WHERE table_name = ? AND data_id = ? AND field_name = ?",
@@ -489,7 +546,7 @@ def _set_row(module: str, table: str, data_id: str, assignments) -> int:
                 )
         cur.execute("UPDATE rs_datatable SET updated_at = CURRENT_TIMESTAMP WHERE table_name = ?", (table,))
         conn.commit()
-        changes = ", ".join(f"{k}={v}" for k, v in values.items())
+        changes = ", ".join([f"{k}={v}" for k, v in values.items()] + ([f"备注={remark}"] if remark is not None else []))
         print(f"[OK] 已更新 {table}.{data_id}: {changes}")
         return 0
     except Exception as e:
@@ -522,6 +579,10 @@ def _add_row(module: str, table: str, data_id: str, assignments, remark: str = "
         if cur.fetchone()[0] > 0:
             print(f"错误: '{table}' 中已存在 DataID='{data_id}'；修改请用 rodski data set", file=sys.stderr)
             return 1
+        if _table_kind(cur, table) == "driver" and not _dd().is_literal_data_id(data_id):
+            print(f"错误: 数据驱动表的实例 DataID {data_id!r} 不合法（不能含空格、逗号、方括号、点等字符），"
+                  f"实例 ID 为 用例ID[DataID]，需能被 --data-id 选中", file=sys.stderr)
+            return 1
         unknown = [f for f in values if f not in fields]
         if unknown:
             print(f"错误: 表 '{table}' 没有字段 {', '.join(unknown)}；现有字段: {', '.join(fields)}", file=sys.stderr)
@@ -530,7 +591,7 @@ def _add_row(module: str, table: str, data_id: str, assignments, remark: str = "
         if missing:
             print(f"错误: 新增行缺少字段 {', '.join(missing)}；{_EMPTY_HINT}", file=sys.stderr)
             return 1
-        err = _check_return_self_ref(module, table, values)
+        err = _check_return_self_ref(module, table, values) or _check_driver_cells(cur, table, data_id, values)
         if err:
             print(f"错误: {err}", file=sys.stderr)
             return 1
@@ -577,5 +638,205 @@ def _delete_row(module: str, table: str, data_id: str) -> int:
         conn.rollback()
         print(f"错误: 操作失败: {e}", file=sys.stderr)
         return 1
+    finally:
+        conn.close()
+
+
+# ---------------------------------------------------------------- v11.9.0 数据驱动表（CORE §7.8）
+def _dd():
+    try:
+        from ..core import data_driven
+    except ImportError:
+        from rodski.core import data_driven
+    return data_driven
+
+
+def _sqlite_path(module: str) -> Path:
+    return Path(module).resolve() / "data" / "data.sqlite"
+
+
+def _driver_tables_meta(module: str):
+    """{驱动表名: (绑定用例, 表备注, 行数)}"""
+    import sqlite3
+
+    db = _sqlite_path(module)
+    if not db.is_file():
+        return {}
+    conn = sqlite3.connect(str(db))
+    try:
+        rows = conn.execute(
+            "SELECT t.table_name, t.model_name, COALESCE(t.remark, ''), "
+            "(SELECT COUNT(*) FROM rs_row r WHERE r.table_name = t.table_name) "
+            "FROM rs_datatable t WHERE t.table_kind = 'driver'").fetchall()
+    finally:
+        conn.close()
+    return {name: (uid, remark, count) for name, uid, remark, count in rows}
+
+
+def _driver_row(module: str, table: str, data_id: str):
+    import sqlite3
+
+    conn = sqlite3.connect(str(_sqlite_path(module)))
+    try:
+        return {f: v for f, v in conn.execute(
+            "SELECT field_name, field_value FROM rs_field WHERE table_name = ? AND data_id = ?", (table, data_id))}
+    finally:
+        conn.close()
+
+
+def _row_remark(module: str, table: str, data_id: str) -> str:
+    import sqlite3
+
+    db = _sqlite_path(module)
+    if not db.is_file():
+        return ""
+    conn = sqlite3.connect(str(db))
+    try:
+        row = conn.execute("SELECT COALESCE(remark, '') FROM rs_row WHERE table_name = ? AND data_id = ?",
+                           (table, data_id)).fetchone()
+    finally:
+        conn.close()
+    return row[0] if row else ""
+
+
+def _table_kind(cur, table: str) -> str:
+    cur.execute("SELECT table_kind FROM rs_datatable WHERE table_name = ?", (table,))
+    row = cur.fetchone()
+    return row[0] if row else ""
+
+
+def _check_driver_cells(cur, table: str, data_id: str, values) -> str:
+    """数据驱动表单元格只能是该列所指表中存在的 DataID 或 BLANK。"""
+    if _table_kind(cur, table) != "driver":
+        return ""
+    dd = _dd()
+    for column, value in values.items():
+        value = value.strip()
+        if value == dd.BLANK:
+            continue
+        if not dd.is_literal_data_id(value):
+            return f"数据驱动表 {table} 实例 {data_id} 列 {column}：单元格 {value!r} 只能是 DataID 或 BLANK"
+        target = column.split(".", 1)[0]
+        cur.execute("SELECT COUNT(*) FROM rs_row WHERE table_name = ? AND data_id = ?", (target, value))
+        if cur.fetchone()[0] == 0:
+            return f"数据驱动表 {table} 实例 {data_id} 列 {column}：DataID {value} 在表 {target} 中不存在"
+    return ""
+
+
+def _module_case(module: str, case_uid: str):
+    dd = _dd()
+    try:
+        from ..core.case_parser import CaseParser
+    except ImportError:
+        from rodski.core.case_parser import CaseParser
+    case_dir = Path(module).resolve() / "case"
+    if "::" not in case_uid:
+        return None, f"--case 必须写成 case_file::case_id（如 login/flow.xml::LOGIN_FLOW），实际: {case_uid!r}"
+    case_file, case_id = case_uid.split("::", 1)
+    cases = CaseParser(str(case_dir)).parse_cases() if case_dir.is_dir() else []
+    _, case = dd.find_plan_case(cases, {"id": case_id, "file": case_file})
+    if case is None:
+        return None, f"用例 {case_uid} 不存在或未启用（execute=\"否\"）"
+    return case, ""
+
+
+def _check_driver_column(module: str, cur, table: str, column: str, default: str) -> str:
+    if _table_kind(cur, table) != "driver":
+        return ""
+    dd = _dd()
+    cur.execute("SELECT model_name FROM rs_datatable WHERE table_name = ?", (table,))
+    case_uid = cur.fetchone()[0]
+    case, err = _module_case(module, case_uid)
+    if err:
+        return f"数据驱动表 {table} 绑定的{err}"
+    catalog = dd.load_catalog(_sqlite_path(module))
+    errors = dd.validate_columns(table, [column], case, case_uid, catalog)
+    if errors:
+        return errors[0]
+    if default.strip() != dd.BLANK:
+        return _check_driver_cells(cur, table, "*", {column: default})
+    return ""
+
+
+def _create_driver(module: str, table: str, case_uid: str, remark: str, columns_raw: str) -> int:
+    """新建数据驱动表：校验全部通过后才写入（必要时先迁移旧库结构）。"""
+    import sqlite3
+
+    dd = _dd()
+    db = _sqlite_path(module)
+    if not db.is_file():
+        print(f"错误: SQLite 文件不存在: {db}", file=sys.stderr)
+        return 1
+    errors = []
+    if not remark.strip():
+        errors.append(f"数据驱动表 {table} 的表备注为空（--remark 必填：目的、所属计划）")
+    if not dd.is_literal_data_id(table):
+        errors.append(f"数据驱动表名 {table!r} 不合法")
+    model_names = dd.module_model_names(Path(module).resolve())
+    if table in model_names or table in {f"{m}_verify" for m in model_names}:
+        errors.append(f"数据驱动表 {table} 与模型 / 业务模型（或其 _verify 表）同名，驱动表不能与模型数据表同名")
+    catalog = dd.load_catalog(db)
+    if table in catalog.kinds:
+        errors.append(f"逻辑表 {table} 已存在（table_kind={catalog.kinds[table]}）")
+    columns = [c.strip() for c in columns_raw.split(",") if c.strip()]
+    if not columns:
+        errors.append("--columns 至少需要 1 列（表名.基础DataID）")
+    if len(set(columns)) != len(columns):
+        errors.append("--columns 中有重复列")
+    case, err = _module_case(module, case_uid)
+    if err:
+        errors.append(err)
+    elif columns:
+        errors.extend(dd.validate_columns(table, columns, case, case_uid, catalog))
+    if errors:
+        for line in errors:
+            print(f"错误: {line}", file=sys.stderr)
+        return 1
+
+    if dd.migrate_driver_kind(db):
+        print(f"[INFO] 已迁移 {db.name} 结构（table_kind 增加 driver），原文件备份为 {db.name}.bak")
+    conn = sqlite3.connect(str(db))
+    try:
+        conn.execute("INSERT INTO rs_datatable (table_name, model_name, table_kind, row_mode, remark) "
+                     "VALUES (?, ?, 'driver', 'standard', ?)", (table, case_uid, remark))
+        conn.executemany("INSERT INTO rs_datatable_field (table_name, field_name, field_order) VALUES (?, ?, ?)",
+                         [(table, c, i) for i, c in enumerate(columns)])
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print(f"错误: 操作失败: {e}", file=sys.stderr)
+        return 1
+    finally:
+        conn.close()
+    print(f"[OK] 已新建数据驱动表 {table}（绑定 {case_uid}，{len(columns)} 列）；"
+          f"用 rodski data add-row 添加实例，在计划中写 <case ... data_driven=\"{table}\"/>")
+    return 0
+
+
+def _validate_driver_tables(module: str):
+    """数据驱动表结构校验：绑定用例存在、表备注、列、单元格（不含计划相关检查）。"""
+    dd = _dd()
+    meta = _driver_tables_meta(module)
+    if not meta:
+        return []
+    catalog = dd.load_catalog(_sqlite_path(module))
+    model_names = dd.module_model_names(Path(module).resolve())
+    errors = []
+    for name, (case_uid, _, _) in sorted(meta.items()):
+        case, err = _module_case(module, case_uid)
+        if err:
+            errors.append(f"数据驱动表 {name} 绑定的{err}")
+            continue
+        errors.extend(dd.validate_driver(catalog.driver(name), case, case_uid, catalog, model_names))
+    return errors
+
+
+def _driver_columns(module: str, table: str):
+    import sqlite3
+
+    conn = sqlite3.connect(str(_sqlite_path(module)))
+    try:
+        return [r[0] for r in conn.execute(
+            "SELECT field_name FROM rs_datatable_field WHERE table_name = ? ORDER BY field_order, field_name", (table,))]
     finally:
         conn.close()
