@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""重建 data_driven 模块的 data/data.sqlite 与 data/orders.db（可重复执行）。
+"""重建 data_driven 模块的 data/data.sqlite 与被测订单库 orders.db（可重复执行）。
 
 用法：python3 rodski-demo/demosite/data_driven/data/init_data.py
 
@@ -20,7 +20,7 @@ from typing import Dict, List, Tuple
 
 MODULE_DIR = Path(__file__).resolve().parents[1]
 DB_PATH = MODULE_DIR / "data" / "data.sqlite"
-ORDERS_DB = MODULE_DIR / "data" / "orders.db"
+ORDERS_DB = MODULE_DIR / "orders.db"
 REPO = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(REPO))
 

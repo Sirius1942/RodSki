@@ -480,6 +480,8 @@ def _handle_validate(args):
             if not target_dir.is_dir():
                 stale.append(f"  case_dir path={dir_path}: 目录不存在")
 
+        stale.extend(f"  {line}" for line in _data_driven_errors(path))
+
         if stale:
             print(f"{plan_id}: {len(stale)} 个stale引用")
             for s in stale:
@@ -493,6 +495,31 @@ def _handle_validate(args):
         return 1
     print(f"校验通过: {len(paths)} 个 plan 文件")
     return 0
+
+
+def _data_driven_errors(plan_path: Path):
+    """v11.9.0：计划中的数据驱动配置（驱动表、绑定用例、列、单元格）与 rodski run 预检一致。"""
+    try:
+        from ..core.plan_parser import PlanParser
+        from ..core.case_parser import CaseParser
+        from ..core import data_driven
+    except ImportError:
+        from rodski.core.plan_parser import PlanParser
+        from rodski.core.case_parser import CaseParser
+        from rodski.core import data_driven
+    try:
+        plan = PlanParser(str(plan_path)).parse_plan()
+    except Exception:
+        return []
+    if not data_driven.plan_data_driven_entries(plan):
+        return []
+    try:
+        cases = CaseParser(str(_case_dir())).parse_cases()
+        return data_driven.precheck_plan(plan, cases, _project_root())
+    except data_driven.DataDrivenError as e:
+        return e.errors
+    except Exception as e:  # noqa: BLE001
+        return [f"解析用例失败，无法校验数据驱动配置: {e}"]
 
 
 def _handle_preview(args):

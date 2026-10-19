@@ -35,7 +35,7 @@ rodski run @data_driven_suite --data-id alice,DD_API[bad]      # 只跑指定实
 rodski run @failure_isolation_suite --exclude-data-id wrong
 ```
 
-数据由 `data/init_data.py` 生成（每次验收前重建，含只读订单库 `data/orders.db`）。
+数据由 `data/init_data.py` 生成（每次验收前重建，同时生成模块根目录的只读被测订单库 `orders.db`）。
 
 ## 验收项
 

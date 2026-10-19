@@ -230,3 +230,50 @@ class TestPlanParser:
         cases = PlanParser(str(path)).parse_plan()["cases"]
         assert cases[0]["data_driven"] == "M"
         assert "data_driven" not in cases[1]
+
+
+class TestReviewFixes:
+    """独立评审后的修复：重复挂载、实例过滤校验、navigate 不参与替换、实例 DataID 校验、queue 转发。"""
+
+    def test_navigate_launch_not_replaceable(self):
+        assert dd.step_table(_step("navigate", "Home", "H001")) is None
+        assert dd.step_table(_step("launch", "App", "A001")) is None
+
+    def test_duplicate_entries(self):
+        plan = {"id": "p", "kind": "suite", "cases": [
+            {"id": "C1", "file": "flow.xml", "data_driven": "M"},
+            {"id": "C1", "file": "flow.xml", "data_driven": "M2"}]}
+        errors = dd.check_duplicate_entries(plan, [_case()])
+        assert errors and "只能挂一张" in errors[0]
+
+    def test_instance_filters(self, tmp_path):
+        _db(tmp_path, [MATRIX])
+        plan = {"id": "p", "kind": "suite", "cases": [{"id": "C1", "file": "flow.xml", "data_driven": "M"}]}
+        assert dd.check_instance_filters(plan, [_case()], tmp_path, ["a", "C1[b]"], []) == ([], [])
+        errors, _ = dd.check_instance_filters(plan, [_case()], tmp_path, ["typo"], [])
+        assert "typo" in errors[0]
+        _, warnings = dd.check_instance_filters(plan, [_case()], tmp_path, [], ["typo"])
+        assert "typo" in warnings[0]
+        errors, _ = dd.check_instance_filters({"id": "p", "kind": "suite", "cases": [{"id": "C1"}]},
+                                               [_case()], tmp_path, ["a"], [])
+        assert "没有数据驱动用例" in errors[0]
+
+    def test_invalid_instance_data_id(self, tmp_path):
+        bad = (*MATRIX[:4], [("a,b", "", ["T101", "V101", "BLANK", "IN2"])])
+        db = _db(tmp_path, [bad])
+        catalog = dd.load_catalog(db)
+        errors = dd.check_driver_reference("M", _case(), "flow.xml::C1", catalog, set(), "p")[1]
+        assert any("实例 DataID" in e for e in errors)
+
+    def test_expand_skips_filtered_out_case(self, tmp_path):
+        _db(tmp_path, [MATRIX])
+        plan = {"id": "p", "kind": "suite", "cases": [{"id": "C1", "file": "flow.xml", "data_driven": "M"}]}
+        other = dict(_case(), case_id="C2", case_uid="flow.xml::C2")
+        assert [c["case_id"] for c in dd.expand_plan_cases(plan, [other], {}, tmp_path)] == ["C2"]
+
+    def test_queue_forwards_data_id(self):
+        import argparse
+        from rodski_cli.queue import _forward_run_args
+        ns = argparse.Namespace(report=None, trace=False, verbose=False, coverage=False,
+                                data_id="a,C1[b]", exclude_data_id="c")
+        assert _forward_run_args(ns) == ["--data-id", "a,C1[b]", "--exclude-data-id", "c"]

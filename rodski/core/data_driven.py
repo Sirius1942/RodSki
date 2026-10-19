@@ -31,8 +31,9 @@ logger = logging.getLogger("rodski")
 DRIVER_KIND = "driver"
 BLANK = "BLANK"
 
-# 读取 `模型名` 表的关键字（data 为字面 DataID 时）；verify / check 读取 `模型名_verify`
-_MODEL_TABLE_ACTIONS = {"type", "send", "db", "launch", "navigate"}
+# 读取 `模型名` 表的关键字（data 为字面 DataID 时）；verify / check 读取 `模型名_verify`。
+# navigate / launch 的 data 是 URL / 应用路径，不读数据表，不参与替换
+_MODEL_TABLE_ACTIONS = {"type", "send", "db"}
 _VERIFY_ACTIONS = {"verify", "check"}
 # 字面 DataID：不含变量、表名前缀、URL / 选择器 / 函数调用等字符
 _LITERAL_DATA_ID = re.compile(r"^[^\s$.{}()\[\]=,:/#'\"【】<>]+$")
@@ -266,6 +267,8 @@ def validate_driver(driver: DriverTable, case: Dict[str, Any], case_uid: str, ca
     if errors:
         return errors
     for row in driver.rows:
+        if not is_literal_data_id(row.data_id):
+            errors.append(f"数据驱动表 {name} 的实例 DataID {row.data_id!r} 不合法（不能含空格、逗号、方括号、点等字符）")
         for column in driver.columns:
             value = str(row.cells.get(column, "")).strip()
             if value == BLANK:
@@ -325,11 +328,28 @@ def find_plan_case(cases: Sequence[Dict[str, Any]], entry: Dict[str, Any]) -> Tu
     return uid, None
 
 
+def check_duplicate_entries(plan: Dict[str, Any], cases: Sequence[Dict[str, Any]]) -> List[str]:
+    """同一用例在一个计划中只能挂一张数据驱动表（重复挂载时后者会覆盖前者）。"""
+    seen: Dict[str, str] = {}
+    errors: List[str] = []
+    for entry in plan_data_driven_entries(plan):
+        uid, _ = find_plan_case(cases, entry)
+        if uid in seen:
+            errors.append(f"用例 {uid} 在计划 {plan.get('id', '')} 中挂了多张数据驱动表"
+                          f"（{seen[uid]}、{entry['data_driven']}），一个用例只能挂一张；需要更多实例请合并到同一张表")
+        else:
+            seen[uid] = entry["data_driven"]
+    return errors
+
+
 def precheck_plan(plan: Dict[str, Any], cases: Sequence[Dict[str, Any]], module_dir: Path) -> List[str]:
     """计划中全部数据驱动配置的执行前校验；返回错误列表（空 = 通过）。"""
     errors = check_plan_kind(plan)
     entries = plan_data_driven_entries(plan)
     if errors or not entries:
+        return errors
+    errors = check_duplicate_entries(plan, cases)
+    if errors:
         return errors
     catalog = load_catalog(Path(module_dir) / "data" / "data.sqlite")
     model_names = module_model_names(Path(module_dir))
@@ -339,6 +359,30 @@ def precheck_plan(plan: Dict[str, Any], cases: Sequence[Dict[str, Any]], module_
         _, errs = check_driver_reference(entry["data_driven"], case, uid, catalog, model_names, label)
         errors.extend(errs)
     return errors
+
+
+def check_instance_filters(plan: Dict[str, Any], cases: Sequence[Dict[str, Any]], module_dir: Path,
+                           include: Sequence[str], exclude: Sequence[str]) -> Tuple[List[str], List[str]]:
+    """--data-id / --exclude-data-id 的值必须能匹配到实例：返回 (错误, 警告)。须在 precheck_plan 通过后调用。"""
+    if not include and not exclude:
+        return [], []
+    entries = plan_data_driven_entries(plan)
+    if not entries:
+        return [f"计划 {plan.get('id', '')} 中没有数据驱动用例（<case data_driven>），"
+                f"--data-id / --exclude-data-id 不会生效"], []
+    catalog = load_catalog(Path(module_dir) / "data" / "data.sqlite")
+    known: Set[str] = set()
+    for entry in entries:
+        uid, case = find_plan_case(cases, entry)
+        for row in catalog.driver(entry["data_driven"]).rows:
+            known.add(row.data_id)
+            known.add(instance_id(entry.get("id", ""), row.data_id))
+    missing_inc = [v for v in include if v not in known]
+    missing_exc = [v for v in exclude if v not in known]
+    errors = [f"--data-id 中的 {', '.join(missing_inc)} 没有匹配到任何数据驱动实例"
+              f"（可写 DataID 或 用例ID[DataID]）"] if missing_inc else []
+    warnings = [f"--exclude-data-id 中的 {', '.join(missing_exc)} 没有匹配到任何数据驱动实例"] if missing_exc else []
+    return errors, warnings
 
 
 # ------------------------------------------------------------------ 实例展开
@@ -436,9 +480,15 @@ def expand_plan_cases(plan: Dict[str, Any], cases: List[Dict[str, Any]], case_sk
     catalog = load_catalog(Path(module_dir) / "data" / "data.sqlite")
     model_names = module_model_names(Path(module_dir))
     label = f"计划 {plan.get('id', '')}"
+    errors = check_duplicate_entries(plan, cases)
+    if errors:
+        raise DataDrivenError(errors)
     drivers: Dict[str, DriverTable] = {}
     for entry in entries:
         uid, case = find_plan_case(cases, entry)
+        if case is None:
+            # 用例已被 tag / priority / 漫游等过滤掉：不展开（完整列表上的校验已在 rodski run 预检中完成）
+            continue
         driver, errs = check_driver_reference(entry["data_driven"], case, uid, catalog, model_names, label)
         errors.extend(errs)
         if driver is not None and not errs:

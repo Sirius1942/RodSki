@@ -1496,7 +1496,7 @@ case XML 中 <case execute="否">
 #### 7.8.4 替换规则
 
 - 一个模型对应一张数据表**不变**：替换只改变读取的行，不改变读取的表。
-- 只替换用例 XML 中三阶段（含 `scenario` / `if` / `loop` 内）`test_step@data` 的**字面 DataID**，以及 `business_call@input` / `@expect`。
+- 只替换用例 XML 中三阶段（含 `scenario` / `if` / `loop` 内）`type` / `send` / `DB` / `verify`（`check`）步骤 `data` 的**字面 DataID**，以及 `business_call@input` / `@expect`；`navigate` / `launch` 的 data 是 URL / 应用路径，不参与替换。
 - 不替换：动态 DataID（`${...}`、`L00${i}` 拼接、GlobalValue）、数据字段值中的 `表名.DataID.字段`、业务模型节点 XML 内的字面 DataID、`business_call@flow`。
 - 同一 `表名.基础DataID` 在用例中出现多次时一起替换。
 
@@ -1505,8 +1505,9 @@ case XML 中 <case execute="否">
 - 驱动表每一行展开为一个实例，实例 ID = `用例ID[DataID]`，按行顺序执行。
 - 实例之间隔离：浏览器 / 移动端会话、Return 历史、`set` 变量；一个实例失败不影响后续实例。
 - 驱动表 0 行报错，不允许 0 个实例静默通过。
-- `--data-id a,b` / `--exclude-data-id c` 只过滤数据驱动实例（值可写 `DataID` 或 `用例ID[DataID]`），可与 `@plan_id` 同用；`--case-id` 仍是与 `@plan_id` 互斥的 selector。
-- 结果中每个实例一条记录，带 `instance_id`、`driver`、`data_id`、实例标题与实际生效的替换映射。
+- `--data-id a,b` / `--exclude-data-id c` 只过滤数据驱动实例（值可写 `DataID` 或 `用例ID[DataID]`），可与 `@plan_id` 同用；`--data-id` 的值匹配不到任何实例时报错，计划中没有数据驱动用例时使用二者也报错；`--case-id` 仍是与 `@plan_id` 互斥的 selector。
+- 同一用例在一个计划中只能挂一张驱动表；驱动表的实例 DataID 必须是字面值（不含空格、逗号、方括号、点等）。
+- 结果中每个实例一条记录：`case_id` 与 `instance_id` 均为 `用例ID[DataID]`，另带 `template_case_id`（模板用例 ID）、`driver`、`data_id`、`instance_title`（驱动表行备注）与 `replacements`（实际生效的替换，`表名.基础DataID=新DataID; ...`）。
 
 #### 7.8.6 业务模型
 

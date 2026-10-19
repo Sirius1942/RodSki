@@ -340,7 +340,7 @@ class ResultWriter:
                 result_elem.set("case_file", str(case_file))
             # v11.9.0 计划级数据驱动实例（CORE §7.8.5）：case_id 为 用例ID[DataID]
             if result.get("driver"):
-                for attr in ("template_case_id", "driver", "data_id", "instance_title", "replacements"):
+                for attr in ("instance_id", "template_case_id", "driver", "data_id", "instance_title", "replacements"):
                     result_elem.set(attr, str(result.get(attr, "")))
 
             result_elem.set("title", str(result.get("title", "")))

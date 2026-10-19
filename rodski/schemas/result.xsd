@@ -53,7 +53,8 @@
     </xs:sequence>
     <xs:attribute name="case_id" type="xs:string" use="required"/>
     <xs:attribute name="case_file" type="xs:string" use="optional"/>
-    <!-- v11.9.0 计划级数据驱动实例（CORE §7.8.5）：case_id 为 用例ID[DataID] -->
+    <!-- v11.9.0 计划级数据驱动实例（CORE §7.8.5）：case_id 与 instance_id 均为 用例ID[DataID] -->
+    <xs:attribute name="instance_id" type="xs:string" use="optional"/>
     <xs:attribute name="template_case_id" type="xs:string" use="optional"/>
     <xs:attribute name="driver" type="xs:string" use="optional"/>
     <xs:attribute name="data_id" type="xs:string" use="optional"/>

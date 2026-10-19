@@ -46,6 +46,26 @@ class SQLiteDataSource:
 
         return tables
 
+    def load_driver_tables(self) -> Dict[str, Dict[str, Any]]:
+        """数据驱动表（只读展示用，如 rodski data dump）：{表名: {model_name, remark, columns, rows}}"""
+        conn = self._connect()
+        out: Dict[str, Dict[str, Any]] = {}
+        for name, model_name, remark in conn.execute(
+                "SELECT table_name, model_name, COALESCE(remark, '') FROM rs_datatable WHERE table_kind = 'driver'"):
+            columns = [r[0] for r in conn.execute(
+                "SELECT field_name FROM rs_datatable_field WHERE table_name = ? ORDER BY field_order, field_name",
+                (name,))]
+            rows: Dict[str, Dict[str, Any]] = {}
+            for data_id, row_remark in conn.execute(
+                    "SELECT data_id, COALESCE(remark, '') FROM rs_row WHERE table_name = ?", (name,)):
+                rows[data_id] = {"remark": row_remark, "cells": {}}
+            for data_id, field_name, value in conn.execute(
+                    "SELECT data_id, field_name, field_value FROM rs_field WHERE table_name = ?", (name,)):
+                if data_id in rows:
+                    rows[data_id]["cells"][field_name] = value
+            out[name] = {"model_name": model_name, "remark": remark, "columns": columns, "rows": rows}
+        return out
+
     def get_driver_table_names(self) -> List[str]:
         """数据驱动表（table_kind='driver'）名列表"""
         conn = self._connect()

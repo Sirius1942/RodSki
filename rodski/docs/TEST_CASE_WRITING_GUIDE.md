@@ -2296,7 +2296,7 @@ rodski run case/login/flow.xml --case-id LOGIN_FLOW        # 不经计划：只�
 - 驱动表的表备注必填（目的、所属计划）；行备注作为实例标题；被驱动表引用的数据行建议写备注，缺失时 `[WARN]` 提示但不阻断。
 - 以下错误在启动浏览器 / App 之前报出：驱动表不存在或不是 driver 表、绑定的用例与计划不一致、表备注为空、0 行、列名不合法 / 表不存在 / 基础 DataID 未被用例字面引用、单元格 DataID 不存在或不是 DataID、驱动表与模型同名、在调试计划 / 压测计划中使用。
 - `--data-id` / `--exclude-data-id` 是实例过滤，不是 selector，可与 `@plan_id` 同用；`--case-id` 仍与 `@plan_id` 互斥。
-- 结果 XML 中实例的 `case_id` 为 `用例ID[DataID]`，并带 `template_case_id`、`driver`、`data_id`、`instance_title`、`replacements`；日志中每个被替换的步骤标注 `数据驱动替换 TestForm: T001 → T101（LoginFlow_matrix[admin]）`。
+- 结果 XML 中实例的 `case_id` 与 `instance_id` 均为 `用例ID[DataID]`，并带 `template_case_id`、`driver`、`data_id`、`instance_title`、`replacements`；`--data-id` 写错（匹配不到实例）会报错；同一用例在一个计划中只能挂一张驱动表；日志中每个被替换的步骤标注 `数据驱动替换 TestForm: T001 → T101（LoginFlow_matrix[admin]）`。
 
 **不要这样做**
 

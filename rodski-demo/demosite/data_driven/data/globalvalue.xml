@@ -10,8 +10,8 @@
         <var name="URL" value="http://localhost:8000"/>
     </group>
     <group name="orders_db">
-        <!-- 本模块自带只读订单库，由 data/init_data.py 生成（相对模块目录） -->
+        <!-- 本模块自带只读订单库，由 data/init_data.py 生成（相对模块目录，被测库放在模块根目录，data/ 下只有 data.sqlite） -->
         <var name="type" value="sqlite"/>
-        <var name="database" value="data/orders.db"/>
+        <var name="database" value="orders.db"/>
     </group>
 </globalvalue>

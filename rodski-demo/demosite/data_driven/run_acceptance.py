@@ -7,7 +7,7 @@
 
 前置:
     - 共享站点 http://localhost:8000（_sites/demosite）。未运行时脚本自行启动，结束时只停自己启动的进程。
-    - 每次执行前重建 data/data.sqlite 与 data/orders.db（data/init_data.py）。
+    - 每次执行前重建 data/data.sqlite 与 orders.db（data/init_data.py）。
 
 判定:
     每项都真实执行 `rodski ...`（包入口 rodski.rodski_cli），读取本次新生成的 result/<run>/result.xml
@@ -107,9 +107,10 @@ def dd01() -> str:
     expect(alice.get("driver") == "FormMatrix", f"driver 属性: {alice.get('driver')}")
     expect(alice.get("data_id") == "alice", f"data_id 属性: {alice.get('data_id')}")
     expect(alice.get("template_case_id") == "DD_FORM", f"template_case_id: {alice.get('template_case_id')}")
+    expect(alice.get("instance_id") == "DD_FORM[alice]", f"instance_id: {alice.get('instance_id')}")
     expect(alice.get("instance_title") == "普通用户 alice（role=user）", f"instance_title: {alice.get('instance_title')}")
     expect("TestForm.T001=T101" in alice.get("replacements", ""), f"replacements: {alice.get('replacements')}")
-    return "11 个实例全部 PASS，结果带 driver / data_id / template_case_id / instance_title / replacements"
+    return "11 个实例全部 PASS，结果带 instance_id / driver / data_id / template_case_id / instance_title / replacements"
 
 
 def dd02() -> str:
@@ -170,7 +171,16 @@ def dd11() -> str:
     st2 = statuses(run2)
     expect(st2 == {"DD_FORM[first]": "PASS", "DD_FORM[third]": "PASS", "DD_API": "PASS"}, f"--exclude-data-id 结果: {st2}")
     expect(run2.code == 0, f"退出码 {run2.code}")
-    return "--data-id（DataID 与 用例ID[DataID] 两种写法）与 --exclude-data-id 只过滤数据驱动实例，可与 @plan 同用"
+    typo = rodski(["run", "@data_driven_suite", "--data-id", "admn", "--headless"])
+    expect(typo.code != 0 and "admn" in typo.output and "没有匹配到任何数据驱动实例" in typo.output and not typo.results,
+           f"--data-id 写错应在执行前报错: code={typo.code} {typo.output[-300:]}")
+    nocase = rodski(["run", "case/form_flow.xml", "--data-id", "alice", "--headless"])
+    expect(nocase.code != 0 and "只能与测试计划" in nocase.output, "--data-id 不配合计划应报错")
+    dry = rodski(["run", "@data_driven_suite", "--dry-run", "--data-id", "alice,DD_API[bad]"])
+    expect(dry.code == 0 and "数据驱动实例（2 个）" in dry.output and "DD_FORM[alice]" in dry.output
+           and "TestForm.T001=T101" in dry.output, f"--dry-run 应列出实例: {dry.output[-500:]}")
+    return ("--data-id（DataID 与 用例ID[DataID] 两种写法）与 --exclude-data-id 只过滤数据驱动实例，可与 @plan 同用；"
+            "写错 / 不配合计划时执行前报错；--dry-run 列出实例与替换")
 
 
 def dd13() -> str:
@@ -247,6 +257,9 @@ NEGATIVES = [
      '<case file="form_flow.xml" id="DD_FORM" data_driven="NoRemarkMatrix"/>', "suite", ["NoRemarkMatrix", "备注"]),
     ("DD-16 挂错用例", None, '<case file="form_flow.xml" id="DD_TWICE" data_driven="FormMatrix"/>', "suite",
      ["FormMatrix", "form_flow.xml::DD_FORM", "绑定"]),
+    ("同一用例挂两张驱动表", None,
+     '<case file="form_flow.xml" id="DD_FORM" data_driven="FormMatrix"/>'
+     '<case file="form_flow.xml" id="DD_FORM" data_driven="FormMatrixFail"/>', "suite", ["FormMatrixFail", "只能挂一张"]),
     ("调试计划使用 data_driven", None,
      '<case file="form_flow.xml" id="DD_FORM" data_driven="FormMatrix"/>', "scenario_debug", ["data_driven", "suite"]),
 ]
@@ -270,10 +283,17 @@ def dd12() -> str:
             if run.code == 0 or missing or run.results or "执行用例" in text:
                 problems.append(f"[{desc}] code={run.code} 缺少关键字={missing} results={list(run.results)}\n"
                                 f"    输出尾部: {run.output.strip()[-300:]}")
+        # rodski plan validate 同样报告这些数据驱动配置错误
+        pv = rodski(["plan", "validate"], module=module, timeout=120)
+        for name in ("NoSuchMatrix", "EmptyMatrix", "UnrefMatrix", "MissMatrix", "只能挂一张"):
+            if name not in pv.output:
+                problems.append(f"plan validate 未报告 {name}")
+        if pv.code == 0:
+            problems.append("plan validate 应以非 0 退出")
     finally:
         shutil.rmtree(module.parents[2], ignore_errors=True)
     expect(not problems, "\n".join(problems))
-    return f"{len(NEGATIVES)} 种错误配置均在执行任何用例前报错（含 DD-13 动态列、DD-16 挂错表）"
+    return f"{len(NEGATIVES)} 种错误配置均在执行任何用例前报错（含 DD-13 动态列、DD-16 挂错表），plan validate 同样报告"
 
 
 def dd14() -> str:
@@ -305,11 +325,15 @@ def dd14() -> str:
              "--remark", "CLI 实例 r1"], True)
         cli(["data", "add-row", mod, "NewMatrix", "r2", "TestForm.T001=T999", "TestForm_verify.V001=V101"],
             False, "T999")
+        cli(["data", "add-row", mod, "NewMatrix", "a,b", "TestForm.T001=T101", "TestForm_verify.V001=V101"],
+            False, "实例 DataID")
         cli(["data", "add-field", mod, "NewMatrix", "LoginForm.L001"], True)
         cli(["data", "set", mod, "TestForm", "T103", "--remark", "data_driven_suite / FormMatrix[carol]：访客"], True)
         out = cli(["data", "show", mod, "TestForm", "T103"], True, "data_driven_suite / FormMatrix[carol]：访客")
         out = cli(["data", "show", mod, "NewMatrix", "r1"], True, "CLI 实例 r1", "T101")
         cli(["data", "list", mod], True, "NewMatrix", "driver", "form_flow.xml::DD_FORM")
+        cli(["data", "schema", mod, "NewMatrix"], True, "driver", "TestForm.T001", "LoginForm.L001")
+        cli(["data", "dump", mod], True, "driver:NewMatrix:", "bound_case: form_flow.xml::DD_FORM", "_remark: CLI 实例 r1")
         cli(["data", "validate", mod], True)
         # 旧版 data.sqlite（table_kind CHECK 只允许 data/verify）首次写入 driver 表时自动迁移
         db = module / "data" / "data.sqlite"
@@ -346,7 +370,7 @@ def dd14() -> str:
     finally:
         shutil.rmtree(module.parents[2], ignore_errors=True)
     expect(not problems, "\n".join(problems))
-    return "create-driver / add-row / add-field / set --remark / show / list / validate 可用；旧库自动迁移并保留 .bak"
+    return "create-driver / add-row / add-field / set --remark / show / list / schema / dump / validate 可用；旧库自动迁移并保留 .bak"
 
 
 CHECKS: List[Tuple[str, str, Callable[[], str]]] = [

@@ -115,6 +115,12 @@ def handle(args):
 
     elif cmd == "schema":
         dm = _load(args.module)
+        if args.table in dm.driver_tables:
+            meta = _driver_tables_meta(args.module)[args.table]
+            print(f"[{args.table}]  driver  绑定 {meta[0]}")
+            for column in _driver_columns(args.module, args.table):
+                print(f"  {column}")
+            return 0
         rows = dm.tables.get(args.table)
         if rows is None:
             print(f"错误: 逻辑表 '{args.table}' 不存在", file=sys.stderr)
@@ -164,13 +170,13 @@ def handle(args):
             print(f"[FAIL] {e}", file=sys.stderr)
             return 1
 
-        if getattr(args, "orphans", False):
-            return _validate_orphans(args.module, dm)
         driver_errors = _validate_driver_tables(args.module)
         if driver_errors:
             for line in driver_errors:
                 print(f"[FAIL] {line}", file=sys.stderr)
             return 1
+        if getattr(args, "orphans", False):
+            return _validate_orphans(args.module, dm)
         drivers = len(_driver_tables_meta(args.module))
         print(f"[OK] {len(dm.tables)} 张逻辑表校验通过" + (f"，{drivers} 张数据驱动表校验通过" if drivers else ""))
 
@@ -311,6 +317,10 @@ def _dump(module_or_file: str, format: str) -> int:
     try:
         ds = SQLiteDataSource(str(sqlite_file))
         tables = ds.load_tables()
+        try:
+            drivers = ds.load_driver_tables()
+        except Exception:  # 非 RodSki 结构或缺字段的 sqlite：只输出普通逻辑表
+            drivers = {}
         ds.close()
     except Exception as e:
         print(f"错误: 读取 SQLite 失败: {e}", file=sys.stderr)
@@ -324,6 +334,14 @@ def _dump(module_or_file: str, format: str) -> int:
             sorted_fields = dict(sorted(tables[table_name][data_id].items()))
             sorted_rows[data_id] = sorted_fields
         sorted_tables[table_name] = sorted_rows
+    # v11.9.0 数据驱动表：键名带 driver: 前缀，与模型数据表区分（git textconv 也能看到驱动表的改动）
+    for name in sorted(drivers):
+        meta = drivers[name]
+        sorted_tables[f"driver:{name}"] = {
+            "_meta": {"bound_case": meta["model_name"], "remark": meta["remark"]},
+            **{data_id: {"_remark": row["remark"], **dict(sorted(row["cells"].items()))}
+               for data_id, row in sorted(meta["rows"].items())},
+        }
 
     # 输出
     if format == "json":
@@ -560,6 +578,10 @@ def _add_row(module: str, table: str, data_id: str, assignments, remark: str = "
         cur.execute("SELECT COUNT(*) FROM rs_row WHERE table_name = ? AND data_id = ?", (table, data_id))
         if cur.fetchone()[0] > 0:
             print(f"错误: '{table}' 中已存在 DataID='{data_id}'；修改请用 rodski data set", file=sys.stderr)
+            return 1
+        if _table_kind(cur, table) == "driver" and not _dd().is_literal_data_id(data_id):
+            print(f"错误: 数据驱动表的实例 DataID {data_id!r} 不合法（不能含空格、逗号、方括号、点等字符），"
+                  f"实例 ID 为 用例ID[DataID]，需能被 --data-id 选中", file=sys.stderr)
             return 1
         unknown = [f for f in values if f not in fields]
         if unknown:
@@ -807,3 +829,14 @@ def _validate_driver_tables(module: str):
             continue
         errors.extend(dd.validate_driver(catalog.driver(name), case, case_uid, catalog, model_names))
     return errors
+
+
+def _driver_columns(module: str, table: str):
+    import sqlite3
+
+    conn = sqlite3.connect(str(_sqlite_path(module)))
+    try:
+        return [r[0] for r in conn.execute(
+            "SELECT field_name FROM rs_datatable_field WHERE table_name = ? ORDER BY field_order, field_name", (table,))]
+    finally:
+        conn.close()

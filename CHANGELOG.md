@@ -18,8 +18,10 @@
 - CLI
   - `rodski run @plan --data-id a,CASE[b]` / `--exclude-data-id c`：实例过滤，不是 selector，可与 `@plan_id` 同用
   - `rodski data create-driver <module> <表> --case <file::id> --remark <说明> --columns <表.DataID,...>`
-  - `rodski data set ... --remark`（修改行备注）；`data show` 显示行备注；`data list` 列出驱动表与绑定用例；`data validate` 校验驱动表；`add-row` / `add-field` 对驱动表校验单元格与列
-- 结果：`result.xsd` 的 `<result>` 新增可选属性 `template_case_id`、`driver`、`data_id`、`instance_title`、`replacements`；日志标注 `数据驱动替换 表: 旧 → 新（驱动表[实例]）`
+  - `rodski data set ... --remark`（修改行备注）；`data show` 显示行备注；`data list` / `schema` / `dump` 显示驱动表；`data validate` 校验驱动表；`add-row` / `add-field` 对驱动表校验单元格、列与实例 DataID
+  - `rodski plan validate` 校验计划中的数据驱动配置；`rodski run @plan --dry-run` 列出数据驱动实例与替换内容
+  - 多设备自动转 `rodski queue` 时转发 `--data-id` / `--exclude-data-id`，数据驱动校验在转发之前完成
+- 结果：`result.xsd` 的 `<result>` 新增可选属性 `instance_id`、`template_case_id`、`driver`、`data_id`、`instance_title`、`replacements`（实例的 `case_id` = `instance_id` = `用例ID[DataID]`）；日志标注 `数据驱动替换 表: 旧 → 新（驱动表[实例]）`
 - 被驱动表引用但未写备注的数据行输出 `[WARN]`，不阻断执行
 
 ### 兼容性

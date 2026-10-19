@@ -551,6 +551,8 @@ def _maybe_dispatch_to_queue(args, module_dir: Path) -> Optional[int]:
         trace=getattr(args, "trace", False),
         verbose=getattr(args, "verbose", False),
         coverage=getattr(args, "coverage", False),
+        data_id=getattr(args, "data_id", None),
+        exclude_data_id=getattr(args, "exclude_data_id", None),
     )
     return queue_cli.handle(ns)
 
@@ -631,6 +633,18 @@ def handle(args):
                 print(f"错误: --case-id 必须与单个用例文件路径一起使用（给定的是目录或非 XML 文件）", file=sys.stderr)
                 return 1
 
+    # v11.9.0 计划级数据驱动：校验先于副作用（CORE §7.8.8）——在多设备转发、hooks、创建任何驱动之前完成
+    if (getattr(args, "data_id", None) or getattr(args, "exclude_data_id", None)) and plan_path is None:
+        print("错误: --data-id / --exclude-data-id 只能与测试计划（@plan_id）一起使用", file=sys.stderr)
+        return 1
+    if plan_path is not None:
+        dd_errors = _precheck_data_driven(plan_path, case_path, module_dir, args)
+        if dd_errors:
+            print("错误: 数据驱动配置无效（未执行任何用例）:", file=sys.stderr)
+            for line in dd_errors:
+                print(f"  - {line}", file=sys.stderr)
+            return 1
+
     # 执行层设备配置要求多设备时，自动转 `rodski queue`（复用同一条调度链路）。
     # 放在这里：module_dir 已定、任何执行副作用之前。`--udid` 一给即视为用户
     # 点名跑单台，`--dry-run` 则是「只想看这次会选什么用例」，两者都不转。
@@ -658,18 +672,6 @@ def handle(args):
     # 项），不再在此单独硬校验——这样该检查项与其余三项一致，可用 --force-compliance
     # 显式跳过；只有 directory_structure 检查不可跳过。默认行为（未加
     # --force-compliance 时冲突仍会阻断执行）与迭代前一致。
-    # v11.9.0 计划级数据驱动：校验先于副作用（CORE §7.8.8），在创建任何驱动之前完成
-    if (getattr(args, "data_id", None) or getattr(args, "exclude_data_id", None)) and plan_path is None:
-        print("错误: --data-id / --exclude-data-id 只能与测试计划（@plan_id）一起使用", file=sys.stderr)
-        return 1
-    if plan_path is not None:
-        dd_errors = _precheck_data_driven(plan_path, case_path, module_dir)
-        if dd_errors:
-            print("错误: 数据驱动配置无效（未执行任何用例）:", file=sys.stderr)
-            for line in dd_errors:
-                print(f"  - {line}", file=sys.stderr)
-            return 1
-
     selector_filters = _build_selector_filters(args)
     plan_path_str = str(plan_path) if plan_path else None
 
@@ -813,7 +815,8 @@ def handle(args):
         logger.info("--roam-engine: 已注册引擎 %s", type(_engine).__name__)
 
     if dry_run:
-        return _handle_dry_run(case_path, model_path, verbose, plan_path=plan_path, selector_filters=selector_filters, module_dir=module_dir)
+        return _handle_dry_run(case_path, model_path, verbose, plan_path=plan_path, selector_filters=selector_filters,
+                               module_dir=module_dir, data_id_filters=_data_id_filters(args))
 
     if plan_path is not None:
         _plan_kind = _get_plan_kind(plan_path)
@@ -882,6 +885,7 @@ def _handle_dry_run(
     plan_path: Optional[Path] = None,
     selector_filters: Optional[Dict[str, Any]] = None,
     module_dir: Optional[Path] = None,
+    data_id_filters: Optional[Dict[str, List[str]]] = None,
 ) -> int:
     """验证用例可执行性但不实际执行"""
     try:
@@ -918,6 +922,7 @@ def _handle_dry_run(
             print(f"Plan 解析失败: {e}", file=sys.stderr)
             return 1
         _print_plan_dry_run_selection(plan, selection)
+        _print_data_driven_dry_run(plan, cases, selection, module_dir, data_id_filters or {})
     elif selector_filters and _has_active_selector(selector_filters):
         metadata = CaseParser.collect_scenario_metadata_from_cases(cases)
         selection = compile_from_selector(
@@ -955,8 +960,8 @@ def _handle_dry_run(
     return 0
 
 
-def _precheck_data_driven(plan_path: Path, case_path: Path, module_dir: Path) -> List[str]:
-    """计划中数据驱动配置的执行前校验（v11.9.0，CORE §7.8.8）；计划本身无效时交给后续流程报错。"""
+def _precheck_data_driven(plan_path: Path, case_path: Path, module_dir: Path, args=None) -> List[str]:
+    """计划中数据驱动配置与实例过滤的执行前校验（v11.9.0，CORE §7.8.8）；计划本身无效时交给后续流程报错。"""
     try:
         from ..core.plan_parser import PlanParser
         from ..core.case_parser import CaseParser
@@ -969,13 +974,49 @@ def _precheck_data_driven(plan_path: Path, case_path: Path, module_dir: Path) ->
         plan = PlanParser(str(plan_path)).parse_plan()
     except Exception:
         return []
-    if not data_driven.plan_data_driven_entries(plan):
+    filters = _data_id_filters(args) if args is not None else {"include": [], "exclude": []}
+    if not data_driven.plan_data_driven_entries(plan) and not (filters["include"] or filters["exclude"]):
         return []
     try:
         cases = CaseParser(str(case_path)).parse_cases()
-        return data_driven.precheck_plan(plan, cases, module_dir)
+    except Exception as e:  # noqa: BLE001 - 用例解析失败同样在副作用之前报出
+        return [f"解析用例失败，无法校验数据驱动配置: {e}"]
+    try:
+        errors = data_driven.precheck_plan(plan, cases, module_dir)
+        if errors:
+            return errors
+        errors, warnings = data_driven.check_instance_filters(
+            plan, cases, module_dir, filters["include"], filters["exclude"])
+        for line in warnings:
+            print(f"[WARN] {line}", file=sys.stderr)
+        return errors
     except data_driven.DataDrivenError as e:
         return e.errors
+
+
+def _print_data_driven_dry_run(plan: Dict[str, Any], cases: List[Dict[str, Any]], selection: Dict[str, Any],
+                               module_dir: Optional[Path], filters: Dict[str, List[str]]) -> None:
+    """--dry-run 时列出数据驱动实例（v11.9.0）：实例 ID、实例标题与替换内容。"""
+    try:
+        from ..core import data_driven
+    except ImportError:
+        from rodski.core import data_driven
+    if module_dir is None or not data_driven.plan_data_driven_entries(plan):
+        return
+    skips = {}
+    for entry in (selection or {}).get("skipped", []) or []:
+        if entry.get("type") == "case":
+            uid = f"{entry.get('case_file', '')}::{entry.get('case_id', '')}"
+            skips[uid] = entry.get("reason", "")
+    expanded = data_driven.expand_plan_cases(plan, list(cases), skips, module_dir,
+                                             include=filters.get("include") or (),
+                                             exclude=filters.get("exclude") or ())
+    instances = [c for c in expanded if c.get("_data_driven")]
+    print(f"\n  数据驱动实例（{len(instances)} 个）:")
+    for inst in instances:
+        dd = inst["_data_driven"]
+        title = f"  {dd['instance_title']}" if dd.get("instance_title") else ""
+        print(f"    {inst['case_id']}{title}  ← {dd['driver']}  替换: {dd['replacements'] or '（无，沿用基础 DataID）'}")
 
 
 def _data_id_filters(args) -> Dict[str, List[str]]:

@@ -664,6 +664,7 @@ class SKIExecutor:
     def _attach_data_driven_fields(result: Dict[str, Any], case: Dict[str, Any]) -> Dict[str, Any]:
         dd = case.get('_data_driven')
         if dd:
+            result['instance_id'] = case.get('case_id', '')
             for key in ('template_case_id', 'driver', 'data_id', 'instance_title', 'replacements'):
                 result[key] = dd.get(key, '')
         return result
