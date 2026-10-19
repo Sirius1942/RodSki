@@ -51,12 +51,12 @@
 
 | type 值 | 转换规则 | 示例 |
 |---------|---------|------|
-| `id` | → CSS `#定位值` | `<location type="id">username</location>` → `#username` |
-| `class` | → CSS `.定位值` | `<location type="class">btn-submit</location>` → `.btn-submit` |
+| `id` | → id 属性选择器 | `<location type="id">username</location>` → `[id="username"]`（等价于 `#username`，id 含 `.`/`:` 或以数字开头也可用） |
+| `class` | → CSS `.定位值`；多个类名空格分隔表示同时具备 | `<location type="class">btn-submit</location>` → `.btn-submit`；`btn primary` → `.btn.primary`（可直接照抄元素的 class 属性） |
 | `css` | → 原样使用 | `<location type="css">input[name="user"]</location>` |
-| `xpath` | → 原样使用 | `<location type="xpath">//input[@id='user']</location>` |
+| `xpath` | → `xpath=值` | `<location type="xpath">//input[@id='user']</location>`；`(//a)[1]` 这类写法同样可用 |
 | `text` | → Playwright `text=...` | `<location type="text">登录</location>` → `text=登录` |
-| `tag` | → 标签名选择器 | `<location type="tag">button</location>` |
+| `tag` | → 标签名选择器 | `<location type="tag">button</location>` → `button`（匹配多个时取第一个） |
 | `name` | name 属性选择器 | 按框架解析规则使用 |
 | `static` | 静态字面量 | 常用于接口 `_method`、固定 URL 等 |
 | `field` | 接口字段映射 | 常用于接口 body / query 字段名 |

@@ -70,11 +70,13 @@ rodski plan create invoice_smoke --kind suite --default-execute 否 --title "开
 # 向计划添加 case 和 scenario（v11.5.0 起 add-case 为 3 个参数：计划、用例文件、用例 ID）
 rodski plan add-case invoice_smoke case/order/invoice_apply.xml TC040
 rodski plan add-scenario invoice_smoke TC040 INV-001
+# 计划中还没有该用例时自动新建 <case> 并按 ID 补全 file；同名 ID 出现在多个用例文件时需指定（v11.8.30）
+rodski plan add-scenario invoice_smoke TC040 INV-001 --file order/invoice.xml
 
 # 按目录整体添加（v11.5.0 新增，递归选入该目录下 execute="是" 的用例）
 rodski plan add-dir invoice_smoke case/order/invoice
 
-# 从 tag 选择结果生成计划
+# 从 tag 选择结果生成计划（范围与 rodski run --tag smoke 一致；生成的 <case> 带 file）
 rodski plan create invoice_smoke --kind suite --from-tag smoke --title "开票冒烟"
 
 # 迁移存量 plan：为省略 file 的 <case> 自动补全（能唯一定位时），有歧义的列出待人工处理（v11.5.0 新增）
@@ -170,6 +172,8 @@ rodski plan debug-scenario inv_debug --case TC040 --scenario INV-001 --prepare a
 
 # 创建 step 调试计划
 rodski plan debug-step inv_step_debug --case TC040 --scenario INV-001 --step 2 --step-mode only --prepare auto --cleanup 否
+
+# 生成的 <case> 会按用例 ID 自动补 file；同名 ID 出现在多个用例文件时加 --file order/invoice.xml（v11.8.31）
 
 # 执行调试
 rodski run @inv_debug --debug

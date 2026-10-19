@@ -143,9 +143,11 @@ rodski data set product/shop/order OrderDB_verify V_OK n=2
 | 特殊值 | Web 行为 | 接口行为 |
 |--------|---------|---------|
 | `.Password` 后缀 | 输入时去掉后缀，日志中显示 `***` | — |
-| 空值（省略 field） | 跳过该元素（不输入） | — |
+| 空值（字段值为空串；v6.7.6 起字段不可省略） | 跳过该元素（不输入；只含空格的值照常输入） | — |
 | `BLANK` | 跳过（UI）/ 空字符串（接口） | 传空字符串 |
-| `NULL` / `NONE` | 跳过（UI） | 传 null / none |
+| `NULL` / `NONE` | 跳过（UI） | `NULL` 传 null；`NONE` 不发送该字段 |
+
+verify 中：`BLANK` 在 UI / DB 模型跳过、接口模型期望空字符串；`NULL` 期望 null（UI 跳过）；`NONE` 一律跳过该字段（CORE §4.1）。
 
 #### UI 动作关键字
 
@@ -182,6 +184,8 @@ rodski data set product/shop/order OrderDB_verify V_OK n=2
 | F 功能键 | `F1` `F5` `F12` | `key_press【F5】` |
 
 > 组合键使用 `+` 连接，修饰键在前、普通键在后。macOS 上 `Control` 对应 `Command` 键行为。
+>
+> 按键作用于该字段对应的元素：Web 驱动先聚焦该元素再按键（v11.8.27 起；此前发往当前焦点元素）。macOS 上组合键中的 `Control` 修饰键按 `Command` 执行（`Control+A` 全选），单独按 `Control` 不转换。
 
 #### 示例：含动作关键字的数据表
 
@@ -323,6 +327,7 @@ UI 模型的 `verify` 会在自动等待 `DefaultValue.AutoWait` 毫秒内（例
 
 - strict 模式下某行一半以上字段都是 `BLANK` 时，`rodski case lint` 会提示改用 `match_mode="subset"`（INFO）。
 - 缺字段的报错会直接给出这两种修法。
+- 接口模型（v11.8.14 起）不受"全部字段"约束：只比较 `_verify` 行中写出的字段，请求字段与 `_method` / `_url` 等控制元素不用写进 `_verify`；`status` 列即使模型没有声明 `status` 元素也按 HTTP 状态码校验。
 
 #### 5.7.4 什么时候还用 evaluate
 
