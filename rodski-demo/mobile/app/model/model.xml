@@ -103,4 +103,12 @@
       <desc>订单状态</desc>
     </element>
   </model>
+
+  <!-- 订单备注后台（Web，浏览器驱动）：mock_server.py /web/note。用于 Web + App 混合用例（case/web_app_mix.xml），
+       同一用例中 Web 步骤与 App 步骤共存，但每个步骤只作用于一端 -->
+  <model name="WebNote" type="ui" servicename="">
+    <element name="note" type="web"><location type="id">note</location></element>
+    <element name="saveBtn" type="web"><location type="id">saveBtn</location></element>
+    <element name="noteResult" type="web"><location type="id">noteResult</location></element>
+  </model>
 </models>

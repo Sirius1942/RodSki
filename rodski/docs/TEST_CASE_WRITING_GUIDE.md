@@ -853,6 +853,10 @@ rodski data import <module> [--overwrite]
 rodski data set <module> <table> <data_id> field=value [field=value ...]   # 修改已有行
 rodski data add-row <module> <table> <data_id> field=value [...] [--remark 备注]   # 新增行：必须给出完整字段集合
 rodski data delete-row <module> <table> <data_id>                          # 删除行
+rodski data set <module> <table> <data_id> --remark "所属计划 / 用途"       # 只改行备注（v11.9.0，可与 field=value 同用）
+
+# 数据驱动表（v11.9.0，见 §10.10）
+rodski data create-driver <module> <表名> --case <case_file::case_id> --remark "<目的；所属计划>" --columns "<表名.基础DataID>,..."
 ```
 
 例如接口返回的订单数由 1 变为 2，只改期望值：
@@ -2146,6 +2150,9 @@ rodski run --tag smoke --dry-run
 显式 plan 和临时 selector 是两种独立的执行范围来源，**不能在同一次 `rodski run` 中组合**：
 
 ```bash
+# ✅ 实例过滤（v11.9.0）不是 selector，可与计划同用
+rodski run @invoice_smoke --data-id admin
+
 # ❌ 以下命令全部报错
 rodski run @invoice_smoke --tag smoke
 rodski run @invoice_smoke --group negative
@@ -2218,6 +2225,86 @@ case XML 中 <case execute="否">（最高，硬关闭）
 ```
 
 只要上层关闭，下层即使显式开启也不会执行。
+
+### 10.10 计划级数据驱动（v11.9.0）
+
+同一个用例流程要用多组数据各执行一次、每组得到独立结果时，使用计划级数据驱动（CORE §7.8）。**数据驱动只在计划里声明**，用例 XML 不需要任何改动。
+
+**三个角色**
+
+| 角色 | 写什么 |
+|------|-------|
+| 用例 XML | 流程 + **基础 DataID**（照常写，单独运行时就用它们） |
+| 数据驱动表（`data.sqlite`，`table_kind='driver'`） | 每行一个实例；每列 `表名.基础DataID`；单元格写替换后的 DataID 或 `BLANK` |
+| 计划 XML | `<case file="..." id="..." data_driven="驱动表名"/>`，只写表名 |
+
+**示例**
+
+```xml
+<!-- case/login/flow.xml（不改） -->
+<case execute="是" id="LOGIN_FLOW" title="登录后提交表单">
+  <pre_process>
+    <test_step action="navigate" model="" data="GlobalValue.DefaultValue.URL"/>
+    <test_step action="type" model="LoginForm" data="L001"/>     <!-- 不在驱动表中：所有实例都用 L001 -->
+  </pre_process>
+  <test_case>
+    <test_step action="type" model="TestForm" data="T001"/>      <!-- 按驱动表替换 -->
+    <test_step action="verify" model="TestForm" data="V001"/>    <!-- 读 TestForm_verify，按驱动表替换 -->
+  </test_case>
+  <post_process>
+    <test_step action="close" model="" data=""/>
+  </post_process>
+</case>
+
+<!-- plan/login_matrix.xml -->
+<test_plan id="login_matrix" kind="suite">
+  <case file="login/flow.xml" id="LOGIN_FLOW" data_driven="LoginFlow_matrix"/>
+</test_plan>
+```
+
+```bash
+rodski data create-driver <module> LoginFlow_matrix --case login/flow.xml::LOGIN_FLOW \
+    --remark "登录角色矩阵；计划 login_matrix；验证不同角色提交表单" \
+    --columns "TestForm.T001,TestForm_verify.V001"
+rodski data add-row <module> LoginFlow_matrix admin "TestForm.T001=T101" "TestForm_verify.V001=V101" --remark "管理员"
+rodski data add-row <module> LoginFlow_matrix user  "TestForm.T001=T102" "TestForm_verify.V001=V102" --remark "普通用户"
+rodski data add-row <module> LoginFlow_matrix base  "TestForm.T001=BLANK" "TestForm_verify.V001=BLANK" --remark "沿用基础数据"
+rodski data set <module> TestForm T101 --remark "login_matrix / LoginFlow_matrix[admin]：管理员表单"   # 鼓励
+
+rodski run @login_matrix                                   # LOGIN_FLOW[admin] / [user] / [base] 三个实例
+rodski run @login_matrix --data-id admin                   # 只跑 admin 实例（也可写 LOGIN_FLOW[admin]）
+rodski run @login_matrix --exclude-data-id base
+rodski run case/login/flow.xml --case-id LOGIN_FLOW        # 不经计划：只执行一次，全部用基础 DataID
+```
+
+**列名 `表名.基础DataID` 怎么写**
+
+| 步骤 | 列名 |
+|------|------|
+| `type` / `send` / `DB` `Model D001` | `Model.D001` |
+| `verify Model V001` | `Model_verify.V001` |
+| `business_call ref="biz" input="IN1" expect="EX1"` | `biz.IN1`、`biz_verify.EX1` |
+
+**规则**
+
+- 替换只改变读哪一行，不改变读哪张表（一个模型对应一张数据表不变）。
+- 只替换用例中的**字面 DataID**（含 scenario / if / loop 内）；`${...}`、`L00${i}`、GlobalValue、数据字段里的 `表名.DataID.字段`、业务模型节点内的 DataID 不替换。
+- 同一用例里同一个 `表名.基础DataID` 出现多次时一起替换；同一张表用了两个不同基础 DataID 时写两列。
+- 业务模型：只替换调用方用例里 `business_call` 的 `input` / `expect`，`flow` 不变（某个实例实际走了别的路径就是该实例失败）。
+- Web 步骤与移动端步骤可以在同一用例中共存，按各自的表名替换。
+- 每个实例都是一次完整的用例执行；实例之间 Return 历史、`set` 变量隔离，失败互不影响。
+- 驱动表的表备注必填（目的、所属计划）；行备注作为实例标题；被驱动表引用的数据行建议写备注，缺失时 `[WARN]` 提示但不阻断。
+- 以下错误在启动浏览器 / App 之前报出：驱动表不存在或不是 driver 表、绑定的用例与计划不一致、表备注为空、0 行、列名不合法 / 表不存在 / 基础 DataID 未被用例字面引用、单元格 DataID 不存在或不是 DataID、驱动表与模型同名、在调试计划 / 压测计划中使用。
+- `--data-id` / `--exclude-data-id` 是实例过滤，不是 selector，可与 `@plan_id` 同用；`--case-id` 仍与 `@plan_id` 互斥。
+- 结果 XML 中实例的 `case_id` 为 `用例ID[DataID]`，并带 `template_case_id`、`driver`、`data_id`、`instance_title`、`replacements`；日志中每个被替换的步骤标注 `数据驱动替换 TestForm: T001 → T101（LoginFlow_matrix[admin]）`。
+
+**不要这样做**
+
+- ❌ 复制 N 个用例只改 DataID；❌ 用 `loop` 拼 DataID 代替（只产生一个结果，第 2 组失败后第 3 组不执行）
+- ❌ 在驱动表单元格里写字段值（字段值只写在模型数据表）
+- ❌ 在用例 XML 里写 `data_driven` 或 `${row}`
+
+完整示例：`rodski-demo/demosite/data_driven/`（Web + 接口 + DB）、`rodski-demo/mock_api/business_model/plan/`（业务模型）、`rodski-demo/mobile/app/case/web_app_mix.xml`（Web + App 混合）。
 
 ---
 

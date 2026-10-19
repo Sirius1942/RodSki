@@ -143,6 +143,11 @@ def setup_parser(subparsers):
     parser.add_argument("--case-id", type=str, default=None, dest="case_id",
                         help="指定用例 ID（逗号分隔多个），必须与单个用例文件路径一起使用；"
                              "与 @plan_id 互斥；与 --tag/--priority 同用时在指定用例内过滤")
+    # v11.9.0 计划级数据驱动（CORE §7.8.5）：实例过滤，不属于执行范围 selector，可与 @plan_id 同用
+    parser.add_argument("--data-id", type=str, default=None, dest="data_id",
+                        help="只执行指定的数据驱动实例（逗号分隔；值为 DataID 或 用例ID[DataID]），需配合 @plan_id")
+    parser.add_argument("--exclude-data-id", type=str, default=None, dest="exclude_data_id",
+                        help="排除指定的数据驱动实例（逗号分隔；值为 DataID 或 用例ID[DataID]），需配合 @plan_id")
     parser.add_argument("--model", help="模型文件路径 (model.xml)，不指定则自动推断")
     parser.add_argument("--browser", choices=["chromium", "firefox", "webkit"],
                         default="chromium", help="浏览器类型 (默认: chromium)")
@@ -653,6 +658,18 @@ def handle(args):
     # 项），不再在此单独硬校验——这样该检查项与其余三项一致，可用 --force-compliance
     # 显式跳过；只有 directory_structure 检查不可跳过。默认行为（未加
     # --force-compliance 时冲突仍会阻断执行）与迭代前一致。
+    # v11.9.0 计划级数据驱动：校验先于副作用（CORE §7.8.8），在创建任何驱动之前完成
+    if (getattr(args, "data_id", None) or getattr(args, "exclude_data_id", None)) and plan_path is None:
+        print("错误: --data-id / --exclude-data-id 只能与测试计划（@plan_id）一起使用", file=sys.stderr)
+        return 1
+    if plan_path is not None:
+        dd_errors = _precheck_data_driven(plan_path, case_path, module_dir)
+        if dd_errors:
+            print("错误: 数据驱动配置无效（未执行任何用例）:", file=sys.stderr)
+            for line in dd_errors:
+                print(f"  - {line}", file=sys.stderr)
+            return 1
+
     selector_filters = _build_selector_filters(args)
     plan_path_str = str(plan_path) if plan_path else None
 
@@ -938,6 +955,40 @@ def _handle_dry_run(
     return 0
 
 
+def _precheck_data_driven(plan_path: Path, case_path: Path, module_dir: Path) -> List[str]:
+    """计划中数据驱动配置的执行前校验（v11.9.0，CORE §7.8.8）；计划本身无效时交给后续流程报错。"""
+    try:
+        from ..core.plan_parser import PlanParser
+        from ..core.case_parser import CaseParser
+        from ..core import data_driven
+    except ImportError:
+        from rodski.core.plan_parser import PlanParser
+        from rodski.core.case_parser import CaseParser
+        from rodski.core import data_driven
+    try:
+        plan = PlanParser(str(plan_path)).parse_plan()
+    except Exception:
+        return []
+    if not data_driven.plan_data_driven_entries(plan):
+        return []
+    try:
+        cases = CaseParser(str(case_path)).parse_cases()
+        return data_driven.precheck_plan(plan, cases, module_dir)
+    except data_driven.DataDrivenError as e:
+        return e.errors
+
+
+def _data_id_filters(args) -> Dict[str, List[str]]:
+    try:
+        from ..core.data_driven import parse_id_list
+    except ImportError:
+        from rodski.core.data_driven import parse_id_list
+    return {
+        "include": parse_id_list(getattr(args, "data_id", None)),
+        "exclude": parse_id_list(getattr(args, "exclude_data_id", None)),
+    }
+
+
 def _has_active_selector(selector_filters: Dict[str, Any]) -> bool:
     """判断 selector_filters 中是否有任何活跃的过滤条件。"""
     for k in ("filter_tags", "filter_group", "exclude_tags", "filter_priority"):
@@ -1179,6 +1230,7 @@ def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional
         }
         if plan_path is not None:
             executor.plan_path = str(plan_path)
+        executor.data_id_filters = _data_id_filters(args)
         if getattr(args, "debug", False):
             executor.debug_mode = True
 
@@ -1430,6 +1482,7 @@ def _handle_parallel_execute(case_path: Path, module_dir: Path, args, workers: i
                              if k in config.config},
         "plan_path": str(plan_path) if plan_path else None,
         "selector_filters": selector_filters or {},
+        "data_id_filters": _data_id_filters(args),
         "on_case_failure_specs": hooks_cfg.get("on_case_failure"),
         "hook_context": getattr(args, "_hook_context", {}) or {},
     }, default=str))

@@ -48,6 +48,16 @@ rodski data import <module> --overwrite  # 覆盖已存在的表
 - SQLite 中的同一逻辑表必须有显式 schema，且所有数据行字段集合完全一致
 - `globalvalue.xml` 不进入 SQLite，仍独立维护
 
+**逻辑表类型（`rs_datatable.table_kind`）：**
+
+| 类型 | 表名 | 内容 |
+|------|------|------|
+| `data` | 模型名 | 模型输入数据（type / send / DB 读取） |
+| `verify` | 模型名_verify | 模型期望数据（verify 读取） |
+| `driver`（v11.9.0） | 自定义，不得与模型同名 | 数据驱动表：计划 / 用例 / 步骤的对应关系，`model_name` 记录绑定用例 `case_file::case_id`，列 `表名.基础DataID`，单元格只写 DataID 或 `BLANK`；由计划 `<case data_driven="表名">` 引用，不能被关键字当作数据表读取（CORE §7.8、GUIDE §10.10） |
+
+旧版 data.sqlite 的 `table_kind` 约束只允许 `data` / `verify`；首次执行 `rodski data create-driver` 时自动迁移，并保留 `data.sqlite.bak`。
+
 **初始化：**
 
 ```bash

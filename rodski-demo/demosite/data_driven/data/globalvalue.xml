@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<globalvalue>
+    <group name="DefaultValue">
+        <!-- 自动等待（毫秒）：查找测试对象最多等 5000ms，元素出现即继续 -->
+        <var name="AutoWait" value="5000"/>
+        <var name="WaitTime" value="0"/>
+    </group>
+    <group name="Demo">
+        <!-- 共享被测站点 rodski-demo/_sites/demosite -->
+        <var name="URL" value="http://localhost:8000"/>
+    </group>
+    <group name="orders_db">
+        <!-- 本模块自带只读订单库，由 data/init_data.py 生成（相对模块目录） -->
+        <var name="type" value="sqlite"/>
+        <var name="database" value="data/orders.db"/>
+    </group>
+</globalvalue>

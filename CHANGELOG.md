@@ -1,6 +1,37 @@
 # Changelog
 
 
+## [11.9.0] - 2026-10-19
+
+### 新功能：计划级数据驱动（REQ-013，CORE §7.8）
+
+同一用例流程用多组数据各执行一次、每组得到独立结果。数据驱动**只在测试计划中声明**，用例 XML 不需要改动。
+
+- `plan.xsd`：`<case>` 新增可选属性 `data_driven="数据驱动表名"`（只用于 `kind="suite"`）
+- `data.sqlite`：`table_kind` 新增 `driver`（数据驱动表 = 计划 / 用例 / 步骤对应关系表）
+  - `model_name` 记录绑定用例 `case_file::case_id`；表备注必填；行备注作为实例标题
+  - 列 = `表名.基础DataID`；单元格只写替换后的 DataID 或 `BLANK`（不写字段值）
+  - 驱动表不加载进数据视图，不能被 type / send / verify / DB 当作数据表读取
+- 执行：驱动表每行展开为实例 `用例ID[DataID]`；只替换用例中列出的字面 DataID，其余步骤用基础 DataID；实例之间 Return 历史与 `set` 变量隔离，失败互不影响
+- 业务模型：只替换调用方用例里 `business_call` 的 `input` / `expect`，`flow` 不变
+- 校验先于副作用：驱动表、绑定用例、列、单元格的错误在创建浏览器 / App 驱动之前报出；每张驱动表一次运行只读一次
+- CLI
+  - `rodski run @plan --data-id a,CASE[b]` / `--exclude-data-id c`：实例过滤，不是 selector，可与 `@plan_id` 同用
+  - `rodski data create-driver <module> <表> --case <file::id> --remark <说明> --columns <表.DataID,...>`
+  - `rodski data set ... --remark`（修改行备注）；`data show` 显示行备注；`data list` 列出驱动表与绑定用例；`data validate` 校验驱动表；`add-row` / `add-field` 对驱动表校验单元格与列
+- 结果：`result.xsd` 的 `<result>` 新增可选属性 `template_case_id`、`driver`、`data_id`、`instance_title`、`replacements`；日志标注 `数据驱动替换 表: 旧 → 新（驱动表[实例]）`
+- 被驱动表引用但未写备注的数据行输出 `[WARN]`，不阻断执行
+
+### 兼容性
+
+- 不新增关键字，`case.xsd` / `model.xsd` / `business.xsd` 不变；不挂驱动表的计划与用例行为不变
+- 旧版 data.sqlite 读取不受影响；首次 `rodski data create-driver` 时自动迁移 `rs_datatable` 的 CHECK 约束（事务内完成，保留 `data.sqlite.bak`）
+
+### 文档与验收
+
+- CORE §7.8（新增）及 §2.1 / §2.7 / §7.7 / §16 交叉引用；GUIDE §10.10、§5.3.1；DATA_FILE_ORGANIZATION
+- rodski-demo：`demosite/data_driven/`（DD-01~07、11~14、17）、`mock_api/business_model/run_data_driven_acceptance.py`（DD-08/09）、`mobile/app/scripts/run_data_driven_acceptance.py`（DD-10，Web + Android 混合用例），已登记到 `run_regression.py`
+
 ## [11.8.32] - 2026-10-19
 
 ### ⚠️ 升级须知：可能影响已有用例（从 v11.7.1 升级，覆盖 v11.8.0 ~ v11.8.32）

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  计划级数据驱动（CORE §7.8）Web 用例。用例本身不声明数据驱动，只带基础 DataID：
+  单独运行时全部用基础 DataID；通过 plan/data_driven_suite.xml 运行时，按驱动表替换部分步骤的 DataID。
+-->
+<cases tags="data-driven">
+    <case execute="是" id="DD_FORM" title="表单提交（登录不替换，表单与期望按驱动表替换）" priority="P0">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Demo.URL"/>
+            <test_step action="type" model="LoginForm" data="L001"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="NavMenu" data="N001"/>
+            <test_step action="type" model="TestForm" data="T001"/>
+            <test_step action="verify" model="TestForm" data="V001"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="DD_TWICE" title="同一模型两个基础 DataID 分别替换" priority="P1">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Demo.URL"/>
+            <test_step action="type" model="LoginForm" data="L001"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="NavMenu" data="N001"/>
+            <test_step action="type" model="TestForm" data="T001"/>
+            <test_step action="verify" model="TestForm" data="V001"/>
+            <test_step action="type" model="TestForm" data="T002"/>
+            <test_step action="verify" model="TestForm" data="V002"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="DD_LOOP" title="字面 DataID 替换，loop 中拼接的 DataID 不替换" priority="P1">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Demo.URL"/>
+            <test_step action="type" model="LoginForm" data="L001"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="NavMenu" data="N001"/>
+            <test_step action="type" model="TestForm" data="T001"/>
+            <test_step action="verify" model="TestForm" data="V001"/>
+            <loop var="i" range="1-2">
+                <test_step action="type" model="TestForm" data="T00${i}"/>
+                <test_step action="verify" model="TestForm" data="V00${i}"/>
+            </loop>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+</cases>

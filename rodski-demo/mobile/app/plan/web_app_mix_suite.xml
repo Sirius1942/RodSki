@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Web + App 混合用例的数据驱动：MixMatrix 同时替换浏览器步骤（WebNote）与 Android 步骤（LoginScreen）的 DataID -->
+<test_plan id="web_app_mix_suite" kind="suite" title="Web + App 混合数据驱动">
+    <case file="web_app_mix.xml" id="DD_MIX" data_driven="MixMatrix"/>
+</test_plan>

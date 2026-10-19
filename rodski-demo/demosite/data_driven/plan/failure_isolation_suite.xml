@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 失败隔离：FormMatrixFail 第 2 行期望值错误，只有该实例失败；同计划中的普通用例照常执行一次 -->
+<test_plan id="failure_isolation_suite" kind="suite" title="数据驱动实例失败隔离">
+    <case file="form_flow.xml" id="DD_FORM" data_driven="FormMatrixFail"/>
+    <case file="api_db.xml" id="DD_API"/>
+</test_plan>

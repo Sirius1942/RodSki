@@ -8,6 +8,11 @@
     <var name="Headless" value="False"/>
   </group>
 
+  <group name="Web">
+    <!-- 订单备注后台页（mock_server.py /web/note），浏览器直接访问本机 mock；端口与 mock 启动端口一致 -->
+    <var name="NoteURL" value="http://127.0.0.1:8000/web/note"/>
+  </group>
+
   <group name="Mobile">
     <var name="Platform" value="android"/>
     <var name="AutomationBackend" value="appium"/>

@@ -472,6 +472,8 @@ class SKIExecutor:
         plan_selection = self._compile_plan_selection(cases)
         cases = self._filter_cases_by_plan_scope(cases, plan_selection)
         cases, plan_case_skips = self._apply_plan_selection(cases, plan_selection)
+        # v11.9.0 计划级数据驱动（CORE §7.8）：按计划 <case data_driven> 展开为实例 用例ID[DataID]
+        cases = self._expand_data_driven(cases, plan_case_skips)
         # v11.6.0 --workers：worker 进程与顺序执行用同一 case_path 做发现与选择，
         # 只额外保留分给自己的用例文件（选择 / SKIP 语义与顺序执行完全一致）
         case_file_filter = getattr(self, 'case_file_filter', None)
@@ -521,7 +523,7 @@ class SKIExecutor:
             case_uid = f"{case.get('case_file', '')}::{case.get('case_id', '')}" if case.get('case_file') else case.get('case_id', '')
             case_skip = plan_case_skips.get(case_uid)
             if case_skip:
-                results.append(self._case_result_skipped(case, case_skip))
+                results.append(self._attach_data_driven_fields(self._case_result_skipped(case, case_skip), case))
                 logger.info(f"  SKIP ({case_skip})")
                 continue
             if getattr(self, "session_mode", None) == SESSION_SHARED_BROWSER:
@@ -533,7 +535,7 @@ class SKIExecutor:
                     logger.info(f"新浏览器已启动")
                 except DriverStoppedError as e:
                     logger.error(f"无法重新创建驱动: {e}")
-                    results.append({
+                    results.append(self._attach_data_driven_fields({
                         'case_id': case['case_id'],
                         'title': case.get('title', ''),
                         'status': 'FAIL',
@@ -541,10 +543,14 @@ class SKIExecutor:
                         'error': f'驱动不可用: {str(e)}',
                         'screenshot_path': '',
                         'case_file': case.get('case_file', ''),
-                    })
+                    }, case))
                     continue
 
-            logger.info(f"执行用例 {case_count}/{total_cases}: {case['case_id']} - {case['title']}")
+            _dd = case.get('_data_driven')
+            if _dd:
+                self._begin_data_driven_instance(case)
+            _title = case['title'] + (f" · {_dd['instance_title']}" if _dd and _dd.get('instance_title') else "")
+            logger.info(f"执行用例 {case_count}/{total_cases}: {case['case_id']} - {_title}")
             if self._tracer is not None:
                 self._tracer.start_span(
                     "case",
@@ -553,6 +559,8 @@ class SKIExecutor:
                 )
             try:
                 result = self.execute_case(case)
+                if _dd:
+                    self._attach_data_driven_fields(result, case)
                 results.append(result)
 
                 st = result.get('status', '').upper()
@@ -571,7 +579,7 @@ class SKIExecutor:
                 logger.critical(f"驱动已停止: {e}")
                 if self._tracer is not None:
                     self._tracer.end_span("error")
-                results.append({
+                results.append(self._attach_data_driven_fields({
                     'case_id': case['case_id'],
                     'title': case.get('title', ''),
                     'status': 'FAIL',
@@ -579,7 +587,7 @@ class SKIExecutor:
                     'error': f'驱动已停止: {str(e)}',
                     'screenshot_path': '',
                     'case_file': case.get('case_file', ''),
-                })
+                }, case))
 
         self.result_writer.write_results(results)
 
@@ -592,6 +600,78 @@ class SKIExecutor:
             self.report_collector.end_run()
 
         return results
+
+    def _expand_data_driven(
+        self,
+        cases: List[Dict[str, Any]],
+        plan_case_skips: Dict[str, str],
+    ) -> List[Dict[str, Any]]:
+        """v11.9.0：按计划中的数据驱动表展开实例（只在显式计划模式下生效）。"""
+        plan = getattr(self, 'plan', None)
+        if not getattr(self, 'plan_path', None) or not plan:
+            return cases
+        from .data_driven import expand_plan_cases
+        filters = getattr(self, 'data_id_filters', None) or {}
+        expanded = expand_plan_cases(
+            plan, cases, plan_case_skips, self.module_dir,
+            include=filters.get('include') or (), exclude=filters.get('exclude') or (),
+        )
+        self._dd_state_snapshots: Dict[str, Dict[str, Any]] = {}
+        warned = set()
+        for case in expanded:
+            dd = case.get('_data_driven')
+            if not dd:
+                continue
+            for ref in dd.get('missing_remarks') or []:
+                key = (ref, dd['driver'], dd['data_id'])
+                if key not in warned:
+                    warned.add(key)
+                    logger.warning(
+                        f"[WARN] {ref} 被 {dd['driver']}[{dd['data_id']}] 引用，未写备注"
+                        f"（建议注明所属计划 / 驱动表与用途，CORE §7.8.7）"
+                    )
+        return expanded
+
+    def _begin_data_driven_instance(self, case: Dict[str, Any]) -> None:
+        """实例隔离（CORE §7.8.5）：清空 Return 历史；set 变量恢复为该用例第一个实例开始前的状态。"""
+        dd = case['_data_driven']
+        key = dd['template_uid']
+        ctx = self.keyword_engine._context
+        resolver_vars = getattr(self.data_resolver, 'data_source', None)
+        dyn_vars = getattr(self.dynamic_executor, 'variables', None)
+        snapshots = getattr(self, '_dd_state_snapshots', None)
+        if snapshots is None:
+            snapshots = self._dd_state_snapshots = {}
+        if key not in snapshots:
+            snapshots[key] = {
+                'named': dict(ctx.named),
+                'resolver': dict(resolver_vars) if isinstance(resolver_vars, dict) else None,
+                'dynamic': dict(dyn_vars) if isinstance(dyn_vars, dict) else None,
+            }
+        else:
+            snap = snapshots[key]
+            ctx.named.clear()
+            ctx.named.update(snap['named'])
+            if snap['resolver'] is not None and isinstance(resolver_vars, dict):
+                resolver_vars.clear()
+                resolver_vars.update(snap['resolver'])
+            if snap['dynamic'] is not None and isinstance(dyn_vars, dict):
+                dyn_vars.clear()
+                dyn_vars.update(snap['dynamic'])
+        ctx.history.clear()
+
+    @staticmethod
+    def _attach_data_driven_fields(result: Dict[str, Any], case: Dict[str, Any]) -> Dict[str, Any]:
+        dd = case.get('_data_driven')
+        if dd:
+            for key in ('template_case_id', 'driver', 'data_id', 'instance_title', 'replacements'):
+                result[key] = dd.get(key, '')
+        return result
+
+    @staticmethod
+    def _log_data_driven_replacements(holder: Dict[str, Any]) -> None:
+        for table, old, new, tag in holder.get('_dd_replaced') or []:
+            logger.info(f"数据驱动替换 {table}: {old} → {new}（{tag}）")
 
     def _filter_cases_by_plan_scope(
         self,
@@ -2027,6 +2107,8 @@ class SKIExecutor:
         module's source SQLite tables or leaks into the next call.
         """
         required = ("ref", "flow", "input", "expect")
+        if call.get('_dd_replaced'):
+            self._log_data_driven_replacements(call)
         missing = [name for name in required if not str(call.get(name, "")).strip()]
         if missing:
             raise BusinessModelError(f"business_call 缺少必填属性: {', '.join(missing)}")
@@ -2312,6 +2394,8 @@ class SKIExecutor:
         action = step['action']
         model = step['model']
         data = step['data']
+        if step.get('_dd_replaced'):
+            self._log_data_driven_replacements(step)
 
         # v11.8.0 调试钩子：在执行前检查断点、部分执行控制
         if getattr(self, 'debug_session', None):

@@ -103,6 +103,10 @@ class PlanParser:
         file_attr = case_node.get("file")
         if file_attr is not None:
             result["file"] = file_attr.strip()
+        # data_driven：v11.9.0 计划级数据驱动表名（CORE §7.8），只在显式声明时加入
+        data_driven = (case_node.get("data_driven") or "").strip()
+        if data_driven:
+            result["data_driven"] = data_driven
         # weight 只在 load 计划中使用，仅当 XML 中显式声明时才加入，避免影响 suite 测试期望
         if case_node.get("weight") is not None:
             result["weight"] = int(case_node.get("weight") or 1)

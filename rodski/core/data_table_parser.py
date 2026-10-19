@@ -19,6 +19,8 @@ class DataTableParser:
         self.sqlite_file = self.data_dir / "data.sqlite"
         self.tables: Dict[str, Dict[str, Dict[str, Any]]] = {}
         self._sqlite_source = None
+        # v11.9.0：数据驱动表名（不加载、不能被 type/send/verify/DB 当作数据表读取）
+        self.driver_tables: set = set()
 
     def parse_all_tables(self) -> Dict[str, Dict[str, Dict[str, Any]]]:
         self.tables = {}
@@ -43,6 +45,7 @@ class DataTableParser:
                 sqlite_tables, self._sqlite_source.get_schema()
             )
             self.tables.update(sqlite_tables)
+            self.driver_tables = set(self._sqlite_source.get_driver_table_names())
 
         return self.tables
 
@@ -56,6 +59,11 @@ class DataTableParser:
             self.tables[table_name] = dict(rows)
 
     def get(self, table_name: str, data_id: Optional[str] = None) -> Any:
+        if table_name in self.driver_tables and table_name not in self.tables:
+            raise DataParseError(
+                f"{table_name} 是数据驱动表（table_kind='driver'），只能由测试计划 <case data_driven> 引用，"
+                f"不能作为模型数据表读取（CORE §7.8）"
+            )
         if table_name not in self.tables:
             return None
         if data_id is None:
