@@ -2,7 +2,7 @@
 
 设计文档: .pb/specs/v11.7.0-autowait-unified-design.md §3.1
 
-``DefaultValue.AutoWait``（毫秒；不设置或 0 = 不自动等待）是所有驱动、所有"查找测试对象"
+``DefaultValue.AutoWait``（毫秒；不设置默认 10000，0 = 不自动等待，v11.10.0 / REQ-015）是所有驱动、所有"查找测试对象"
 步骤的唯一等待上限。本模块掌握**轮询与 deadline**，驱动只提供两样东西：
 
 1. ``probe(locator, frame=None) -> bool``：即时探测，不等待；
@@ -13,15 +13,15 @@
 
     deadline = now + AutoWait
     [定位阶段]  loop: 按 priority 对该元素所有 location 做即时探测
-                    命中 → 可操作阶段；全部未命中 → sleep(interval) 直到 deadline
-    [可操作阶段] 在命中的定位器上执行动作，timeout = remaining（下限 1ms）
+                    命中 → 可操作阶段；全部未命中 → sleep(interval，1s) 直到 deadline
+    [可操作阶段] 在命中的定位器上执行动作，timeout = remaining（下限 MIN_ACTION_TIMEOUT_MS=500ms）
     超时 → ElementWaitTimeoutError
 
 要点：
 - 按元素计时：type 批量中每个字段独立一个 Deadline；同一元素多个 location 共享它。
 - AutoWait=0：每个定位器恰好探测一次；已找到的元素动作 timeout 取下限 MIN_ACTION_TIMEOUT_MS（500ms）。
   **Playwright 的 timeout=0 表示无限等待，严禁把 0 传给驱动**（见 :meth:`Deadline.action_timeout_ms`）。
-- 轮询间隔：DOM/原生控件 0.2s；视觉定位（每轮新截图 + 一次匹配）最小 1.0s。
+- 轮询间隔：统一 1.0s（DOM / 原生控件 / 视觉定位；第一次探测立即进行，REQ-015 Q1）。
 - 契约 / 配置类错误（PerceptionUnavailableError、InvalidParameterError、驱动已停止等）立即失败，不重试。
 """
 from __future__ import annotations
@@ -44,13 +44,15 @@ from .exceptions import (
 
 logger = logging.getLogger("rodski")
 
-# 未配置 DefaultValue.AutoWait 时的取值（毫秒）：0 = 不自动等待。
-# 没有隐含的默认等待时长（Owner 决策 2026-09-30）：要自动等待必须在 globalvalue.xml 显式设置时长
-DEFAULT_AUTO_WAIT_MS = 0
-# DOM / 原生控件的探测轮询间隔（秒），与 v11.6.0 verify 重试间隔一致
-DOM_POLL_INTERVAL_S = 0.2
-# 视觉定位（vision / vision_image / ocr / vision_bbox）每轮最小间隔（秒）
-VISION_POLL_INTERVAL_S = 1.0
+# 未配置（或空值）DefaultValue.AutoWait 时的取值（毫秒）：默认最多等待 10 秒。
+# v11.10.0（REQ-015，Owner 2026-10-22）取代 v11.7.1 的"不设置 = 不等待"；显式写 0 才关闭自动等待。
+# 这是唯一的默认值定义处，BaseDriver / KeywordEngine 均引用它。
+DEFAULT_AUTO_WAIT_MS = 10000
+# 探测轮询间隔（秒）：所有 AutoWait（默认值与显式配置）统一每 1 秒探测一次（REQ-015 Q1）。
+POLL_INTERVAL_S = 1.0
+# 兼容名：DOM / 原生控件与视觉定位使用同一间隔
+DOM_POLL_INTERVAL_S = POLL_INTERVAL_S
+VISION_POLL_INTERVAL_S = POLL_INTERVAL_S
 # 元素已找到后，交给驱动执行一次动作的 timeout 下限（毫秒）。
 # - Playwright timeout=0 表示无限等待，绝不能传 0；
 # - 一次真实点击 / 输入本身需要几十毫秒的往返，1ms 会让已就绪的元素也超时（AutoWait=0 时尤甚）。
@@ -77,6 +79,29 @@ class AutoWaitConfigError(ValueError):
         self.message = message
 
 
+class AutoWaitMs(float):
+    """AutoWait 毫秒数；``is_default=True`` 表示用户未配置、取的是 :data:`DEFAULT_AUTO_WAIT_MS`。
+
+    以 float 子类携带"是否默认值"，沿 KeywordEngine → 驱动 → :class:`Deadline` 传递，
+    超时报错据此标明"未设置，使用默认值"并提示配置位置（REQ-015 R3）。
+    """
+
+    is_default: bool
+
+    def __new__(cls, value: float, is_default: bool = False) -> "AutoWaitMs":
+        obj = super().__new__(cls, value)
+        obj.is_default = bool(is_default)
+        return obj
+
+    def __repr__(self) -> str:
+        return f"AutoWaitMs({float(self):g}{', default' if self.is_default else ''})"
+
+
+def is_default_auto_wait(ms: Any) -> bool:
+    """``ms`` 是否来自"未配置 AutoWait"的默认值。"""
+    return bool(getattr(ms, "is_default", False))
+
+
 def _default_group(global_vars: Optional[Mapping[str, Any]]) -> Mapping[str, Any]:
     group = (global_vars or {}).get("DefaultValue") or {}
     return group if isinstance(group, Mapping) else {}
@@ -85,26 +110,26 @@ def _default_group(global_vars: Optional[Mapping[str, Any]]) -> Mapping[str, Any
 def resolve_auto_wait_ms(global_vars: Optional[Mapping[str, Any]]) -> float:
     """读取 ``DefaultValue.AutoWait``（毫秒）。
 
-    - 未配置 / 空值 → 0：**不自动等待**（没有隐含默认时长）
+    - 未配置 / 空值 → :data:`DEFAULT_AUTO_WAIT_MS`（10000，``is_default=True``；v11.10.0 / REQ-015）
     - 0 → 不等待（每个定位器探测一次）
     - 正数 → 最多等待该毫秒数
     - 负数 / 非数字 → :class:`AutoWaitConfigError`
     - 旧键 ``VerifyTimeout``（v11.6.0 开发期名称）有值 → :class:`AutoWaitConfigError` 提示改名
 
     Returns:
-        毫秒数（float，可能带小数）。
+        :class:`AutoWaitMs`（float 子类，可能带小数）。
     """
     group = _default_group(global_vars)
     legacy = group.get("VerifyTimeout")
     if legacy is not None and str(legacy).strip() != "":
         raise AutoWaitConfigError(
             "VerifyTimeout",
-            "DefaultValue.VerifyTimeout 已更名为 DefaultValue.AutoWait（自动等待，单位毫秒；不设置或 0 = 不自动等待）。"
-            "修复: 改写为 <var name=\"AutoWait\" value=\"5000\"/>；填 0 关闭自动等待",
+            "DefaultValue.VerifyTimeout 已更名为 DefaultValue.AutoWait（自动等待，单位毫秒；不设置默认最多等待 10 秒；填 0 关闭自动等待）。"
+            "修复: 改写为 <var name=\"AutoWait\" value=\"10000\"/>，或删除该行使用默认值",
         )
     raw = group.get("AutoWait")
     if raw is None or str(raw).strip() == "":
-        return float(DEFAULT_AUTO_WAIT_MS)
+        return AutoWaitMs(DEFAULT_AUTO_WAIT_MS, is_default=True)
     text = str(raw).strip()
     try:
         value = float(text)
@@ -114,9 +139,9 @@ def resolve_auto_wait_ms(global_vars: Optional[Mapping[str, Any]]) -> float:
         raise AutoWaitConfigError(
             "AutoWait",
             f"DefaultValue.AutoWait 取值 '{raw}' 非法，必须是非负数（单位毫秒）。"
-            f"修复: 写 <var name=\"AutoWait\" value=\"5000\"/> 表示最多等待 5 秒；不设置或填 0 表示不自动等待",
+            f"修复: 写 <var name=\"AutoWait\" value=\"5000\"/> 表示最多等待 5 秒；不设置默认最多等待 10 秒；填 0 关闭自动等待",
         )
-    return value
+    return AutoWaitMs(value)
 
 
 def format_ms(ms: float) -> str:
@@ -133,9 +158,11 @@ class ElementWaitTimeoutError(ElementNotFoundError):
     是 :class:`DriverError`（经 ElementNotFoundError）的子类；已等满 AutoWait，
     步骤级重试不再重试它（KeywordEngine.execute）。
 
-    消息格式::
+    消息格式（REQ-015 R3：写明探测间隔与次数；未配置时标明默认值并提示配置位置）::
 
-        元素 Model.field 在 AutoWait=5000ms 内未找到；尝试定位器: id=a, text=b；最后错误: ...
+        元素 Model.field 在 AutoWait=5000ms 内未找到；每 1000ms 探测一次，共探测 6 次；尝试定位器: id=a, text=b；最后错误: ...
+        元素 Model.field 在 AutoWait=10000ms（未设置，使用默认值）内未找到；每 1000ms 探测一次，共探测 11 次；...
+        提示: 可在 data/globalvalue.xml 的 DefaultValue 组中设置 <var name="AutoWait" value="毫秒"/>；填 0 关闭自动等待
     """
 
     error_code = "SKI326"
@@ -148,19 +175,34 @@ class ElementWaitTimeoutError(ElementNotFoundError):
         locators: Sequence[str] = (),
         last_error: Any = None,
         found: bool = False,
+        probes: Optional[int] = None,
+        interval_ms: Optional[float] = None,
+        is_default: Optional[bool] = None,
     ):
         self.element = element
         self.auto_wait_ms = auto_wait_ms
         self.locators = list(locators)
         self.last_error = last_error
         self.found = found
+        self.probes = probes
+        self.interval_ms = interval_ms
+        self.is_default = is_default_auto_wait(auto_wait_ms) if is_default is None else bool(is_default)
         state = "不可操作" if found else "未找到"
         tried = ", ".join(self.locators) if self.locators else "(无)"
         last = _brief_error(last_error) if last_error is not None else "无"
+        # 显式："AutoWait=5000ms 内"；默认："AutoWait=10000ms（未设置，使用默认值）内"
+        budget = f"AutoWait={format_ms(auto_wait_ms)}ms" + ("（未设置，使用默认值）" if self.is_default else " ")
+        polling = ""
+        if probes is not None:
+            polling = (f"每 {format_ms(interval_ms)}ms 探测一次，共探测 {probes} 次；"
+                       if interval_ms is not None and probes > 1 else f"共探测 {probes} 次；")
         message = (
-            f"元素 {element} 在 AutoWait={format_ms(auto_wait_ms)}ms 内{state}；"
+            f"元素 {element} 在 {budget}内{state}；{polling}"
             f"尝试定位器: {tried}；最后错误: {last}"
         )
+        if self.is_default:
+            message += ("\n提示: 可在 data/globalvalue.xml 的 DefaultValue 组中设置 "
+                        "<var name=\"AutoWait\" value=\"毫秒\"/>；填 0 关闭自动等待")
         cause = last_error if isinstance(last_error, BaseException) else None
         super().__init__(message, cause=cause)
 
@@ -181,7 +223,7 @@ class Deadline:
     """一个元素的等待预算。
 
     Args:
-        budget_ms: AutoWait 毫秒数（0 = 不等待）。
+        budget_ms: AutoWait 毫秒数（0 = 不等待）；:class:`AutoWaitMs` 的 ``is_default`` 会被保留。
         clock / sleep: 可注入，便于单元测试。
     """
 
@@ -191,6 +233,7 @@ class Deadline:
         clock: Optional[Callable[[], float]] = None,
         sleep: Optional[Callable[[float], None]] = None,
     ):
+        self.is_default = is_default_auto_wait(budget_ms)
         self.budget_ms = max(0.0, float(budget_ms))
         # 运行期再取 time.monotonic / time.sleep，便于测试 monkeypatch
         self._clock = clock or (lambda: time.monotonic())
@@ -226,7 +269,7 @@ class Deadline:
 
 
 def poll_interval_for(locator_types: Iterable[str]) -> float:
-    """含视觉定位器 → 1.0s，否则 0.2s。"""
+    """探测间隔（秒）。v11.10.0（REQ-015）起视觉 / 非视觉统一 1.0s；保留函数供调用方按定位器类型取值。"""
     return VISION_POLL_INTERVAL_S if any(t in VISION_LOCATOR_TYPES for t in locator_types) else DOM_POLL_INTERVAL_S
 
 
@@ -355,7 +398,10 @@ def run_element(
                 f"元素 {element} 的所有定位器当前驱动均不支持: {', '.join(tried)}；最后错误: {_brief_error(last_error)}"
             )
         if deadline.expired():
-            raise ElementWaitTimeoutError(element, deadline.budget_ms, tried, last_error, found=found)
+            logger.debug(f"{element}: AutoWait 超时，每 {format_ms(interval_s * 1000)}ms 探测一次，共探测 {rounds} 次")
+            raise ElementWaitTimeoutError(element, deadline.budget_ms, tried, last_error, found=found,
+                                          probes=rounds, interval_ms=interval_s * 1000,
+                                          is_default=deadline.is_default)
         deadline.sleep_round(round_start, interval_s)
 
 

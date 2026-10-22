@@ -3,18 +3,18 @@
 设计：`.pb/specs/v11.7.0-autowait-unified-design.md`（§4.1 / §4.2）
 基线：`.pb/iterations/iteration-65/baseline.md`
 
-配套边界模块：`../autowait_zero/`（不设置 `AutoWait` = 不自动等待）、`../autowait_long/`（`AutoWait=12000`）。
+配套边界模块：`../autowait_zero/`（显式 `AutoWait=0` = 不自动等待）、`../autowait_long/`（`AutoWait=12000`）、`../autowait_default/`（不设置 `AutoWait`）。
 本模块的 `data/globalvalue.xml` 显式写 `<var name="AutoWait" value="5000"/>`。
-AutoWait **没有默认时长**（v11.7.1）：不设置或写 `0` 都表示不自动等待，要自动等待必须显式写时长。
+不设置 `AutoWait`（或值为空）时默认最多等待 **10000ms**；所有配置都**每 1000ms 探测一次**（第一次立即探测）；显式写 `0` 关闭自动等待（v11.10.0，REQ-015；v11.7.1~v11.9.0 中"不设置 = 不等待"已取消）。
 
 ## 运行
 
 ```bash
-python3 rodski-demo/local/autowait/run_acceptance.py            # 全部 W01~W30
+python3 rodski-demo/local/autowait/run_acceptance.py            # 全部 W01~W39
 python3 rodski-demo/local/autowait/run_acceptance.py W11 W17    # 指定编号
 ```
 
-脚本在 `127.0.0.1:8767` 以 `fun/site/` 为根目录起静态服务（三个模块共用），逐项真实调用
+脚本在 `127.0.0.1:8767` 以 `fun/site/` 为根目录起静态服务（四个模块共用），逐项真实调用
 `rodski run <用例文件> --case-id <ID> --headless --trace`，断言结果、**步骤级**耗时窗口
 （从 `trace.json` 的 `keyword.*` span 读取，扣除浏览器启动与 navigate）与错误信息
 （须含 `AutoWait=<ms>` 与元素名）。手工单跑用例时先自行起站点：
@@ -24,7 +24,7 @@ cd rodski-demo/local/autowait/fun/site && python3 -m http.server 8767
 ```
 
 数据只在 `data/data.sqlite` 中（同表字段集合一致，缺字段显式 `BLANK`）。
-`fun/build_data.py` 是三个模块 `data.sqlite` 的可复现生成器；增删改行也可直接用
+`fun/build_data.py` 是四个模块 `data.sqlite` 的可复现生成器；增删改行也可直接用
 `rodski data add-row / set / delete-row`。
 
 ## 测试站点 `fun/site/`（`?d=毫秒` 控制延迟，`d<0` 表示永不发生）
@@ -56,10 +56,16 @@ cd rodski-demo/local/autowait/fun/site && python3 -m http.server 8767
 | W12 | `case/positive/multi_locator.xml` | 通过，type 步骤 ∈ [1.5, 4.0]s（≈ d，不是 AutoWait + d） |
 | W13–W15 | `case/positive/read_keywords.xml` | get / clear / upload_file，d=2s，通过且步骤 ≤4.5s |
 | W16 | `case/positive/ready.xml` | 10 字段 type ≤2.5s（G4 命中即走） |
-| W17–W22 | `case/negative/late_20s.xml` | click / 输入 / select / hover / get / clear 对 20s 元素失败，耗时 ∈ [4.5, 7.5]s，错误含 `AutoWait=5000` + 元素名 |
+| W17–W22 | `case/negative/late_20s.xml` | click / 输入 / select / hover / get / clear 对 20s 元素失败，耗时 ∈ [4.5, 7.5]s，错误含 `AutoWait=5000` + 元素名；W17 另断言"每 1000ms 探测一次"、探测 5~7 次、不出现"未设置" |
 | W23 | `case/negative/overlay_never.xml` | 遮罩永不移除 → click 失败（无 force/JS 降级），同上窗口与错误信息 |
 | W24 | `case/negative/multi_locator_miss.xml` | 两个 location 全不命中 → ≈1 × AutoWait 失败 |
-| W25–W27 | `../autowait_zero/case/autowait_zero.xml` | 不设置 `AutoWait`（= 不自动等待）：1.5s 元素 click / 输入 <1.5s 失败（含 `AutoWait=0`）；就绪元素通过 |
+| W25–W27 | `../autowait_zero/case/autowait_zero.xml` | 显式 `AutoWait=0`（不自动等待）：1.5s 元素 click / 输入 <1.5s 失败（含 `AutoWait=0`）；就绪元素通过 |
 | W28–W30 | `../autowait_long/case/autowait_long.xml` | `AutoWait=12000`：8s 元素 click / 输入通过；20s 按钮失败耗时 ∈ [11.5, 14.5]s（含 `AutoWait=12000`） |
+| W31–W34 | `../autowait_default/case/autowait_default.xml` | 不设置 `AutoWait`（REQ-015 AD-01~04）：3s 后出现的按钮 / 输入框 / UI verify 文本 / get 文本均通过，步骤 ∈ [1.5, 5.5]s |
+| W35 | 同上 TC005 | AD-05/06：20s 按钮约 10s 失败（∈ [9.5, 12.5]s），错误含 `AutoWait=10000ms（未设置，使用默认值）`、配置提示、探测 10~12 次 |
+| W36 | 同上 TC006 | AD-07：就绪元素无额外等待（≤2.5s） |
+| W37 | 同上 TC007 | AD-08：两个 location 全不命中 → ≈1 × 10s 失败（共享预算） |
+| W38 | 临时副本 `AutoWait=""` | AD-09：空值等同未设置（默认 10000ms） |
+| W39 | 临时副本 `AutoWait=abc` | AD-12：执行前报错、非 0 退出，文案为"不设置默认最多等待 10 秒；填 0 关闭自动等待" |
 
 UI 原子动作（click / select【值】/ hover / double_click / right_click）只写在 type 数据表字段值中；用例中没有任何 `wait` 步骤。

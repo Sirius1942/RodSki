@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""生成 autowait / autowait_zero / autowait_long 三个模块的 data/data.sqlite。
+"""生成 autowait / autowait_zero / autowait_long / autowait_default 四个模块的 data/data.sqlite。
 
 data.sqlite 是唯一测试数据文件（CORE §2.1）；本脚本只是可复现的生成器，不是数据源。
 - 同一逻辑表所有行字段集合一致（缺字段一律显式 BLANK，CORE §2.4.1）
@@ -153,6 +153,13 @@ AUTOWAIT: Dict[str, Table] = {
 
 ZERO: Dict[str, Table] = {**LATE_INPUT, **LATE_BUTTON, **READY}
 LONG: Dict[str, Table] = {**LATE_INPUT, **LATE_BUTTON}
+# REQ-015（v11.10.0）不设置 AutoWait 的默认值验收：复用 autowait 全部表，另加 UI verify 直接等待延迟文本
+DEFAULT: Dict[str, Table] = {
+    **AUTOWAIT,
+    "LateGet_verify": t(["lateValue"], {
+        "V001": ("延迟文本出现后等于参考值（未设置 AutoWait，默认 10s 内轮询）", {"lateValue": "订单号-A7K9"}),
+    }),
+}
 
 
 def write_module(module: Path, tables: Dict[str, Table]) -> None:
@@ -182,3 +189,4 @@ if __name__ == "__main__":
     write_module(DEMO / "autowait", AUTOWAIT)
     write_module(DEMO / "autowait_zero", ZERO)
     write_module(DEMO / "autowait_long", LONG)
+    write_module(DEMO / "autowait_default", DEFAULT)

@@ -687,7 +687,7 @@ class KeywordEngine:
     # ── v11.7.0 自动等待（AutoWait）──────────────────────────────────
 
     def _auto_wait_ms(self) -> float:
-        """DefaultValue.AutoWait（毫秒；不设置或 0 = 不自动等待）；非法 / 旧键 VerifyTimeout → InvalidParameterError。"""
+        """DefaultValue.AutoWait（毫秒；不设置默认 10000，0 = 不自动等待）；非法 / 旧键 VerifyTimeout → InvalidParameterError。"""
         try:
             return _aw.resolve_auto_wait_ms(self._global_vars)
         except AutoWaitConfigError as e:
@@ -705,7 +705,8 @@ class KeywordEngine:
             return
         try:
             value = self._auto_wait_ms() if ms is None else ms
-            if getattr(driver, '_auto_wait_ms', None) == value:
+            current = getattr(driver, '_auto_wait_ms', None)
+            if current == value and _aw.is_default_auto_wait(current) == _aw.is_default_auto_wait(value):
                 return
             setter(value)
         except InvalidParameterError:
@@ -2599,7 +2600,7 @@ class KeywordEngine:
             logger.debug(f"match_mode=strict: 验证 {len(fields_to_verify)} 个模型字段")
 
         # v11.6.0 (A2) / v11.7.0: UI 模型 verify 在 AutoWait（自动等待）内轮询，直到全部字段匹配或超时；
-        # DOM 字段间隔 200ms，含视觉字段时每轮新截图、最小间隔 1s（v11.7.0 起视觉字段不再关闭重试）；
+        # 每 1s 轮询一次（v11.10.0 / REQ-015 起 DOM 与视觉统一；含视觉字段时每轮新截图）；
         # 接口/DB 结果是一次性的，保持单次比对
         auto_wait_ms = self._auto_wait_ms() if model_type == MODEL_TYPE_UI else 0.0
         verify_timeout = auto_wait_ms / 1000.0
@@ -2669,7 +2670,9 @@ class KeywordEngine:
                 for m in mismatches
             )
             if attempts > 1:
-                detail += f"（已自动重试等待 {_aw.format_ms(auto_wait_ms)}ms，DefaultValue.AutoWait）"
+                default_note = "，未设置，使用默认值" if _aw.is_default_auto_wait(auto_wait_ms) else ""
+                detail += (f"（已自动重试等待 {_aw.format_ms(auto_wait_ms)}ms{default_note}，"
+                           f"每 {_aw.format_ms(poll_interval * 1000)}ms 读取一次，共 {attempts} 次，DefaultValue.AutoWait）")
             logger.error(f"批量验证失败: {detail}")
             raise AssertionFailedError(
                 message=f"批量验证失败: {detail}",
@@ -2691,7 +2694,7 @@ class KeywordEngine:
 
     # v11.6.0 (A2): verify 自动重试的轮询间隔（秒）；v11.7.0 起统一取自 core.auto_wait
     VERIFY_RETRY_INTERVAL = _aw.DOM_POLL_INTERVAL_S
-    # v11.6.0 (A2): 未配置 DefaultValue.AutoWait（自动等待）时的默认值（毫秒）
+    # 未配置 DefaultValue.AutoWait（自动等待）时的默认值（毫秒）：v11.10.0 起 10000（REQ-015）
     DEFAULT_AUTO_WAIT_MS = _aw.DEFAULT_AUTO_WAIT_MS
 
     @staticmethod
@@ -2710,7 +2713,7 @@ class KeywordEngine:
     def _resolve_verify_timeout(self) -> float:
         """读取 DefaultValue.AutoWait（自动等待，毫秒）并换算为秒（兼容 v11.6.0 接口）。
 
-        解析规则见 :func:`core.auto_wait.resolve_auto_wait_ms`：未配置或 0 = 不自动等待；
+        解析规则见 :func:`core.auto_wait.resolve_auto_wait_ms`：未配置默认 10000ms，0 = 不自动等待；
         负数 / 非数字 / 旧键 VerifyTimeout → InvalidParameterError。
         """
         try:

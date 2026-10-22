@@ -1,7 +1,7 @@
 # RodSki 核心设计约束
 
-**版本**: v11.9.0
-**日期**: 2026-09-30
+**版本**: v11.10.0
+**日期**: 2026-10-22
 
 本文档记录 RodSki 框架的核心设计决策与约束规则，所有后续开发必须遵循。
 
@@ -14,7 +14,8 @@
 | 版本 | 日期 | 主要变更 |
 |------|------|---------|
 | v11.9.0 | 2026-10-19 | 计划级数据驱动（§7.8 新增，不新增关键字，`case.xsd` 不变）：`plan.xsd` `<case data_driven="表名">`；`data.sqlite` 新增 `table_kind='driver'` 数据驱动表（计划 / 用例 / 步骤对应关系表，只存 DataID）；用例保留基础 DataID，按 `表名.基础DataID` 列替换；实例 `用例ID[DataID]` 隔离；`--data-id` / `--exclude-data-id` 实例过滤可与 `@plan_id` 同用 |
-| v11.7.1 | 2026-09-30 | `AutoWait` 取消隐含默认时长：**不设置或 `0` = 不自动等待**，要自动等待必须在 `globalvalue.xml` 显式写时长（如 `5000`）；`rodski init` 模板默认写 `AutoWait=5000`；rodski-demo 全部模块显式配置 |
+| v11.10.0 | 2026-10-22 | `AutoWait` 默认值（REQ-015，Owner 决策，取代 v11.7.1）：**不设置或空值 = 默认最多等待 10000ms**，只有显式 `0` 关闭自动等待；所有 AutoWait（默认与显式、DOM / 原生 / 视觉）统一**每 1000ms 探测一次**（第一次立即探测）；SKI326 错误信息写明探测间隔与次数，使用默认值时标注"未设置，使用默认值"并提示配置位置；`rodski init` 模板写 `AutoWait=10000`（§13、§4.6.5、§7.4） |
+| v11.7.1 | 2026-09-30 | ~~`AutoWait` 取消隐含默认时长~~（v11.10.0 已取代）：**不设置或 `0` = 不自动等待**，要自动等待必须在 `globalvalue.xml` 显式写时长（如 `5000`）；`rodski init` 模板默认写 `AutoWait=5000`；rodski-demo 全部模块显式配置 |
 | v11.7.0 | 2026-09-30 | 自动等待统一接管元素查找（不新增关键字，`case.xsd` / `model.xsd` 不变）：`DefaultValue.AutoWait`（毫秒）成为所有驱动、所有查找测试对象步骤（`type` 每个字段、`verify`、`get`、`clear`、`upload_file`、视觉定位）的唯一等待上限；§13 重写（原"智能等待"从未接通）；删除 `smart_wait_*` 等死配置；驱动禁止内部等待与 force/JS 降级；新增 SKI326 / SKI327 |
 | v11.6.0 | 2026-09-29 | AI 编写效率、断言可靠性与执行性能（不新增关键字，`case.xsd` 不变）：`verify` 新增 `$count` / `$count_gte` / `$count_lte` / `$exists` / `$visible` 元素级操作符，0 匹配按实际数量 0 判定（§4.6）；UI 模型 `verify` 默认自动重试到期望值（自动等待 `DefaultValue.AutoWait`，毫秒，默认 5000，§4.6.5）；`model.xsd` 新增定位类型 `page`（url/title/path/dialog）与 `<location frame="...">` 属性（§2.5.6）；原生 dialog 策略 `DialogPolicy`；`evaluate` 支持 `file:` 引用模块内脚本（§1.5）；`run` 内置函数 `save_auth_state` / `use_auth_state`（§1.4）；`WaitTime` 与 `step_wait` 统一为毫秒、`SessionMode` / `EvidenceMode` / `--workers` / `--report junit`（§7.4、§23） |
 | v11.5.0 | 2026-09-29 | `case/` 支持任意多级嵌套目录，递归发现用例（§6.5 新增）；用例完整标识改为 `case_file + case.id`，ID 只要求文件内唯一（§7.2）；`result.xsd` 新增 `case_file`（§7.6）；`plan.xsd` 的 `case@file` 必填（单文件模块兼容例外）、新增 `case_dir`，`--case-id` 加入 `@plan_id` 互斥 selector 清单（§7.7）；结果目录按 `case/` 目录结构镜像，截图/录像路径随之改变（Agent 契约摘要） |
@@ -949,11 +950,11 @@ INSERT INTO rs_field (row_id, field_name, field_value) VALUES
 
 #### 4.6.5 UI `verify` 自动重试到期望值（v11.6.0，Owner 决策 D1）
 
-**语义**：UI 模型（`type="ui"`）的 `verify` 在自动等待 `AutoWait` 毫秒内按 200ms 间隔轮询：每轮重新读取**全部**字段的实际值并比对，**全部字段**匹配即通过；超时后按**最后一次**读到的实际值判定失败，错误信息逐字段列出期望 / 实际。
+**语义**：UI 模型（`type="ui"`）的 `verify` 在自动等待 `AutoWait` 毫秒内按 1000ms 间隔轮询（v11.10.0 起与元素查找同一间隔）：每轮重新读取**全部**字段的实际值并比对，**全部字段**匹配即通过；超时后按**最后一次**读到的实际值判定失败，错误信息逐字段列出期望 / 实际。
 
 | 项 | 约定 |
 |----|------|
-| 配置 | `globalvalue.xml` → `DefaultValue.AutoWait`（自动等待），单位**毫秒**；不设置或 `0` = 不自动等待（单次比对），需显式设置如 `5000`（v11.7.1 起无默认时长）；开发期名称 `VerifyTimeout` 已废弃，出现即在执行前报错并提示改名 |
+| 配置 | `globalvalue.xml` → `DefaultValue.AutoWait`（自动等待），单位**毫秒**；不设置或空值 = 默认 10000（v11.10.0，REQ-015）；开发期名称 `VerifyTimeout` 已废弃，出现即在执行前报错并提示改名 |
 | 关闭 | `AutoWait=0`：恢复单次比对（v11.5 及之前的行为） |
 | 适用范围 | 仅 UI 模型的 `verify`（含 `check`，含视觉定位字段，v11.7.0 起视觉字段按 1000ms 间隔轮询）；**接口 / DB 模型的 `verify` 始终单次比对**（结果是一次性的，重试没有意义） |
 | 读取失败 | 轮询期间元素暂时找不到、文本为空等视为「本轮未匹配」继续重试，不中断；超时后才报失败 |
@@ -1316,7 +1317,7 @@ pre_process → test_case → roaming（可选）→ post_process
 | 键 | 取值 | 默认 | 说明 |
 |----|------|------|------|
 | `WaitTime` | 非负数，单位**毫秒** | `0` | 每个步骤执行后的固定等待（`wait` / `close` 步骤除外）。`<cases step_wait="...">` 同为毫秒，存在时覆盖本值。**过渡兼容（D3）**：值 `≤ 30`（不含 0）按**秒**解释，并在本次 run 中打印一次含「WaitTime」与「毫秒」的弃用告警，提示改写为毫秒；`> 30` 按毫秒解释 |
-| `AutoWait` | 非负数，单位**毫秒** | 无（不设置 = 不自动等待） | 自动等待：**所有驱动、所有查找测试对象步骤**（type 每个字段、verify、get、clear、upload_file、视觉定位）的等待上限（§13）；不设置或 `0` = 不等待；推荐写 `5000`；不影响接口 / DB 模型 |
+| `AutoWait` | 非负数，单位**毫秒** | `10000`（不设置或空值，v11.10.0） | 自动等待：**所有驱动、所有查找测试对象步骤**（type 每个字段、verify、get、clear、upload_file、视觉定位）的等待上限（§13），每 1000ms 探测一次；`0` = 关闭自动等待；不影响接口 / DB 模型 |
 | `DialogPolicy` | `accept` \| `dismiss` \| `fail` | `fail` | 未注册一次性处理器的原生弹窗如何处理（§2.5.6）；`fail` 时步骤失败并报告弹窗文本 |
 | `SessionMode` | `isolated` \| `shared_browser` \| `shared_session` | `isolated` | 浏览器会话复用方式（§23.1）；CLI `--session-mode` 覆盖 |
 | `EvidenceMode` | `full` \| `concise` | `full` | 截图证据模式（§23.4）；CLI `--evidence` 覆盖 |
@@ -2184,7 +2185,7 @@ RodSki DSL 支持 `<if>/<else>` 条件分支。这是**声明式 DSL 的扩展�
 
 ---
 
-## 13. 自动等待（AutoWait）机制（v11.7.0 重写）
+## 13. 自动等待（AutoWait）机制（v11.7.0 重写；v11.10.0 默认值）
 
 > v11.7.0 之前本节描述的"智能等待"（`smart_wait_*` 配置、BaseDriver 自动继承、30 × 0.3s = 9 秒）在代码中**从未接通**：
 > 配置无任何读取点，各驱动实际使用各自硬编码的超时（Playwright 10s/5s/3s/30s、Appium 10s、桌面 0）。
@@ -2203,7 +2204,18 @@ RodSki DSL 支持 `<if>/<else>` 条件分支。这是**声明式 DSL 的扩展�
 | `clear` / `upload_file` | 目标元素出现且可操作 |
 | 视觉定位（`vision` / `vision_image` / `ocr`） | 每轮新截图 + 一次匹配 |
 
-**没有默认时长（v11.7.1，Owner 决策）**：不设置 `AutoWait` 或写 `0` 都表示**不自动等待**（每个定位器只尝试一次）；要自动等待必须显式写时长，推荐 `<var name="AutoWait" value="5000"/>`。`rodski init` 生成的模板默认写 `5000`。非数字取值（如 `default`）执行前报错。
+**取值（v11.10.0，REQ-015，Owner 决策 2026-10-22；取代 v11.7.1 的"不设置 = 不等待"）**：
+
+| 配置 | 行为 |
+|------|------|
+| 不设置 / 空值（含只有空格） | **默认最多等待 10000ms** |
+| `0` | 关闭自动等待：每个定位器只尝试一次 |
+| 正数 `N` | 最多等待 `N` 毫秒 |
+| 负数 / 非数字（如 `default`）/ 旧键 `VerifyTimeout` | 执行前报错 |
+
+- **探测间隔统一 1000ms**：默认值与显式配置、DOM / 原生控件 / 视觉定位都相同；第一次探测立即进行（元素已就绪不产生任何等待），之后约每 1s 一次，到达截止时间再探测最后一次后报超时（10000ms → 共 11 次，5000ms → 6 次）。UI `verify` 轮询使用同一间隔。
+- 默认值只在 `core/auto_wait.py::DEFAULT_AUTO_WAIT_MS` 定义一处，间隔只在 `POLL_INTERVAL_S` 定义一处；`BaseDriver`（未收到 `set_auto_wait` 时）与 `KeywordEngine` 引用它们，不得另写默认值。
+- `rodski init` 生成的模板写 `<var name="AutoWait" value="10000"/>` 并注释"不写本行默认 10000；填 0 关闭自动等待"。
 
 不受 AutoWait 控制：`navigate` / `launch` 的页面加载、`wait` 关键字、`WaitTime` / `step_wait`（步后固定等待）、接口 / DB `verify`（单次比对）、截图（固定 10s 超时）。
 
@@ -2222,7 +2234,7 @@ while True:
         except RETRYABLE_ERRORS:                       # 白名单
             记录最后错误，试下一个定位器
     if 超过 AutoWait: raise ElementWaitTimeoutError   # SKI326
-    sleep(200ms)                                       # 视觉定位 1000ms
+    sleep(1000ms)                                      # 统一间隔（v11.10.0），第一次探测立即进行
 ```
 
 1. **白名单捕获**：只有 `ElementNotFoundError` / `ElementNotInteractableError`（SKI327）/ `StaleElementError` / `TimeoutError`（SKI322）被捕获后等待重试；其余一切异常（参数错误、驱动已停止、未预期弹窗、`PerceptionUnavailableError`、选择器语法错误……）立即抛出。**禁止 `except Exception` 吞异常。**
@@ -2232,17 +2244,22 @@ while True:
 5. **重试单位是一个元素的一次查找 + 动作**，不是整个步骤——已执行的字段不会被重复输入 / 点击。
 6. **驱动单次动作的超时 = 剩余预算**，下限 500ms（Playwright `timeout=0` 表示无限等待，严禁传 0；已找到的元素保底一次动作的执行时间）。
 7. **命中即走**：元素已就绪时不产生额外等待。
-8. 不设置 `AutoWait` 或 `AutoWait=0`：每个定位器恰好尝试一次（不自动等待）。
+8. `AutoWait=0`：每个定位器恰好尝试一次（不自动等待）；不设置 `AutoWait`：按默认 10000ms（v11.10.0）。
 
 ### 13.3 错误信息
 
 超时抛 `ElementWaitTimeoutError`（SKI326，`ElementNotFoundError` 子类），格式：
 
 ```
-元素 Login.submitBtn 在 AutoWait=5000ms 内未找到；尝试定位器: id=submit, text=提交；最后错误: ...
+元素 Login.submitBtn 在 AutoWait=5000ms 内未找到；每 1000ms 探测一次，共探测 6 次；尝试定位器: id=submit, text=提交；最后错误: ...
+元素 Login.submitBtn 在 AutoWait=10000ms（未设置，使用默认值）内未找到；每 1000ms 探测一次，共探测 11 次；尝试定位器: ...；最后错误: ...
+提示: 可在 data/globalvalue.xml 的 DefaultValue 组中设置 <var name="AutoWait" value="毫秒"/>；填 0 关闭自动等待
 ```
 
-元素已找到但始终不可操作（被遮挡、disabled、不可见）时为"内不可操作"。
+- 必须写明探测间隔与次数（v11.10.0）；`AutoWait=0` 时为"共探测 1 次"。
+- 使用默认值时必须标注"（未设置，使用默认值）"并附提示行；显式配置时不出现这两项。
+- 元素已找到但始终不可操作（被遮挡、disabled、不可见）时，"内未找到"改为"内不可操作"。
+- UI `verify` 超时仍不匹配时报 SKI331，失败信息附"已自动重试等待 Nms（未设置时注明使用默认值），每 1000ms 读取一次，共 K 次"。
 
 ### 13.4 与其他机制的关系
 
@@ -2605,6 +2622,10 @@ GitLab CI / GitHub Actions 的完整接入示例见 `TEST_CASE_WRITING_GUIDE.md`
 | v6.3.0 | 新增 `plan/*.xml` 测试计划；显式 plan 与 selector 固定互斥 |
 | v11.5.0 | `case/**/*.xml` 递归发现；用例标识 = `case_file + case.id`；截图/录像路径改为按 `case/` 目录镜像（不再是扁平 `result/screenshots/`）；`result.xsd` 新增 `case_file`；`--case-id` 加入 `@plan_id` 互斥 selector 清单 |
 | v11.6.0 | 关键字仍为 17 个、`case.xsd` 不变；`model.xsd` 新增定位类型 `page` 与 `location@frame`；`verify` 新增 5 个元素级操作符且 UI `verify` 默认自动重试（`AutoWait=5000` 毫秒）；`WaitTime` 单位改为毫秒（旧值 ≤30 按秒兼容 + 告警）；新增 `junit.xml`、`EvidenceMode` 标注、`capabilities.pitfalls`；`--workers` 并行时结果仍合并到同一运行目录 |
+| v11.7.0 / v11.7.1 | `DefaultValue.AutoWait`（毫秒）统一接管所有驱动的元素查找（§13）；去掉 force / JS 点击降级；新增 SKI326 / SKI327；v11.7.1 曾规定"不设置 = 不等待"（已被 v11.10.0 取代） |
+| v11.8.x | 调试计划 `kind=scenario_debug/step_debug`（§7.7）；iteration-66 的 18 项行为修正（接口 verify 字段范围与 `status` 语义、`NONE` 跳过、`launch` 只接受 http(s)、图片断言失败即 FAIL 等，见 CHANGELOG [11.8.32] 升级须知） |
+| v11.9.0 | 计划级数据驱动（§7.8）：`plan.xsd` `<case data_driven>`、`table_kind='driver'`、`result.xsd` 实例属性 `instance_id` / `template_case_id` / `driver` / `data_id` / `instance_title` / `replacements` |
+| v11.10.0 | `AutoWait` 不设置 = 默认最多等待 10000ms（`0` 才关闭），统一每 1000ms 探测；SKI326 信息含探测间隔 / 次数与默认值标注（§13）；未配置 AutoWait 的模块，元素不存在时失败耗时由立即变为约 10s |
 
 ---
 
@@ -2650,7 +2671,8 @@ GitLab CI / GitHub Actions 的完整接入示例见 `TEST_CASE_WRITING_GUIDE.md`
 - [ ] v11.6.0 新能力未新增关键字，`case.xsd` 未变；`model.xsd` 的 `LocatorType` 含 `page`，`<location>` 含可选 `frame` 属性，并已同步 GUIDE §4.3（§2.5.6）
 - [ ] 元素级操作符（`$count` / `$count_gte` / `$count_lte` / `$exists` / `$visible`）0 匹配按实际 0 判定，不存在跳过路径（§4.6.1）
 - [ ] 所有查找测试对象的步骤经 `core/auto_wait.run_element`，驱动无内部等待 / force / JS 降级，失败抛白名单异常（§13）
-- [ ] UI `verify` 自动重试受 `AutoWait` 控制（毫秒；不设置或 `0` = 不重试；旧键 `VerifyTimeout` 报错），接口 / DB `verify` 仍为单次比对（§4.6.5）
+- [ ] UI `verify` 自动重试受 `AutoWait` 控制（毫秒；不设置 = 默认 10000，`0` = 不重试；旧键 `VerifyTimeout` 报错），接口 / DB `verify` 仍为单次比对（§4.6.5）
+- [ ] AutoWait 默认值只在 `core/auto_wait.py::DEFAULT_AUTO_WAIT_MS` 定义（10000），探测间隔只在 `POLL_INTERVAL_S` 定义（1s）；驱动与关键字层引用它们，不另写默认值（§13.1）
 - [ ] `WaitTime` 与 `step_wait` 均按毫秒解释；`WaitTime ≤ 30` 按秒兼容并只告警一次（§7.4）
 - [ ] `save_auth_state` / `use_auth_state` 只存本次 run 内存、不落盘；`use_auth_state` 在 `navigate` 之前（§1.4）
 - [ ] `evaluate file:` 只允许读取模块目录内的脚本，越界拒绝（§1.5）

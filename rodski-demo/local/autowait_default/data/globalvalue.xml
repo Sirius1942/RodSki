@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<globalvalue>
+  <!-- 刻意不设置 DefaultValue.AutoWait：验证 REQ-015（v11.10.0）"不设置 = 默认最多等待 10000ms、每 1000ms 探测一次"。
+       显式关闭自动等待请写 <var name="AutoWait" value="0"/>（见 ../autowait_zero） -->
+  <group name="Site">
+    <!-- 与 autowait 共用站点（../autowait/fun/site），由其 run_acceptance.py 启动 -->
+    <var name="URL" value="http://127.0.0.1:8767"/>
+  </group>
+</globalvalue>

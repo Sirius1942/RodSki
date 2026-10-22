@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- REQ-015（v11.10.0）AutoWait 默认值验收计划 -->
+<test_plan id="autowait_default" title="AutoWait 默认值（不设置 = 10000ms / 每 1000ms 探测）" kind="suite" execute="是" default_execute="否">
+  <case_dir path="." execute="是"/>
+</test_plan>

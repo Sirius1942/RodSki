@@ -37,7 +37,8 @@ class TestMobileVerify:
         engine = KeywordEngine.__new__(KeywordEngine)
         engine.driver = MagicMock()
         engine._desktop_drivers = {"android": mock_appium}
-        engine._global_vars = {"Mobile": {"Platform": "android"}}
+        # 不测等待：显式 AutoWait=0，mismatch 用例不必等满默认 10s（v11.10.0 / REQ-015）
+        engine._global_vars = {"Mobile": {"Platform": "android"}, "DefaultValue": {"AutoWait": "0"}}
         engine._driver_factory = None
         engine._return_values = []
         engine.store_return = Mock()

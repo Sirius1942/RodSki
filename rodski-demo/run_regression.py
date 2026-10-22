@@ -134,7 +134,7 @@ def entries() -> List[Entry]:
         Entry("local", "local/hooks", [PY, str(L / "hooks/run_demo.py")]),
         Entry("local", "local/runtime_control", [PY, str(L / "runtime_control/run_demo.py")]),
         Entry("local", "local/roaming", [PY, str(L / "roaming/run_demo.py")]),
-        Entry("local", "local/autowait（含 _zero/_long）", [PY, str(L / "autowait/run_acceptance.py")]),
+        Entry("local", "local/autowait（含 _zero/_long/_default）", [PY, str(L / "autowait/run_acceptance.py")]),
         Entry("local", "local/authoring（含 _no_retry/_pitfalls）", [PY, str(L / "authoring/run_acceptance.py")]),
         Entry("local", "local/nested_case（含 _single/_dup_id）", [PY, str(L / "nested_case/run_acceptance.py")]),
         Entry("local", "local/control_flow 分支/循环/等待", [PY, str(L / "control_flow/run_acceptance.py")]),

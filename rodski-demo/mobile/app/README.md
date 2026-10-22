@@ -535,7 +535,9 @@ mock 后端延迟响应产生：
 | 用例 | mock 延迟 | 预期 |
 |------|----------|------|
 | `AW001`（execute="是"） | `MOCK_DELAY_MS=2500` | 登录 → 点「查看订单」→ 点首条订单 → verify 详情，全部依赖 AutoWait 通过 |
-| `AW_F01`（execute="否"，脚本临时启用） | `MOCK_DELAY_MS=20000`、`MOCK_LOGIN_DELAY_MS=0` | 点首条订单失败，失败步骤耗时 ∈ [4.5s, 7.5s]，错误信息含 `AutoWait=5000ms` 与 `firstOrderItem` |
+| `AW_F01`（execute="否"，脚本临时启用） | `MOCK_DELAY_MS=20000`、`MOCK_LOGIN_DELAY_MS=0` | 点首条订单失败，失败步骤耗时 ∈ [4.5s, 7.5s]，错误信息含 `AutoWait=5000ms`、`firstOrderItem`、"每 1000ms 探测一次"（5~7 次） |
+| 场景 D：`AW001`，临时去掉 `AutoWait`（REQ-015，v11.10.0） | `MOCK_DELAY_MS=3000` | 不设置 AutoWait 时默认最多等待 10000ms，全链路通过 |
+| 场景 D：`AW_F01`，临时去掉 `AutoWait` | `MOCK_DELAY_MS=20000`、`MOCK_LOGIN_DELAY_MS=0` | 点首条订单约 10s 失败（∈ [9.5s, 12.5s]），错误信息含 `AutoWait=10000ms（未设置，使用默认值）` 与探测 10~12 次；结束后恢复 `data/globalvalue.xml` |
 
 一条命令（前置：模拟器 `emulator-5554` 已 boot 且已装 `com.rodski.demo`、Appium 在 4723）：
 
@@ -544,7 +546,7 @@ mock 后端延迟响应产生：
 # 可选：UDID=emulator-5554 MOCK_PORT=18000（本机 mock 端口；8000 常被 demosite 占用）
 ```
 
-脚本自行拉起 mock（2500 / 20000 两轮）、`adb reverse tcp:8000 tcp:$MOCK_PORT`、
+脚本自行拉起 mock（P 2500 / N 20000 / D 3000 + 20000）；可用参数 `P` / `N` / `D` 只跑某个场景；、`adb reverse tcp:8000 tcp:$MOCK_PORT`、
 调用 `rodski run --udid ... --trace`，从 `trace.json` 取每步耗时断言；结束时移除 reverse。
 
 ## RodSki 数据与校验

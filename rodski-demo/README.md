@@ -7,7 +7,7 @@ rodski-demo/<环境>/<模块>/{case,model,data,fun,plan,...}
 ```
 
 - **项目层按运行环境划分**：同一环境的模块共享前置条件（服务、设备、桌面会话），回归时按环境分批起停。
-- **模块层按功能域划分**：一个模块验收一组相关能力；模块级配置（AutoWait、DialogPolicy、SessionMode 等）需要不同取值时拆成兄弟模块（如 `autowait` / `autowait_zero` / `autowait_long`）。
+- **模块层按功能域划分**：一个模块验收一组相关能力；模块级配置（AutoWait、DialogPolicy、SessionMode 等）需要不同取值时拆成兄弟模块（如 `autowait` / `autowait_zero` / `autowait_long` / `autowait_default`）。
 - 用例编写规范以 `rodski/docs/TEST_CASE_WRITING_GUIDE.md` 为准。
 
 ## 全量回归
@@ -40,7 +40,7 @@ python3 rodski-demo/run_regression.py --desktop       # 额外执行会操作鼠
 | `roaming/` | 漫游执行；默认引擎、`--case-file/--case-id`、SKI801~803 | `run_demo.py`、`run_acceptance_extra.py` |
 | `nested_case/` + `_single` + `_dup_id` | 嵌套目录用例、case_file::case_id 身份（v11.5） | `nested_case/run_acceptance.py` |
 | `authoring/` + `_pitfalls` + `_no_retry` | AI 编写契约、lint、断言可靠性（v11.5.2+） | `authoring/run_acceptance.py` |
-| `autowait/` + `_zero` + `_long` | 自动等待（v11.7） | `autowait/run_acceptance.py` |
+| `autowait/` + `_zero` + `_long` + `_default` | 自动等待（v11.7）；不设置 AutoWait 的默认值（v11.10，REQ-015） | `autowait/run_acceptance.py` |
 | `data_rules/` | 数据规则：BLANK/NULL/NONE、.Password 脱敏、data 子命令、字段集合一致、Return 引用、生成函数、metadata、XSD | `run_acceptance.py` |
 | `dialog_accept/` + `dialog_dismiss` + `dialog_default` | DialogPolicy accept / dismiss / 默认 fail、一次性处理器、非法值 | `dialog_accept/run_acceptance.py` |
 | `session_shared/` | SessionMode shared_session 与 `--session-mode` 覆盖 | `run_acceptance.py` |

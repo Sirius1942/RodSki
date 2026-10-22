@@ -14,7 +14,7 @@
 - **视觉定位能力** — OmniParser + LLM 语义定位（可选 AI 能力层）
 - **Agent 友好 CLI** — run / data / init / explain / dry-run
 - **活文档模式** — Agent 写 XML → RodSki 执行 → 结果反馈 → Agent 分析
-- **智能等待** — 自动处理元素加载延迟，零配置开箱即用
+- **自动等待** — 自动处理元素加载延迟，不配置默认最多等 10 秒（`AutoWait=0` 关闭）
 - **智能诊断** — AI 辅助失败分析与恢复建议（可选）
 
 ## 快速开始
@@ -187,16 +187,16 @@ RodSki/
 RodSki 对**所有驱动（Web / Android / iOS / 桌面视觉）的所有查找测试对象的步骤**自动等待——
 包括 `type` 批量里的每一个字段（输入、click、select、hover……）、`verify`、`get`、`clear`、`upload_file`，无需手写 `wait`。
 
-- **本质**：try 查找并执行 → 捕获"未找到 / 不可操作" → 等待 200ms → 再执行；成功即继续，超过自动等待时间即失败
+- **本质**：try 查找并执行 → 捕获"未找到 / 不可操作" → 等待 1 秒 → 再执行；成功即继续，超过自动等待时间即失败
 - **命中即走**：元素已就绪时不产生任何额外等待
 - **按元素计时**：每个字段独立一份预算；同一元素的多个定位器共享这一份预算
-- **不掩盖失败**：等不到就失败，错误信息含元素名、尝试过的定位器和 `AutoWait=Nms`
+- **不掩盖失败**：等不到就失败，错误信息含元素名、尝试过的定位器、`AutoWait=Nms` 和探测次数
 
-在模块的 `data/globalvalue.xml` 中配置（单位毫秒）。**没有默认时长**：不设置或写 0 就不自动等待，`rodski init` 生成的模板默认写 5000：
+在模块的 `data/globalvalue.xml` 中配置（单位毫秒）。**不设置默认最多等待 10000ms**（v11.10.0），每 1 秒探测一次；写 `0` 关闭自动等待；`rodski init` 生成的模板显式写 10000：
 
 ```xml
 <group name="DefaultValue">
-    <var name="AutoWait" value="5000"/>
+    <var name="AutoWait" value="10000"/>
 </group>
 ```
 
