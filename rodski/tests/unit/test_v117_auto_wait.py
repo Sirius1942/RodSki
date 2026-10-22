@@ -481,3 +481,16 @@ class TestDefaultAutoWait:
     def test_non_numeric_rejected_with_example(self, raw):
         with pytest.raises(AutoWaitConfigError, match='value="5000"'):
             resolve_auto_wait_ms({"DefaultValue": {"AutoWait": raw}})
+
+
+class TestCapabilitiesContract:
+    """v11.10.1：rodski capabilities 的约束速查必须与 AutoWait 默认值一致（Agent 据此生成模块）"""
+
+    def test_pitfalls_describe_default_10000(self):
+        try:
+            from rodski_cli.pitfalls import get_pitfalls
+        except ImportError:  # pragma: no cover
+            from rodski.rodski_cli.pitfalls import get_pitfalls
+        text = str(get_pitfalls())
+        assert "不设置 = 不自动等待" not in text and "须显式设置" not in text
+        assert f"不设置默认 {aw.DEFAULT_AUTO_WAIT_MS}" in text
