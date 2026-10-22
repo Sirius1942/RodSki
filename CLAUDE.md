@@ -213,7 +213,7 @@ cd rodski-website && npm run build && npm start
 |------|------|
 | **路径** | `rodski-agent/` |
 | **定位** | RodSki AI Agent 层（LangGraph + Anthropic/OpenAI）|
-| **版本文件** | `rodski-agent/pyproject.toml`（`[project] version`，当前 `11.9.0`）|
+| **版本文件** | `rodski-agent/pyproject.toml`（`[project] version`，当前 `11.10.0`）|
 | **版本格式** | 与主仓库同步，tag 格式：`agent-vX.Y.Z` |
 | **git 仓库** | `rodski-agent/.git/`（独立本地仓库，需自行绑定 remote）|
 | **发布方式** | 与主仓库同批打 tag，可单独 `pip install` |
@@ -238,7 +238,7 @@ pytest tests/ -q
 |------|------|
 | **路径** | `rodski-browser-plugin/` |
 | **定位** | RodSki 浏览器诊断/辅助插件（Chrome Extension）|
-| **版本文件** | `rodski-browser-plugin/manifest.json` → `"version"`（当前 `11.9.0`）|
+| **版本文件** | `rodski-browser-plugin/manifest.json` → `"version"`（当前 `11.10.0`）|
 | **版本格式** | 与主仓库同步，tag 格式：`plugin-vX.Y.Z` |
 | **git 仓库** | `rodski-browser-plugin/.git/`（独立本地仓库）|
 | **发布方式** | 与主仓库同批打 tag |
