@@ -4,15 +4,15 @@
 
 > Agent 负责思考，RodSki 负责稳定执行。
 >
-> 测试数据层支持 XML + SQLite 共存：`data.xml` / `data_verify.xml` 仍保留为固定 XML 入口，`data/data.sqlite` 作为可选且推荐的主存储；混合模式受支持，但不推荐作为常态。
+> 测试数据：`data/data.sqlite` 是唯一测试数据文件（v6.0.0 起）。`data.xml` / `data_verify.xml` 已废弃，存在即运行报错，用 `rodski data import <module>` 迁移后删除。
 
 ## 特性
 
 - **结构化 XML 协议** — model / case / data 活文档，Agent 可读可写
-- **SQLite 测试数据主路径** — 支持 `data/data.sqlite` 与 XML 共存，混合模式兼容但不推荐
+- **SQLite 测试数据** — `data/data.sqlite` 是唯一测试数据文件，`rodski data` 子命令查询与编辑
 - **多平台确定性执行** — Web / Android / iOS / Desktop 统一关键字
 - **视觉定位能力** — OmniParser + LLM 语义定位（可选 AI 能力层）
-- **Agent 友好 CLI** — run / data / init / explain / dry-run
+- **Agent 友好 CLI** — run / dry-run / data / init / plan / case lint / capabilities
 - **活文档模式** — Agent 写 XML → RodSki 执行 → 结果反馈 → Agent 分析
 - **自动等待** — 自动处理元素加载延迟，不配置默认最多等 10 秒（`AutoWait=0` 关闭）
 - **智能诊断** — AI 辅助失败分析与恢复建议（可选）
@@ -32,18 +32,22 @@ python3 -m venv .venv && source .venv/bin/activate
 
 # ---- rodski 执行引擎 ----
 
-# 基础安装（仅核心 + XML / SQLite 数据解析）
+# 基础安装（核心 + XML / SQLite 解析）
 pip install -e .
 
-# Web 测试（Playwright）
-pip install -e ".[web]"
+# Web 测试（Playwright，需单独安装）
+pip install playwright
 playwright install chromium          # 安装浏览器
 
-# 移动端测试（Appium）
-pip install -e ".[mobile]"
+# 移动端测试（Appium，需单独安装）
+pip install Appium-Python-Client
 
-# 全部能力（Web + Mobile + Vision + LLM + GUI）
-pip install -e ".[all]"
+# 可选 extra（仅以下两个）
+pip install -e ".[perception]"       # 本地视觉感知插件 rodski-perception
+pip install -e ".[load]"             # 性能压测（Locust）
+
+# 开发 / 全量依赖（含 Playwright、Appium、视觉、pytest）
+pip install -r rodski/requirements.txt
 
 # ---- rodski-agent（AI Agent 层）----
 
@@ -52,33 +56,19 @@ pip install -e rodski-agent/
 
 # 开发环境（含 pytest）
 pip install -e "rodski-agent/[dev]"
-
-# MCP Server 支持（需 Python >= 3.10）
-pip install -e "rodski-agent/[mcp]"
 ```
 
-### 离线下载安装包
+### 离线安装包
 
-如果无法直接访问 PyPI，可以从仓库中的 release 包目录安装：
+仓库 `releases/rodski/` 下只保留历史离线包（v6.7.x、v8.0.2、v8.0.3、v8.1.0），**没有当前版本**的包。需要离线安装当前版本时，请在可联网环境用仓库根目录的 `pyproject.toml` 构建 wheel 后拷贝安装（`build` 读取工作区内容，应在没有未提交改动的干净检出中构建）：
 
 ```bash
-# v7.1.1 离线 wheel 包
-pip install releases/rodski/v7.1.1/rodski-7.1.1-py3-none-any.whl
-
-# 校验包完整性
-cd releases/rodski/v7.1.1
-shasum -a 256 -c SHA256SUMS
+pip install build
+python -m build --wheel              # 在仓库根目录执行，产物在 dist/rodski-<版本>-py3-none-any.whl
+pip install dist/rodski-*.whl
 ```
 
-发布包目录结构：
-
-```text
-releases/rodski/v7.1.1/
-├── README.md
-├── SHA256SUMS
-├── rodski-7.1.1-py3-none-any.whl
-└── rodski-7.1.1.tar.gz
-```
+历史版本包附带 `SHA256SUMS`，可在对应目录执行 `shasum -a 256 -c SHA256SUMS` 校验。
 
 ### rodski 执行引擎
 
@@ -86,10 +76,7 @@ releases/rodski/v7.1.1/
 # 执行测试
 rodski run case/ --output-format json
 
-# 解释用例（自然语言）
-rodski explain case/login.xml
-
-# 查看模块中的逻辑表（XML + SQLite 统一视图）
+# 查看模块中的逻辑表
 rodski data list rodski-demo/demosite/full/
 
 # 查看逻辑表字段
@@ -98,11 +85,15 @@ rodski data schema rodski-demo/demosite/full/ RegisterAPI
 # 查看指定数据行
 rodski data show rodski-demo/demosite/full/ RegisterAPI L001
 
-# 校验数据层（strict 会额外检查 XML 列漂移）
-rodski data validate rodski-demo/demosite/full/ --strict
+# 校验数据层；加 --orphans 额外检查未被引用的逻辑表与 DataID
+rodski data validate rodski-demo/demosite/full/
+rodski data validate rodski-demo/demosite/full/ --orphans
 
-# 初始化标准测试模块骨架
-rodski init /path/to/MyTestModule --with-verify --with-sqlite
+# 静态检查用例常见写法问题
+rodski case lint rodski-demo/demosite/full/
+
+# 初始化标准测试模块骨架（含 data.sqlite；--force 覆盖已有模板文件）
+rodski init /path/to/MyTestModule
 
 # 干跑模式（仅验证不执行）
 rodski run case/ --dry-run
@@ -116,7 +107,8 @@ rodski run case/ --dry-run
 - Case 中 `data` 只写 DataID（如 `L001` / `D001` / `V001`），不写 `表名.DataID`
 - `type` / `send` / `DB` 默认按模型名查找同名逻辑表
 - `verify` 默认按 `{model}_verify` 查找验证表
-- XML 与 SQLite 可以共存，但同名逻辑表跨源时必须报错
+- 同一逻辑表所有行字段集合必须一致，缺字段显式填 `BLANK` / `NULL` / `NONE`
+- `data.xml` / `data_verify.xml` 存在即报错；迁移用 `rodski data import <module>`（字段集合不一致时整体不写入），迁移后删除 XML
 
 ### rodski-agent (AI Agent 层)
 
@@ -124,11 +116,11 @@ rodski run case/ --dry-run
 # 从需求自动生成测试用例
 rodski-agent design --requirement "测试登录功能" --output output/login/
 
-# 执行测试用例（含智能重试）
-rodski-agent run --case output/login/ --format json
+# 执行测试用例（含智能重试）；--format 是顶层选项，写在子命令之前
+rodski-agent --format json run --case output/login/
 
 # 设计 + 执行一步到位
-rodski-agent pipeline --requirement "测试登录" --output output/login/ --format json
+rodski-agent --format json pipeline --requirement "测试登录" --output output/login/
 
 # 诊断失败用例
 rodski-agent diagnose --result output/login/result/
@@ -142,7 +134,7 @@ Agent (探索/决策) → XML / SQLite 测试数据 → RodSki (执行) → JSON
 
 RodSki 作为 Agent 工具链中的执行层，提供确定性、可重复的测试执行能力。Agent 通过 XML 协议描述测试意图，RodSki 负责跨平台执行并以 JSON 格式返回结构化结果，供 Agent 进一步分析和决策。
 
-在数据层，RodSki 保持现有 DSL 语义不变：Case 的 `data` 仍只写 DataID；逻辑表名仍与模型名一致；`verify` 仍自动查找 `{model}_verify`。SQLite 只是 Data 层的新承载方式，不改变关键字写法。
+在数据层，RodSki 保持现有 DSL 语义不变：Case 的 `data` 仍只写 DataID；逻辑表名仍与模型名一致；`verify` 仍自动查找 `{model}_verify`。`data.sqlite` 只是 Data 层的承载方式，不改变关键字写法。
 
 ## 项目结构
 
@@ -153,7 +145,7 @@ RodSki/
 │   ├── drivers/         # 平台驱动（Playwright/Appium/PyWinAuto）
 │   ├── llm/             # LLM 能力层（可选）
 │   ├── vision/          # 视觉定位（可选）
-│   ├── rodski_cli/      # CLI 子命令（run/explain/data/init ...）
+│   ├── rodski_cli/      # CLI 子命令（run/data/init/plan/case ...）
 │   ├── config/          # 配置文件
 │   └── docs/            # 框架文档
 ├── rodski-agent/        # Layer 2: AI Agent 层
@@ -162,9 +154,8 @@ RodSki/
 │   │   ├── execution/   # Execution Agent（执行→诊断→修复）
 │   │   ├── pipeline/    # Pipeline 编排
 │   │   ├── common/      # 共享工具（LLM、XML、配置）
-│   │   ├── cli.py       # CLI 入口
-│   │   └── mcp_server.py # MCP Server
-│   └── tests/           # 453 个单元测试
+│   │   └── cli.py       # CLI 入口
+│   └── tests/           # 单元测试
 ├── rodski-demo/         # 官方示例
 └── .pb/                 # 项目管理文档
 ```
@@ -174,9 +165,9 @@ RodSki/
 | 文档 | 说明 |
 |------|------|
 | [Agent 集成指南](rodski/docs/AGENT_INTEGRATION.md) | Agent 接入主入口 |
-| [用例编写指南](rodski/docs/TEST_CASE_WRITING_GUIDE.md) | XML + SQLite 数据组织与用例编写规范 |
+| [用例编写指南](rodski/docs/TEST_CASE_WRITING_GUIDE.md) | 用例 / 模型 / 数据编写规范 |
 | [核心设计约束](rodski/docs/CORE_DESIGN_CONSTRAINTS.md) | 框架不可违反的设计约束 |
-| [数据文件组织](rodski/docs/DATA_FILE_ORGANIZATION.md) | `data.xml` / `data_verify.xml` / `data.sqlite` 组织规则 |
+| [数据文件组织](rodski/docs/DATA_FILE_ORGANIZATION.md) | `data.sqlite` / `globalvalue.xml` 组织规则与 XML 数据迁移 |
 | [关键字参考](rodski/docs/SKILL_REFERENCE.md) | 全部关键字语法说明 |
 | [架构说明](rodski/docs/ARCHITECTURE.md) | 框架内部架构 |
 | [视觉定位](rodski/docs/VISION_LOCATION.md) | OmniParser 视觉定位能力 |

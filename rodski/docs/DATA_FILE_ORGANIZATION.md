@@ -35,7 +35,9 @@ rodski data import <module>          # 默认跳过已存在的表
 rodski data import <module> --overwrite  # 覆盖已存在的表
 ```
 
-迁移完成后删除 `data.xml` 和 `data_verify.xml`。
+写库前逐表校验字段集合（以同表各行字段并集为准）：任一行缺字段时逐条列出 `[SKI203] 表.行: missing=[...]`，**整体不写入** `data.sqlite`，退出码 1（v11.8.23）。请先在 XML 中为缺失字段显式填 `BLANK` / `NULL` / `NONE`，再重新导入。
+
+迁移成功后需手动删除 `data.xml` 和 `data_verify.xml`（`import` 不会删除它们，文件仍在时运行会报错）。
 
 ## SQLite 测试数据文件：data.sqlite
 
@@ -62,7 +64,7 @@ rodski data import <module> --overwrite  # 覆盖已存在的表
 
 ```bash
 rodski init <target>          # 默认创建 data.sqlite
-rodski init <target> --no-sqlite  # 不创建 data.sqlite（不推荐）
+rodski init <target> --no-sqlite  # 已废弃（v6.0+）：仍可用但会输出警告，不创建 data.sqlite
 ```
 
 ## 全局变量文件：globalvalue.xml（独立）

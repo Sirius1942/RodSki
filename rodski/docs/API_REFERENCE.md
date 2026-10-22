@@ -1,6 +1,22 @@
-# OmniParser 远程服务 API 文档
+# RodSki API 参考
 
-本文档描述了 OmniParser 视觉解析服务的接口规范。
+**版本**: v11.10.0  
+**最后更新**: 2026-10-22
+
+本文档包含两部分，彼此独立：
+
+| 部分 | 内容 | 性质 |
+|------|------|------|
+| [第一部分](#第一部分omniparser-远程服务接口外部视觉服务) | OmniParser 视觉解析服务的 HTTP 接口 | **外部服务**的接口说明，不是 RodSki 框架自身的 API。v7.1.0 起 RodSki 核心已删除内置的 OmniParser 客户端，视觉定位改走 `PerceptionBackend`（见 VISION_LOCATION.md）；本部分仅供直接调用该服务或自建 backend 时参考 |
+| [第二部分](#第二部分db-关键字-api) | `DB` 关键字的模型、数据表、连接配置与返回值 | RodSki 关键字 API |
+
+其他关键字的语法见 [SKILL_REFERENCE.md](./SKILL_REFERENCE.md) 与 [TEST_CASE_WRITING_GUIDE.md](./TEST_CASE_WRITING_GUIDE.md) §8。
+
+---
+
+# 第一部分：OmniParser 远程服务接口（外部视觉服务）
+
+本部分描述 OmniParser 视觉解析服务的接口规范。
 
 ## 快速开始
 
@@ -85,25 +101,23 @@
 
 ## 调试工具
 
-如需调整参数测试效果，可使用提供的 PowerShell 脚本：
+如需调整参数测试效果，可直接向服务 POST 一张图片。仓库根目录的 `tools/test_omniparser.py` 是一个最小调用示例（`test_omniparser(image_path, omni_url=...)`，把 `omni_url` 换成你的服务地址）：
 
-```powershell
-# 示例：设置自定义阈值并测试
-$env:OMNI_URL='http://14.103.175.167:7862/parse/'; $env:OMNI_IMG='E:\path\to\img.png'; $env:OMNI_BOX='0.18'; python tools/http_test_parse.py
+```bash
+# 示例：用 curl 发送 base64 图片（<server_ip> 替换为实际服务地址）
+python3 -c "import base64,json;print(json.dumps({'base64_image':base64.b64encode(open('img.png','rb').read()).decode(),'box_threshold':0.18}))" \
+  | curl -s -X POST -H 'Content-Type: application/json' -d @- http://<server_ip>:7862/parse/
 ```
 
 ## RodSki 集成说明
 
-RodSki 调用 OmniParser 服务实现图像识别定位能力。详细设计请参考：[VISION_LOCATION.md](./VISION_LOCATION.md)
+v7.1.0 起 RodSki 核心不再直接调用 OmniParser：内置的 OmniParser 客户端（OmniClient）已删除，`vision_config.yaml` 中的 `omniparser` 配置段在加载时被丢弃。`vision` / `ocr` 等视觉定位由 `PerceptionBackend` 提供。详细设计请参考：[VISION_LOCATION.md](./VISION_LOCATION.md)
 
 ---
 
-# DB 关键字 API 文档
+# 第二部分：DB 关键字 API
 
-本文档描述了 RodSki 数据库操作关键字的 API 规范。
-
-**版本**: v5.0+  
-**最后更新**: 2026-04-10
+本部分描述 RodSki 数据库操作关键字 `DB` 的 API 规范。当前语法（`model` 填数据库模型名、`data` 只写 DataID）自 v5.0 起使用；旧写法 `model="连接名" data="表名.DataID"` 会直接报错。
 
 ---
 
@@ -134,9 +148,6 @@ RodSki 调用 OmniParser 服务实现图像识别定位能力。详细设计请�
     <!-- 查询模板（可选） -->
     <query name="QueryName" remark="说明">
         <sql>SQL语句</sql>
-        <params>
-            <param name="参数名" type="类型" default="默认值" required="true/false"/>
-        </params>
     </query>
     
     <!-- 结果字段定义（用于 verify） -->
@@ -179,16 +190,13 @@ RodSki 调用 OmniParser 服务实现图像识别定位能力。详细设计请�
 ]]></sql>
 ```
 
-#### `<params>` 标签
+#### 查询参数
 
-定义查询参数：
+`<query>` 下只有一个 `<sql>` 子元素，**没有** `<params>` 标签（`model.xsd` 会拒绝）。参数不在模型中声明，也没有默认值：
 
-| 属性 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `name` | string | 是 | 参数名称（对应 SQL 中的 `:param`） |
-| `type` | string | 否 | 参数类型：`string`, `int`, `decimal`, `bool` |
-| `default` | string | 否 | 默认值 |
-| `required` | bool | 否 | 是否必填，默认 `false` |
+- SQL 中的 `:name` 取数据行中同名字段的值；`name` 须以字母或下划线开头，写在引号内的冒号（如 `'00:00:00'`）不会被当作参数。
+- SQL 引用的参数在数据行中不存在时，步骤报参数错误。
+- 字段值为 `NULL` 时替换为 SQL `NULL`；数字类型的值原样替换；其余值按字符串加单引号替换（单引号自动转义）。
 
 ---
 
@@ -231,11 +239,13 @@ RodSki 调用 OmniParser 服务实现图像识别定位能力。详细设计请�
 | `query` | string | 是 | 模型中定义的查询名称 |
 | 其他字段 | any | 否 | 查询参数（对应模板中的 `:param`） |
 
+> 同一逻辑表所有行的字段集合必须一致（v6.7.6）。两种模式混用一张表时，用不到的 `sql` / `query` 等字段填 `BLANK` / `NULL` / `NONE`：DB 关键字把这三个值和空串都视为未提供。数据行实际存放在 `data/data.sqlite`，上面的 `<datatable>` 只是示意。
+
 ---
 
 ## 连接配置 API
 
-在 GlobalValue 中定义数据库连接：
+在 GlobalValue 中定义数据库连接（组名即模型的 `connection` 属性值）。可用的键：`type`（默认 `sqlite`）、`host`（默认 `localhost`）、`port`、`database`、`username`、`password`。`type` 取值：`sqlite`、`mysql` / `mariadb`、`postgresql` / `postgres` / `pg`、`sqlserver` / `mssql`。
 
 ### SQLite
 
@@ -246,6 +256,8 @@ RodSki 调用 OmniParser 服务实现图像识别定位能力。详细设计请�
 </group>
 ```
 
+SQLite 的相对路径按测试模块目录（`case/` 的上级）解析。
+
 ### MySQL
 
 ```xml
@@ -253,7 +265,7 @@ RodSki 调用 OmniParser 服务实现图像识别定位能力。详细设计请�
     <var name="type" value="mysql"/>
     <var name="host" value="主机地址"/>
     <var name="port" value="端口"/>
-    <var name="user" value="用户名"/>
+    <var name="username" value="用户名"/>
     <var name="password" value="密码"/>
     <var name="database" value="数据库名"/>
 </group>
@@ -266,7 +278,7 @@ RodSki 调用 OmniParser 服务实现图像识别定位能力。详细设计请�
     <var name="type" value="postgresql"/>
     <var name="host" value="主机地址"/>
     <var name="port" value="端口"/>
-    <var name="user" value="用户名"/>
+    <var name="username" value="用户名"/>
     <var name="password" value="密码"/>
     <var name="database" value="数据库名"/>
 </group>
@@ -279,7 +291,7 @@ RodSki 调用 OmniParser 服务实现图像识别定位能力。详细设计请�
     <var name="type" value="sqlserver"/>
     <var name="host" value="主机地址"/>
     <var name="port" value="端口"/>
-    <var name="user" value="用户名"/>
+    <var name="username" value="用户名"/>
     <var name="password" value="密码"/>
     <var name="database" value="数据库名"/>
 </group>
@@ -318,22 +330,25 @@ RodSki 调用 OmniParser 服务实现图像识别定位能力。详细设计请�
 {
     "_truncated": True,
     "_total_rows": 5000,
+    "_limit": 1000,
     "data": [...]  # 前 1000 行
 }
 ```
 
 ### 访问返回值
 
+`assert` 是图片 / 视频视觉断言，`test_step` 也没有 `condition` 属性，不能用来断言查询结果。校验查询结果用 `verify` 配合 DB 模型的 `_verify` 表：
+
 ```xml
-<!-- 访问第一条记录的字段 -->
-<test_step action="assert" condition="${Return[-1][0].field_name} == 'expected'"/>
-
-<!-- 获取记录数量 -->
-<test_step action="assert" condition="${len(Return[-1])} == 5"/>
-
-<!-- 检查是否被截断 -->
-<test_step action="assert" condition="${Return[-1].get('_truncated', False)} == False"/>
+<!-- 查询 -->
+<test_step action="DB" model="OrderQuery" data="Q001"/>
+<!-- OrderQuery_verify.V001 中写期望值，如 order_no=ORD001、total_amount={"$gt": 100} -->
+<test_step action="verify" model="OrderQuery" data="V001"/>
 ```
+
+- DB 的 `verify` 只比较 `_verify` 行中写出的字段，实际值取查询结果的**第一行**；`BLANK` / `NONE` 跳过该字段；查询结果为空时失败。
+- `_verify` 表中禁止引用 `${Return[-1]}`（CORE §4.3）。
+- 后续步骤要使用查询结果时，在该步骤数据行的字段值中引用：`${Return[-1][0].order_no}` 取第一行字段，`${Return[-1].length}` 取行数。
 
 ---
 
@@ -341,20 +356,17 @@ RodSki 调用 OmniParser 服务实现图像识别定位能力。详细设计请�
 
 ### 常见错误码
 
-| 错误类型 | 说明 | 解决方案 |
+| 错误码 / 异常类 | 触发场景 | 解决方案 |
 |---------|------|---------|
-| `ConnectionError` | 数据库连接失败 | 检查连接配置、网络、数据库服务状态 |
-| `SQLSyntaxError` | SQL 语法错误 | 检查 SQL 语句语法 |
-| `ParameterError` | 参数缺失或类型错误 | 检查数据表中的参数定义 |
-| `ModelNotFound` | 模型未找到 | 检查模型名称是否正确 |
-| `QueryNotFound` | 查询模板未找到 | 检查 query name 是否在模型中定义 |
+| `SKI312` `InvalidParameterError` | 缺少 `model` / `data`；`data` 写成旧语法 `表名.DataID`；模型不存在或不是 `type="database"`；模型缺 `connection`；数据行不存在；`query` 引用的查询未定义；数据行既无有效 `sql` 也无有效 `query`；SQL 引用的参数在数据行中不存在 | 按报错信息修正模型或数据行 |
+| `SKI302` `DriverError` | 数据库连接失败（连接组未配置或连不上）；SQL 执行失败（含语法错误） | 检查 GlobalValue 连接组、网络、数据库服务状态和 SQL |
+| `SKI331` `AssertionFailedError` | DB 结果的 `verify` 不通过（字段不一致、结果为空、缺字段、比较字段数为 0） | 核对 `_verify` 期望值或查询 |
 
 ### 错误日志
 
-错误信息会输出到日志，包含：
-- SQL 语句
-- 参数值
-- 错误堆栈
+执行日志记录：
+- 执行的 SQL（已替换参数，截取前 80 个字符）和操作类型
+- SQL 执行失败的原因
 
 ---
 
@@ -362,9 +374,9 @@ RodSki 调用 OmniParser 服务实现图像识别定位能力。详细设计请�
 
 ### 连接复用
 
-- 同一连接配置在测试执行期间会复用连接
+- 同一连接配置在测试执行期间会复用连接（复用前用 `SELECT 1` 检测存活，失效则重建）
 - 连接存储在内存中，避免重复创建
-- 测试结束后自动关闭所有连接
+- 执行结束后自动关闭所有连接
 
 ### 查询优化建议
 
@@ -394,7 +406,7 @@ RodSki 调用 OmniParser 服务实现图像识别定位能力。详细设计请�
 
 ### SQL 注入防护
 
-**强制使用参数化查询**：
+**推荐使用参数占位符**（框架不强制）。注意：`:param` 是框架在发送前做的文本替换（字符串值加单引号并转义单引号），不是数据库驱动层的参数绑定：
 
 ```xml
 <!-- ✅ 安全：使用参数占位符 -->
@@ -421,5 +433,5 @@ RodSki 调用 OmniParser 服务实现图像识别定位能力。详细设计请�
 
 ---
 
-**API 版本**: v5.0  
-**最后更新**: 2026-04-10
+**文档版本**: v11.10.0  
+**最后更新**: 2026-10-22

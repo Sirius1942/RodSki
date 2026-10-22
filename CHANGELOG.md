@@ -1,6 +1,21 @@
 # Changelog
 
 
+## [11.10.1] - 待发布
+
+### Fixed
+
+- `rodski capabilities` 的约束速查（`rodski_cli/pitfalls.py`）仍写"AutoWait 须显式设置如 5000，不设置 = 不自动等待"，与 v11.10.0 行为相反，Agent 据此生成模块会误以为必须写 AutoWait；改为"不设置默认 10000、0 = 关闭、每 1000ms 探测"，并新增单测保证与 `DEFAULT_AUTO_WAIT_MS` 一致。`PlaywrightDriver` 注释同步。
+
+### 文档
+
+- 用户手册与 CORE 约束全面复核（5 份审查报告 → 4 组修订，逐条对照代码 / XSD / CLI 核实）：
+  - TEST_CASE_WRITING_GUIDE：`launch` / `assert` 语义、关键字表补 `launch`（18 个枚举值 = 17 + check）、条件语法表、内置函数（删除未实现的 `reset_request_log` / `get_request_log`，`wait_for_response` 语义）、全局变量（`BrowserType` / `Headless` 框架不读取）、调试参数现状、plan 命令路径、压测计划去掉 `<cases>` 包装、`mode="browser"` 未实现、失效路径
+  - CORE_DESIGN_CONSTRAINTS：接口返回值结构、`assert` 约束（§1.6）、控制值表按关键字 / 模型拆列、条件评估语义、case / plan 结构约束（§7.2.1、§7.7）、DB 关键字（§24）、错误码表（附录 B）、待 Owner 决定事项（附录 C）；§13 与 SUPPORTED 未改
+  - README / AGENT_INTEGRATION / DATA_FILE_ORGANIZATION：data.sqlite 唯一数据文件、删除不存在的命令与 extra、结果路径、DB 写法、命令表
+  - SKILL_REFERENCE / API_REFERENCE / ARCHITECTURE / LOAD_TESTING_GUIDE：去掉被 XSD 拒绝的写法、DB 连接键 `username`、压测错误码与当前行为
+- rodski-demo：`demosite/load/plan/load_extra_doc_example.xml` 按修订后的文档示例重写，F119-doc-plan-example 由 KNOWN 变为通过
+
 ## [11.10.0] - 2026-10-22
 
 ### ⚠️ 升级须知：AutoWait 不设置时默认等待 10 秒（REQ-015，CORE §13）

@@ -41,7 +41,6 @@ KNOWN = {
     "F118-manual-perf-used": (
         "运行时不使用 perf/{plan}.py：LocustLoadEngine 总是动态构造 RodskiLoadUser，"
         "手动修改并标记 source=manual 的 locustfile 不生效（§3.2/§8.3）"),
-    "F119-doc-plan-example": "LOAD_TESTING_GUIDE §2/§4 计划示例使用 <cases> 包裹，plan.xsd 不允许，照写报 SKI204",
     "F119-dry-run-perf-path": "§7.4 说 dry-run 预览编译产物路径，实际输出不含 perf/{plan_id}.py",
 }
 
