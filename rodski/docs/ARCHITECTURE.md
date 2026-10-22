@@ -4,32 +4,37 @@
 
 ## 1. 项目目录结构
 
+> 下面只列主要模块，完整文件以源码目录为准。
+
 ```
 rodski/
-├── cli_main.py              # CLI 入口点
+├── cli_main.py              # 源码方式运行的 CLI 入口（python rodski/cli_main.py；额外注册了 profile）
 ├── ski_run.py               # 简化运行入口
-├── pyproject.toml           # 安装配置
+├── pyproject.toml           # 安装配置（命令 rodski → rodski_cli:main）
 │
-├── rodski_cli/                 # CLI 子命令模块
-│   ├── __init__.py
-│   ├── run.py               # run 子命令 - 执行测试用例
+├── rodski_cli/                 # CLI 子命令模块（run / roam / model / config / log / report / docs / data /
+│   │                           #   init / plan / capabilities / explore-step / queue / business / case / debug）
+│   ├── __init__.py          # main()：注册上述子命令
+│   ├── run.py               # run 子命令 - 执行测试用例（含压测计划）
 │   ├── model.py             # model 子命令 - 模型管理
 │   ├── config.py            # config 子命令 - 配置管理
-│   ├── log.py               # log 子命令 - 日志查看
+│   ├── log.py               # log 子命令 - 日志查看（view / list / clear）
 │   ├── report.py            # report 子命令 - 报告生成
-│   └── profile.py           # profile 子命令 - 性能分析
+│   └── profile.py           # 性能分析（仅 cli_main.py 注册，rodski 命令中没有该子命令）
 │
 ├── core/                    # 核心引擎层
 │   ├── __init__.py
 │   ├── ski_executor.py      # ⭐ SKI执行引擎 - 主执行器
-│   ├── keyword_engine.py    # ⭐ 关键字引擎 - 14+关键字实现
-│   ├── task_executor.py     # 任务执行器 - 步骤执行与重试
+│   ├── keyword_engine.py    # ⭐ 关键字引擎 - 17 个关键字实现
+│   ├── auto_wait.py         # 自动等待（AutoWait）公共层
+│   ├── dynamic_executor.py  # if / loop 条件求值
+│   ├── plan_parser.py       # 测试计划解析
+│   ├── task_executor.py     # 任务执行器 - 步骤执行与重试（parallel_executor 使用）
 │   ├── parallel_executor.py # 并发执行器 - 多线程执行
 │   ├── case_parser.py       # 用例解析器 - Case Sheet解析
-│   ├── data_table_parser.py # 数据表解析器 - 数据驱动
+│   ├── data_table_parser.py # 数据表解析器 - data.sqlite
 │   ├── model_parser.py      # 模型解析器 - XML元素定位
 │   ├── global_value_parser.py # 全局变量解析器
-│   ├── data_parser.py       # 数据引用解析器
 │   ├── result_writer.py     # 结果回写器 - 测试结果回填
 │   ├── config_manager.py    # 配置管理器
 │   ├── logger.py            # 日志管理
@@ -44,6 +49,8 @@ rodski/
 │   ├── appium_driver.py     # Appium 驱动 - 移动端
 │   ├── android_driver.py    # Android 专用驱动
 │   ├── ios_driver.py        # iOS 专用驱动
+│   ├── desktop_driver.py    # 桌面驱动（Windows / macOS）
+│   ├── load_driver.py       # 压测驱动（只支持接口）
 │   └── pywinauto_driver.py  # Pywinauto 驱动 - Windows桌面
 │
 ├── data/                    # 数据处理层
@@ -55,11 +62,14 @@ rodski/
 │   ├── __init__.py
 │   └── rest_helper.py       # RESTful API 辅助工具
 │
-├── config/                  # 配置文件
-├── logs/                    # 日志输出
-├── screenshots/             # 截图存储
-└── product/                 # 产品用例目录
+├── builtin_ops/             # run 内置函数（mock_route 等 7 个）
+├── load/                    # 性能压测（Locust 引擎、LoadCompiler）
+├── vision/                  # 视觉定位
+├── schemas/                 # XSD（case / model / plan / business / globalvalue / result）
+└── config/                  # 配置文件
 ```
+
+> 用例不放在 `rodski/` 包内：测试模块按 `product/{项目}/{模块}/` 组织，示例见仓库根目录的 `rodski-demo/`。
 
 ---
 
@@ -88,7 +98,7 @@ rodski/
 │           │              │                 │               │                │
 │           ▼              ▼                 ▼               ▼                │
 │  ┌──────────────────┐  ┌────────────┐  ┌────────────┐  ┌────────────────┐ │
-│  │  TaskExecutor    │  │ 14+关键字   │  │ API/send   │  │ Playwright     │ │
+│  │  TaskExecutor    │  │ 17 个关键字 │  │ API/send   │  │ Playwright     │ │
 │  │  (步骤执行/重试)   │  │ type/send  │  │ RestHelper │  │ Appium         │ │
 │  └──────────────────┘  │ verify/... │  │            │  │ Pywinauto      │ │
 │                        └────────────┘  └────────────┘  └────────────────┘ │
@@ -156,12 +166,11 @@ rodski/
     ┌───────────────────────────────────────┐
     │         rodski_cli/run.py                │
     │   handle(args)                        │
-    │   ├── CaseParser.parse()              │
-    │   ├── ModelParser.parse()             │
-    │   ├── DataTableParser.parse()         │
     │   ├── PlaywrightDriver()              │
-    │   ├── KeywordEngine(driver)           │
-    │   └── TaskExecutor(engine)            │
+    │   └── SKIExecutor(case_path, driver)  │
+    │       ├── CaseParser / ModelParser    │
+    │       ├── DataTableParser             │
+    │       └── KeywordEngine(driver)       │
     └───────────────────┬───────────────────┘
                         │
           ┌─────────────┴─────────────┐
@@ -184,7 +193,7 @@ rodski/
                          │ │ _kw_type()          │ │
                          │ │ _kw_send()          │ │
                          │ │ _kw_verify()        │ │
-                         │ │ ... (14+ 关键字)     │ │
+                         │ │ ... (17 个关键字)    │ │
                          │ └──────────┬──────────┘ │
                          └────────────┼────────────┘
                                       │
@@ -193,10 +202,10 @@ rodski/
                          │      BaseDriver         │
                          │   (抽象接口)             │
                          │ ┌─────────────────────┐ │
-                         │ │ click(locator)      │ │
-                         │ │ type(locator, text) │ │
-                         │ │ navigate(url)       │ │
-                         │ │ http_get(url)       │ │
+                         │ │ locate_element(...) │ │
+                         │ │ click(x, y)         │ │
+                         │ │ type_text(x, y, t)  │ │
+                         │ │ launch(**kwargs)    │ │
                          │ └──────────┬──────────┘ │
                          └────────────┼────────────┘
                                       │
@@ -243,7 +252,7 @@ rodski/
 │  └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                             │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                    data/data.xml (数据表)                             │   │
+│  │            data/data.sqlite (数据表，下面以 XML 形式示意内容)           │   │
 │  │  <datatable name="Login">                                           │   │
 │  │    <row id="L001" remark="正常登录">                                 │   │
 │  │      <field name="username">admin</field>                           │   │
@@ -338,22 +347,27 @@ rodski/
 
 ---
 
-## 5. 关键字清单 (14+)
+## 5. 关键字清单 (17 个)
+
+`KeywordEngine.SUPPORTED` 共 17 个关键字；`case.xsd` 的 `ActionType` 另有兼容项 `check`（等同 `verify`），共 18 个枚举值。
 
 ### UI 操作关键字
 | 关键字 | 功能 | 参数 |
 |--------|------|------|
 | `navigate` | 导航到URL（无浏览器时自动创建） | url/data |
+| `launch` | 启动桌面应用（Desktop 模型）；Web 模型或 model 为空时只接受 http(s) URL，等同 navigate | model=Desktop 模型, data=DataID（数据行含 app_path / app_name）；或 data=URL |
 | `close` | 关闭浏览器 | - |
 | `type` | UI 批量输入（PC/移动端统一） | model, data 或 locator, text |
-| `verify` | 批量验证（UI + 接口通用） | model, data |
-| `check` | verify 的兼容别名 | model, data |
-| `wait` | 等待 | seconds/data |
-| `screenshot` | 截图 | path |
-| `assert` | 断言元素 | locator, expected |
-| `upload_file` | 上传文件 | locator, file_path |
-| `clear` | 清空输入 | locator |
-| `get_text` | 获取文本 | locator, var_name |
+| `verify` | 批量验证（UI / 接口 / DB 通用） | model, data |
+| `check` | verify 的兼容别名（不计入 17 个） | model, data |
+| `wait` | 等待（秒） | data |
+| `screenshot` | 截图 | data=路径 |
+| `assert` | 图片 / 视频视觉断言（相似度低于阈值时失败） | data=`assert[type=image\|video,reference=...,threshold=0.8,...]` |
+| `upload_file` | 上传文件 | model=定位器, data=文件路径 |
+| `clear` | 清空输入 | data=定位器 |
+| `get` | 取值：模型模式 / UI 选择器模式 / 命名变量读取 | model（可空）, data |
+| `get_text` | 已废弃，按 `get` 执行 | 同 get |
+| `evaluate` | 在页面执行 JavaScript（仅 Web），结果写入 Return | data=表达式 或 `file:` 脚本路径 |
 
 > click / select / hover / drag / scroll / double_click / right_click / key_press 作为数据表字段值在 `type` 批量模式中使用。
 
@@ -367,9 +381,9 @@ rodski/
 ### 高级关键字
 | 关键字 | 功能 | 参数 |
 |--------|------|------|
-| `set` | 设置变量 | var_name, value |
-| `run` | 沙箱执行 Python 代码 | model=工程名, data=代码路径 |
-| `DB` | 数据库操作 | operation, query, var_name |
+| `set` | 设置命名变量 | data=`key=表达式` |
+| `run` | 沙箱执行 Python 代码，或调用内置函数（此时 model 必须为空） | model=工程名, data=代码路径；或 model="", data=`函数名(参数)` |
+| `DB` | 数据库操作 | model=数据库模型名, data=DataID |
 
 ---
 
@@ -400,7 +414,7 @@ rodski/
 位置: core/keyword_engine.py
 
 特性:
-├── 14+ 关键字支持
+├── 17 个关键字支持
 ├── 自动重试机制 (max_retries, retry_delay)
 ├── 数据引用解析
 ├── 返回值存储 (store_return/get_return)
@@ -423,24 +437,25 @@ rodski/
 位置: drivers/base_driver.py
 
 抽象方法 (子类必须实现):
-├── click(locator) → bool
-├── type(locator, text) → bool
-├── check(locator) → bool
-├── wait(seconds) → None
-├── navigate(url) → bool
-├── screenshot(path) → bool
-├── select(locator, value) → bool
-├── hover(locator) → bool
-├── drag(from_loc, to_loc) → bool
-├── scroll(x, y) → bool
-├── assert_element(locator, expected) → bool
+├── launch(**kwargs) → None
 ├── close() → None
+├── locate_element(locator_type, locator_value) → bbox | None
+├── click(x, y) → None
+├── double_click(x, y) / right_click(x, y) / hover(x, y) → None
+├── type_text(x, y, text) → None
+├── get_text(x1, y1, x2, y2) → str
+├── take_screenshot() → str
+├── scroll(x, y) → None
+
+非抽象的公共能力: set_auto_wait / probe / get_text_locator / wait(seconds) 等（v11.7.0 AutoWait 契约）
 
 实现类:
 ├── PlaywrightDriver  (Web自动化)
 ├── AppiumDriver      (移动端)
 ├── AndroidDriver     (Android专用)
 ├── iOSDriver         (iOS专用)
+├── DesktopDriver     (Windows / macOS 桌面)
+├── LoadDriver        (压测，只支持接口)
 └── PywinautoDriver   (Windows桌面)
 ```
 
@@ -469,7 +484,7 @@ rodski/
 
 ### 6.5 DataTableParser (数据表解析器)
 ```python
-职责: 解析 XML 数据表，支持数据驱动测试
+职责: 读取 data/data.sqlite 中的逻辑表（data.xml 已废弃，存在即报错）
 位置: core/data_table_parser.py
 
 功能:
@@ -620,7 +635,7 @@ pre_process
     → post_process（恰好一次）
 ```
 
-三层资格检查是 `Roam.Enabled=是`、`case.roam="是"` 和 CLI 显式使用 `roam --case`/`run --roam`。漫游只支持 `component_type` 为空或 `界面` 的用例。基础用例 PASS/FAIL 由原有 case 流程决定，漫游 finding、动作失败和预算停止都不改写状态。
+三层资格检查是 `Roam.Enabled=是`、`case.roam="是"` 和 CLI 显式使用 `roam --case-file <相对 case/ 的路径> --case-id <ID>`（v11.5.0 起；`--case` 仅为向后兼容保留）或 `run --roam`。漫游只支持 `component_type` 为空或 `界面` 的用例。基础用例 PASS/FAIL 由原有 case 流程决定，漫游 finding、动作失败和预算停止都不改写状态。
 
 `_run_roam_session()` 将每个决策动作适配成普通 test-step 字典，直接同步调用 `_run_steps([step], "漫游")`。如果动作需要临时 model/data，执行器先保存资源快照，经 `apply_insert_resources` 应用，执行后在 `finally` 恢复。漫游不是外部控制命令，不通过运行时命令队列的 insert 通道。
 
@@ -644,22 +659,22 @@ rodski run case/ --verbose
 # 无头模式
 rodski run case/ --headless
 
-# 失败重试
-rodski run case/ --retry 3
-
 # 仅验证不执行
 rodski run case/ --dry-run
 
-# 显示性能统计
-rodski run case/ --performance
+# 导出 trace.json（run/case/keyword 三层 span + 耗时/重试指标）
+rodski run case/ --trace
 
 # 查看配置
 rodski config list
 
-# 查看日志
-rodski log tail
+# 查看日志（子命令：view / list / clear）
+rodski log list
+rodski log view
 ```
+
+> CLI 没有 `--retry`、`--performance` 参数，也没有 `log tail` 子命令；完整参数以 `rodski <命令> --help` 为准。
 
 ---
 
-*文档生成时间: 2026-03-19*
+*文档版本: v11.10.0 | 最后更新: 2026-10-22*

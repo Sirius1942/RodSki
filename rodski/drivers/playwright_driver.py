@@ -133,7 +133,7 @@ class PlaywrightDriver(BaseDriver):
     """Playwright 驱动
 
     自动等待策略（v11.7.0）:
-    - 查找元素的轮询与上限由公共层 core/auto_wait.py 按 DefaultValue.AutoWait（毫秒；不设置 = 不自动等待）控制
+    - 查找元素的轮询与上限由公共层 core/auto_wait.py 按 DefaultValue.AutoWait（毫秒；不设置默认 10000，0 = 不自动等待）控制
     - 本驱动 probe() 即时探测；动作的可操作性等待（可见 / 稳定 / 可用 / 未遮挡）只用传入的 timeout_ms
     - 截图超时 SCREENSHOT_TIMEOUT_MS；navigate 页面加载超时不属于元素查找
 

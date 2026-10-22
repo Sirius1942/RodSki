@@ -90,7 +90,8 @@ product/                           ← 产品根目录（最顶层）
         │   ├── test_map.json
         │   └── test_map.json.lock
         └── result/                ← 测试结果（框架自动生成）
-            └── result_20260321_100000.xml
+            └── rodski_20260321_100000/
+                └── result.xml
 ```
 
 标准模块布局使用 `case/`、`model/`、`fun/`、`data/`、`plan/`、`result/` 这 6 个固定目录名，但当前目录合规硬检查只要求 `case/`、`model/`、`data/`。`fun/` 在使用 `run` 工程时需要，`plan/` 在按计划执行时需要，`result/` 由框架生成。`perf/`、`knowledge/` 与 `business/` 都按功能需要出现（`business/` 见[第 17 章](#17-业务模型business-modelv1140)）；`knowledge/` 不需要手工创建，也不参与 `REQUIRED_MODULE_DIRS` 检查。
@@ -107,7 +108,7 @@ product/                           ← 产品根目录（最顶层）
 | globalvalue.xml | `data/` 目录 | 全局变量 |
 | data.sqlite | `data/` 目录 | 所有测试数据表（唯一数据文件） |
 | plan/*.xml | `plan/` 目录 | 测试计划定义，每个文件一个计划 |
-| result_*.xml | `result/` 目录 | 框架自动生成的测试结果 |
+| result.xml | `result/rodski_{ts}/` 目录 | 框架自动生成的测试结果（压测计划例外：`result/result_{ts}.xml`，见 §16.7） |
 | model.xml | `model/` 目录 | 元素定位模型 |
 | business/*.xml | `business/` 目录 | 业务模型：节点、条件边、业务流（v11.4，可选） |
 | test_map.json | `knowledge/` 目录 | 漫游测试自动生成的知识地图；应用层校验 `schema_version=1`，无 XSD |
@@ -118,8 +119,8 @@ product/                           ← 产品根目录（最顶层）
 
 | XSD 文件 | 根元素 | 编写方 | 核心约束（摘要） |
 |----------|--------|--------|------------------|
-| `case.xsd` | `<cases>` | 人工 | 每个 `<case>` **必须且仅有 1 个** `<test_case>` 容器，其内 **至少 1 个**执行项；执行项可为裸 `<test_step>`，v6.3.0 起也可为 `<scenario>` 容器。`<pre_process>` / `<post_process>` 各 **0～1 个**容器，内为 **0～n 个** `<test_step>`。`execute` 与 `roam` 都只能是 `是` \| `否`，`roam` 默认 `否`。`component_type`（可选）只能是 `界面` \| `接口` \| `数据库`；`roam="是"` 仅允许 `component_type` 为空或为 `界面`。每个 `test_step` 的 `action` 为 `ActionType` 枚举（见 [3.6](#36-action-与-casexsd-枚举一致)）。 |
-| `model.xsd` | `<models>` | 人工 | `<model>` 须 `name`；`<element>` 须 `name`。仅支持**完整格式**（子节点 `<type>` / `<location>` / `<desc>`），~~简化格式已移除（v5.4.0）~~。`DriverType` / `LocatorType` 取值见 [4.2](#42-元素属性说明)、[4.3](#43-定位类型)。接口保留元素名：`_method`、`_url`、`_header_*`（与数据字段一一对应）。 |
+| `case.xsd` | `<cases>` | 人工 | 每个 `<case>` **必须且仅有 1 个** `<test_case>` 容器，其内 **至少 1 个**执行项；执行项可为裸 `<test_step>`，v6.3.0 起也可为 `<scenario>` 容器。`<pre_process>` / `<post_process>` 各 **0～1 个**容器，内为 **0～n 个**执行项（`<test_step>`、`<if>/<elif>/<else>`、`<loop>`、`<business_call>`）。`execute` 与 `roam` 都只能是 `是` \| `否`，`roam` 默认 `否`。`component_type`（可选）只能是 `界面` \| `接口` \| `数据库`；`roam="是"` 仅允许 `component_type` 为空或为 `界面`。每个 `test_step` 的 `action` 为 `ActionType` 枚举（见 [3.6](#36-action-与-casexsd-枚举一致)）。 |
+| `model.xsd` | `<models>` | 人工 | `<model>` 须 `name`；`<element>` 须 `name`。仅支持**完整格式**（子节点 `<type>` / `<location>` / `<desc>`），~~简化格式已移除（v5.4.0）~~。`DriverType` / `LocatorType` 取值见 [4.2](#42-元素属性说明)、[4.3](#43-定位器类型完整)。接口保留元素名：`_method`、`_url`、`_header_*`（与数据字段一一对应）。 |
 | `data.xsd` | `<datatable>` / `<datatables>` | 人工 | 已废弃（v6.0.0）。测试数据统一存储在 `data.sqlite`，验证数据表名为 `{模型名}_verify`，`table_kind='verify'`。 |
 | `globalvalue.xsd` | `<globalvalue>` | 人工 | 每个 `<group>` 须 `name`；**所有 group 的 `name` 全局唯一**。每组内至少一个 `<var>`，每个 `var` 须同时具备 `name` 与 `value`；**同一 group 内** `var@name` **唯一**（XSD `xs:unique`）。引用格式：`GlobalValue.组名.变量名`。 |
 | `business.xsd` | `<business_models>` | 人工 | v11.4 业务模型。`business_model` 须 `id`/`name`/`version`，内含 `nodes`/`edges`/`flows`；`flow@type` 只能是 `basic` \| `alternative` \| `exception` \| `boundary`。Case 中用 `<business_call ref flow input expect>` 引用（四个属性均必填）。详见 [第 17 章](#17-业务模型business-modelv1140)。 |
@@ -128,7 +129,7 @@ product/                           ← 产品根目录（最顶层）
 本地校验示例（需安装 `xmllint`，Mac 可用 Xcode 命令行工具）：
 
 ```bash
-xmllint --noout --schema rodski/schemas/case.xsd product/DEMO/demo_site/case/demo_case.xml
+xmllint --noout --schema rodski/schemas/case.xsd rodski-demo/demosite/full/case/demo_case.xml
 ```
 
 ### 2.3 推荐命名规范（v11.5.0）
@@ -174,9 +175,9 @@ case/
 
 每个 `<case>` 下有三个**阶段容器**（见 `case.xsd`）：
 
-1. **`<pre_process>`**（可选）— 预处理，内含 **0～n** 个 `<test_step>`
-2. **`<test_case>`**（**必选，且每个 case 仅 1 个**）— 用例主体，内含 **至少 1 个** `<test_step>`；v6.3.0 起可混合编排裸 `<test_step>` 与 `<scenario>`
-3. **`<post_process>`**（可选）— 后处理，内含 **0～n** 个 `<test_step>`
+1. **`<pre_process>`**（可选）— 预处理，内含 **0～n** 个执行项（`<test_step>`，也可用 `<if>/<elif>/<else>`、`<loop>`、`<business_call>`）
+2. **`<test_case>`**（**必选，且每个 case 仅 1 个**）— 用例主体，内含 **至少 1 个**执行项；v6.3.0 起可混合编排裸 `<test_step>` 与 `<scenario>`
+3. **`<post_process>`**（可选）— 后处理，内含 **0～n** 个执行项（同 `<pre_process>`）
 
 早期单文件格式中「测试步骤」「预期结果」等多行语义，在 XML 中统一为 **`<test_case>` 内多条 `<test_step>`**（先 `type` 再 `verify` 等，按书写顺序执行）。
 
@@ -218,7 +219,7 @@ case/
 | `description` | 否 | 用例描述 | 详细说明（可选） |
 | `component_type` | 否 | 测试类别 | `界面` / `接口` / `数据库`（与 `case.xsd` 一致），仅做分类标记 |
 | `priority` | 否 | 优先级 | `P0` / `P1` / `P2` / `P3`，CLI 可按优先级过滤 |
-| `tags` | 否 | 用例标签 | 逗号分隔；与 `<cases tags>` 合并后参与 `--tags` / `--exclude-tags` 过滤（v11.8.9） |
+| `tags` | 否 | 用例标签 | 逗号分隔；与 `<cases tags>` 合并后参与 `--tag` / `--exclude-tag` 过滤（v11.8.9） |
 | `expect_fail` | 否 | 预期失败 | `是` / `否`（默认 `否`），标记为预期失败的用例失败时不计入 FAIL |
 | `roam` | 否 | 是否允许显式漫游 | `是` / `否`（默认 `否`）。仅 UI 用例可设为 `是`：`component_type` 可为空或为 `界面`；非空且不是 `界面` 时抛 `SKI803` |
 
@@ -320,17 +321,18 @@ case/
 |------|------------------|
 | `close` | 关闭浏览器 |
 | `type` | UI 批量输入 |
-| `verify` | 批量验证（UI / 接口）；严格全匹配，任一字段不一致即步骤失败 |
+| `verify` | 批量验证（UI / 接口 / DB）；默认 `strict`（UI / DB 模型的 `_verify` 行须包含模型全部字段），`match_mode="subset"` 只比较写出的字段；接口模型只比较 `_verify` 行中写出且模型已声明的字段，`status` 恒按 HTTP 状态码比较（[§5.7.3](#573-strict--subset-与-blank)）；任一比较字段不一致即步骤失败 |
 | `wait` | 等待 |
 | `navigate` | 打开 URL |
-| `assert` | 断言 |
+| `launch` | 启动桌面应用：`launch <Desktop模型> <DataID>`（模型 `driver_type="windows\|macos"`，数据行写 `app_path` / `app_name`）；Web 模型或 `model` 为空时只接受 http(s) URL，等同 `navigate`（[§13.2](#132-launch-关键字)） |
+| `assert` | 图片 / 视频视觉断言：`data="assert[type=image\|video,reference=...,threshold=0.8]"`，相似度不足时步骤失败（[§8.1](#81-ui-操作关键字)）；值断言请用 `verify` |
 | `upload_file` | 上传文件 |
 | `clear` | 清空输入 |
 | `get_text` | **已废弃**，请改用 `get` |
 | `get` | 三模式取值：`get ModelName D001`（模型模式，推荐）/ `get #selector`（UI 选择器，低级补充）/ `get var_name`（命名访问） |
 | `evaluate` | 执行 JS 表达式（**仅 Web**，逃生舱，结构化结果保留原类型）；`data="file:fun/js/x.js"` 引用模块内脚本（v11.6.0，见 [§8.7](#87-evaluate--逃生舱与-file-脚本v1160)） |
 | `send` | 发 HTTP 请求 |
-| `set` | 写入命名变量：`set \| key=value`，写入 context.named 并写入 history |
+| `set` | 写入命名变量：`set \| key=value`，写入 context.named，**不进入 Return 历史**（[§7.5](#75-哪些关键字会产生-return-值)） |
 | `DB` | 执行 SQL |
 | `run` | 执行 `fun/` 下脚本 |
 | `check` | 与 `verify` 等价（兼容） |
@@ -393,7 +395,44 @@ case/
 
 | 属性 | 必需 | 说明 |
 |------|------|------|
-| `condition` | 是 | 条件表达式，支持 `${Return[-N]}` 和变量引用 |
+| `condition` | 是 | 条件表达式，语法见下方「条件写法」 |
+
+`<else>` 既可以写在 `<if>` 内部（如上例），也可以和 `<elif>` 一起作为**紧跟在 `</if>` 之后的兄弟元素**；需要多分支时用后一种写法：
+
+```xml
+<test_case>
+  <test_step action="send" model="QueryAPI" data="Q001"/>
+  <if condition="${Return[-1].status} == 200">
+    <test_step action="verify" model="QueryAPI" data="V001"/>
+  </if>
+  <elif condition="${Return[-1].status} == 404">
+    <test_step action="verify" model="QueryAPI" data="V404"/>
+  </elif>
+  <else>
+    <test_step action="screenshot" model="" data="error.png"/>
+  </else>
+</test_case>
+```
+
+**条件写法**
+
+| 类别 | 写法 | 说明 |
+|------|------|------|
+| Return 字段比较 | `${Return[-1].status} == 200`，或 `${Return[-1].status == 200}` | 两种写法等价；字段不存在时取空串；`Return[N]` 下标越界时条件按 False |
+| 变量比较 | `${var} == v` | `var` 可以是 `set` 写入的变量或 `<loop var>` 的循环变量；只能作为比较的操作数，单独写 `${var}` 不会按真值判断 |
+| 比较运算符 | `==` `!=` `>` `<` `>=` `<=` `contains` | `==` / `!=` / `contains` 按字符串比较；`>` `<` `>=` `<=` 按数值比较，两边无法转成数字时条件无法评估。属性里的 `<` 要写成 `&lt;` |
+| 页面状态 | `element_exists(loc)`、`element_not_exists(loc)` | `loc` 写 `类型=值`（类型为 id/class/css/xpath/text/name/tag，如 `xpath=//button`），否则按 CSS 选择器处理 |
+| 页面文字 | `text_contains(文字)`、`text_not_contains(文字)` | 读取页面文字时出错按 False |
+| 上一步 verify | `verify_fail` | 上一个返回值是失败的 verify 结果时为 True |
+| 逻辑组合 | `A AND B`、`A OR B`、`NOT A` | 不区分大小写；引号和括号内的 AND / OR 不拆分 |
+
+**条件无法评估时（当前行为，可能调整）**：
+
+- 引用了未定义的变量、`element_exists` 定位时出错、数值比较两边不是数字等情况，`<if>` 的条件按"无法评估"处理：记录警告并截图，**整个 `if/elif/else` 块都不执行**（包括 `else`），步骤不判失败。
+- `<elif>` 的条件无法评估时只跳过这一个 `elif`，继续评估后面的 `elif`，都不成立时会执行 `else`。
+- 无法识别的写法（不属于上表任何一类）按 **False** 处理，并记录警告"未知条件类型"。
+
+因此不要依赖"条件写错就跳过"：执行日志中每个条件都有一行 `if (...) -> True` / `-> False` / `-> 评估失败（跳过）`，调试时据此确认分支走向。
 
 **嵌套规则**：`<if>` 最多嵌套 2 层（外层 `<if>` 内可再嵌套一层 `<if>`，但第 2 层内不可再嵌套）。
 
@@ -412,6 +451,8 @@ case/
 |------|------|------|
 | `range` | 是 | 循环范围：`1-5` 为闭区间（1 到 5）；`1,2,3` 为逐个列举的取值列表（注意 `1,5` 只循环 1 和 5 两次） |
 | `var` | 否 | 循环变量名，可在内部步骤的 `data` 中通过 `${var}` 引用（如 `D00${i}`） |
+
+`<loop>` 内可以写 `<test_step>`、`<business_call>` 和 `<if>/<elif>/<else>`（v11.8.6），循环变量可直接用在条件里，如 `<if condition="${i} == 3">`。`<loop>` 内不能再嵌套 `<loop>`。
 
 ---
 
@@ -438,25 +479,24 @@ case/
 |------|------|------|------|
 | `name` | 是 | 模型名称，必须与数据表名一致 | — |
 | `type` | 否 | 模型类别（默认 `ui`） | `ui` / `interface` / `database` |
-| `driver_type` | 否 | 驱动类型，决定使用哪个驱动执行 | `web` / `interface` / `windows` / `macos` / `android` / `ios` / `other` |
+| `driver_type` | 否 | 驱动类型，决定使用哪个驱动执行 | `web` / `interface` / `windows` / `macos` / `android` / `ios` / `mobile`（平台无关移动端，见 [§15.2](#152-driver_typemobile)）/ `other` |
 | `servicename` | 否 | 服务名（保留） | — |
 | `connection` | 否 | 数据库连接组名（仅 `type="database"` 时使用） | GlobalValue 中的组名 |
 
 ### 4.2 元素属性说明
 
-**与 `model.xsd` 一致**：`<element>` 上 **`name` 为唯一必填属性**；`type`（属性）、`value`、`interfacename`、`group` 均为可选（有默认值时可省略）。
+**与 `model.xsd` 一致**：`<element>` 上 **`name` 为唯一必填属性**；`type`（属性）、`interfacename`、`group` 均为可选。每个 `<element>` **至少有 1 个** `<location>` 子节点（`page` 元素、多定位器都按这个规则写）。
 
 | 属性/子节点 | XSD | 实践建议 | 说明 |
 |------------|-----|----------|------|
 | `name` | **必填** | **必填** | 元素名称，**必须与数据表字段 name 一致**（区分大小写） |
-| `type`（element 属性） | 可选 | Web/接口模型建议填 | **完整格式**：驱动类型 `web` / `interface` / `other`。**简化格式**：与 `LocatorType` 相同，表示定位类型，需配合 `value` |
-| `value` | 可选 | 简化格式建议成对出现 | 与简化格式 `type` 配对，表示定位值 |
+| `type`（element 属性） | 可选 | Web/接口模型建议填 | 驱动类型：`web` / `interface` / `android` / `ios` / `mobile` / `other` 等，**不是**定位类型 |
 | `<type>` 子节点 | 可选 | Web 常用 | UI 控件语义：input / button / select / text / textarea |
-| `<location type="...">` | 可选 | 完整格式常用 | `location@type` 取值见 [4.3](#43-定位类型)（`LocatorType`） |
+| `<location type="...">` | **必填（1..n）** | — | `location@type` 取值见 [4.3](#43-定位器类型完整)（`LocatorType`）；写多个时按 `priority` 依次尝试（[4.5](#45-多定位器格式自动切换)） |
 | `<location frame="...">` | 可选 | 元素在 iframe 内时填写 | v11.6.0：定位 `<iframe>` 的 CSS 选择器，多层用 ` >> ` 串联，见 [4.3.5](#435-iframe-内元素locationframev1160) |
 | `<desc>` | 可选 | — | 元素描述，便于维护 |
 
-> **运行时**：除 XSD 外，实际执行仍需要可用的定位信息——**完整格式**建议写 `type="web|interface|other"` + `<location>`；**简化格式**写 `type`（定位类型）+ `value`。
+> `<element>` 上没有 `value` 属性；`<element name="x" type="id" value="..."/>` 这类旧的简化格式已移除（v5.4.0），XSD 校验和解析都会报错（见 [4.4](#44-简化格式--已移除v540)）。
 
 ### 4.3 定位器类型（完整）
 
@@ -481,15 +521,20 @@ case/
 
 | type 值 | 格式 | 说明 | 示例 |
 |---------|------|------|------|
-| `vision` | 图片匹配 | 通过截图/图片模板匹配定位 | `<location type="vision">img/login_btn.png</location>` |
+| `vision` | 语义描述 | 用自然语言描述目标元素，由视觉感知后端（VLM）匹配 | `<location type="vision">登录按钮</location>` |
+| `vision_image` | 参考图路径 | 截图与参考图做模板匹配（离线，不调用 AI） | `<location type="vision_image">img/login_btn.png</location>` |
 | `ocr` | 文字识别 | 通过 OCR 识别文字定位 | `<location type="ocr">登录</location>` |
 | `vision_bbox` | 坐标定位 | 直接使用坐标 `x1,y1,x2,y2` | `<location type="vision_bbox">100,200,150,250</location>` |
 
 **视觉定位器说明**：
 
-- **`vision` 图片定位器**：
-  - 值为图片路径（相对于 `images/` 目录）
-  - 通过图像匹配算法定位
+- **`vision` 语义定位器**：
+  - 值为元素的语义描述（如「登录按钮」），不是图片路径
+  - 需要配置视觉感知后端，见 [第 12 章](#12-视觉定位器vision--vision_bbox) 与 `VISION_LOCATION.md`
+  - 适用于：动态 ID / class、无明显属性的元素
+
+- **`vision_image` 图片模板定位器**：
+  - 值为参考图路径；相对路径按 `model.xml` 所在目录（`model/`）解析，也可写绝对路径
   - 适用于：按钮图标、Logo、固定 UI 元素
 
 - **`ocr` 文字定位器**：
@@ -532,21 +577,27 @@ case/
 
 **示例对比**：
 ```xml
-<!-- 同一个登录按钮，三种定位方式 -->
+<!-- 同一个登录按钮，四种视觉定位方式 -->
 
-<!-- 方式1: 图片匹配 - 使用按钮截图 -->
+<!-- 方式1: 语义描述 - 由视觉感知后端匹配 -->
 <element name="loginBtn" type="web">
     <type>button</type>
-    <location type="vision">img/login_btn.png</location>
+    <location type="vision">登录按钮</location>
 </element>
 
-<!-- 方式2: OCR文字识别 - 识别"登录"二字 -->
+<!-- 方式2: 图片模板匹配 - 使用按钮截图（相对 model/ 目录） -->
+<element name="loginBtn" type="web">
+    <type>button</type>
+    <location type="vision_image">img/login_btn.png</location>
+</element>
+
+<!-- 方式3: OCR文字识别 - 识别"登录"二字 -->
 <element name="loginBtn" type="web">
     <type>button</type>
     <location type="ocr">登录</location>
 </element>
 
-<!-- 方式3: 坐标定位 - Agent探索后生成 -->
+<!-- 方式4: 坐标定位 - Agent探索后生成 -->
 <element name="loginBtn" type="web">
     <type>button</type>
     <location type="vision_bbox">100,200,150,250</location>
@@ -640,6 +691,7 @@ prompt 弹窗填 `accept:输入文本`，例如 `accept:加急` 表示输入「�
 ```
 
 - `frame` 只对 `id` / `class` / `css` / `xpath` / `text` / `tag` / `name` 有效；视觉定位器和 `page` 不接受 `frame`。
+- iframe 内元素在 `type` 数据行中支持 `click` / `double_click` / `right_click` / `hover` / `select【】` / `key_press【】` 和文本输入；写 `scroll` / `scroll【】` / `drag【】` 会直接报参数错误。
 - iframe 找不到时按定位失败报错，错误信息指出是哪一层 frame。
 - `switch_frame` 不是关键字，不能写在 `action` 中。
 
@@ -748,7 +800,7 @@ model.xml 元素 name  ===  数据表 XML 的 field name
 **约束：**
 - 逻辑表名必须与模型名一致
 - 同一逻辑表所有行的字段集合必须完全一致（与 schema 一致）
-- 验证数据表（`_verify` 后缀）`table_kind='verify'`，输入数据表 `table_kind='data'`
+- `table_kind` 取值：`data`（输入数据表）/ `verify`（验证数据表，`_verify` 后缀）/ `driver`（v11.9.0 数据驱动表，见 [§10.10](#1010-计划级数据驱动v1190)）
 - v6.7.6 起，SQLite 数据表严格校验字段一致性。同一逻辑表的每一行必须包含 schema 声明的全部字段。缺字段必须显式填写 BLANK、NULL 或 NONE。
 
 ### 5.2 写入数据的方式
@@ -759,6 +811,8 @@ model.xml 元素 name  ===  数据表 XML 的 field name
 rodski data import <module>            # 默认跳过已存在的表
 rodski data import <module> --overwrite  # 覆盖已存在的表
 ```
+
+`import` 读取模块 `data/` 下的 `data.xml` / `data_verify.xml`。写库前逐表校验字段集合：同一张表中有行缺字段时，逐行列出 `表.行: missing=[...]`，**整体不写入**、退出码 1（v11.8.23）。先在 XML 中为缺的字段补 `BLANK` / `NULL` / `NONE` 再导入。
 
 XML 格式（仅用于迁移，不再作为运行时数据源）：
 ```xml
@@ -843,11 +897,17 @@ rodski data show <module> <table> <data_id>
 # 列出逻辑表中的前 N 行
 rodski data query <module> <table> --limit 20
 
-# 校验模块数据层
-rodski data validate <module>
+# 校验模块数据层；--orphans 额外检查未被用例引用的逻辑表与 DataID
+rodski data validate <module> [--orphans]
+
+# 只读导出全部数据（stdout，稳定排序，便于 diff / 评审；默认 yaml）
+rodski data dump <module> [--format yaml|json]
 
 # 从 XML 迁移数据到 data.sqlite
 rodski data import <module> [--overwrite]
+
+# 为逻辑表新增字段，并给所有已有行回填默认值（默认 BLANK）
+rodski data add-field <module> <table> <field> [--default BLANK]
 
 # 行级编辑（v11.6.0）：直接改 data.sqlite，改完即可重跑，无需 import
 rodski data set <module> <table> <data_id> field=value [field=value ...]   # 修改已有行
@@ -905,6 +965,19 @@ verify 中：`BLANK` 在 UI / DB 模型跳过、接口模型期望空字符串�
 
 > **注意**：动作关键字使用中文方括号 **【】** 包裹参数。
 
+#### 不同定位方式支持的动作
+
+| 元素定位方式 | 支持的动作值 | 其他值 |
+|-------------|-------------|--------|
+| 传统定位器（id / css / xpath 等） | 上表全部 | — |
+| iframe 内元素（`location@frame`） | `click` / `double_click` / `right_click` / `hover` / `select【】` / `key_press【】` / 文本输入 | `scroll` / `drag【】` 报参数错误 |
+| 截图匹配命中（`vision` / `vision_image`） | `click` / `double_click` / `right_click` / `hover` / 文本输入（先点击聚焦、全选清空，再输入） | `select【】` / `key_press【】` / `drag【】` 等会被当作普通文本输入 |
+
+**scroll 的注意事项**：
+
+- `scroll` / `scroll【x,y】` 是页面级滚动（`scroll【x,y】` 省略 y 时为 300），不会把该字段对应的元素滚动到可视区；但该字段的元素仍要先定位成功（受 `AutoWait` 约束）。
+- 当前实现按"以 `scroll` 开头"识别滚动动作，因此 `scrolling`、`scroll test` 这类普通文本也会被当成滚动、不会输入（已知问题，可能调整）。需要输入这类文本时暂时避免让值以 `scroll` 开头。
+
 #### key_press 按键参考
 
 `key_press` 支持 Playwright 的所有按键名称：
@@ -919,7 +992,7 @@ verify 中：`BLANK` 在 UI / DB 模型跳过、接口模型期望空字符串�
 | 多键组合 | `Control+Shift+I` | `key_press【Control+Shift+I】` |
 | F 功能键 | `F1` `F5` `F12` | `key_press【F5】` |
 
-> 组合键使用 `+` 连接，修饰键在前、普通键在后。macOS 上 `Control` 对应 `Command` 键行为。
+> 组合键使用 `+` 连接，修饰键在前、普通键在后。
 >
 > 按键作用于该字段对应的元素：Web 驱动先聚焦该元素再按键（v11.8.27 起；此前发往当前焦点元素）。macOS 上组合键中的 `Control` 修饰键按 `Command` 执行（`Control+A` 全选），单独按 `Control` 不转换。
 
@@ -1063,7 +1136,8 @@ UI 模型的 `verify` 会在自动等待 `DefaultValue.AutoWait` 毫秒内（例
 
 - strict 模式下某行一半以上字段都是 `BLANK` 时，`rodski case lint` 会提示改用 `match_mode="subset"`（INFO）。
 - 缺字段的报错会直接给出这两种修法。
-- 接口模型（v11.8.14 起）不受"全部字段"约束：只比较 `_verify` 行中写出的字段，请求字段与 `_method` / `_url` 等控制元素不用写进 `_verify`；`status` 列即使模型没有声明 `status` 元素也按 HTTP 状态码校验。
+- 接口模型（v11.8.14 起）不受"全部字段"约束：只比较 `_verify` 行中写出、且模型中已声明的字段（`status` 例外），请求字段与 `_method` / `_url` 等 `_` 前缀控制元素不用写进 `_verify`，写了也不比较；`status` 列即使模型没有声明 `status` 元素也按 HTTP 状态码校验。
+- 一行中可比较的字段数为 0 时（例如接口 `_verify` 行只写了 `_` 前缀控制元素或模型未声明的列），步骤报"比较字段数为 0，不允许空校验通过"并失败。
 
 #### 5.7.4 什么时候还用 evaluate
 
@@ -1143,7 +1217,6 @@ UI 模型的 `verify` 会在自动等待 `DefaultValue.AutoWait` 毫秒内（例
 <globalvalue>
   <group name="DefaultValue">
     <var name="URL" value="http://127.0.0.1:5555"/>
-    <var name="BrowserType" value="chromium"/>
     <var name="WaitTime" value="0"/>           <!-- 毫秒；0 = 不做固定等待 -->
     <var name="AutoWait" value="5000"/>        <!-- 毫秒；自动等待：所有查找测试对象步骤的等待上限 -->
     <var name="DialogPolicy" value="fail"/>
@@ -1152,7 +1225,7 @@ UI 模型的 `verify` 会在自动等待 `DefaultValue.AutoWait` 毫秒内（例
   </group>
   <group name="sqlite_db">
     <var name="type" value="sqlite"/>
-    <var name="database" value="product/DEMO/demo_site/demo.db"/>
+    <var name="database" value="demo.db"/>
   </group>
   <group name="Roam">
     <var name="Enabled" value="否"/>
@@ -1182,20 +1255,21 @@ GlobalValue.DefaultValue.WaitTime     → "0"
 
 | 组名 | Key | 说明 | 示例值 |
 |------|-----|------|--------|
-| DefaultValue | URL | 测试环境地址 | http://127.0.0.1:5555 |
-| DefaultValue | BrowserType | 浏览器类型 | chromium / firefox / webkit |
+| DefaultValue | URL | 测试环境地址。仅供 `GlobalValue.DefaultValue.URL` 引用，`navigate` 不会自动拼接它；`kind="load"` 压测计划把它当默认 host（未设置时为 `http://localhost`） | http://127.0.0.1:5555 |
 | DefaultValue | WaitTime | 每步执行后的固定等待，单位**毫秒**（v11.6.0 起；旧值 ≤30 暂按秒兼容并告警） | 0 |
 | DefaultValue | AutoWait | **自动等待**：所有驱动、所有查找测试对象步骤（`type` 每个字段、`verify`、`get`、`clear`、`upload_file`、视觉定位）的等待上限，单位**毫秒**，每 1000ms 探测一次；`0` = 关闭自动等待 | `10000`（不设置或空值，v11.10.0） |
 | DefaultValue | DialogPolicy | 未注册处理器的原生弹窗：`accept` / `dismiss` / `fail`（v11.6.0） | fail |
 | DefaultValue | SessionMode | 浏览器会话：`isolated` / `shared_browser` / `shared_session`（v11.6.0） | isolated |
 | DefaultValue | EvidenceMode | 截图证据：`full` / `concise`（v11.6.0） | full |
-| DefaultValue | Headless | 无头模式 | True / False |
+| DefaultValue | Platform | `driver_type="mobile"` 模型的平台回退值：`Mobile.Platform` 未设置时才读取，都没有时为 `android`（见 [§14.3](#143-mobile-globalvalue-配置)） | android / ios |
 | Roam | Enabled | 漫游全局开关；只有 `是` 才允许显式漫游 | 是 / 否 |
 | Roam | MaxVariantsPerCase | 单个基础用例最多执行的漫游变体数 | 5 |
 | Roam | MaxDurationSeconds | 单个漫游会话时长上限（秒） | 120 |
 | Roam | MinConfidenceToAct | 自动执行动作的最低置信度 | 0.6 |
 | Roam | MaxTokenBudget | 自定义/后续 LLM 引擎 token 上限；核心默认引擎不使用 LLM | 20000 |
 | Roam | MaxCostUsd | 自定义/后续 LLM 引擎成本上限（美元） | 0.5 |
+
+> `DefaultValue.BrowserType`、`DefaultValue.Headless` 框架**不读取**：浏览器由 CLI `--browser chromium|firefox|webkit` 决定（默认 chromium），无头模式由 `--headless` 决定（见 [§9.7](#97-运行命令)）。旧配置里保留这两个变量不会报错，但不会生效。
 
 ### 6.4 WaitTime 与执行策略配置（v11.6.0）
 
@@ -1295,10 +1369,10 @@ DB 关键字最终仍通过 `globalvalue.xml` 中的组读取数据库连接参�
 
 | 组名 | Key | 说明 |
 |------|-----|------|
-| sqlite_db | type | 数据库类型：sqlite / mysql / postgresql / sqlserver |
-| sqlite_db | host | 主机地址（sqlite 不需要） |
+| sqlite_db | type | 数据库类型：sqlite / mysql / postgresql / sqlserver（默认 sqlite） |
+| sqlite_db | host | 主机地址（sqlite 不需要；默认 localhost） |
 | sqlite_db | port | 端口号（sqlite 不需要） |
-| sqlite_db | database | 数据库名或文件路径 |
+| sqlite_db | database | 数据库名或文件路径；SQLite 的相对路径按**测试模块目录**解析（如 `demo.db`） |
 | sqlite_db | username | 用户名 |
 | sqlite_db | password | 密码 |
 
@@ -1374,20 +1448,21 @@ Return 引用**只应出现在数据表 XML 的 field 值中**，不要写在 Ca
 |--------|-----------|
 | get / get_text | 元素文本（get_text 已废弃，请使用 get） |
 | verify | 批量验证时的实际值字典 |
-| assert | 断言结果 |
+| assert | 视觉断言结果字典（`matched`、`similarity` 等） |
 | type（批量模式） | 本次输入使用的完整数据行 |
 | send | HTTP 响应（含 `status` 状态码 + 响应体字段） |
 | DB | query → 结果集列表；execute → 受影响行数 |
 | run | 脚本 stdout 输出（自动尝试 JSON 解析） |
 
 > **`set` 不在上表** —— `set` 只命名变量，**不产生 Return 值**，也不改变 `${Return[-N]}`
-> 的指向。所以下面这种写法是安全的：`set` 之后 `${Return[-1]}` 仍指 `send` 的响应。
+> 的指向。所以下面这种写法是安全的：`set` 之后的 `verify` 读到的实际值仍是 `send` 的响应。
 >
 > ```xml
 > <test_step action="send" model="LoginAPI" data="L001"/>
 > <test_step action="set" model="" data="auth_token=${Return[-1].token}"/>
-> <test_step action="verify" model="LoginAPI_verify" data="V001"/>
-> <!-- V001 里的 ${Return[-1]} 读到的是 send 的响应，不是 auth_token -->
+> <test_step action="verify" model="LoginAPI" data="V001"/>
+> <!-- verify 比较的实际值来自 send 的响应，不是 auth_token；
+>      LoginAPI_verify.V001 只写字面期望值（如 status=200），不写 ${Return[-1]}（见 7.4） -->
 > ```
 >
 > 反过来说：**不要**用 `${Return[-1]}` 去读刚才 `set` 的值 —— 用 `${auth_token}` 或
@@ -1406,7 +1481,7 @@ Return 引用**只应出现在数据表 XML 的 field 值中**，不要写在 Ca
 
 <!-- 在后续步骤中使用命名变量 -->
 <test_step action="send" model="OrderAPI" data="O001"/>
-<!-- data.sqlite 中: <field name="_headers">Authorization: Bearer ${auth_token}</field> -->
+<!-- data.sqlite 中: <field name="_header_Authorization">Bearer ${auth_token}</field> -->
 ```
 
 **进阶写法（Return 索引）：**
@@ -1415,8 +1490,9 @@ Return 索引适合步骤紧邻且无歧义的场景：
 
 ```xml
 <test_step action="send" model="LoginAPI" data="L001"/>
-<test_step action="verify" model="LoginAPI" data="V001"/>
-<!-- data.sqlite 中: <field name="status">${Return[-1].status}</field> -->
+<test_step action="send" model="OrderAPI" data="O001"/>
+<!-- data.sqlite 中 OrderAPI.O001: <field name="_header_Authorization">Bearer ${Return[-1].token}</field> -->
+<!-- 注意：接口 / DB 模型的 _verify 表中不能写 ${Return[-1]}（见 7.4） -->
 ```
 
 **为什么推荐 set/get？**
@@ -1548,10 +1624,33 @@ INSERT INTO rs_field VALUES ('PayAPI', 'D001', 'txn_no', 'TXN${date(today, %Y%m%
 | **wait** | 等待指定秒数（固定等待，仅用于演示 / 确需固定时长；等异步结果请直接 `verify`） | — | 秒数（如 `3`） |
 | **clear** | 清空输入框 | — | CSS 选择器 |
 | **get** | 三模式取值：model+DataID → 模型元素文本（推荐）；CSS 选择器 → UI 元素文本（低级补充）；变量名 → 命名变量读取 | 模型名（可选） | DataID 或 CSS 选择器 或 变量名 |
-
-> **UI 元素取值推荐方式**：优先使用 `get ModelName DataID`（模型模式）或 `verify` + model + 数据表。`get #selector` 直接获取 UI 元素文本属于低级补充手段，不推荐在常规业务用例主链路中使用。
 | **screenshot** | 手动截图 | — | 文件路径 |
 | **upload_file** | 上传文件 | — | 文件路径 |
+| **launch** | 启动桌面应用（Desktop 模型）；Web 模型或 model 为空时只接受 http(s) URL，等同 navigate，见 [§13.2](#132-launch-关键字) | Desktop 模型名（`driver_type="windows\|macos"`）或空 | DataID（数据行含 `app_path` / `app_name`）或 http(s) URL |
+| **assert** | 图片 / 视频视觉断言，相似度低于阈值时步骤失败（v11.8.17 起） | — | `assert[type=image,reference=...,threshold=0.8]` |
+
+> **UI 元素取值推荐方式**：优先使用 `get ModelName DataID`（模型模式）或 `verify` + model + 数据表。`get #selector` 直接获取 UI 元素文本属于低级补充手段，不推荐在常规业务用例主链路中使用。
+
+**assert 视觉断言参数**（写在 `data` 中，`assert[...]` 包装可省略，逗号分隔 `key=value`）：
+
+| 参数 | 适用 | 说明 |
+|------|------|------|
+| `type` | 全部 | `image`（默认）/ `video` |
+| `reference` | 全部 | 预期图片路径，**必填**；相对路径按 `<模块>/images/assert/` 解析 |
+| `threshold` | 全部 | 相似度阈值，默认 `0.8` |
+| `scope` | 全部 | `full`（全屏，默认）/ `element`（配合 `element_bbox=x,y,w,h`） |
+| `wait` | 全部 | 轮询等待**秒数**，默认 `0`（立即断言） |
+| `video_source` | video | `recording`（本用例录像，默认）或视频文件路径 |
+| `position` | video | 关键帧位置 `start` / `middle` / `end` / `any`（默认） |
+| `time_range` | video | 设计为时间范围 `start,end`（秒）；当前参数解析会在逗号处截断，写了也不生效（已知问题） |
+
+```xml
+<test_step action="assert" model="" data="assert[type=image,reference=login_ok.png,threshold=0.85]"/>
+```
+
+- 图片断言失败时，当前截图保存到 `<模块>/images/assert/failures/`；返回值含 `matched`、`similarity`。
+- 需要 OpenCV 与 numpy（`pip install opencv-python numpy`），rodski 默认依赖不包含它们。
+- `assert` 不做值比较：文本、字段、接口响应、DB 结果的断言一律用 `verify`。
 
 > `click`、`select`、`hover`、`scroll`、`double_click`、`right_click`、`key_press`、`drag` 等 UI 原子动作不作为独立关键字使用，而是写在**数据表的 field 值**中，由 `type` 批量模式自动识别执行。详见 [5.4 批量输入时的特殊值](#54-批量输入时的特殊值)。
 
@@ -1722,11 +1821,22 @@ DB 用例格式：
 
 | 函数 | 作用 |
 |------|------|
-| `mock_route(url_pattern, status, body, content_type)` / `clear_routes()` | Mock / 清除接口响应（仅 Playwright） |
-| `wait_for_response(url_pattern, timeout)` | 等待网络请求完成 |
-| `start_js_coverage()` / `stop_js_coverage(output)` | JS 覆盖率 |
-| `reset_request_log()` / `get_request_log()` | 请求日志 |
+| `mock_route(url_pattern, status=200, body='', content_type='application/json')` | Mock 接口响应（仅 Playwright）。`url_pattern` 默认按 Playwright glob 匹配（如 `**/api/users`），加 `re:` 前缀表示正则 |
+| `clear_routes()` | 清除全部 mock（需要 Playwright ≥ 1.29，低版本返回 False 并告警） |
+| `wait_for_response(url_pattern, timeout=30)` | 等待**本步骤开始之后**到达、URL **包含** `url_pattern`（子串匹配，不是 glob）的响应；`timeout` 单位秒。返回 `{url, status, body}`，body 能解析为 JSON 时另有 `json`。超时步骤失败，报"等待网络响应超时" |
+| `start_js_coverage()` / `stop_js_coverage(output='coverage.json')` | JS 覆盖率，仅 Chromium（其他浏览器 `start_js_coverage` 返回 `success=False`）；`output` 相对路径按当前工作目录解析 |
 | `save_auth_state(name)` / `use_auth_state(name)` | 登录态复用（v11.6.0），见 [§8.8](#88-登录态复用save_auth_state--use_auth_statev1160) |
+
+只注册了上表这些函数；其他名字会被当作 `fun/` 下的脚本，找不到时报 SKI312。
+
+**`wait_for_response` 的用法**：调用之前已经返回的响应不会被匹配，所以它只适合等待"之后才到达"的异步响应（轮询、延迟请求）。触发请求的动作必须晚于本步骤开始，例如页面在延迟后自动发请求，或用 `evaluate` 发一个延迟的 fetch：
+
+```xml
+<test_step action="evaluate" model="" data="setTimeout(function(){ fetch('/api/orders'); }, 1500)"/>
+<test_step action="run" model="" data="wait_for_response(url_pattern='/api/orders', timeout=10)"/>
+```
+
+先点击按钮、再写 `wait_for_response` 时，如果响应在点击步骤内已经返回，`wait_for_response` 会一直等到超时。
 
 ### 8.7 evaluate — 逃生舱与 file: 脚本（v11.6.0）
 
@@ -1783,7 +1893,7 @@ DB 用例格式：
 ### 9.1 项目结构
 
 ```text
-product/DEMO/demo_site/
+rodski-demo/demosite/full/
 ├── model/
 │   └── model.xml
 ├── case/
@@ -1828,14 +1938,14 @@ product/DEMO/demo_site/
   </group>
   <group name="sqlite_db">
     <var name="type" value="sqlite"/>
-    <var name="database" value="product/DEMO/demo_site/demo.db"/>
+    <var name="database" value="demo.db"/>
   </group>
 </globalvalue>
 ```
 
 ### 9.4 data.sqlite（数据表）
 
-所有测试数据（输入表和验证表）均存储在 `data/data.sqlite` 中。输入表 `table_kind='input'`，验证表 `table_kind='verify'`。
+所有测试数据（输入表和验证表）均存储在 `data/data.sqlite` 中。输入表 `table_kind='data'`，验证表 `table_kind='verify'`。
 
 迁移命令：`rodski data import <module>`
 
@@ -1874,28 +1984,28 @@ rodski run rodski-demo/demosite/full/case/demo_case.xml
 # 方式2：指定 case 目录（递归执行该目录下所有 XML，任意层级，v11.5.0 起）
 rodski run rodski-demo/demosite/full/case/
 
-# 方式2b：指定 case 下的任意子目录（同样递归，v11.5.0 起）
-rodski run rodski-demo/demosite/full/case/order/
+# 方式2b：指定 case 下的任意子目录（同样递归，v11.5.0 起；示意路径）
+rodski run product/shop/order/case/refund/
 
 # 方式3：指定测试模块目录
 rodski run rodski-demo/demosite/full/
 
 # 方式4：文件 + --case-id，只执行该文件中的指定用例（v11.5.0 起，可逗号分隔多个）
-rodski run rodski-demo/demosite/full/case/order/order_basic.xml --case-id TC002
+rodski run rodski-demo/demosite/full/case/demo_case.xml --case-id TC002
 
-# 按标签过滤（OR 匹配，命中任一即可）
-rodski run case/ --tags smoke
-rodski run case/ --tags "smoke,regression"
+# 按标签过滤（OR 匹配，命中任一即可；--tags 为兼容写法）
+rodski run case/ --tag smoke
+rodski run case/ --tag "smoke,regression"
 
 # 按优先级过滤
 rodski run case/ --priority P0
 rodski run case/ --priority "P0,P1"
 
-# 排除标签
-rodski run case/ --exclude-tags slow
+# 排除标签（--exclude-tags 为兼容写法）
+rodski run case/ --exclude-tag slow
 
 # 组合过滤（标签 AND 优先级）
-rodski run case/ --tags smoke --priority P0
+rodski run case/ --tag smoke --priority P0
 
 # 执行后自动生成 HTML 报告
 rodski run case/ --report html
@@ -1921,9 +2031,33 @@ rodski case lint <module>
 
 # 无头模式
 rodski run case/ --headless
+
+# 指定浏览器（默认 chromium；DefaultValue.BrowserType 不生效）
+rodski run case/ --browser firefox
+
+# 只校验、不执行（解析用例 / 计划并预览执行范围）
+rodski run case/ --dry-run
+
+# 机器可读输出（Agent / CI 解析用）；--verbose 输出详细日志
+rodski run case/ --output-format json
+rodski run case/ --verbose
+
+# 导出 trace.json（run / case / keyword 三层 span + 耗时 / 重试指标）；--report html 也会采集
+rodski run case/ --trace
+
+# 录像（--record-mode auto|screen|playwright|off 等细项默认读取配置）
+rodski run case/ --record
+
+# 移动端：临时切换平台、指定设备（覆盖 Mobile.Platform / Mobile.UDID）
+rodski run case/ --platform ios --udid <设备UDID>
+
+# 附加到已启动的远程调试浏览器，复用其页面与登录态（仅 Web；此时 --headless / --browser 不生效）
+rodski run case/ --cdp :9222
 ```
 
-> `--case-id` 必须与**单个用例文件**路径一起使用；传目录会报 `SKI208 CaseIdRequiresFile`。`--case-id` 与 `@plan_id` 固定互斥（见 §10.6），与 `--tags` / `--priority` 同用时只在指定用例内过滤。
+> `--case-id` 必须与**单个用例文件**路径一起使用；传目录会报 `SKI208 CaseIdRequiresFile`。`--case-id` 与 `@plan_id` 固定互斥（见 §10.6），与 `--tag` / `--priority` 同用时只在指定用例内过滤。
+>
+> `--data-id` / `--exclude-data-id` **只能**与测试计划一起使用（`@plan_id`，或不带路径时的默认计划），用于过滤数据驱动实例；直接对用例文件 / 目录使用会报错并以退出码 1 结束（见 [§10.10](#1010-计划级数据驱动v1190)）。
 >
 > `--workers N` 以**用例文件**为单位分给 N 个进程，同一文件内的用例在同一进程中按顺序执行；结果合并到同一个运行目录（`result.xml`、`junit.xml`、截图镜像目录都在一起）。有先后依赖的用例（如先保存登录态、再使用）请放在同一个文件里。
 
@@ -2003,6 +2137,28 @@ jobs:
 - 退出码：有失败用例时非 0，CI 据此判定失败；`expect_fail="是"` 且确实失败的用例按通过计。
 - CI 里建议 `WaitTime=0`，并用 `--evidence concise` 缩短耗时；需要排查偶发失败时加 `--record` 保留录像。
 
+### 9.10 断点与部分执行参数（REQ-012，能力有限）
+
+`rodski run` 提供以下调试参数（v11.8.0 引入）。**这组能力目前只完成了一小部分**：REQ-012 的 37 条真实验收中只有 1 条通过，交互式断点 / 单步并不可用。下表按当前实际行为列出，行为可能调整；排查失败请优先用 `--trace`、截图 / 录像和 [§10.7](#107-调试计划) 的调试计划。
+
+| 参数 | 设计用途 | 当前实际行为 |
+|------|---------|-------------|
+| `--start-from N` | 从第 N 个步骤开始执行 | **可用**：每个用例内序号小于 N 的步骤不执行，在步骤记录中标为 `skipped`。序号在每个用例内从 1 开始，`pre_process` / `test_case` / `post_process` 连续计数 |
+| `--break-at <断点>` | 在断点处暂停，逗号分隔多个；格式 `step:N`、`scenario:ID`、`node:NAME`、`flow:ID`、`driver:ACTION`、`batch:row:N` | 不生效：断点会被解析，但执行时任何类型都不会命中，也不会暂停 |
+| `--stop-at N` | 执行到第 N 步后停止 | 不生效 |
+| `--step-mode` | 单步执行（**开关**，不带取值） | 不生效 |
+| `--driver-level` | 驱动动作级单步（配合 `--step-mode`） | 不生效 |
+
+```bash
+# 跳过每个用例的前 4 步，从第 5 步开始执行（如 pre_process 已手工准备好）
+rodski run rodski-demo/demosite/full/case/demo_case.xml --case-id TC001 --start-from 5
+```
+
+- 上述任一参数（`--driver-level` 除外）出现时，本次运行开启调试会话。
+- `rodski debug {status|queue|objects|context|get-object <id>}` 用于查看调试会话，但调试会话只存在于 `rodski run` 自身进程中：在另一个终端执行 `rodski debug ...` 看不到它，总是提示 "Debug session is not active"。
+- 同名参数不要混淆：`rodski run --step-mode` 是上表的开关参数；`rodski plan debug-step --step-mode all|from|only` 是生成单步调试计划时的取值参数（见 [§10.7](#107-调试计划)），后者可用。
+- 这组参数与 `@plan_id` 能否同用、是否算执行范围 selector 尚未定义，建议只对单个用例文件使用。
+
 ---
 
 ## 10. 测试计划（plan/*.xml）
@@ -2063,26 +2219,31 @@ v6.3.0 起，RodSki 支持通过 `plan/*.xml` 定义测试计划，控制"本次
 
 ### 10.3 创建测试计划
 
-测试计划放在 `plan/` 目录，文件名格式为 `{测试目的}_{测试类型}.xml`：
+测试计划放在 `plan/` 目录，文件名格式为 `{测试目的}_{测试类型}.xml`。
+
+**`rodski plan` 子命令以当前目录作为模块根，须先 `cd` 到测试模块目录再执行**（只有 `plan migrate <module>` 接收模块路径参数）。命令中的用例文件 / 目录路径都**相对 `case/`**，并原样写入计划的 `file` / `path`，不要带 `case/` 前缀。
 
 ```bash
-# 初始化默认全量计划
+cd product/shop/order
+
+# 初始化默认全量计划 plan/project_full.xml（--default-execute 默认 是；已存在时加 --force 覆盖）
 rodski plan init
 
-# 创建冒烟计划
+# 创建冒烟计划（plan create 的 --default-execute 默认 否，与 plan init 相反）
 rodski plan create invoice_smoke --kind suite --default-execute 否 --title "开票冒烟"
 
 # 向计划添加 case 和 scenario（v11.5.0 起 add-case 为 3 个参数：计划、用例文件、用例 ID）
-rodski plan add-case invoice_smoke case/order/invoice_apply.xml TC040
+rodski plan add-case invoice_smoke order/invoice_apply.xml TC040
 rodski plan add-scenario invoice_smoke TC040 INV-001
 # 计划中还没有该用例时自动新建 <case> 并按 ID 补全 file；同名 ID 出现在多个用例文件时需指定（v11.8.30）
-rodski plan add-scenario invoice_smoke TC040 INV-001 --file order/invoice.xml
+rodski plan add-scenario invoice_smoke TC040 INV-001 --file order/invoice_apply.xml
 
 # 按目录整体添加（v11.5.0 新增，递归选入该目录下 execute="是" 的用例）
-rodski plan add-dir invoice_smoke case/order/invoice
+rodski plan add-dir invoice_smoke order/invoice
 
-# 从 tag 选择结果生成计划（范围与 rodski run --tag smoke 一致；生成的 <case> 带 file）
+# 从 tag / group 选择结果生成计划（范围与 rodski run --tag smoke 一致；生成的 <case> 带 file；同名计划已存在时加 --force）
 rodski plan create invoice_smoke --kind suite --from-tag smoke --title "开票冒烟"
+rodski plan create invoice_negative --kind suite --from-group negative
 
 # 迁移存量 plan：为省略 file 的 <case> 自动补全（能唯一定位时），有歧义的列出待人工处理（v11.5.0 新增）
 rodski plan migrate invoice_module
@@ -2112,6 +2273,8 @@ rodski plan migrate invoice_module
 ### 10.4 执行测试计划
 
 ```bash
+# 以下命令同样在模块目录下执行（@plan_id 与不带路径的 rodski run 都以当前目录为模块根）
+
 # 执行指定计划
 rodski run @invoice_smoke
 
@@ -2121,10 +2284,11 @@ rodski run
 # 预览计划最终执行范围（不实际执行）
 rodski run @invoice_smoke --dry-run
 
-# 查看计划列表
+# 查看计划列表 / 单个计划内容
 rodski plan list
+rodski plan show invoice_smoke
 
-# 校验计划引用是否有效
+# 校验计划引用是否有效（不带计划 ID 时校验全部）
 rodski plan validate
 ```
 
@@ -2181,14 +2345,16 @@ rodski plan debug-scenario inv_debug --case TC040 --scenario INV-001 --prepare a
 # 创建 step 调试计划
 rodski plan debug-step inv_step_debug --case TC040 --scenario INV-001 --step 2 --step-mode only --prepare auto --cleanup 否
 
-# 生成的 <case> 会按用例 ID 自动补 file；同名 ID 出现在多个用例文件时加 --file order/invoice.xml（v11.8.31）
+# 生成的 <case> 会按用例 ID 自动补 file；同名 ID 出现在多个用例文件时加 --file order/invoice_apply.xml（v11.8.31）
 
 # 执行调试
 rodski run @inv_debug --debug
 rodski run @inv_step_debug --debug
 ```
 
-**prepare 选项**：
+> 这里的 `--step-mode all|from|only` 是 `plan debug-step` 的取值参数，写入计划的 `<debug step_mode>`；它与 `rodski run --step-mode`（单步开关，当前不生效，见 [§9.10](#910-断点与部分执行参数req-012能力有限)）不是同一个参数。
+
+**prepare 选项**（`--prepare`，默认 `auto`；`--cleanup` 默认 `否`）：
 
 | 值 | 行为 |
 |----|------|
@@ -2196,7 +2362,7 @@ rodski run @inv_step_debug --debug
 | `case` | 只执行 `pre_process` |
 | `none` | 不执行前置，直接执行目标 |
 
-**step_mode 选项**（仅 step_debug）：
+**step_mode 选项**（仅 step_debug，`--step-mode` 默认 `all`）：
 
 | 值 | 行为 |
 |----|------|
@@ -2207,10 +2373,12 @@ rodski run @inv_step_debug --debug
 ### 10.8 管理计划
 
 ```bash
-# 禁用某个 case
+# 禁用 / 启用某个 case
 rodski plan disable-case invoice_smoke TC040
+rodski plan enable-case invoice_smoke TC040
 
-# 启用某个 scenario
+# 禁用 / 启用某个 scenario
+rodski plan disable-scenario invoice_smoke TC040 INV-001
 rodski plan enable-scenario invoice_smoke TC040 INV-001
 
 # 预览最终执行范围
@@ -2299,7 +2467,7 @@ rodski run case/login/flow.xml --case-id LOGIN_FLOW        # 不经计划：只�
 - 每个实例都是一次完整的用例执行；实例之间 Return 历史、`set` 变量隔离，失败互不影响。
 - 驱动表的表备注必填（目的、所属计划）；行备注作为实例标题；被驱动表引用的数据行建议写备注，缺失时 `[WARN]` 提示但不阻断。
 - 以下错误在启动浏览器 / App 之前报出：驱动表不存在或不是 driver 表、绑定的用例与计划不一致、表备注为空、0 行、列名不合法 / 表不存在 / 基础 DataID 未被用例字面引用、单元格 DataID 不存在或不是 DataID、驱动表与模型同名、在调试计划 / 压测计划中使用。
-- `--data-id` / `--exclude-data-id` 是实例过滤，不是 selector，可与 `@plan_id` 同用；`--case-id` 仍与 `@plan_id` 互斥。
+- `--data-id` / `--exclude-data-id` 是实例过滤，不是 selector，可与 `@plan_id` 同用，而且**只能**配合计划使用：不带计划（直接对用例文件 / 目录）使用会报错并以退出码 1 结束；`--case-id` 仍与 `@plan_id` 互斥。
 - 结果 XML 中实例的 `case_id` 与 `instance_id` 均为 `用例ID[DataID]`，并带 `template_case_id`、`driver`、`data_id`、`instance_title`、`replacements`；`--data-id` 写错（匹配不到实例）会报错；同一用例在一个计划中只能挂一张驱动表；日志中每个被替换的步骤标注 `数据驱动替换 TestForm: T001 → T101（LoginFlow_matrix[admin]）`。
 
 **不要这样做**
@@ -2365,12 +2533,12 @@ rodski run case/login/flow.xml --case-id LOGIN_FLOW        # 不经计划：只�
 # 定向执行一条用例并漫游；找不到或不满足条件会明确报 SKI801/SKI802
 # v11.5.0 起 --case-file + --case-id 是推荐定位方式（case/ 支持多级嵌套后，
 # 单独的 --case 只在模块只有一个用例文件或 ID 全模块唯一时可用）
-rodski roam --case-file order/refund/refund_apply.xml --case-id c001 product/DEMO/demo_site
-rodski roam --case c001 product/DEMO/demo_site   # 旧模式，见上述限制
+rodski roam --case-file roaming_case.xml --case-id RT001 rodski-demo/local/roaming
+rodski roam --case RT001 rodski-demo/local/roaming   # 旧模式，见上述限制
 
 # 正常批量执行，并只对合格且 test_case 通过的用例漫游
-rodski run product/DEMO/demo_site/case/ --roam
-rodski run product/DEMO/demo_site/case/ --tag smoke --roam
+rodski run rodski-demo/local/roaming/case/ --roam
+rodski run rodski-demo/local/roaming/case/ --tag roaming --roam
 ```
 
 `rodski roam --case-file/--case-id`（或旧模式 `--case`）表达对单条用例的明确意图，因此会报告资格错误；`rodski run --roam` 是批量模式，不合格用例只跳过漫游，正常用例执行不受影响。`roam="是"` 只适用于 `component_type="界面"` 或未填写类型的 UI 用例；接口/数据库用例声明漫游会抛 `SKI803`。
@@ -2504,15 +2672,30 @@ export ANTHROPIC_API_KEY=your_api_key
 
 ### 13.2 launch 关键字
 
-启动桌面应用（与 `navigate` 功能相同，场景不同）：
+启动桌面应用要用 **Desktop 模型**（`driver_type="windows"` 或 `"macos"`）：`launch <Desktop模型> <DataID>`，应用路径写在该模型同名数据表的数据行里。
+
+```xml
+<!-- model.xml：只用于启动的 Desktop 模型，不需要元素 -->
+<model name="NotepadApp" driver_type="windows"/>
+<model name="TextEditApp" driver_type="macos"/>
+```
+
+| 数据表 | DataID | 字段 | 说明 |
+|--------|--------|------|------|
+| `NotepadApp` | `A001` | `app_path` = `C:\Windows\System32\notepad.exe` | Windows 只读 `app_path`，且该路径必须存在 |
+| `TextEditApp` | `A001` | `app_name` = `TextEdit`（或 `app_path` = `/System/Applications/TextEdit.app`） | macOS 优先 `app_path`（须存在，用 `open` 打开），否则用 `open -a <app_name>` |
 
 ```xml
 <!-- Windows -->
-<test_step action="launch" model="" data="notepad.exe"/>
+<test_step action="launch" model="NotepadApp" data="A001"/>
 
 <!-- macOS -->
-<test_step action="launch" model="" data="TextEdit.app"/>
+<test_step action="launch" model="TextEditApp" data="A001"/>
 ```
+
+- 数据行既没有 `app_path` 也没有 `app_name` 时报参数错误。启动后框架固定等待约 1 秒。
+- **Web 模型或 `model` 为空时，`launch` 只接受完整的 `http://` / `https://` URL，等同于 `navigate`**；应用名（如 `notepad.exe`）、漏写协议、`ftp://` 等其他值都报参数错误（v11.8.26）。旧写法 `<test_step action="launch" model="" data="notepad.exe"/>` 已不可用。
+- 接口模型不支持 `launch`（报参数错误，请用 `send`）。
 
 ### 13.3 vision_bbox 坐标约定
 
@@ -2554,8 +2737,7 @@ export ANTHROPIC_API_KEY=your_api_key
 ```xml
 <case execute="是" id="d001" title="桌面演示">
   <pre_process>
-    <test_step action="launch" model="" data="notepad.exe"/>
-    <test_step action="wait" model="" data="2"/>
+    <test_step action="launch" model="NotepadApp" data="A001"/>
   </pre_process>
   <test_case>
     <test_step action="type" model="NotepadPage" data="D001"/>
@@ -2566,6 +2748,8 @@ export ANTHROPIC_API_KEY=your_api_key
   </post_process>
 </case>
 ```
+
+`NotepadApp` 模型与数据行见 [§13.2](#132-launch-关键字)。启动后不需要写 `wait`：后续 `type` 查找窗口元素时按 `AutoWait` 自动等待。
 
 ### 13.6 约束
 
@@ -2628,16 +2812,19 @@ export ANTHROPIC_API_KEY=your_api_key
 </globalvalue>
 ```
 
-| Key | 说明 |
-|-----|------|
-| `Platform` | 平台类型：`android` / `ios` |
-| `AppiumServer` | Appium 服务地址 |
-| `DeviceName` | 设备名称或序列号 |
-| `AppPackage` | Android 包名 |
-| `AppActivity` | Android 启动 Activity |
-| `BundleId` | iOS Bundle ID |
-| `AppTarget` | app:// URI（供 navigate 使用） |
-| `NoReset` | 是否保留应用状态（`true`/`false`） |
+| Key | 说明 | 默认值 |
+|-----|------|--------|
+| `Platform` | 平台类型：`android` / `ios`；`driver_type="mobile"` 模型按它选平台，CLI `--platform` 可覆盖。未设置时回退到 `DefaultValue.Platform` | `android` |
+| `AppiumServer` | Appium 服务地址 | `http://localhost:4723` |
+| `DeviceName` | 设备名称或序列号 | `Android` |
+| `UDID` | 目标设备（透传 `appium:udid`）；多设备并发时必填，否则 Appium 会选第一台设备；CLI `--udid` 可覆盖 | — |
+| `AppPackage` | Android 包名 | — |
+| `AppActivity` | Android 启动 Activity | — |
+| `BundleId` | iOS Bundle ID | — |
+| `AppTarget` | app:// URI（供 navigate 引用，框架本身不读取） | — |
+| `NoReset` | 是否保留应用状态（`true`/`false`） | `false` |
+
+> 多设备调度（自动转 queue）解析平台时目前只读 `Mobile.Platform`，不回退 `DefaultValue.Platform`（当前行为，可能调整）；使用多设备时请在 `Mobile` 组显式写 `Platform`。
 
 > 步骤固定等待统一由 `DefaultValue.WaitTime`（毫秒）控制，`Mobile` 组中不再写 `WaitTime`，见 [§6.4](#64-waittime-与执行策略配置v1160)。
 
@@ -2735,7 +2922,7 @@ v7.3.0 补全了 iOS 原生自动化支持。核心原则：
 
 新增 `driver_type="mobile"` 表示平台无关的移动端模型，运行时由 `--platform` 参数或 `Mobile.Platform` 决定实际平台。
 
-`driver_type` 完整枚举：`web` / `interface` / `database` / `windows` / `macos` / `android` / `ios` / **`mobile`**（v7.3.0 新增）
+`driver_type` 完整枚举：`web` / `interface` / `windows` / `macos` / `android` / `ios` / **`mobile`**（v7.3.0 新增）/ `other`。数据库模型用 `type="database"` 表示，不写 `driver_type`。
 
 ### 15.3 定位器 platform 属性
 
@@ -2849,20 +3036,20 @@ v8.0 新增压测能力（`kind="load"` 计划），与功能测试完全独立�
 | 维度 | 功能测试（kind=suite） | 性能测试（kind=load） |
 |------|---------------------|-------------------|
 | 执行路径 | SKIExecutor | LoadExecutor |
-| 用例语义 | 每条 case 执行一次，记录 PASS/FAIL | 多 VU 反复执行，记录 RPS/延迟 |
-| verify 失败 | case FAIL | 记为错误请求，继续执行 |
+| 用例语义 | 每条 case 执行一次，记录 PASS/FAIL | 多 VU 反复执行 `pre_process` + `test_case`（不执行 `post_process`），记录 RPS/延迟 |
+| verify | 失败则 case FAIL | `verify` / `check` / `assert` / `get` 步骤**直接跳过**，不计入错误率（当前行为，可能调整） |
 | 截图 | 失败时自动截图 | 不截图 |
 
-### 16.2 两种压测模式
+### 16.2 压测模式
 
 | 模式 | `mode` | 适用场景 | 后端 |
 |------|--------|---------|------|
 | 接口压测 | `api`（默认） | REST API | Locust FastHttpUser |
-| 浏览器压测 | `browser` | Web 页面 | Playwright 多进程池 |
+| 浏览器压测 | `browser` | — | **未实现**：plan.xsd 允许该取值，但执行时报 `SKI605` 并以非 0 退出（v11.8.29） |
 
 ### 16.3 压测计划 XML（plan/xxx_load.xml）
 
-**接口压测示例**（kind=load + mode=api）：
+**接口压测示例**（kind=load + mode=api；`<case>` 直接写在 `<test_plan>` 下，`file` 为相对 `case/` 的路径，参照 `rodski-demo/demosite/load/plan/api_load_basic.xml`）：
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -2873,35 +3060,13 @@ v8.0 新增压测能力（`kind="load"` 计划），与功能测试完全独立�
     <duration_seconds>120</duration_seconds>
     <ramp_up_seconds>30</ramp_up_seconds>
     <think_time_ms min="200" max="800"/>    <!-- 迭代间思考时间 -->
-    <max_rps>0</max_rps>                    <!-- 0 = 不限制 -->
+    <max_rps>0</max_rps>                    <!-- 当前未生效，见下表 -->
     <host>http://api.example.com</host>     <!-- 覆盖 GlobalValue URL -->
   </load_profile>
 
-  <cases>
-    <!-- weight 控制 VU 任务调度权重 -->
-    <case id="login_api"    execute="是" weight="3"/>
-    <case id="order_query"  execute="是" weight="1"/>
-  </cases>
-
-</test_plan>
-```
-
-**浏览器压测示例**（kind=load + mode=browser）：
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<test_plan id="web_load_basic" kind="load">
-
-  <load_profile mode="browser">
-    <concurrency>10</concurrency>           <!-- 并发浏览器进程数（受内存限制） -->
-    <duration_seconds>60</duration_seconds>
-    <ramp_up_seconds>10</ramp_up_seconds>
-    <think_time_ms min="500" max="2000"/>
-  </load_profile>
-
-  <cases>
-    <case id="login_ui" execute="是" weight="1"/>
-  </cases>
+  <!-- weight 控制 VU 任务调度权重 -->
+  <case id="login_api"   file="api_login.xml"       execute="是" weight="3"/>
+  <case id="order_query" file="api_order_query.xml" execute="是" weight="1"/>
 
 </test_plan>
 ```
@@ -2910,20 +3075,19 @@ v8.0 新增压测能力（`kind="load"` 计划），与功能测试完全独立�
 
 | 元素 | 必填 | 说明 |
 |------|------|------|
-| `concurrency` | 是 | 并发 VU 数（api）或并发进程数（browser） |
+| `concurrency` | 是 | 并发 VU 数 |
 | `duration_seconds` | 是 | 持续时长（秒） |
 | `ramp_up_seconds` | 否 | 爬坡时间（默认 0） |
 | `think_time_ms` | 否 | 迭代间思考时间范围（毫秒） |
-| `max_rps` | 否 | 最大 RPS 上限，0 = 不限（api 模式专用） |
-| `host` | 否 | 覆盖 GlobalValue 中的目标地址 |
+| `max_rps` | 否 | 设计为最大 RPS 上限（0 = 不限）；当前执行链路不读取该值，写了也不限流（已知问题） |
+| `host` | 否 | 覆盖 GlobalValue 中的目标地址（未写时取 `DefaultValue.URL`，再缺省为 `http://localhost`） |
 
-`mode` 属性：`api`（默认）/ `browser`
+`mode` 属性：`api`（默认）；写 `browser` 报 `SKI605`。
 
 ### 16.4 约束
 
 - **必须通过 plan 文件声明**，不支持 `--load --concurrency N` 临时压测
 - `mode="api"` 计划只能引用 `component_type="接口"` 的 case
-- `mode="browser"` 计划只能引用 `component_type="界面"` 的 case
 - load 计划不支持 scenario 级别选择（只能整个 case 粒度）
 - `@plan_id` 与 selector 互斥约束照常成立
 
@@ -2942,6 +3106,8 @@ v8.0 新增压测能力（`kind="load"` 计划），与功能测试完全独立�
 
 `perf/` 产物可脱离 RodSki 独立运行（直接 `locust -f perf/api_load_basic.py`）。
 
+> **当前行为（可能调整）**：`rodski run @plan` 执行压测时并不加载 `perf/*.py`，而是每次直接解释执行 case；预编译只负责生成 / 更新 `perf/` 产物。`--no-compile` 只是跳过这一步生成，执行方式不变。
+
 ### 16.6 CLI 命令
 
 ```bash
@@ -2952,7 +3118,7 @@ rodski run @api_load_basic
 rodski run @api_load_basic --load-ui
 rodski run @api_load_basic --load-ui-port 9090
 
-# 跳过预编译（直接使用已有 perf/*.py）
+# 跳过预编译（不生成 / 更新 perf/*.py；执行方式不变，见 16.5）
 rodski run @api_load_basic --no-compile
 
 # 预览执行范围（不发真实请求）
@@ -3012,9 +3178,9 @@ Return 引用只应写在**数据表 XML 的 field 值中**，不要直接写在
 2. 检查 DataID（row id）是否存在
 3. 引用格式：`表名.DataID`（整行）或 `表名.DataID.字段名`（单字段）
 
-### Q7: XSD 校验报错「元素 test_step 缺失」？
+### Q7: XSD 校验报错「元素 test_case 缺失」？
 
-`case.xsd` 要求每个 `<case>` **必须**包含恰好一个 `<test_step>`。仅写 `<pre_process>` 等而不写 `<test_step>` 不会通过校验。
+`case.xsd` 要求每个 `<case>` **必须**包含恰好一个 `<test_case>`，且其中至少有一个执行项（`<test_step>`、`<scenario>` 等）。只写 `<pre_process>` / `<post_process>` 而没有 `<test_case>` 不会通过校验。
 
 ### Q8: verify 报「字段缺失」？
 
@@ -3202,18 +3368,19 @@ rodski business debug     <module> --id login_flow --flow F_LOGIN_SUCCESS \
 
 ## 附录：关键字速查清单
 
-下列 **`action` 取值**与 `rodski/schemas/case.xsd` 中 **`ActionType` 枚举**一致（共 16 个；`check` 为合法枚举值，语义上等同 `verify`）。
+下列 **`action` 取值**与 `rodski/schemas/case.xsd` 中 **`ActionType` 枚举**一致：共 18 个枚举值 = 17 个关键字 + 兼容项 `check`（语义上等同 `verify`）。
 
 ### A. UI 与通用
 
 | 关键字 | 用途 |
 |--------|------|
 | `navigate` | 导航到 URL（无浏览器时自动创建） |
+| `launch` | 启动桌面应用：`launch <Desktop模型> <DataID>`（数据行写 `app_path` / `app_name`）；Web 模型或 model 为空时只接受 http(s) URL，等同 `navigate` |
 | `close` | 关闭浏览器 |
 | `type` | UI 批量输入（PC/移动端统一） |
-| `verify` | 批量验证（UI + 接口通用）；UI 模型自动重试到期望值，支持 `$count` / `$exists` / `$visible` 等原生断言（v11.6.0） |
+| `verify` | 批量验证（UI + 接口 + DB）；UI 模型自动重试到期望值，支持 `$count` / `$exists` / `$visible` 等原生断言（v11.6.0） |
 | `check` | 与 `verify` 等价（XSD 枚举中的兼容项） |
-| `assert` | 断言元素值 |
+| `assert` | 图片 / 视频视觉断言（`type=image\|video`、`reference`、`threshold` 默认 0.8）；值断言请用 `verify` |
 | `wait` | 等待指定秒数（固定等待；等异步结果请直接 `verify`） |
 | `evaluate` | 执行 JS（仅 Web，逃生舱；`file:` 引用 `fun/js/*.js`） |
 | `upload_file` | 上传文件 |
@@ -3243,7 +3410,7 @@ rodski business debug     <module> --id login_flow --flow F_LOGIN_SUCCESS \
 
 ## 附录：测试结果 XML（result.xsd）
 
-`rodski/schemas/result.xsd` 描述框架写入的 **`result/*.xml`**，手工一般**不需要**编写，了解结构即可排查报告问题。
+`rodski/schemas/result.xsd` 描述框架写入的 **`result/rodski_{ts}/result.xml`**，手工一般**不需要**编写，了解结构即可排查报告问题。
 
 | 约束 | 说明 |
 |------|------|
@@ -3252,8 +3419,9 @@ rodski business debug     <module> --id login_flow --flow F_LOGIN_SUCCESS \
 | `<summary>` | `total` / `passed` / `failed` 必填；`skipped`、`errors` 等有默认值 |
 | `<summary>` 运行标注 | v11.6.0 新增可选属性 `evidence_mode`（`full` \| `concise`）与 `session_mode`（`isolated` \| `shared_browser` \| `shared_session`），记录本次运行实际生效的记录模式与会话模式；HTML 报告页眉同步显示 |
 | `<results>` 下 `<result>` | `case_id`、`status` 必填；`status` 只能是 `PASS` \| `FAIL` \| `SKIP` \| `ERROR`；`case_file`（v11.5.0 新增，可选）记录该用例所属文件相对 `case/` 的 POSIX 路径，跨文件同 `case_id` 时用于消歧，见 [§3.2.1](#321-用例-id-唯一性v11500)、[§9.8](#98-结果目录说明v11500) |
+| `<result>` 数据驱动属性 | v11.9.0 新增可选属性 `instance_id`、`template_case_id`、`driver`、`data_id`、`instance_title`、`replacements`；数据驱动实例的 `case_id` 与 `instance_id` 均为 `用例ID[DataID]`，见 [§10.10](#1010-计划级数据驱动v1190) |
 
 ---
 
-**文档版本**: v11.6.0
-**最后更新**: 2026-09-29
+**文档版本**: v11.10.0
+**最后更新**: 2026-10-22

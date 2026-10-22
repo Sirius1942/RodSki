@@ -1,7 +1,7 @@
 # Agent 集成指南
 
-**版本**: v3.0
-**日期**: 2026-04-13
+**版本**: v11.10.0
+**日期**: 2026-10-22
 **目标读者**: AI Agent 开发者
 
 ---
@@ -36,11 +36,15 @@ Agent (探索/决策) → XML (活文档) → RodSki (执行) → 结果 → Age
 git clone <repo>
 cd rodski
 
-# 安装依赖
-pip install -r requirements.txt
+# 安装 rodski（根目录 pyproject.toml）
+pip install -e .
+
+# Web 用例需要 Playwright（未包含在基础依赖中）
+pip install playwright
+playwright install chromium
 
 # 验证安装
-python rodski/ski_run.py --version
+rodski --version          # 输出 RodSki 11.10.0
 ```
 
 ### 2.2 基础调用
@@ -49,9 +53,9 @@ python rodski/ski_run.py --version
 import subprocess
 from pathlib import Path
 
-# 执行测试
+# 执行测试（在测试模块目录下执行，或传入模块 / case 目录的完整路径）
 result = subprocess.run(
-    ["python", "rodski/ski_run.py", "case/test.xml"],
+    ["rodski", "run", "case/test.xml"],
     capture_output=True,
     text=True
 )
@@ -66,10 +70,12 @@ else:
 ### 2.3 结果解析
 
 ```python
+import glob
+import os
 import xml.etree.ElementTree as ET
 
-# 读取结果文件
-result_file = "result/result_<timestamp>.xml"
+# 读取结果文件：每次运行生成 result/rodski_{ts}/result.xml（同一秒多次运行目录名追加 _2、_3）
+result_file = max(glob.glob("result/rodski_*/result.xml"), key=os.path.getmtime)
 tree = ET.parse(result_file)
 root = tree.getroot()
 
@@ -79,12 +85,17 @@ total = summary.get("total")
 passed = summary.get("passed")
 failed = summary.get("failed")
 
-# 分析失败用例
-for result in root.findall(".//result[@status='FAIL']"):
+# 分析失败用例（status 取值 PASS / FAIL / SKIP / ERROR）
+for result in root.iter("result"):
+    if result.get("status") not in ("FAIL", "ERROR"):
+        continue
     case_id = result.get("case_id")
-    error = result.find("error").text
+    error = result.get("error_message")      # 错误信息是 <result> 的属性，没有 error 子元素
+    error_type = result.get("error_type")
     # Agent 分析错误并决策
 ```
+
+结构见 `rodski/schemas/result.xsd`。也可以直接用 `rodski run <path> --output-format json` 读取标准输出中的 JSON 结果。
 
 ---
 
@@ -96,10 +107,13 @@ for result in root.findall(".//result[@status='FAIL']"):
 |------|------|------|
 | `rodski run <path> [--output-format json]` | 执行测试 | JSON 结构化结果 |
 | `rodski run <path> --dry-run` | 干跑验证（不执行） | 验证结果 |
-| `rodski explain <case.xml>` | 用例自然语言解释 | 文本说明 |
-| `rodski validate <path>` | XML 格式校验 | 校验结果 |
+| `xmllint --noout --schema rodski/schemas/case.xsd <case.xml>` | 用 XSD 校验单个 XML（model / plan / business / globalvalue 换成对应的 `*.xsd`）；rodski 没有顶层 `validate` 子命令 | 校验结果 |
+| `rodski data validate <module> [--orphans]` | 校验 `data.sqlite` 数据层；`--orphans` 额外检查未被引用的逻辑表与 DataID | 文本 |
+| `rodski plan validate [plan_id]` | 校验 `plan/*.xml`；须在模块目录下执行 | 文本 |
+| `rodski business validate <module> [--id REF]` | 校验 `business/*.xml` 业务模型 | 文本 |
+| `rodski model lint <module>` | 检查未使用 / 未定义的模型。注意 `rodski model validate <name>` 只校验 `models/*.json` 轻量模型，不校验 `model/model.xml` | 文本 |
 | `rodski run <path> --headless` | 无头模式执行 | JSON 结果 |
-| `rodski roam --case-file <case.xml> --case-id <case_id> --output-format json` | 定向执行一条合格用例并漫游；资格错误显式返回（v11.5.0 起，原 `--case <case_id>` 拆分为文件 + ID，见 [CORE §6.5/§7.7](../docs/CORE_DESIGN_CONSTRAINTS.md)） | JSON 结构化结果，含 `roam_summary` |
+| `rodski roam --case-file <相对 case/ 的路径> --case-id <case_id> --output-format json [path]` | 定向执行一条合格用例并漫游；资格错误显式返回（v11.5.0 起，原 `--case <case_id>` 拆分为文件 + ID，见 [CORE §6.5/§7.7](../docs/CORE_DESIGN_CONSTRAINTS.md)） | JSON 结构化结果，含 `roam_summary` |
 | `rodski run <path> --roam --output-format json` | 批量执行，并对合格且通过的 UI 用例漫游 | JSON 结构化结果；不合格用例静默跳过漫游 |
 | `rodski capabilities` | 查询框架能力清单；v11.6.0 起含 `pitfalls` 字段（AI 编写契约速查，与 rodski-skills「契约速查」同源） | JSON |
 | `rodski case lint <module>` | 静态检查常见写法问题：固定 `wait`、`WaitTime > 0`、`evaluate` 断言模式、弹窗垫片、`sql`/`query` 均无效等（v11.6.0 规则见 GUIDE §5.7.4 / CORE §1.5） | 文本；有 ERROR 时非 0 退出 |
@@ -108,6 +122,11 @@ for result in root.findall(".//result[@status='FAIL']"):
 | `rodski run <path> --session-mode isolated\|shared_browser\|shared_session` | 浏览器会话复用方式（v11.6.0，覆盖 `DefaultValue.SessionMode`） | 同 `rodski run` |
 | `rodski run <path> --evidence full\|concise` | 截图证据模式；`concise` 只保留失败截图，录像不变（v11.6.0） | 同 `rodski run` |
 | `rodski data set <module> <table> <data_id> field=value ...` | 直接修改 `data.sqlite` 中的数据行（另有 `add-row` / `delete-row`，v11.6.0） | 文本 |
+| `rodski data add-row <module> <table> <data_id> field=value ... [--remark 备注]` | 向已存在的逻辑表新增一行，必须给出完整字段集合 | 文本 |
+| `rodski run <path> --trace` | 额外导出 `trace.json`（run / case / keyword 三层 span，含耗时、重试指标）；`rodski roam` 同样支持 | 同 `rodski run` + `trace.json` |
+| `rodski run <path> --cdp <endpoint>` | 附加到已启动的远程调试浏览器（如 `--cdp :9222` 或 `http://127.0.0.1:9222`），复用其页面与登录态；仅 Web 用例生效，附加时 `--headless` / `--browser` 不生效（暂停接管工作流） | 同 `rodski run` |
+| `rodski explore-step --module <dir> --session <id> --action <action> [--model M] [--data D] [--cdp <endpoint>]` | 单步执行一条探索动作并返回结构化结果；另有 `--confidence`、`--reversible` / `--no-reversible`、`--budget-steps`（默认 50）、`--budget-duration`（秒，默认 300）、`--budget-tokens`、`--budget-cost` | JSON（`--output text` 输出文本） |
+| `rodski queue [--module M] [--plans @p1,@p2] [--devices D1,D2] [--platform android\|ios]` | 多设备计划队列：一个计划只在一台设备上执行，空闲设备领取下一个计划；另有 `--max-parallel`、`--list-devices`、`--retry-failed-plans N`、`--no-requeue-on-device-loss`、`--allow-cross-platform-plan`、`--dry-run` | 文本 |
 
 > `--workers` / `--session-mode` / `--evidence` / `--report` 不是执行范围 selector，可与 `@plan_id` 同用（CORE §7.7）。
 
@@ -184,7 +203,7 @@ def create_engine():
 ```
 
 ```bash
-rodski roam --case tc001 --roam-engine my_engine.py
+rodski roam --case-file login.xml --case-id tc001 --roam-engine my_engine.py <module>
 rodski run case/ --roam --roam-engine my_engine.py
 ```
 
@@ -200,20 +219,29 @@ Agent 消费 `--output-format json` 时，应读取每条结果的 `roam_summary
 
 ### 3.1 模型 XML
 
+所有模型写在同一个 `model/model.xml` 中（唯一模型文件名），按模型名增量替换：
+
 ```python
-def generate_model_xml(page_name, elements):
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+def generate_model_xml(module_dir, page_name, elements):
     """
     elements: [{"name": "loginBtn", "loc_type": "vision", "loc_value": "登录按钮"}]
     """
-    xml = f'<models>\n  <model name="{page_name}">\n'
+    path = Path(module_dir) / "model" / "model.xml"
+    root = ET.parse(path).getroot() if path.exists() else ET.Element("models")
+    for old in root.findall(f"model[@name='{page_name}']"):
+        root.remove(old)
+    model = ET.SubElement(root, "model", name=page_name)
     for elem in elements:
-        xml += f'    <element name="{elem["name"]}">'
-        xml += f'<location type="{elem["loc_type"]}">{elem["loc_value"]}</location>'
-        xml += '</element>\n'
-    xml += '  </model>\n</models>'
-
-    Path(f"model/{page_name}.xml").write_text(xml)
-    return xml
+        el = ET.SubElement(model, "element", name=elem["name"], type="web")
+        loc = ET.SubElement(el, "location", type=elem["loc_type"])
+        loc.text = elem["loc_value"]
+    ET.indent(root)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    ET.ElementTree(root).write(path, encoding="utf-8", xml_declaration=True)
+    return path
 ```
 
 ### 3.2 用例 XML
@@ -233,24 +261,43 @@ def generate_case_xml(case_id, title, steps):
     return xml
 ```
 
-### 3.3 数据表 XML
+### 3.3 测试数据（data.sqlite）
+
+测试数据只能写入 `data/data.sqlite`（`data.xml` / `data_verify.xml` 已废弃，存在即运行报错）。`rodski init` 会创建空库；`rodski data add-row` 只能向已存在的逻辑表加行，所以新表先按 GUIDE §5.2 方式二注册表与字段，再用 CLI 写行：
 
 ```python
-def generate_data_xml(model_name, data_rows):
-    """
-    data_rows: [{"id": "L001", "fields": {"username": "admin", "password": "123"}}]
-    """
-    xml = f'<datatable name="{model_name}">\n'
-    for row in data_rows:
-        xml += f'  <row id="{row["id"]}">\n'
-        for name, value in row["fields"].items():
-            xml += f'    <field name="{name}">{value}</field>\n'
-        xml += '  </row>\n'
-    xml += '</datatable>'
+import sqlite3
+import subprocess
+from pathlib import Path
 
-    Path(f"data/{model_name}.xml").write_text(xml)
-    return xml
+def write_data_rows(module_dir, table, fields, rows, kind="data"):
+    """
+    table: 逻辑表名 = 模型名；验证表为 {模型名}_verify，kind="verify"
+    fields: 完整字段列表；每行都必须给全，不用的字段填 BLANK / NULL / NONE
+    rows: [{"id": "L001", "fields": {"username": "admin", "password": "123", "loginBtn": "click"}}]
+    """
+    db = Path(module_dir) / "data" / "data.sqlite"
+    conn = sqlite3.connect(db)
+    if not conn.execute("SELECT 1 FROM rs_datatable WHERE table_name=?", (table,)).fetchone():
+        conn.execute(
+            "INSERT INTO rs_datatable VALUES (?, ?, ?, 'standard', '', CURRENT_TIMESTAMP)",
+            (table, table, kind),
+        )
+        conn.executemany(
+            "INSERT INTO rs_datatable_field VALUES (?, ?, ?)",
+            [(table, f, i) for i, f in enumerate(fields)],
+        )
+        conn.commit()
+    conn.close()
+    for row in rows:
+        subprocess.run(
+            ["rodski", "data", "add-row", str(module_dir), table, row["id"],
+             *[f"{k}={v}" for k, v in row["fields"].items()]],
+            check=True,
+        )
 ```
+
+已有行改值用 `rodski data set <module> <table> <data_id> field=value ...`；写完后用 `rodski data validate <module>` 校验。
 
 ---
 
@@ -280,7 +327,7 @@ Return 引用用于在步骤间传递数据。
 | `${Return[-2]}` | 上上步返回值 |
 | `${Return[0]}` | 第一步返回值 |
 
-**关键规则**：Return 引用 **只能写在数据表 XML 的 `<field>` 值中**，不能写在 Case XML 的 `data` 属性。
+**关键规则**：Return 引用 **只能写在数据表（`data.sqlite`）的字段值中**，不能写在 Case XML 的 `data` 属性。下例用 XML 形式示意数据表字段。
 
 ```xml
 <!-- ✅ 正确：Return 在数据表 field 中 -->
@@ -372,9 +419,12 @@ Agent 生成用例 XML 时，**步骤间数据传递优先使用 `set`/`get` 命
 | 值 | 说明 |
 |----|------|
 | `.Password` 后缀 | 输入时去掉后缀，日志中显示 `***` |
+| 空值（字段值为空串；v6.7.6 起字段不可省略） | UI 跳过该元素（不输入，也不清空输入框；只含空格的值照常输入）。要清空请用 `clear` |
 | `BLANK` | UI 跳过 / 接口传空字符串 |
-| `NULL` / `NONE` | UI 跳过 / 接口传 null |
-| 空值（省略 field） | 跳过该元素（不输入） |
+| `NULL` | UI 跳过 / 接口传 null |
+| `NONE` | UI 跳过 / 接口不发送该字段 |
+
+verify 中：`BLANK` 在 UI / DB 模型跳过、接口模型期望空字符串；`NULL` 期望 null（UI 跳过）；`NONE` 一律跳过该字段（与 GUIDE §5.4 一致）。
 
 ### 4.5 send — 接口模型约定
 
@@ -409,7 +459,7 @@ Case XML 写法：
 <test_step action="verify" model="LoginAPI" data="V001"/>
 ```
 
-验证数据文件 `data/LoginAPI_verify.xml`：
+验证数据写在 `data.sqlite` 的逻辑表 `LoginAPI_verify` 中（下例用 XML 形式示意表内容）：
 
 ```xml
 <datatable name="LoginAPI_verify">
@@ -423,27 +473,48 @@ Case XML 写法：
 ### 4.6 DB — 数据库关键字
 
 ```xml
-<test_step action="DB" model="demodb" data="QuerySQL.Q001"/>
+<test_step action="DB" model="QuerySQL" data="Q001"/>
+<test_step action="verify" model="QuerySQL" data="V001"/>
 ```
 
 | 属性 | 说明 |
 |------|------|
-| `model` | GlobalValue 中的数据库连接组名 |
-| `data` | SQL 数据表引用（`表名.DataID`）或直接 SQL |
+| `model` | `type="database"` 的模型名（不是 GlobalValue 连接组名）；连接信息来自模型的 `connection` 属性，映射到 `globalvalue.xml` 中同名组 |
+| `data` | 只写 DataID；数据行从与模型同名的逻辑表（`QuerySQL`）读取 |
 
-SQL 数据表格式：
+数据库模型（`model/model.xml`）：
+
+```xml
+<model name="QuerySQL" type="database" connection="demo_db">
+    <query name="count" remark="查询总数">
+        <sql>SELECT COUNT(*) AS cnt FROM items</sql>
+    </query>
+    <element name="cnt" type="database">
+        <location type="field">cnt</location>
+    </element>
+</model>
+```
+
+SQL 数据表 `QuerySQL`（`data.sqlite`，下例用 XML 形式示意；同表所有行字段集合一致，不用的填 `BLANK`）：
 
 ```xml
 <datatable name="QuerySQL">
   <row id="Q001" remark="查询总数">
-    <field name="sql">SELECT COUNT(*) as cnt FROM items</field>
-    <field name="operation">query</field>
-    <field name="var_name">total_count</field>  <!-- 可选：结果存入变量 -->
+    <field name="query">count</field>
+    <field name="sql">BLANK</field>
+    <field name="operation">BLANK</field>
+  </row>
+  <row id="Q002" remark="插入数据">
+    <field name="query">BLANK</field>
+    <field name="sql">INSERT INTO items (name) VALUES ('test')</field>
+    <field name="operation">execute</field>
   </row>
 </datatable>
 ```
 
-`operation` 取值：`query`（查询，返回结果集）/ `execute`（增删改，返回受影响行数）。
+- `query`：引用数据库模型中的 `<query name>`；`sql`：直接执行的 SQL；先看 `sql`，没有有效 `sql` 再看 `query`
+- `operation` 取值：`query`（查询，返回结果集）/ `execute`（增删改，返回受影响行数）
+- 校验查询结果用 `verify`（读取 `QuerySQL_verify`，与结果第一行比较），详见 GUIDE §5.5
 
 ### 4.7 verify 与 _verify 表名推导
 
@@ -562,7 +633,7 @@ for elem in elements:
 def choose_locator(element_info):
     """根据元素特征选择定位器类型，返回 (loc_type, loc_value) 元组"""
     if element_info.get("has_stable_id"):
-        return ("xpath", f"//[@id='{element_info['id']}']")
+        return ("xpath", f"//*[@id='{element_info['id']}']")
     elif element_info.get("has_bbox"):
         return ("vision_bbox", element_info['bbox'])
     else:
@@ -588,7 +659,7 @@ def choose_locator(element_info):
 def execute_with_retry(case_xml, max_retries=3):
     for attempt in range(max_retries):
         result = subprocess.run(
-            ["python", "rodski/ski_run.py", case_xml],
+            ["rodski", "run", case_xml],
             capture_output=True
         )
 
@@ -632,7 +703,7 @@ def execute_with_retry(case_xml, max_retries=3):
 ```python
 # 启用详细日志
 result = subprocess.run(
-    ["python", "rodski/ski_run.py", "case/test.xml", "--verbose"],
+    ["rodski", "run", "case/test.xml", "--verbose"],
     capture_output=True
 )
 
@@ -648,13 +719,16 @@ result = subprocess.run(
 # 1. Agent 探索页面
 page_elements = agent.explore("https://example.com/login")
 
-# 2. 生成模型 XML
-generate_model_xml("LoginPage", page_elements)
+# 2. 生成模型（写入 model/model.xml）
+generate_model_xml(".", "LoginPage", page_elements)
 
-# 3. 生成数据 XML
-generate_data_xml("LoginPage", [
-    {"id": "L001", "fields": {"username": "admin", "password": "123"}}
+# 3. 写入测试数据（data/data.sqlite）
+write_data_rows(".", "LoginPage", ["username", "password", "loginBtn", "welcomeMsg"], [
+    {"id": "L001", "fields": {"username": "admin", "password": "123", "loginBtn": "click", "welcomeMsg": "BLANK"}}
 ])
+write_data_rows(".", "LoginPage_verify", ["welcomeMsg"], [
+    {"id": "V001", "fields": {"welcomeMsg": "欢迎, admin"}}
+], kind="verify")
 
 # 4. 生成用例 XML
 generate_case_xml("c001", "登录测试", [
@@ -676,9 +750,9 @@ else:
 
 ---
 
-**文档版本**: v3.1
-**最后更新**: 2026-05-10
-**框架版本**: v6.4.0
+**文档版本**: v11.10.0
+**最后更新**: 2026-10-22
+**框架版本**: v11.10.0
 
 ---
 
@@ -726,21 +800,21 @@ cp rodski-agent/config/agent_config.yaml.example rodski-agent/config/agent_confi
 
 ```bash
 # 解读整个 case 文件（批量）
-rodski-agent narrate --case rodski-demo/case/tc_database.xml
+rodski-agent narrate --case rodski-demo/demosite/core_keywords/case/tc_database.xml
 
 # 只解读单条用例
-rodski-agent narrate --case rodski-demo/case/tc_keywords.xml --id TC032
+rodski-agent narrate --case rodski-demo/demosite/core_keywords/case/tc_keywords.xml --id TC032
 
-# 附加执行日志（展示实际 SQL、返回值、耗时）
+# 附加执行日志（展示实际 SQL、返回值、耗时）；rodski_<ts> 换成实际运行目录
 rodski-agent narrate \
-  --case rodski-demo/case/tc_database.xml \
-  --log rodski-demo/result/rodski_20260507_153712/execution.log
+  --case rodski-demo/demosite/core_keywords/case/tc_database.xml \
+  --log rodski-demo/demosite/core_keywords/result/rodski_<ts>/execution.log
 ```
 
 输出文件写入 `{项目根}/narrative/{用例ID}_{标题}.md`。
 
 **工作原理**：
-1. 解析 case XML + model.xml + data.xml，将引用替换为实际值
+1. 解析 case XML + model.xml + data.sqlite（无 data.sqlite 时回退读取旧的 data.xml），将引用替换为实际值
 2. 可选：从执行日志提取运行时数据（SQL 语句、返回值）
 3. 调用 LLM 理解业务意图，生成自然语言 Markdown
 
@@ -756,8 +830,8 @@ rodski-agent run --case path/to/case/ --browser firefox --no-headless
 # 设置最大重试次数
 rodski-agent run --case path/to/case/ --max-retry 5
 
-# JSON 输出（适合 CI/CD 集成）
-rodski-agent run --case path/to/case/ --format json
+# JSON 输出（适合 CI/CD 集成）；--format 是顶层选项，须写在子命令之前
+rodski-agent --format json run --case path/to/case/
 ```
 
 执行失败时自动诊断并尝试修复（等待/定位器/数据三种策略）。
@@ -771,7 +845,7 @@ rodski-agent design \
   --output output/login/
 ```
 
-生成完整的 case/model/data XML 文件，通过 `rodski validate` 校验。
+生成 case、`model/model.xml` 与测试数据，并用 rodski 内置的 XSD 校验器（`core.xml_schema_validator`）校验（rodski 没有 `validate` 子命令）。注意：当前非移动端模式下数据仍写成 `data/data.xml` / `data/data_verify.xml`，用 `rodski run` 执行前须先 `rodski data import <输出目录>` 并删除这两个 XML（该行为可能调整）。
 
 ### 9.7 pipeline — 设计+执行全流程
 
@@ -795,7 +869,7 @@ rodski-agent diagnose --result output/login/execution_summary.json
 
 ### 9.9 输出格式
 
-所有命令支持 `--format json`（默认 `human`），JSON 输出遵循统一契约：
+所有命令支持顶层选项 `--format json`（默认 `human`，写在子命令之前，如 `rodski-agent --format json run ...`），JSON 输出遵循统一契约：
 
 ```json
 {
