@@ -221,11 +221,21 @@ class BaseDriver(ABC):
     # 驱动内部不得再有自己的等待/重试（WebDriverWait(10)、wait_for_selector 吞异常、
     # force/JS 降级、implicit wait 等），否则会与公共层轮询叠加。
 
-    #: 未收到 set_auto_wait 时的 AutoWait（毫秒）：0 = 不自动等待，与 core.auto_wait.DEFAULT_AUTO_WAIT_MS 一致
-    DEFAULT_AUTO_WAIT_MS = 0
+    @staticmethod
+    def _auto_wait_module():
+        try:
+            from ..core import auto_wait as _aw
+        except ImportError:  # 以 rodski/ 为根运行
+            from core import auto_wait as _aw  # type: ignore
+        return _aw
+
+    @property
+    def DEFAULT_AUTO_WAIT_MS(self) -> float:  # noqa: N802 - 保持 v11.7.0 的属性名
+        """未收到 set_auto_wait 时的 AutoWait（毫秒）：引用 core.auto_wait.DEFAULT_AUTO_WAIT_MS（v11.10.0 起 10000）。"""
+        return float(self._auto_wait_module().DEFAULT_AUTO_WAIT_MS)
 
     def set_auto_wait(self, ms: float) -> None:
-        """接收 ``DefaultValue.AutoWait``（毫秒，0 = 不等待）。
+        """接收 ``DefaultValue.AutoWait``（毫秒，0 = 不等待；``AutoWaitMs.is_default`` 随之保留）。
 
         KeywordEngine 在每次 ``execute()`` 前、以及懒创建驱动时调用。驱动用它作为
         **调用方没有传 timeout_ms 时**的动作超时兜底（例如外部代码直接调用
@@ -233,15 +243,21 @@ class BaseDriver(ABC):
 
         注意：Playwright 的 ``timeout=0`` 表示无限等待，驱动换算时必须保证下限 1ms。
         """
+        _aw = self._auto_wait_module()
         try:
             value = float(ms)
+            is_default = _aw.is_default_auto_wait(ms)
         except (TypeError, ValueError):
-            value = float(self.DEFAULT_AUTO_WAIT_MS)
-        self._auto_wait_ms = max(0.0, value)
+            value, is_default = float(self.DEFAULT_AUTO_WAIT_MS), True
+        self._auto_wait_ms = _aw.AutoWaitMs(max(0.0, value), is_default=is_default)
 
     def get_auto_wait(self) -> float:
-        """返回当前 AutoWait（毫秒）；未下发时为 DEFAULT_AUTO_WAIT_MS。"""
-        return getattr(self, "_auto_wait_ms", float(self.DEFAULT_AUTO_WAIT_MS))
+        """返回当前 AutoWait（毫秒）；未下发时为默认值（``is_default=True``）。"""
+        current = getattr(self, "_auto_wait_ms", None)
+        if current is None:
+            _aw = self._auto_wait_module()
+            return _aw.AutoWaitMs(_aw.DEFAULT_AUTO_WAIT_MS, is_default=True)
+        return current
 
     def _action_timeout_ms(self, timeout_ms: Optional[float] = None) -> int:
         """动作超时（毫秒，整数，下限 1ms，永不为 0）：优先调用方给的 timeout_ms，否则 AutoWait。"""

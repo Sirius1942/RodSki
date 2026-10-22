@@ -176,11 +176,11 @@ class TestBatchTypeAutoWait:
         assert all(1 <= a[2] <= 600 for a in d.actions)
 
     def test_multi_locator_shares_budget_hit_cost_is_d(self, parser):
-        """第 1 个 location 永不命中、第 2 个 0.3s 后命中：耗时 ≈0.3s，不是 AutoWait + 0.3s。"""
+        """第 1 个 location 永不命中、第 2 个 0.3s 后命中：第 2 轮（1s，REQ-015 间隔）命中，不是 AutoWait + 0.3s。"""
         d = FakeDriver(appear={"id=never": None, "css=.late": 0.3})
         engine = _engine(parser, d, {"Multi": {"btn": "click"}}, auto_wait_ms=2000)
         ok, elapsed = _timed(lambda: engine.execute("type", {"model": "Multi", "data": "T1"}))
-        assert ok and 0.25 <= elapsed < 0.9
+        assert ok and 0.9 <= elapsed < 1.5
         assert d.actions[0][:2] == ("click", "css=.late")
         # 定位阶段两个 location 轮流探测
         assert d.probes.count("id=never") >= 2 and d.probes.count("css=.late") >= 2
@@ -287,7 +287,8 @@ class TestOtherKeywordsAutoWait:
         d = FakeDriver(appear={"#name": 0.3})
         engine = _engine(parser, d, auto_wait_ms=2000)
         ok, elapsed = _timed(lambda: engine.execute("type", {"locator": "#name", "text": "Tom"}))
-        assert ok and 0.25 <= elapsed < 0.9
+        # 0.3s 后出现，每 1s 探测（REQ-015）→ 第 2 次探测（1s）命中
+        assert ok and 0.9 <= elapsed < 1.5
         assert d.actions[0][:2] == ("type", "#name") and d.actions[0][3] == "Tom"
 
     def test_get_model_mode_reads_when_present(self, parser):
@@ -295,7 +296,7 @@ class TestOtherKeywordsAutoWait:
         d.texts["#lateValue"] = "42"
         engine = _engine(parser, d, auto_wait_ms=2000)
         ok, elapsed = _timed(lambda: engine.execute("get", {"model": "LateGet", "data": "G001"}))
-        assert ok and 0.25 <= elapsed < 0.9
+        assert ok and 0.9 <= elapsed < 1.5
         assert engine.get_return(-1) == {"lateValue": "42"}
 
     def test_get_model_mode_fails_after_auto_wait(self, parser):

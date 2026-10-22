@@ -104,6 +104,9 @@ class TestBaseDriver:
     def setup_method(self):
         """初始化测试环境"""
         self.driver = ConcreteDriver()
+        # 这些用例测"找不到即返回/失败"的接口语义，不测等待：显式关闭自动等待，
+        # 避免每个"未找到"用例等满默认 10s（v11.10.0 / REQ-015）
+        self.driver.set_auto_wait(0)
 
     def test_launch(self):
         self.driver.launch(url="https://example.com")
@@ -222,8 +225,8 @@ class TestSmartWait:
 
     def test_element_not_found_after_max_retries(self):
         """测试达到最大重试次数后仍未找到"""
-        # 设置超时时间为 1 秒，重试间隔 0.2 秒
-        self.driver.set_auto_wait(1000)
+        # AutoWait=2 秒，每 1 秒探测一次（REQ-015）：0s / 1s / 2s 共 3 次
+        self.driver.set_auto_wait(2000)
 
         # 始终返回 None
         self.driver.locate_result = None
@@ -233,7 +236,7 @@ class TestSmartWait:
         assert bbox is None
         # 应该有多次重试
         locate_calls = [a for a in self.driver.actions if a[0] == "locate_element"]
-        assert len(locate_calls) >= 4  # 至少 1 次初始 + 3 次重试
+        assert len(locate_calls) == 3  # 1 次初始 + 2 次重试
 
     def test_auto_wait_zero(self):
         """AutoWait=0：只定位一次，不重试"""
@@ -264,9 +267,9 @@ class TestSmartWait:
         elapsed = time.time() - start_time
 
         assert bbox is None
-        # 总耗时应该接近 0.5 秒
+        # 总耗时应该接近 0.5 秒（最后一轮在 deadline 处，不会睡满 1s 间隔）
         assert 0.4 <= elapsed <= 0.7
-        # 应该有多次重试
+        # 0s 初始 + 0.5s（deadline）各探测一次
         locate_calls = [a for a in self.driver.actions if a[0] == "locate_element"]
-        assert len(locate_calls) >= 3
+        assert len(locate_calls) == 2
 

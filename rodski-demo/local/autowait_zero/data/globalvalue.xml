@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <globalvalue>
-  <!-- 刻意不设置 DefaultValue.AutoWait：验证"不设置 = 不自动等待"，每个定位器只尝试一次（v11.7.1）。
-       显式写 <var name="AutoWait" value="0"/> 效果相同（单元测试覆盖） -->
+  <group name="DefaultValue">
+    <!-- 显式 AutoWait=0：关闭自动等待，每个定位器只尝试一次。
+         v11.10.0（REQ-015）起"不设置"不再等于 0，而是默认最多等待 10000ms（见 ../autowait_default） -->
+    <var name="AutoWait" value="0"/>
+  </group>
   <group name="Site">
     <!-- 与 autowait 共用站点（../autowait/fun/site），由其 run_acceptance.py 启动 -->
     <var name="URL" value="http://127.0.0.1:8767"/>

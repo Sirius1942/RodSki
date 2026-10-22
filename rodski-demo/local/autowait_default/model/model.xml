@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- v11.7.0 自动等待（AutoWait）验收模型（.pb/specs/v11.7.0-autowait-unified-design.md §4.1）
+     站点：fun/site/*.html，由 run_acceptance.py 在 127.0.0.1:8767 启动；页面延迟由 ?d=毫秒 控制。
+     元素名刻意与 DOM id 不同（如 submitBtn → #lateBtn），以便断言错误信息里出现的是"元素名"而不只是定位器。 -->
+<models>
+  <!-- late_input.html：输入框 d 后插入，输入内容回显到 #echo -->
+  <model name="LateInput" type="ui">
+    <element name="nameInput" type="web">
+      <location type="id">lateInput</location>
+    </element>
+    <element name="echoText" type="web">
+      <location type="id">echo</location>
+    </element>
+  </model>
+
+  <!-- late_button.html：按钮 d 后插入，点击计数（证明只点一次） -->
+  <model name="LateButton" type="ui">
+    <element name="submitBtn" type="web">
+      <location type="id">lateBtn</location>
+    </element>
+    <element name="clickCount" type="web">
+      <location type="id">clickCount</location>
+    </element>
+  </model>
+
+  <!-- disabled_button.html：按钮存在但 disabled，d 后 enabled -->
+  <model name="DisabledButton" type="ui">
+    <element name="enableLaterBtn" type="web">
+      <location type="id">disBtn</location>
+    </element>
+    <element name="disResult" type="web">
+      <location type="id">disResult</location>
+    </element>
+    <element name="disCount" type="web">
+      <location type="id">disCount</location>
+    </element>
+  </model>
+
+  <!-- overlay.html：全屏遮罩（pointer-events:auto）覆盖按钮，d 后移除；d=-1 永不移除 -->
+  <model name="Overlay" type="ui">
+    <element name="coveredBtn" type="web">
+      <location type="id">ovBtn</location>
+    </element>
+    <element name="ovCount" type="web">
+      <location type="id">ovCount</location>
+    </element>
+    <element name="blockedCount" type="web">
+      <location type="id">blockedCount</location>
+    </element>
+  </model>
+
+  <!-- hidden_button.html：按钮 display:none，d 后显示 -->
+  <model name="HiddenButton" type="ui">
+    <element name="showLaterBtn" type="web">
+      <location type="id">hidBtn</location>
+    </element>
+    <element name="hidCount" type="web">
+      <location type="id">hidCount</location>
+    </element>
+  </model>
+
+  <!-- async_select.html：select 存在，option d 后异步填充；?sd= 控制 select 本身出现时间 -->
+  <model name="AsyncSelect" type="ui">
+    <element name="regionSelect" type="web">
+      <location type="id">region</location>
+    </element>
+    <element name="selectedText" type="web">
+      <location type="id">selected</location>
+    </element>
+  </model>
+
+  <!-- late_hover.html：悬停目标 d 后出现，mouseenter 展开菜单 -->
+  <model name="LateHover" type="ui">
+    <element name="menuTrigger" type="web">
+      <location type="id">hoverTarget</location>
+    </element>
+    <element name="menuState" type="web">
+      <location type="id">menuState</location>
+    </element>
+  </model>
+
+  <!-- late_dblclick.html：双击目标 d 后出现 -->
+  <model name="LateDblclick" type="ui">
+    <element name="dblBox" type="web">
+      <location type="id">dblTarget</location>
+    </element>
+    <element name="dblCount" type="web">
+      <location type="id">dblCount</location>
+    </element>
+  </model>
+
+  <!-- late_contextmenu.html：右键目标 d 后出现 -->
+  <model name="LateContextMenu" type="ui">
+    <element name="ctxBox" type="web">
+      <location type="id">ctxTarget</location>
+    </element>
+    <element name="ctxCount" type="web">
+      <location type="id">ctxCount</location>
+    </element>
+  </model>
+
+  <!-- late_iframe.html：iframe d 后插入，内部输入框（location@frame） -->
+  <model name="LateIframe" type="ui">
+    <element name="frameField" type="web">
+      <location type="css" frame="#lateFrame">#frameInput</location>
+    </element>
+    <element name="frameEchoText" type="web">
+      <location type="css" frame="#lateFrame">#frameEcho</location>
+    </element>
+  </model>
+
+  <!-- chain_form.html：A 于 d 出现；输入 A 后 d 出现 B；点 B 后 d 出现 C（type 按模型元素顺序执行） -->
+  <model name="ChainForm" type="ui">
+    <element name="stepA" type="web">
+      <location type="id">fieldA</location>
+    </element>
+    <element name="stepB" type="web">
+      <location type="id">btnB</location>
+    </element>
+    <element name="stepC" type="web">
+      <location type="id">btnC</location>
+    </element>
+    <element name="chainResult" type="web">
+      <location type="id">chainResult</location>
+    </element>
+    <element name="bCount" type="web">
+      <location type="id">bCount</location>
+    </element>
+    <element name="cCount" type="web">
+      <location type="id">cCount</location>
+    </element>
+  </model>
+
+  <!-- multi_locator.html：第 1 个 location 永不命中，第 2 个命中（顺序回退模式，priority 各不相同） -->
+  <model name="MultiLocator" type="ui">
+    <element name="fallbackBtn" type="web">
+      <location type="id" priority="1">neverExists</location>
+      <location type="id" priority="2">realBtn</location>
+    </element>
+    <element name="mlCount" type="web">
+      <location type="id">mlCount</location>
+    </element>
+  </model>
+
+  <!-- 负向：两个 location 均永不命中 → 失败耗时应 ≈ 1 × AutoWait（共享一个预算，不是 N ×） -->
+  <model name="MultiMiss" type="ui">
+    <element name="ghostBtn" type="web">
+      <location type="id" priority="1">neverExists</location>
+      <location type="css" priority="2">button.also-never-exists</location>
+    </element>
+  </model>
+
+  <!-- late_get.html：get 模型模式读取 d 后才出现的文本 -->
+  <model name="LateGet" type="ui">
+    <element name="lateValue" type="web">
+      <location type="id">lateText</location>
+    </element>
+  </model>
+  <!-- late_get.html：立即显示的参考值，verify 期望值引用 ${Return[-1].lateValue}（UI verify 允许跨源比对） -->
+  <model name="LateGetRef" type="ui">
+    <element name="refValue" type="web">
+      <location type="id">refText</location>
+    </element>
+  </model>
+
+  <!-- late_clear.html：clear 关键字使用选择器 #prefilled；此模型只用于 verify 回显 -->
+  <model name="LateClear" type="ui">
+    <element name="clearEcho" type="web">
+      <location type="id">clearEcho</location>
+    </element>
+  </model>
+
+  <!-- late_upload.html：upload_file 关键字使用选择器 #fileInput；此模型只用于 verify 文件名 -->
+  <model name="LateUpload" type="ui">
+    <element name="fileNameText" type="web">
+      <location type="id">fileName</location>
+    </element>
+  </model>
+
+  <!-- ready.html：全部元素立即就绪，10 个 type 字段 + 2 个结果字段（G4 命中即走） -->
+  <model name="ReadyForm" type="ui">
+    <element name="field1" type="web"><location type="id">r1</location></element>
+    <element name="field2" type="web"><location type="id">r2</location></element>
+    <element name="field3" type="web"><location type="id">r3</location></element>
+    <element name="field4" type="web"><location type="id">r4</location></element>
+    <element name="field5" type="web"><location type="id">r5</location></element>
+    <element name="field6" type="web"><location type="id">r6</location></element>
+    <element name="field7" type="web"><location type="id">r7</location></element>
+    <element name="field8" type="web"><location type="id">r8</location></element>
+    <element name="city" type="web"><location type="id">rCity</location></element>
+    <element name="submit" type="web"><location type="id">rSubmit</location></element>
+    <element name="summary" type="web"><location type="id">summary</location></element>
+    <element name="submitCount" type="web"><location type="id">submitCount</location></element>
+  </model>
+</models>

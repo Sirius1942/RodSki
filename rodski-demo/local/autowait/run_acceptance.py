@@ -5,15 +5,17 @@
 基线记录: .pb/iterations/iteration-65/baseline.md
 
 用法:
-    python3 rodski-demo/local/autowait/run_acceptance.py            # 全部 W01~W30
+    python3 rodski-demo/local/autowait/run_acceptance.py            # 全部 W01~W39
     python3 rodski-demo/local/autowait/run_acceptance.py W11 W17    # 指定编号
 
-覆盖三个模块:
-    autowait        AutoWait=5000（W01~W24）
-    autowait_zero   不设置 AutoWait = 不自动等待（W25~W27，v11.7.1）
-    autowait_long   AutoWait=12000（W28~W30）
+覆盖四个模块:
+    autowait          AutoWait=5000（W01~W24）
+    autowait_zero     显式 AutoWait=0 = 不自动等待（W25~W27）
+    autowait_long     AutoWait=12000（W28~W30）
+    autowait_default  不设置 AutoWait = 默认 10000ms、每 1000ms 探测（W31~W39，REQ-015 / v11.10.0）
+                      W38/W39 在临时副本中把 AutoWait 改为空值 / 非法值后执行
 
-脚本在 127.0.0.1:8767 以 autowait/fun/site 为根目录启动静态站点（三个模块共用），
+脚本在 127.0.0.1:8767 以 autowait/fun/site 为根目录启动静态站点（四个模块共用），
 每一项都真实调用 `rodski run <用例文件> --case-id <ID> --headless --trace` 并断言：
   - 用例结果（负向用例带 expect_fail="是"，result.xml 中 PASS 表示"步骤确实失败了"）
   - 耗时窗口：取 **步骤级** 耗时，扣除浏览器启动与 navigate。
@@ -27,7 +29,9 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
+import tempfile
 import subprocess
 import sys
 import threading
@@ -41,8 +45,9 @@ from typing import Callable, Dict, List, Optional, Tuple
 
 HERE = Path(__file__).resolve().parent
 MOD = HERE                                   # autowait（AutoWait=5000）
-ZERO = HERE.parent / "autowait_zero"    # 不设置 AutoWait（= 0，不自动等待）
+ZERO = HERE.parent / "autowait_zero"    # 显式 AutoWait=0（不自动等待）
 LONG = HERE.parent / "autowait_long"    # AutoWait=12000
+DEF = HERE.parent / "autowait_default"  # 不设置 AutoWait（REQ-015：默认 10000ms、每 1000ms 探测）
 REPO = HERE.parent.parent.parent
 SITE_PORT = 8767
 
@@ -50,6 +55,9 @@ SITE_PORT = 8767
 NEG_WINDOW = (4.5, 7.5)
 LONG_NEG_WINDOW = (11.5, 14.5)
 ZERO_MAX = 1.5
+# REQ-015：默认 10000ms 的失败窗口；正向 d=3000 的元素：计时与 navigate 重叠，探测间隔 1s，命中 ≤ d + 1s + 余量
+DEF_NEG_WINDOW = (9.5, 12.5)
+DEF_POS_WINDOW = (1.5, 5.5)
 
 
 # ---------------------------------------------------------------- 基础设施
@@ -158,7 +166,7 @@ def expect(cond: bool, msg: str, ctx: str = "") -> None:
 @dataclass
 class Check:
     title: str
-    module: Path
+    module: object                                 # Path，或返回 Path 的函数（临时副本）
     case_file: str
     case_id: str
     keyword: str                                   # 计时的关键字（trace span 名 keyword.<keyword>）
@@ -167,11 +175,16 @@ class Check:
     auto_wait_ms: Optional[int] = None             # 负向：错误信息须含 AutoWait=<ms>
     element: str = ""                              # 负向：错误信息须含的元素名
     extra: Optional[Callable[[Run], None]] = None
+    raw: bool = False                              # True：不检查 result.xml（执行前报错的用例），只交给 extra 断言
 
 
 def run_check(c: Check) -> str:
     """执行一项检查；所有断言都会评估，失败原因一次性全部列出（便于基线记录）。"""
-    r = rodski_run(c.module, c.case_file, c.case_id)
+    module = c.module() if callable(c.module) else c.module
+    r = rodski_run(module, c.case_file, c.case_id)
+    if c.raw:
+        c.extra(r)
+        return f"退出码 {r.code}"
     res = r.result(c.case_id)
     expect(r.run_dir is not None and res, f"未生成 {c.case_file}::{c.case_id} 的结果（rc={r.code}）", r.out)
     problems: List[str] = []
@@ -216,6 +229,73 @@ def run_check(c: Check) -> str:
 def _no_wait_in_cases(r: Run) -> None:
     for f in (MOD / "case").rglob("*.xml"):
         expect('action="wait"' not in f.read_text(encoding="utf-8"), f"{f.name} 不应包含 wait 步骤")
+
+
+def _probes(r: Run, case_id: str) -> Optional[int]:
+    m = re.search(r"共探测 (\d+) 次", r.error_text(case_id))
+    return int(m.group(1)) if m else None
+
+
+def _probe_range(case_id: str, lo: int, hi: int, interval_ms: int = 1000) -> Callable[[Run], None]:
+    """REQ-015：错误信息写明探测间隔与次数；次数落在 [lo, hi] 证明按 interval_ms 轮询。"""
+    def check(r: Run) -> None:
+        err = r.error_text(case_id)
+        expect(f"每 {interval_ms}ms 探测一次" in err, f"错误信息应含 '每 {interval_ms}ms 探测一次'，实际: {err[:300]}")
+        n = _probes(r, case_id)
+        expect(n is not None and lo <= n <= hi, f"探测次数应在 [{lo}, {hi}]，实际 {n}")
+    return check
+
+
+def _default_note(case_id: str) -> Callable[[Run], None]:
+    """REQ-015：未设置时错误信息标明使用默认值并提示配置位置；同时检查探测次数（10s / 1s）。"""
+    probes = _probe_range(case_id, 10, 12)
+
+    def check(r: Run) -> None:
+        err = r.error_text(case_id)
+        expect("AutoWait=10000ms（未设置，使用默认值）" in err, f"错误信息应标明默认值，实际: {err[:300]}")
+        expect('<var name="AutoWait" value=' in err or "globalvalue.xml" in err, "错误信息应提示在 globalvalue.xml 配置 AutoWait")
+        probes(r)
+    return check
+
+
+def _explicit_no_default_note(case_id: str) -> Callable[[Run], None]:
+    """显式配置时不显示"未设置，使用默认值"。"""
+    def check(r: Run) -> None:
+        expect("未设置" not in r.error_text(case_id), "显式配置的错误信息不应出现'未设置'")
+    return check
+
+
+def _both(*fns: Callable[[Run], None]) -> Callable[[Run], None]:
+    def check(r: Run) -> None:
+        for f in fns:
+            f(r)
+    return check
+
+
+_TMP_DIRS: List[Path] = []
+
+
+def _default_copy(auto_wait_line: str) -> Callable[[], Path]:
+    """把 autowait_default 复制到临时 product/<项目>/<模块>，在 DefaultValue 组写入指定的 AutoWait 行。"""
+    def make() -> Path:
+        tmp = Path(tempfile.mkdtemp(prefix="rodski_aw_default_"))
+        _TMP_DIRS.append(tmp)
+        module = tmp / "product" / "local" / "autowait_default"
+        shutil.copytree(DEF, module, ignore=shutil.ignore_patterns("result", "__pycache__"))
+        gv = module / "data" / "globalvalue.xml"
+        text = gv.read_text(encoding="utf-8")
+        gv.write_text(text.replace("<group name=\"Site\">",
+                                   f"<group name=\"DefaultValue\">{auto_wait_line}</group>\n  <group name=\"Site\">", 1),
+                      encoding="utf-8")
+        return module
+    return make
+
+
+def _invalid_config(r: Run) -> None:
+    expect(r.code != 0, f"AutoWait=abc 应在执行前报错并非 0 退出，实际退出码 {r.code}")
+    expect("AutoWait" in r.out and "abc" in r.out, f"报错应指出 AutoWait 取值 abc，实际: {r.out[-500:]}")
+    expect("不设置默认最多等待 10 秒" in r.out, f"报错文案应为 REQ-015 新文案（不设置默认最多等待 10 秒），实际: {r.out[-500:]}")
+    expect("不设置或 0 = 不自动等待" not in r.out and "不设置或填 0 表示不自动等待" not in r.out, "不应再出现旧文案")
 
 
 P = "positive/"
@@ -264,8 +344,10 @@ CHECKS: Dict[str, Check] = {
     "W16": Check("ready.html 10 字段 type 无额外等待（G4）", MOD, f"case/{P}ready.xml", "TC001", "type",
                  window=(0.0, 2.5)),
     # ---------------- 负向（autowait，AutoWait=5000）
-    "W17": Check("按钮 20s 才出现：click 在 ≈5s 失败", MOD, f"case/{N}late_20s.xml", "TC001", "type",
-                 negative=True, window=NEG_WINDOW, auto_wait_ms=5000, element="submitBtn"),
+    # REQ-015 Q1(a)：显式配置也每 1000ms 探测一次（5s → 5~7 次），且不显示"未设置"
+    "W17": Check("按钮 20s 才出现：click 在 ≈5s 失败（每 1s 探测，约 6 次）", MOD, f"case/{N}late_20s.xml", "TC001", "type",
+                 negative=True, window=NEG_WINDOW, auto_wait_ms=5000, element="submitBtn",
+                 extra=_both(_probe_range("TC001", 5, 7), _explicit_no_default_note("TC001"))),
     "W18": Check("输入框 20s 才出现：输入在 ≈5s 失败", MOD, f"case/{N}late_20s.xml", "TC002", "type",
                  negative=True, window=NEG_WINDOW, auto_wait_ms=5000, element="nameInput"),
     "W19": Check("select 20s 才出现：select 在 ≈5s 失败", MOD, f"case/{N}late_20s.xml", "TC003", "type",
@@ -280,12 +362,13 @@ CHECKS: Dict[str, Check] = {
                  negative=True, window=NEG_WINDOW, auto_wait_ms=5000, element="coveredBtn"),
     "W24": Check("多定位器全不命中：失败耗时 ≈ 1 × AutoWait", MOD, f"case/{N}multi_locator_miss.xml", "TC001", "type",
                  negative=True, window=NEG_WINDOW, auto_wait_ms=5000, element="ghostBtn"),
-    # ---------------- 边界：不设置 AutoWait = 不自动等待（报错里显示 AutoWait=0ms）
-    "W25": Check("未设置 AutoWait：1.5s 后出现的按钮 click 立即失败（<1.5s）", ZERO, "case/autowait_zero.xml", "TC001", "type",
-                 negative=True, window=(0.0, ZERO_MAX), auto_wait_ms=0, element="submitBtn"),
-    "W26": Check("未设置 AutoWait：1.5s 后出现的输入框立即失败（<1.5s）", ZERO, "case/autowait_zero.xml", "TC002", "type",
+    # ---------------- 边界：显式 AutoWait=0 = 不自动等待（报错里显示 AutoWait=0ms；REQ-015 AD-10）
+    "W25": Check("显式 AutoWait=0：1.5s 后出现的按钮 click 立即失败（<1.5s）", ZERO, "case/autowait_zero.xml", "TC001", "type",
+                 negative=True, window=(0.0, ZERO_MAX), auto_wait_ms=0, element="submitBtn",
+                 extra=_explicit_no_default_note("TC001")),
+    "W26": Check("显式 AutoWait=0：1.5s 后出现的输入框立即失败（<1.5s）", ZERO, "case/autowait_zero.xml", "TC002", "type",
                  negative=True, window=(0.0, ZERO_MAX), auto_wait_ms=0, element="nameInput"),
-    "W27": Check("未设置 AutoWait：就绪元素正常通过", ZERO, "case/autowait_zero.xml", "TC003", "type",
+    "W27": Check("显式 AutoWait=0：就绪元素正常通过", ZERO, "case/autowait_zero.xml", "TC003", "type",
                  window=(0.0, 2.5)),
     # ---------------- 边界：AutoWait=12000
     # 下限 6.0s 而非 7.5s：8s 计时从页面加载开始，与 navigate 重叠（约 0.3~1s），步骤级计时从 type 开始，
@@ -296,6 +379,28 @@ CHECKS: Dict[str, Check] = {
                  window=(6.0, 10.5)),
     "W30": Check("AutoWait=12000：20s 的按钮 click 在 ≈12s 失败", LONG, "case/autowait_long.xml", "TC003", "type",
                  negative=True, window=LONG_NEG_WINDOW, auto_wait_ms=12000, element="submitBtn"),
+    # ---------------- REQ-015：不设置 AutoWait = 默认 10000ms、每 1000ms 探测（autowait_default）
+    "W31": Check("[AD-01] 未设置：3s 后出现的按钮 click 通过", DEF, "case/autowait_default.xml", "TC001", "type",
+                 window=DEF_POS_WINDOW),
+    "W32": Check("[AD-02] 未设置：3s 后出现的输入框输入通过", DEF, "case/autowait_default.xml", "TC002", "type",
+                 window=DEF_POS_WINDOW),
+    "W33": Check("[AD-03] 未设置：UI verify 等到 3s 后出现的文本", DEF, "case/autowait_default.xml", "TC003", "verify",
+                 window=DEF_POS_WINDOW),
+    "W34": Check("[AD-04] 未设置：get 读取 3s 后出现的文本", DEF, "case/autowait_default.xml", "TC004", "get",
+                 window=DEF_POS_WINDOW),
+    "W35": Check("[AD-05/06] 未设置：20s 的按钮约 10s 失败，标明默认值，探测 10~12 次", DEF, "case/autowait_default.xml",
+                 "TC005", "type", negative=True, window=DEF_NEG_WINDOW, auto_wait_ms=10000, element="submitBtn",
+                 extra=_default_note("TC005")),
+    "W36": Check("[AD-07] 未设置：就绪元素无额外等待", DEF, "case/autowait_default.xml", "TC006", "type",
+                 window=(0.0, 2.5)),
+    "W37": Check("[AD-08] 未设置：多定位器全不命中，失败耗时 ≈ 1 × 10s（共享预算）", DEF, "case/autowait_default.xml",
+                 "TC007", "type", negative=True, window=DEF_NEG_WINDOW, auto_wait_ms=10000, element="ghostBtn",
+                 extra=_default_note("TC007")),
+    "W38": Check("[AD-09] AutoWait 值为空 = 未设置（默认 10000ms）", _default_copy('<var name="AutoWait" value=""/>'),
+                 "case/autowait_default.xml", "TC005", "type", negative=True, window=DEF_NEG_WINDOW,
+                 auto_wait_ms=10000, element="submitBtn", extra=_default_note("TC005")),
+    "W39": Check("[AD-12] AutoWait=abc 执行前报错，提示新文案", _default_copy('<var name="AutoWait" value="abc"/>'),
+                 "case/autowait_default.xml", "TC006", "type", raw=True, extra=_invalid_config),
 }
 
 # 运行会改写的受跟踪产物（只恢复这些明确文件，绝不整体 checkout rodski-demo/）
@@ -326,8 +431,10 @@ def main(argv: List[str]) -> int:
                 print(f"FAIL {key} {c.title}\n     {type(e).__name__}: {e}", flush=True)
     finally:
         server.shutdown()
-        for m in (MOD, ZERO, LONG):
+        for m in (MOD, ZERO, LONG, DEF):
             shutil.rmtree(m / "result", ignore_errors=True)
+        for t in _TMP_DIRS:
+            shutil.rmtree(t, ignore_errors=True)
         existing = [p for p in _TRACKED_ARTIFACTS if (REPO / p).exists()]
         if existing:
             subprocess.run(["git", "-C", str(REPO), "checkout", "--", *existing], capture_output=True)

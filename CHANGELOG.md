@@ -1,6 +1,45 @@
 # Changelog
 
 
+## [11.10.0] - 2026-10-22
+
+### ⚠️ 升级须知：AutoWait 不设置时默认等待 10 秒（REQ-015，CORE §13）
+
+v11.7.1 起"不设置 `DefaultValue.AutoWait` = 不自动等待"，页面稍慢就失败、并诱导用例插 `wait`。本版改为：
+
+| 配置 | v11.7.1 ~ v11.9.0 | v11.10.0 |
+|------|-------------------|----------|
+| 不设置 / 空值 | 不自动等待（每个定位器只试一次） | **默认最多等待 10000ms** |
+| `0` | 不自动等待 | 不自动等待（不变） |
+| 正数 `N` | 最多等 N 毫秒，DOM 每 200ms 探测、视觉每 1000ms | 最多等 N 毫秒，**统一每 1000ms 探测**（第一次立即探测） |
+
+对已有用例的影响：
+
+- 已显式配置 `AutoWait` 的模块：等待上限不变；元素晚出现时，命中时间可能比以前晚最多约 1 秒（探测间隔 200ms → 1000ms）
+- 未配置 `AutoWait` 的模块：元素晚出现的用例由失败变为通过；元素确实不存在的用例（含 `expect_fail` 负向用例）失败耗时由立即变为约 10 秒。需要"找不到立即失败"的模块请显式写 `<var name="AutoWait" value="0"/>`
+- `rodski init` 生成的模板改写 `AutoWait=10000`（原 5000），注释说明"不写本行默认 10000；填 0 关闭自动等待"
+
+### Changed
+
+- `core/auto_wait.py`：`DEFAULT_AUTO_WAIT_MS = 10000`（唯一定义处）、`POLL_INTERVAL_S = 1.0`（DOM / 原生 / 视觉统一）；新增 `AutoWaitMs`（float 子类，`is_default` 标记沿 KeywordEngine → 驱动 → Deadline 传递）
+- `BaseDriver` 未收到 `set_auto_wait` 时取公共默认值（不再自带 0）；`KeywordEngine` 下发 AutoWait 时同时比较默认值标记
+- SKI326 错误信息写明探测间隔与次数；使用默认值时标注"（未设置，使用默认值）"并附配置提示：
+  ```
+  元素 Login.submitBtn 在 AutoWait=10000ms（未设置，使用默认值）内未找到；每 1000ms 探测一次，共探测 11 次；尝试定位器: ...；最后错误: ...
+  提示: 可在 data/globalvalue.xml 的 DefaultValue 组中设置 <var name="AutoWait" value="毫秒"/>；填 0 关闭自动等待
+  ```
+- UI `verify` 超时不匹配的 SKI331 信息附"每 1000ms 读取一次，共 K 次"，未配置时注明使用默认值
+- `AutoWait` 非法取值 / 旧键 `VerifyTimeout` 的报错文案改为"不设置默认最多等待 10 秒；填 0 关闭自动等待"
+
+### 文档与验收
+
+- CORE §13（取值表、探测间隔、错误信息约束）、§4.6.5、§7.4、版本兼容表、合规清单；GUIDE §5.7.2 / §6.4.2 / 全局变量表；README；AGENT_INTEGRATION；rodski-skills 手写说明
+- rodski-demo：
+  - 新模块 `local/autowait_default/`（不设置 AutoWait），`local/autowait/run_acceptance.py` 新增 W31~W39（AD-01~09、AD-12）：3s 后出现的按钮 / 输入框 / UI verify 文本 / get 文本通过；20s 元素约 10s 失败、探测 10~12 次、标注默认值；多定位器共享 10s 预算；空值 = 未设置；非法值执行前报错
+  - `local/autowait_zero/` 改为显式 `AutoWait=0`（W25~W27，AD-10）；W17 断言显式 5000 也每 1000ms 探测（5~7 次）
+  - `mobile/app/scripts/run_autowait_acceptance.py` 新增场景 D（AD-13，Android 模拟器）：临时去掉 AutoWait，接口延迟 3s 全链路通过；订单项不出现时约 10s 失败并标注默认值；场景 N 新增 N5
+- 需求：`.pb/requirements/REQ-015-autowait-default.md`
+
 ## [11.9.0] - 2026-10-19
 
 ### 新功能：计划级数据驱动（REQ-013，CORE §7.8）

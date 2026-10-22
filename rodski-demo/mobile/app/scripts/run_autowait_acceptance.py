@@ -23,6 +23,12 @@
   UDID=emulator-5554 MOCK_PORT=18000 python3 .../run_autowait_acceptance.py
   python3 .../run_autowait_acceptance.py P      # 只跑正向
   python3 .../run_autowait_acceptance.py N      # 只跑负向
+  python3 .../run_autowait_acceptance.py D      # 只跑 REQ-015 默认值场景
+
+  场景 D（REQ-015 / v11.10.0，AD-13）：临时去掉 data/globalvalue.xml 中的 AutoWait（结束时恢复该文件），
+      D1 MOCK_DELAY_MS=3000 下 AW001 全链路通过（默认最多等待 10000ms）；
+      D2 订单接口 20s 不返回时，点首条订单约 10s 失败，错误信息含
+      `AutoWait=10000ms（未设置，使用默认值）` 与探测次数（每 1000ms 一次）。
 
 前置（脚本只检查，不替你安装/启动）：
   - 模拟器已 boot（adb devices 可见 $UDID，默认 emulator-5554）
@@ -61,10 +67,15 @@ APPIUM = os.environ.get("APPIUM_URL", "http://127.0.0.1:4723")
 PY = os.environ.get("PYTHON", sys.executable)
 RODSKI = os.environ.get("RODSKI", shutil.which("rodski") or "rodski")
 
-AUTOWAIT_MS = 5000                   # globalvalue 未显式配置 → 默认值
+AUTOWAIT_MS = 5000                   # data/globalvalue.xml 显式配置的值
 FAIL_WINDOW = (4.5, 7.5)             # 设计 §4.1/§4.3：≈ AutoWait，不是 10s/30s
 P_DELAY_MS = 2500
 N_DELAY_MS = 20000
+# REQ-015：不设置 AutoWait = 默认 10000ms、每 1000ms 探测
+GLOBALVALUE = MOD / "data" / "globalvalue.xml"
+DEFAULT_AUTOWAIT_MS = 10000
+DEFAULT_FAIL_WINDOW = (9.5, 12.5)
+D_DELAY_MS = 3000
 
 
 # ---------------------------------------------------------------- 工具
@@ -340,10 +351,72 @@ def scenario_n(check: Check) -> None:
     check(f"N4 错误信息含 AutoWait={AUTOWAIT_MS}ms 与元素名 firstOrderItem",
           f"AutoWait={AUTOWAIT_MS}ms" in evidence and "firstOrderItem" in evidence,
           evidence.strip().replace("\n", " ")[:300])
+    m = re.search(r"共探测 (\d+) 次", evidence)
+    check("N5 显式 AutoWait 也每 1000ms 探测一次（5s → 5~7 次，REQ-015 Q1）",
+          "每 1000ms 探测一次" in evidence and m is not None and 5 <= int(m.group(1)) <= 7 and "未设置" not in evidence,
+          evidence.strip().replace("\n", " ")[:300])
+
+
+# ---------------------------------------------------------------- 场景 D（REQ-015）
+def _without_auto_wait() -> str:
+    """返回去掉 AutoWait 行后的 globalvalue.xml 文本（原文由调用方备份、恢复）。"""
+    text = GLOBALVALUE.read_text(encoding="utf-8")
+    new, n = re.subn(r'\s*<var\s+name="AutoWait"\s+value="[^"]*"\s*/>', "", text)
+    if n != 1:
+        raise RuntimeError(f"{GLOBALVALUE} 中应恰有 1 行 AutoWait，实际 {n}")
+    return new
+
+
+def scenario_d(check: Check) -> None:
+    print(f"\n[D] REQ-015：不设置 AutoWait（默认 {DEFAULT_AUTOWAIT_MS}ms，每 1000ms 探测）", flush=True)
+    original = GLOBALVALUE.read_text(encoding="utf-8")
+    text = CASE.read_text(encoding="utf-8")
+    enabled, n = re.subn(r'(<case\s+)execute="否"(\s+id="AW_F01")', r'\1execute="是"\2', text)
+    try:
+        GLOBALVALUE.write_text(_without_auto_wait(), encoding="utf-8")
+        with MockServer({"MOCK_DELAY_MS": str(D_DELAY_MS)}):
+            r = rodski_run("case/autowait.xml", ["--case-id", "AW001"])
+            res = r.result("AW001")
+            steps = r.steps("AW001", CASE)
+        status = res.get("status") if res is not None else None
+        print(f"     步骤耗时：{fmt_steps(steps)}", flush=True)
+        check(f"D1 未设置 AutoWait、接口延迟 {D_DELAY_MS}ms：AW001 通过", r.code == 0 and status == "PASS",
+              f"exit={r.code} status={status} {(res.get('error_message', '') if res is not None else '')[:300]}")
+        home = step_of(steps, "type", "HomeScreen")
+        hd = home.get("duration") if home else None
+        check("D2 点「查看订单」吸收了 3s 登录延迟（≥2.5s，超过旧行为的立即失败）",
+              hd is not None and hd >= 2.5, f"{hd if hd is None else f'{hd:.2f}s'}")
+
+        if n != 1:
+            check("D3 生成 AW_F01 启用副本", False, "autowait.xml 中未找到 execute=\"否\" id=\"AW_F01\"")
+            return
+        NEG_TMP.write_text(enabled, encoding="utf-8")
+        with MockServer({"MOCK_DELAY_MS": str(N_DELAY_MS), "MOCK_LOGIN_DELAY_MS": "0"}):
+            r = rodski_run(f"case/{NEG_TMP.name}", ["--case-id", "AW_F01"])
+            steps = r.steps("AW_F01", NEG_TMP)
+    finally:
+        GLOBALVALUE.write_text(original, encoding="utf-8")
+        NEG_TMP.unlink(missing_ok=True)
+
+    res = r.result("AW_F01")
+    status = res.get("status") if res is not None else None
+    err = res.get("error_message", "") if res is not None else ""
+    print(f"     步骤耗时：{fmt_steps(steps)}", flush=True)
+    order = step_of(steps, "type", "OrderListScreen")
+    od = order.get("duration") if order else None
+    lo, hi = DEFAULT_FAIL_WINDOW
+    check(f"D3 点首条订单失败，耗时 ∈ [{lo}s, {hi}s]（默认 {DEFAULT_AUTOWAIT_MS}ms）",
+          status in ("FAIL", "ERROR") and od is not None and lo <= od <= hi,
+          f"status={status} {od if od is None else f'{od:.2f}s'}")
+    m = re.search(r"共探测 (\d+) 次", err)
+    check("D4 错误信息标明默认值、每 1000ms 探测、10~12 次",
+          f"AutoWait={DEFAULT_AUTOWAIT_MS}ms（未设置，使用默认值）" in err and "每 1000ms 探测一次" in err
+          and m is not None and 10 <= int(m.group(1)) <= 12 and "firstOrderItem" in err,
+          err.strip().replace("\n", " ")[:300])
 
 
 def main(argv: List[str]) -> int:
-    which = {a.upper() for a in argv} or {"P", "N"}
+    which = {a.upper() for a in argv} or {"P", "N", "D"}
     print(f"RodSki v11.7.0 移动端自动等待验收  UDID={UDID} MOCK_PORT={MOCK_PORT} rodski={RODSKI}", flush=True)
     reason = preflight()
     if reason:
@@ -364,6 +437,8 @@ def main(argv: List[str]) -> int:
             scenario_p(check)
         if "N" in which:
             scenario_n(check)
+        if "D" in which:
+            scenario_d(check)
     finally:
         sh(["adb", "-s", UDID, "reverse", "--remove", f"tcp:{DEVICE_API_PORT}"])
         NEG_TMP.unlink(missing_ok=True)

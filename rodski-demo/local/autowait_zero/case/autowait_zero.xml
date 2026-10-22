@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- v11.7.0 边界 AutoWait=0：元素 1.5s 后才出现 → 立即失败（< 1.5s，expect_fail）；就绪元素正常通过 -->
+<!-- v11.7.0 边界 AutoWait=0（显式配置；v11.10.0 起不设置 = 默认 10000ms，不再等于 0）：元素 1.5s 后才出现 → 立即失败（< 1.5s，expect_fail）；就绪元素正常通过 -->
 <cases tags="v117,autowait,boundary">
   <case execute="是" id="TC001" title="AutoWait=0：1.5s 后出现的按钮 click 立即失败" component_type="界面" priority="P0" expect_fail="是">
     <pre_process>

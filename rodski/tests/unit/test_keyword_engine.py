@@ -792,9 +792,11 @@ class TestVerifyKeyword:
         mock_data_manager.get_data.return_value = {'amount': '10元'}
         mock_driver.get_text_locator.return_value = '20元'
 
+        # 不测等待：显式 AutoWait=0，避免等满默认 10s（v11.10.0 / REQ-015）
         engine = KeywordEngine(mock_driver,
                                model_parser=mock_model_parser,
-                               data_manager=mock_data_manager)
+                               data_manager=mock_data_manager,
+                               global_vars={"DefaultValue": {"AutoWait": "0"}})
         with pytest.raises(AssertionFailedError, match="批量验证失败"):
             engine.execute("verify", {"model": "Order", "data": "V001"})
         ret = engine.get_return(-1)
@@ -838,7 +840,8 @@ class TestVerifyKeyword:
 
         engine = KeywordEngine(mock_driver,
                                model_parser=mock_model_parser,
-                               data_manager=mock_data_manager)
+                               data_manager=mock_data_manager,
+                               global_vars={"DefaultValue": {"AutoWait": "0"}})
         with pytest.raises(AssertionFailedError, match="批量验证失败"):
             engine.execute("verify", {"model": "Order", "data": "V001"})
 

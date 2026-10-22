@@ -20,6 +20,18 @@ class TestInitBasic:
         assert (target / "data" / "globalvalue.xml").exists()
         assert not (target / "data" / "data.xml").exists()
 
+    def test_template_auto_wait_10000(self, tmp_path):
+        """v11.10.0（REQ-015 Q2）：模板显式写 AutoWait=10000，并说明不写时的默认值与 0 = 关闭"""
+        from core.auto_wait import DEFAULT_AUTO_WAIT_MS, resolve_auto_wait_ms
+        from core.global_value_parser import GlobalValueParser
+        target = tmp_path / "mymod"
+        handle(Namespace(target=str(target), no_sqlite=True, force=False))
+        text = (target / "data" / "globalvalue.xml").read_text(encoding="utf-8")
+        assert '<var name="AutoWait" value="10000"/>' in text
+        assert "不写本行默认 10000" in text and "填 0 关闭自动等待" in text
+        gv = GlobalValueParser(str(target / "data" / "globalvalue.xml")).parse()
+        assert resolve_auto_wait_ms(gv) == DEFAULT_AUTO_WAIT_MS
+
     def test_no_sqlite_flag_skips_db(self, tmp_path):
         target = tmp_path / "mymod"
         handle(Namespace(target=str(target), no_sqlite=True, force=False))

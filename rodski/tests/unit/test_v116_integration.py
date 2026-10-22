@@ -147,7 +147,7 @@ def test_validate_default_values_rejects_legacy_verify_timeout_key():
     from core.session_mode import validate_default_values
     with pytest.raises(ValueError) as ei:
         validate_default_values({"DefaultValue": {"VerifyTimeout": "5"}})
-    assert "已更名为 DefaultValue.AutoWait" in str(ei.value) and "5000" in str(ei.value)
+    assert "已更名为 DefaultValue.AutoWait" in str(ei.value) and "10000" in str(ei.value)
 
 
 def test_run_dirs_in_same_second_do_not_collide(tmp_path, monkeypatch):

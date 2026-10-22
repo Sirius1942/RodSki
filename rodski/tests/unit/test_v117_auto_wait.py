@@ -1,12 +1,12 @@
 """v11.7.0 WI-65-04 自动等待（AutoWait）公共层单元测试
 
 覆盖 rodski/core/auto_wait.py：
-- resolve_auto_wait_ms：默认 5000 / 0 / 数值 / 空值；VerifyTimeout 更名报错；负数 / 非数字报错
+- resolve_auto_wait_ms：未设置 / 空值 = 默认 10000（is_default，REQ-015）/ 0 / 数值；VerifyTimeout 更名报错；负数 / 非数字报错
 - session_mode.validate_default_values 与 KeywordEngine 共用同一解析
 - Deadline：剩余预算、动作 timeout 下限 1ms（永不为 0）
 - run_element：第 N 次探测才命中、多定位器共享一个预算、AutoWait=0 每个定位器恰好探测一次、
-  视觉最小间隔 1s、致命错误立即失败、不支持的定位器跳过、动作失败换下一个定位器
-- ElementWaitTimeoutError：DriverError 子类、错误消息格式
+  探测间隔统一 1s（REQ-015）、致命错误立即失败、不支持的定位器跳过、动作失败换下一个定位器
+- ElementWaitTimeoutError：DriverError 子类、错误消息格式（探测间隔 / 次数、默认值标注与配置提示）
 - BaseDriver 默认实现：probe / set_auto_wait / get_text_locator
 """
 from typing import Optional, Tuple
@@ -60,12 +60,16 @@ class FakeClock:
 # ───────────────────────────── 配置解析 ─────────────────────────────
 
 class TestResolveAutoWait:
-    def test_unset_means_no_auto_wait(self):
-        """v11.7.1: 没有隐含默认时长——不设置 AutoWait 就不自动等待"""
-        assert resolve_auto_wait_ms(None) == 0
-        assert resolve_auto_wait_ms({}) == 0
-        assert resolve_auto_wait_ms({"DefaultValue": {}}) == 0
-        assert resolve_auto_wait_ms({"DefaultValue": {"AutoWait": "  "}}) == 0
+    def test_unset_means_default_10000(self):
+        """v11.10.0（REQ-015）：不设置 / 空值 = 默认最多等待 10000ms，且标记为默认值"""
+        for gv in (None, {}, {"DefaultValue": {}}, {"DefaultValue": {"AutoWait": "  "}}):
+            ms = resolve_auto_wait_ms(gv)
+            assert ms == aw.DEFAULT_AUTO_WAIT_MS == 10000
+            assert aw.is_default_auto_wait(ms)
+
+    def test_explicit_values_are_not_default(self):
+        for raw in ("0", "10000", 2500):
+            assert not aw.is_default_auto_wait(resolve_auto_wait_ms({"DefaultValue": {"AutoWait": raw}}))
 
     def test_values(self):
         assert resolve_auto_wait_ms({"DefaultValue": {"AutoWait": "0"}}) == 0
@@ -83,7 +87,7 @@ class TestResolveAutoWait:
         with pytest.raises(AutoWaitConfigError, match="已更名为 DefaultValue.AutoWait") as ei:
             resolve_auto_wait_ms({"DefaultValue": {"VerifyTimeout": "5"}})
         assert ei.value.param_name == "VerifyTimeout"
-        assert "5000" in str(ei.value)
+        assert "10000" in str(ei.value) and "填 0 关闭自动等待" in str(ei.value)
 
     def test_session_mode_shares_resolution(self):
         with pytest.raises(ValueError, match="已更名为 DefaultValue.AutoWait"):
@@ -136,9 +140,14 @@ class TestDeadline:
         assert c.sleeps == [pytest.approx(0.25)]
 
     def test_poll_interval(self):
-        assert aw.poll_interval_for(["id", "css"]) == aw.DOM_POLL_INTERVAL_S == 0.2
+        """REQ-015 Q1：DOM / 原生控件 / 视觉统一每 1s 探测一次"""
+        assert aw.poll_interval_for(["id", "css"]) == aw.DOM_POLL_INTERVAL_S == aw.POLL_INTERVAL_S == 1.0
         assert aw.poll_interval_for(["id", "vision_image"]) == aw.VISION_POLL_INTERVAL_S == 1.0
         assert aw.poll_interval_for(["ocr"]) == 1.0
+
+    def test_deadline_keeps_default_flag(self):
+        assert FakeClock().deadline(aw.AutoWaitMs(10000, is_default=True)).is_default
+        assert not FakeClock().deadline(10000).is_default
 
 
 # ───────────────────────────── run_element ─────────────────────────────
@@ -159,9 +168,36 @@ class TestRunElement:
         cand, (_, _, tmo) = run_element("M.btn", ["id=btn"], probe, _act_ok, c.deadline(5000))
         assert cand == "id=btn"
         assert len(calls) == 4
-        # 每轮间隔 0.2s，第 4 次探测时已用 0.6s，剩余 4400ms 交给动作
-        assert calls[-1] - calls[0] == pytest.approx(0.6)
-        assert tmo == 4400
+        # 每轮间隔 1s（REQ-015），第 4 次探测时已用 3s，剩余 2000ms 交给动作
+        assert calls[-1] - calls[0] == pytest.approx(3.0)
+        assert tmo == 2000
+
+    def test_timeout_reports_interval_and_probe_count(self):
+        """REQ-015 R3：5s 预算每 1s 探测 → 0..5s 共 6 次；显式配置不标注默认值"""
+        c = FakeClock()
+        with pytest.raises(ElementWaitTimeoutError) as ei:
+            run_element("M.btn", ["id=btn"], lambda _c: False, _act_ok, c.deadline(5000))
+        msg = str(ei.value)
+        assert ei.value.probes == 6
+        assert "AutoWait=5000ms 内未找到；每 1000ms 探测一次，共探测 6 次" in msg
+        assert "未设置" not in msg and "提示:" not in msg
+
+    def test_default_timeout_message_marks_default_and_hints_config(self):
+        """REQ-015 R3：未设置时 10s 预算共探测 11 次，标明默认值并提示配置位置"""
+        c = FakeClock()
+        with pytest.raises(ElementWaitTimeoutError) as ei:
+            run_element("M.btn", ["id=btn"], lambda _c: False, _act_ok,
+                        c.deadline(resolve_auto_wait_ms({})))
+        msg = str(ei.value)
+        assert ei.value.is_default and ei.value.probes == 11
+        assert "AutoWait=10000ms（未设置，使用默认值）内未找到；每 1000ms 探测一次，共探测 11 次" in msg
+        assert '提示: 可在 data/globalvalue.xml 的 DefaultValue 组中设置 <var name="AutoWait" value="毫秒"/>' in msg
+
+    def test_zero_budget_reports_single_probe(self):
+        c = FakeClock()
+        with pytest.raises(ElementWaitTimeoutError) as ei:
+            run_element("M.btn", ["id=btn"], lambda _c: False, _act_ok, c.deadline(0))
+        assert "AutoWait=0ms 内未找到；共探测 1 次；" in str(ei.value)
 
     def test_ready_element_no_wait(self):
         c = FakeClock()
@@ -418,7 +454,10 @@ class TestBaseDriverDefaults:
 
     def test_set_auto_wait_and_action_timeout_floor(self):
         d = _CoordDriver()
-        assert d.get_auto_wait() == 0  # 未下发 = 不自动等待
+        assert d.get_auto_wait() == 10000  # 未下发 = 默认值（REQ-015）
+        assert aw.is_default_auto_wait(d.get_auto_wait())
+        d.set_auto_wait(resolve_auto_wait_ms({}))
+        assert aw.is_default_auto_wait(d.get_auto_wait())  # 下发默认值时保留标记
         d.set_auto_wait(0)
         assert d.get_auto_wait() == 0
         assert d._action_timeout_ms() == 500  # 永不为 0，且保底一次动作的执行时间
@@ -431,12 +470,12 @@ class TestBaseDriverDefaults:
         assert _CoordDriver(bbox=None).get_text_locator("ocr=总计") is None
 
 
-class TestNoImplicitDefault:
-    """v11.7.1: AutoWait 没有默认时长；不设置 / 0 = 不自动等待，default 等非数字写法报错"""
+class TestDefaultAutoWait:
+    """v11.10.0（REQ-015）：不设置 = 默认 10000ms；只有显式 0 关闭自动等待；default 等非数字写法报错"""
 
-    def test_zero_and_unset_are_equivalent(self):
+    def test_zero_and_unset_differ(self):
         assert resolve_auto_wait_ms({"DefaultValue": {"AutoWait": "0"}}) == 0
-        assert resolve_auto_wait_ms({"DefaultValue": {}}) == 0
+        assert resolve_auto_wait_ms({"DefaultValue": {}}) == 10000
 
     @pytest.mark.parametrize("raw", ["default", "fast"])
     def test_non_numeric_rejected_with_example(self, raw):
