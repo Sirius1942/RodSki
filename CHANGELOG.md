@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [11.11.1] - 2026-10-29
+
+### Fixed：PyPI 发布包缺 `rodski` 包
+
+11.11.0 的 wheel 从 `rodski/` 子目录构建，包内只有顶层 `core/`、`drivers/`、`rodski_cli/`，安装后 `import rodski` 与 `rodski --version` 均失败（Docker 执行镜像准备阶段报 `env_check/rodski_version`）。改为从仓库根构建（`python -m build .`），wheel 内含 `rodski/...` 与 `schemas/*.xsd`。**11.11.0 的 PyPI 包作废，请使用 11.11.1**。
+
 ## [11.11.0] - 2026-10-28
 
 ### Added：测试计划测试套与分发清单（REQ-016，CORE §7.9）
