@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 能力推导（只编译）：用例能力 = 全部步骤能力的并集；套能力 = 套内用例能力的并集（PS-07） -->
+<test_plan id="caps_mixed" kind="suite" title="混合能力推导">
+    <suite id="mix"><case file="mixed/app_web.xml" id="PS_MIX_APP"/></suite>
+    <suite id="ios"><case file="mixed/ios.xml" id="PS_IOS"/></suite>
+    <suite id="desk" tags="桌面"><case file="mixed/desktop.xml" id="PS_WIN"/></suite>
+    <suite id="biz"><case file="mixed/business.xml" id="PS_BIZ"/></suite>
+    <suite id="nested"><case file="mixed/nested.xml" id="PS_NESTED"/></suite>
+</test_plan>

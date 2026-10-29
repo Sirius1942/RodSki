@@ -1,7 +1,7 @@
 # RodSki 用例编写指南
 
-**版本**: v11.10.0
-**日期**: 2026-10-22
+**版本**: v11.11.0
+**日期**: 2026-10-28
 **适用框架**: RodSki v11.10.0+
 
 ---
@@ -2477,6 +2477,58 @@ rodski run case/login/flow.xml --case-id LOGIN_FLOW        # 不经计划：只�
 - ❌ 在用例 XML 里写 `data_driven` 或 `${row}`
 
 完整示例：`rodski-demo/demosite/data_driven/`（Web + 接口 + DB）、`rodski-demo/mock_api/business_model/plan/`（业务模型）、`rodski-demo/mobile/app/case/web_app_mix.xml`（Web + App 混合）。
+
+### 10.11 测试套：划分可并发执行的范围（v11.11.0）
+
+计划要在多个执行器（多个浏览器 worker、多台设备、测试工厂的多台执行机）上并发执行时，在计划里用 `<suite>` 明确划分测试套（CORE §7.9）：**套内用例顺序执行，套与套之间可以并发分配**。
+
+```xml
+<test_plan id="shop_full" kind="suite" title="商城全量" max_parallel="2">
+  <suite id="order" title="下单流程">
+    <case_dir path="order"/>
+    <case file="order/create.xml" id="ORDER_1" data_driven="OrderMatrix"/>
+  </suite>
+  <suite id="special" title="特殊订单">
+    <case file="order/special.xml" id="SPECIAL_1"/>
+  </suite>
+  <suite id="archive" title="归档（停用）" execute="否">
+    <case file="common/extra.xml" id="EXTRA"/>
+  </suite>
+</test_plan>
+```
+
+**怎么划分**
+
+- 有先后依赖的用例（同一登录态、前一条造数后一条用）放在同一个套；互不依赖的放到不同套才能并发。
+- 计划顶层要么全是 `<suite>`，要么全是 `<case>` / `<case_dir>`；不写 `<suite>` 等于一个套 `default`，选用例和顺序执行的结果与以前一样（`--workers` 只调度计划选中的用例文件；设备队列里不需要设备的计划改由本地 worker 执行）。
+- 一条用例只能属于一个套：显式 `<case>` 优先于 `<case_dir>`，长 `case_dir` 优先于短的；两个套同级认领同一用例会报错。
+- `execute="否"` 停用整个套，套内用例记 `SKIP`。`max_parallel` 限制同一计划同时执行的套数。
+- `tags` 写对执行环境的附加要求（如 `内网`），rodski 只透传给执行方。
+
+**能力按整条用例算**：rodski 自动从用例步骤用到的模型推出每个套需要的执行能力（`web` / `android` / `ios` / `desktop`；接口、DB 归 `web`）。一条用例同时用了 Web、App、DB，它所在的套就需要能同时提供浏览器和 Android 设备的执行器，用例不会被拆开。`driver_type="mobile"` 的平台依次取 `--platform`、`Mobile.Platform`、`DefaultValue.Platform`；`run` 步骤（fun/ 脚本或内置函数）不计入能力。数据驱动的实例跟着模板用例留在同一个套里，按行顺序执行。
+
+**命令**（模块目录下执行）
+
+```bash
+rodski plan compile @shop_full            # 文本摘要：每个套的用例数 / requires / tags / 并发上限
+rodski plan compile @shop_full --json     # 分发清单 rodski.plan-manifest/1（含 digest），给测试工厂等执行方用
+rodski run @shop_full                     # 按套顺序执行全部启用套
+rodski run @shop_full --workers 3         # 一套一 worker 并发（不超过 max_parallel）
+rodski run @shop_full --suite order       # 只执行一个套（逗号分隔可多个）
+rodski run @shop_full --suite order --expect-digest sha256:...   # 计划 / 用例被改过则拒绝执行
+rodski queue --plans @shop_full --platform android   # 设备队列按套分发，不需要设备的套走本地 worker
+rodski run @shop_full --dry-run --suite order          # 只看选择结果，每项带 [套 id]
+```
+
+模块的 `Mobile` 组配置了多设备时，`rodski run @plan` 会自动转设备队列；本次要执行的套都不需要 Android / iOS 设备时不转，直接本机执行。想强制本机单进程执行时加 `--no-queue`。
+
+**不要这样做**
+
+- ❌ 把有依赖的用例拆到两个套（并发时顺序无法保证；同一用例文件被拆到多个套时 `plan compile` 会给 `[WARN]`）
+- ❌ 一个套里同时放 Android 与 iOS 用例（单台设备无法执行，编译报错）
+- ❌ 在执行方（测试工厂）配置里写"哪些用例放哪台机器"——划分只写在计划里
+
+完整示例：`rodski-demo/demosite/plan_suites/`（Web，PS-01~21）、`rodski-demo/mobile/app/plan/plan_suites_android.xml`（Android 两台设备 + 本地 worker）。
 
 ---
 

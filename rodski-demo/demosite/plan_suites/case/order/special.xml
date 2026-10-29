@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 位于 case/order/ 下，但计划 shop_full 显式写进 special 套：显式 <case> 优先于 <case_dir>（PS-03） -->
+<cases tags="plan-suites">
+    <case execute="是" id="PS_SPECIAL" title="特殊订单（错误密码登录）" priority="P1">
+        <test_case>
+            <test_step action="send" model="LoginAPI" data="D002"/>
+            <test_step action="verify" model="LoginResp" data="R002"/>
+            <test_step action="wait" model="" data="4"/>
+        </test_case>
+    </case>
+</cases>

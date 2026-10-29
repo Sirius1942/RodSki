@@ -1,7 +1,42 @@
 # Changelog
 
 
-## [11.10.1] - 待发布
+## [11.11.0] - 2026-10-28
+
+### Added：测试计划测试套与分发清单（REQ-016，CORE §7.9）
+
+测试计划自己描述"如何被执行"：套内顺序执行、套与套之间可以并发分配。测试工厂等执行方只读取清单、按能力匹配执行器，不在自身配置里写用例分配。不新增关键字，`case.xsd` 不变。
+
+- `plan.xsd`：新增 `<suite id title execute tags>` 与 `test_plan@max_parallel`。计划顶层要么全是 `<suite>`，要么全是 `<case>` / `<case_dir>`。不写 `<suite>` 的计划等于一个隐式套 `default`，行为不变。
+- 用例归属：显式 `<case>` > 长 `case_dir` > 短 `case_dir`，同级冲突报错；同一用例文件拆到多个套给 `[WARN]`；停用套的用例记 `SKIP`（`suite_execute_false`）。
+- 能力聚合（`core/capability.py`）：按整条用例的全部步骤（含 `if` / `loop`、`business_call` 引用的业务模型节点、`navigate` 目标）推出 `web` / `android` / `ios` / `desktop`；混合用例不拆分；一个套同时需要 android 与 ios 时报错（`--allow-cross-platform-plan` 放行）。
+- 数据驱动实例跟随模板用例所在套，按行顺序执行，不拆分。
+- `rodski plan compile @plan_id [--json]`：输出分发清单 `rodski.plan-manifest/1`。digest 覆盖计划、`model.xml`、选中用例、引用的业务模型，不覆盖 `data.sqlite` / `globalvalue.xml`，与模块绝对路径无关。
+- `rodski run @plan --suite ID[,ID]`：只执行指定套。`--expect-digest D`：digest 不一致时在副作用前报错。
+- 结果：`result.xml` 的 `<result suite_id>`，`<summary plan_id suites digest>`（`result.xsd` 可选属性）。
+
+### Changed
+
+- `rodski run @plan --workers N`：
+  - 计划写了 `<suite>` 时一套一 worker、套内顺序，并发数 = min(N, `max_parallel`, 启用套数)，合并结果按计划中套的顺序排列。
+  - 隐式计划只调度计划选中的用例文件，能力判断只看选中用例（以前看整个模块）。
+- `rodski queue`（CORE §11.5）：
+  - 调度单元从计划改为测试套，一个套只用一台设备，子进程执行 `run @plan --suite ID --expect-digest D`。
+  - 不需要移动设备的套由本地 worker（`local-N`，`--local-slots`）以 `--no-queue` 执行。
+  - 同一计划并发套数受 `max_parallel` 限制。
+  - 新增 `--suite`（隐式计划可写 `default`）；`summary.json` 单元带 `suite_id` / `digest`；`--allow-cross-platform-plan` 透传给子进程。
+- `rodski run @plan --dry-run`：按测试套归属列出选择结果（每项带 `[套 id]`），`--suite` 只列指定套。
+- `--workers` 的能力判断只看本次执行的套；测试套计划同时给 `--model` 时回落顺序执行。
+- 选中的套都不需要 android / ios 时，`Mobile` 组的多设备配置不再把 `run` 自动转设备队列。
+- 能力聚合不把 `run` 步骤（fun/ 脚本工程名 / 内置函数）计为 web。
+
+### 验收
+
+- `rodski-demo/demosite/plan_suites/`：PS-01~21（Web / 接口 / DB），已接入 `run_regression.py`。
+- `rodski-demo/mobile/app/scripts/run_plan_suites_acceptance.py`：PM-01~03，Android 真机 + 模拟器两台设备按套并发，纯 Web 套走本地 worker。
+- 单元测试：`tests/unit/test_plan_suites.py`、`tests/unit/test_device_scheduler_suites.py`。
+
+## [11.10.1] - 未单独发布（随 11.11.0 发布）
 
 ### Fixed
 

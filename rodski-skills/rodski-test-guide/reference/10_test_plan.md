@@ -58,26 +58,31 @@ v6.3.0 起，RodSki 支持通过 `plan/*.xml` 定义测试计划，控制"本次
 
 ### 10.3 创建测试计划
 
-测试计划放在 `plan/` 目录，文件名格式为 `{测试目的}_{测试类型}.xml`：
+测试计划放在 `plan/` 目录，文件名格式为 `{测试目的}_{测试类型}.xml`。
+
+**`rodski plan` 子命令以当前目录作为模块根，须先 `cd` 到测试模块目录再执行**（只有 `plan migrate <module>` 接收模块路径参数）。命令中的用例文件 / 目录路径都**相对 `case/`**，并原样写入计划的 `file` / `path`，不要带 `case/` 前缀。
 
 ```bash
-# 初始化默认全量计划
+cd product/shop/order
+
+# 初始化默认全量计划 plan/project_full.xml（--default-execute 默认 是；已存在时加 --force 覆盖）
 rodski plan init
 
-# 创建冒烟计划
+# 创建冒烟计划（plan create 的 --default-execute 默认 否，与 plan init 相反）
 rodski plan create invoice_smoke --kind suite --default-execute 否 --title "开票冒烟"
 
 # 向计划添加 case 和 scenario（v11.5.0 起 add-case 为 3 个参数：计划、用例文件、用例 ID）
-rodski plan add-case invoice_smoke case/order/invoice_apply.xml TC040
+rodski plan add-case invoice_smoke order/invoice_apply.xml TC040
 rodski plan add-scenario invoice_smoke TC040 INV-001
 # 计划中还没有该用例时自动新建 <case> 并按 ID 补全 file；同名 ID 出现在多个用例文件时需指定（v11.8.30）
-rodski plan add-scenario invoice_smoke TC040 INV-001 --file order/invoice.xml
+rodski plan add-scenario invoice_smoke TC040 INV-001 --file order/invoice_apply.xml
 
 # 按目录整体添加（v11.5.0 新增，递归选入该目录下 execute="是" 的用例）
-rodski plan add-dir invoice_smoke case/order/invoice
+rodski plan add-dir invoice_smoke order/invoice
 
-# 从 tag 选择结果生成计划（范围与 rodski run --tag smoke 一致；生成的 <case> 带 file）
+# 从 tag / group 选择结果生成计划（范围与 rodski run --tag smoke 一致；生成的 <case> 带 file；同名计划已存在时加 --force）
 rodski plan create invoice_smoke --kind suite --from-tag smoke --title "开票冒烟"
+rodski plan create invoice_negative --kind suite --from-group negative
 
 # 迁移存量 plan：为省略 file 的 <case> 自动补全（能唯一定位时），有歧义的列出待人工处理（v11.5.0 新增）
 rodski plan migrate invoice_module
@@ -107,6 +112,8 @@ rodski plan migrate invoice_module
 ### 10.4 执行测试计划
 
 ```bash
+# 以下命令同样在模块目录下执行（@plan_id 与不带路径的 rodski run 都以当前目录为模块根）
+
 # 执行指定计划
 rodski run @invoice_smoke
 
@@ -116,10 +123,11 @@ rodski run
 # 预览计划最终执行范围（不实际执行）
 rodski run @invoice_smoke --dry-run
 
-# 查看计划列表
+# 查看计划列表 / 单个计划内容
 rodski plan list
+rodski plan show invoice_smoke
 
-# 校验计划引用是否有效
+# 校验计划引用是否有效（不带计划 ID 时校验全部）
 rodski plan validate
 ```
 
@@ -176,14 +184,16 @@ rodski plan debug-scenario inv_debug --case TC040 --scenario INV-001 --prepare a
 # 创建 step 调试计划
 rodski plan debug-step inv_step_debug --case TC040 --scenario INV-001 --step 2 --step-mode only --prepare auto --cleanup 否
 
-# 生成的 <case> 会按用例 ID 自动补 file；同名 ID 出现在多个用例文件时加 --file order/invoice.xml（v11.8.31）
+# 生成的 <case> 会按用例 ID 自动补 file；同名 ID 出现在多个用例文件时加 --file order/invoice_apply.xml（v11.8.31）
 
 # 执行调试
 rodski run @inv_debug --debug
 rodski run @inv_step_debug --debug
 ```
 
-**prepare 选项**：
+> 这里的 `--step-mode all|from|only` 是 `plan debug-step` 的取值参数，写入计划的 `<debug step_mode>`；它与 `rodski run --step-mode`（单步开关，当前不生效，见 [§9.10](#910-断点与部分执行参数req-012能力有限)）不是同一个参数。
+
+**prepare 选项**（`--prepare`，默认 `auto`；`--cleanup` 默认 `否`）：
 
 | 值 | 行为 |
 |----|------|
@@ -191,7 +201,7 @@ rodski run @inv_step_debug --debug
 | `case` | 只执行 `pre_process` |
 | `none` | 不执行前置，直接执行目标 |
 
-**step_mode 选项**（仅 step_debug）：
+**step_mode 选项**（仅 step_debug，`--step-mode` 默认 `all`）：
 
 | 值 | 行为 |
 |----|------|
@@ -202,10 +212,12 @@ rodski run @inv_step_debug --debug
 ### 10.8 管理计划
 
 ```bash
-# 禁用某个 case
+# 禁用 / 启用某个 case
 rodski plan disable-case invoice_smoke TC040
+rodski plan enable-case invoice_smoke TC040
 
-# 启用某个 scenario
+# 禁用 / 启用某个 scenario
+rodski plan disable-scenario invoice_smoke TC040 INV-001
 rodski plan enable-scenario invoice_smoke TC040 INV-001
 
 # 预览最终执行范围
@@ -294,7 +306,7 @@ rodski run case/login/flow.xml --case-id LOGIN_FLOW        # 不经计划：只�
 - 每个实例都是一次完整的用例执行；实例之间 Return 历史、`set` 变量隔离，失败互不影响。
 - 驱动表的表备注必填（目的、所属计划）；行备注作为实例标题；被驱动表引用的数据行建议写备注，缺失时 `[WARN]` 提示但不阻断。
 - 以下错误在启动浏览器 / App 之前报出：驱动表不存在或不是 driver 表、绑定的用例与计划不一致、表备注为空、0 行、列名不合法 / 表不存在 / 基础 DataID 未被用例字面引用、单元格 DataID 不存在或不是 DataID、驱动表与模型同名、在调试计划 / 压测计划中使用。
-- `--data-id` / `--exclude-data-id` 是实例过滤，不是 selector，可与 `@plan_id` 同用；`--case-id` 仍与 `@plan_id` 互斥。
+- `--data-id` / `--exclude-data-id` 是实例过滤，不是 selector，可与 `@plan_id` 同用，而且**只能**配合计划使用：不带计划（直接对用例文件 / 目录）使用会报错并以退出码 1 结束；`--case-id` 仍与 `@plan_id` 互斥。
 - 结果 XML 中实例的 `case_id` 与 `instance_id` 均为 `用例ID[DataID]`，并带 `template_case_id`、`driver`、`data_id`、`instance_title`、`replacements`；`--data-id` 写错（匹配不到实例）会报错；同一用例在一个计划中只能挂一张驱动表；日志中每个被替换的步骤标注 `数据驱动替换 TestForm: T001 → T101（LoginFlow_matrix[admin]）`。
 
 **不要这样做**
@@ -304,5 +316,57 @@ rodski run case/login/flow.xml --case-id LOGIN_FLOW        # 不经计划：只�
 - ❌ 在用例 XML 里写 `data_driven` 或 `${row}`
 
 完整示例：`rodski-demo/demosite/data_driven/`（Web + 接口 + DB）、`rodski-demo/mock_api/business_model/plan/`（业务模型）、`rodski-demo/mobile/app/case/web_app_mix.xml`（Web + App 混合）。
+
+### 10.11 测试套：划分可并发执行的范围（v11.11.0）
+
+计划要在多个执行器（多个浏览器 worker、多台设备、测试工厂的多台执行机）上并发执行时，在计划里用 `<suite>` 明确划分测试套（CORE §7.9）：**套内用例顺序执行，套与套之间可以并发分配**。
+
+```xml
+<test_plan id="shop_full" kind="suite" title="商城全量" max_parallel="2">
+  <suite id="order" title="下单流程">
+    <case_dir path="order"/>
+    <case file="order/create.xml" id="ORDER_1" data_driven="OrderMatrix"/>
+  </suite>
+  <suite id="special" title="特殊订单">
+    <case file="order/special.xml" id="SPECIAL_1"/>
+  </suite>
+  <suite id="archive" title="归档（停用）" execute="否">
+    <case file="common/extra.xml" id="EXTRA"/>
+  </suite>
+</test_plan>
+```
+
+**怎么划分**
+
+- 有先后依赖的用例（同一登录态、前一条造数后一条用）放在同一个套；互不依赖的放到不同套才能并发。
+- 计划顶层要么全是 `<suite>`，要么全是 `<case>` / `<case_dir>`；不写 `<suite>` 等于一个套 `default`，选用例和顺序执行的结果与以前一样（`--workers` 只调度计划选中的用例文件；设备队列里不需要设备的计划改由本地 worker 执行）。
+- 一条用例只能属于一个套：显式 `<case>` 优先于 `<case_dir>`，长 `case_dir` 优先于短的；两个套同级认领同一用例会报错。
+- `execute="否"` 停用整个套，套内用例记 `SKIP`。`max_parallel` 限制同一计划同时执行的套数。
+- `tags` 写对执行环境的附加要求（如 `内网`），rodski 只透传给执行方。
+
+**能力按整条用例算**：rodski 自动从用例步骤用到的模型推出每个套需要的执行能力（`web` / `android` / `ios` / `desktop`；接口、DB 归 `web`）。一条用例同时用了 Web、App、DB，它所在的套就需要能同时提供浏览器和 Android 设备的执行器，用例不会被拆开。`driver_type="mobile"` 的平台依次取 `--platform`、`Mobile.Platform`、`DefaultValue.Platform`；`run` 步骤（fun/ 脚本或内置函数）不计入能力。数据驱动的实例跟着模板用例留在同一个套里，按行顺序执行。
+
+**命令**（模块目录下执行）
+
+```bash
+rodski plan compile @shop_full            # 文本摘要：每个套的用例数 / requires / tags / 并发上限
+rodski plan compile @shop_full --json     # 分发清单 rodski.plan-manifest/1（含 digest），给测试工厂等执行方用
+rodski run @shop_full                     # 按套顺序执行全部启用套
+rodski run @shop_full --workers 3         # 一套一 worker 并发（不超过 max_parallel）
+rodski run @shop_full --suite order       # 只执行一个套（逗号分隔可多个）
+rodski run @shop_full --suite order --expect-digest sha256:...   # 计划 / 用例被改过则拒绝执行
+rodski queue --plans @shop_full --platform android   # 设备队列按套分发，不需要设备的套走本地 worker
+rodski run @shop_full --dry-run --suite order          # 只看选择结果，每项带 [套 id]
+```
+
+模块的 `Mobile` 组配置了多设备时，`rodski run @plan` 会自动转设备队列；本次要执行的套都不需要 Android / iOS 设备时不转，直接本机执行。想强制本机单进程执行时加 `--no-queue`。
+
+**不要这样做**
+
+- ❌ 把有依赖的用例拆到两个套（并发时顺序无法保证；同一用例文件被拆到多个套时 `plan compile` 会给 `[WARN]`）
+- ❌ 一个套里同时放 Android 与 iOS 用例（单台设备无法执行，编译报错）
+- ❌ 在执行方（测试工厂）配置里写"哪些用例放哪台机器"——划分只写在计划里
+
+完整示例：`rodski-demo/demosite/plan_suites/`（Web，PS-01~21）、`rodski-demo/mobile/app/plan/plan_suites_android.xml`（Android 两台设备 + 本地 worker）。
 
 ---

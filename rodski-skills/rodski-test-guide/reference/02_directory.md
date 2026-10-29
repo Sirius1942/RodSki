@@ -35,7 +35,8 @@ product/                           ← 产品根目录（最顶层）
         │   ├── test_map.json
         │   └── test_map.json.lock
         └── result/                ← 测试结果（框架自动生成）
-            └── result_20260321_100000.xml
+            └── rodski_20260321_100000/
+                └── result.xml
 ```
 
 标准模块布局使用 `case/`、`model/`、`fun/`、`data/`、`plan/`、`result/` 这 6 个固定目录名，但当前目录合规硬检查只要求 `case/`、`model/`、`data/`。`fun/` 在使用 `run` 工程时需要，`plan/` 在按计划执行时需要，`result/` 由框架生成。`perf/`、`knowledge/` 与 `business/` 都按功能需要出现（`business/` 见[第 17 章](#17-业务模型business-modelv1140)）；`knowledge/` 不需要手工创建，也不参与 `REQUIRED_MODULE_DIRS` 检查。
@@ -52,7 +53,7 @@ product/                           ← 产品根目录（最顶层）
 | globalvalue.xml | `data/` 目录 | 全局变量 |
 | data.sqlite | `data/` 目录 | 所有测试数据表（唯一数据文件） |
 | plan/*.xml | `plan/` 目录 | 测试计划定义，每个文件一个计划 |
-| result_*.xml | `result/` 目录 | 框架自动生成的测试结果 |
+| result.xml | `result/rodski_{ts}/` 目录 | 框架自动生成的测试结果（压测计划例外：`result/result_{ts}.xml`，见 §16.7） |
 | model.xml | `model/` 目录 | 元素定位模型 |
 | business/*.xml | `business/` 目录 | 业务模型：节点、条件边、业务流（v11.4，可选） |
 | test_map.json | `knowledge/` 目录 | 漫游测试自动生成的知识地图；应用层校验 `schema_version=1`，无 XSD |
@@ -63,8 +64,8 @@ product/                           ← 产品根目录（最顶层）
 
 | XSD 文件 | 根元素 | 编写方 | 核心约束（摘要） |
 |----------|--------|--------|------------------|
-| `case.xsd` | `<cases>` | 人工 | 每个 `<case>` **必须且仅有 1 个** `<test_case>` 容器，其内 **至少 1 个**执行项；执行项可为裸 `<test_step>`，v6.3.0 起也可为 `<scenario>` 容器。`<pre_process>` / `<post_process>` 各 **0～1 个**容器，内为 **0～n 个** `<test_step>`。`execute` 与 `roam` 都只能是 `是` \| `否`，`roam` 默认 `否`。`component_type`（可选）只能是 `界面` \| `接口` \| `数据库`；`roam="是"` 仅允许 `component_type` 为空或为 `界面`。每个 `test_step` 的 `action` 为 `ActionType` 枚举（见 [3.6](#36-action-与-casexsd-枚举一致)）。 |
-| `model.xsd` | `<models>` | 人工 | `<model>` 须 `name`；`<element>` 须 `name`。仅支持**完整格式**（子节点 `<type>` / `<location>` / `<desc>`），~~简化格式已移除（v5.4.0）~~。`DriverType` / `LocatorType` 取值见 [4.2](#42-元素属性说明)、[4.3](#43-定位类型)。接口保留元素名：`_method`、`_url`、`_header_*`（与数据字段一一对应）。 |
+| `case.xsd` | `<cases>` | 人工 | 每个 `<case>` **必须且仅有 1 个** `<test_case>` 容器，其内 **至少 1 个**执行项；执行项可为裸 `<test_step>`，v6.3.0 起也可为 `<scenario>` 容器。`<pre_process>` / `<post_process>` 各 **0～1 个**容器，内为 **0～n 个**执行项（`<test_step>`、`<if>/<elif>/<else>`、`<loop>`、`<business_call>`）。`execute` 与 `roam` 都只能是 `是` \| `否`，`roam` 默认 `否`。`component_type`（可选）只能是 `界面` \| `接口` \| `数据库`；`roam="是"` 仅允许 `component_type` 为空或为 `界面`。每个 `test_step` 的 `action` 为 `ActionType` 枚举（见 [3.6](#36-action-与-casexsd-枚举一致)）。 |
+| `model.xsd` | `<models>` | 人工 | `<model>` 须 `name`；`<element>` 须 `name`。仅支持**完整格式**（子节点 `<type>` / `<location>` / `<desc>`），~~简化格式已移除（v5.4.0）~~。`DriverType` / `LocatorType` 取值见 [4.2](#42-元素属性说明)、[4.3](#43-定位器类型完整)。接口保留元素名：`_method`、`_url`、`_header_*`（与数据字段一一对应）。 |
 | `data.xsd` | `<datatable>` / `<datatables>` | 人工 | 已废弃（v6.0.0）。测试数据统一存储在 `data.sqlite`，验证数据表名为 `{模型名}_verify`，`table_kind='verify'`。 |
 | `globalvalue.xsd` | `<globalvalue>` | 人工 | 每个 `<group>` 须 `name`；**所有 group 的 `name` 全局唯一**。每组内至少一个 `<var>`，每个 `var` 须同时具备 `name` 与 `value`；**同一 group 内** `var@name` **唯一**（XSD `xs:unique`）。引用格式：`GlobalValue.组名.变量名`。 |
 | `business.xsd` | `<business_models>` | 人工 | v11.4 业务模型。`business_model` 须 `id`/`name`/`version`，内含 `nodes`/`edges`/`flows`；`flow@type` 只能是 `basic` \| `alternative` \| `exception` \| `boundary`。Case 中用 `<business_call ref flow input expect>` 引用（四个属性均必填）。详见 [第 17 章](#17-业务模型business-modelv1140)。 |
@@ -73,7 +74,7 @@ product/                           ← 产品根目录（最顶层）
 本地校验示例（需安装 `xmllint`，Mac 可用 Xcode 命令行工具）：
 
 ```bash
-xmllint --noout --schema rodski/schemas/case.xsd product/DEMO/demo_site/case/demo_case.xml
+xmllint --noout --schema rodski/schemas/case.xsd rodski-demo/demosite/full/case/demo_case.xml
 ```
 
 ### 2.3 推荐命名规范（v11.5.0）

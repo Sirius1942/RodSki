@@ -68,20 +68,21 @@ Return 引用**只应出现在数据表 XML 的 field 值中**，不要写在 Ca
 |--------|-----------|
 | get / get_text | 元素文本（get_text 已废弃，请使用 get） |
 | verify | 批量验证时的实际值字典 |
-| assert | 断言结果 |
+| assert | 视觉断言结果字典（`matched`、`similarity` 等） |
 | type（批量模式） | 本次输入使用的完整数据行 |
 | send | HTTP 响应（含 `status` 状态码 + 响应体字段） |
 | DB | query → 结果集列表；execute → 受影响行数 |
 | run | 脚本 stdout 输出（自动尝试 JSON 解析） |
 
 > **`set` 不在上表** —— `set` 只命名变量，**不产生 Return 值**，也不改变 `${Return[-N]}`
-> 的指向。所以下面这种写法是安全的：`set` 之后 `${Return[-1]}` 仍指 `send` 的响应。
+> 的指向。所以下面这种写法是安全的：`set` 之后的 `verify` 读到的实际值仍是 `send` 的响应。
 >
 > ```xml
 > <test_step action="send" model="LoginAPI" data="L001"/>
 > <test_step action="set" model="" data="auth_token=${Return[-1].token}"/>
-> <test_step action="verify" model="LoginAPI_verify" data="V001"/>
-> <!-- V001 里的 ${Return[-1]} 读到的是 send 的响应，不是 auth_token -->
+> <test_step action="verify" model="LoginAPI" data="V001"/>
+> <!-- verify 比较的实际值来自 send 的响应，不是 auth_token；
+>      LoginAPI_verify.V001 只写字面期望值（如 status=200），不写 ${Return[-1]}（见 7.4） -->
 > ```
 >
 > 反过来说：**不要**用 `${Return[-1]}` 去读刚才 `set` 的值 —— 用 `${auth_token}` 或
@@ -100,7 +101,7 @@ Return 引用**只应出现在数据表 XML 的 field 值中**，不要写在 Ca
 
 <!-- 在后续步骤中使用命名变量 -->
 <test_step action="send" model="OrderAPI" data="O001"/>
-<!-- data.sqlite 中: <field name="_headers">Authorization: Bearer ${auth_token}</field> -->
+<!-- data.sqlite 中: <field name="_header_Authorization">Bearer ${auth_token}</field> -->
 ```
 
 **进阶写法（Return 索引）：**
@@ -109,8 +110,9 @@ Return 索引适合步骤紧邻且无歧义的场景：
 
 ```xml
 <test_step action="send" model="LoginAPI" data="L001"/>
-<test_step action="verify" model="LoginAPI" data="V001"/>
-<!-- data.sqlite 中: <field name="status">${Return[-1].status}</field> -->
+<test_step action="send" model="OrderAPI" data="O001"/>
+<!-- data.sqlite 中 OrderAPI.O001: <field name="_header_Authorization">Bearer ${Return[-1].token}</field> -->
+<!-- 注意：接口 / DB 模型的 _verify 表中不能写 ${Return[-1]}（见 7.4） -->
 ```
 
 **为什么推荐 set/get？**

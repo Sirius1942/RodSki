@@ -1,7 +1,7 @@
 # RodSki 核心设计约束
 
-**版本**: v11.10.0
-**日期**: 2026-10-22
+**版本**: v11.11.0
+**日期**: 2026-10-28
 
 本文档记录 RodSki 框架的核心设计决策与约束规则，所有后续开发必须遵循。
 
@@ -14,6 +14,7 @@
 | 版本 | 日期 | 主要变更 |
 |------|------|---------|
 | v11.9.0 | 2026-10-19 | 计划级数据驱动（§7.8 新增，不新增关键字，`case.xsd` 不变）：`plan.xsd` `<case data_driven="表名">`；`data.sqlite` 新增 `table_kind='driver'` 数据驱动表（计划 / 用例 / 步骤对应关系表，只存 DataID）；用例保留基础 DataID，按 `表名.基础DataID` 列替换；实例 `用例ID[DataID]` 隔离；`--data-id` / `--exclude-data-id` 实例过滤可与 `@plan_id` 同用 |
+| v11.11.0 | 2026-10-28 | 测试计划测试套与分发清单（REQ-016，§7.9 新增，不新增关键字，`case.xsd` 不变）：`plan.xsd` 新增 `<suite id title execute tags>` 与 `test_plan@max_parallel`；**套内顺序执行、套与套之间可并发分配**；用例能力 `requires`（web/android/ios/desktop）按整条用例聚合，混合用例不拆分；数据驱动实例跟随模板用例所在套；`rodski plan compile` 输出分发清单 `rodski.plan-manifest/1`（含 digest）；`rodski run @plan --suite / --expect-digest`；`--workers` 按套调度并受 `max_parallel` 限制（§23.3）；设备队列的调度单元从计划改为测试套，无需设备的套由本地 worker 执行（§11.5） |
 | v11.10.0 | 2026-10-22 | `AutoWait` 默认值（REQ-015，Owner 决策，取代 v11.7.1）：**不设置或空值 = 默认最多等待 10000ms**，只有显式 `0` 关闭自动等待；所有 AutoWait（默认与显式、DOM / 原生 / 视觉）统一**每 1000ms 探测一次**（第一次立即探测）；SKI326 错误信息写明探测间隔与次数，使用默认值时标注"未设置，使用默认值"并提示配置位置；`rodski init` 模板写 `AutoWait=10000`（§13、§4.6.5、§7.4） |
 | v11.10.0（文档修订） | 2026-10-22 | 按代码逐条核实补齐约束（不改变实现）：接口 Return 结构与"比较字段数为 0 即失败"（§3.2、§4.7.4）；`launch` 平台范围（§1.3）；新增 `assert` 约束（§1.6）、控制流容器约束（§7.2.1）、DB 关键字约束（§24）、错误码表（附录 B）、待 Owner 决定事项（附录 C）；条件分支表与评估失败语义（§12）；控制值表按关键字拆列（§4.1）；plan `kind=load` / `<debug>` / plan 生成命令（§7.7）；标出与约束不符的当前实现（O1~O11） |
 | v11.8.1 ~ v11.8.32 | 2026-10-15 ~ 10-19 | iteration-66 修复 33 个"静默错误 / 与文档不符"缺陷（BUG-A01~A33），升级须知 18 项见 CHANGELOG [11.8.32]；对应约束：接口 verify 字段范围与 `status` 语义（§3.2、§4.7.4）、`NONE` 跳过（§4.1）、空串不清空输入框（§4.1）、条件分支求值（§12）、`key_press` 先聚焦（§1.2）、Web `launch` 只接受 http(s)（§1.3）、图片断言失败即 FAIL（§1.6）、`wait_for_response` 语义（§1.4）、selector 语义（§7.7）、plan 生成命令写 `file`（§7.7）、压测 `mode=browser` 报 SKI605（§21）、`data import` 校验字段集合（§2.4.1）；rodski-demo 按 `<环境>/<模块>` 重组（§14.2） |
@@ -1604,6 +1605,8 @@ rodski run @invoice_tax_point_smoke
 | `<load_profile mode>` | `load` | `concurrency`、`duration_seconds` 必填，`ramp_up_seconds`、`think_time_ms@min/max`、`max_rps`、`host` 可选；`mode` 只有 `api` 可执行（§21）。`max_rps` 当前**未实现**（运行时不读取） |
 | `case@weight` | `load` | 任务权重，默认 1 |
 | `case@data_driven` | `suite` | §7.8 |
+| `<suite id title execute tags>` | `suite` | v11.11.0，§7.9。计划顶层要么全是 `<suite>`，要么全是 `<case>` / `<case_dir>`（XSD 强制）；`<suite>` 内可写 `<case>` / `<case_dir>`，语义与顶层相同；不能与 `default_execute="是"` 同用 |
+| `test_plan@max_parallel` | `suite` | v11.11.0，§7.9。同一计划同时执行的测试套数量上限（正整数），不写 = 不限 |
 
 不加 `--debug` 运行调试计划时，按普通计划的选择规则执行（不应用 `<debug>`）。
 
@@ -1703,6 +1706,106 @@ case XML 中 <case execute="否">
 以下校验在计划编译阶段完成，失败时不启动任何浏览器 / App、不发送请求：驱动表存在且 `table_kind='driver'`、绑定用例与计划 `<case file id>` 一致、表备注非空、至少 1 行、列名格式与列表存在、列的基础 DataID 在该用例中被字面引用、单元格 DataID 存在。每张驱动表在一次运行中只从 SQLite 读取一次。
 
 数据驱动配置错误统一抛 `DataDrivenError`（`core/data_driven.py`）。**当前实现缺陷**：`DataDrivenError` 直接继承 `Exception`，没有 SKI 错误码，与"报错带 SKI 码"的约定不符（待 Owner 决定：O11，见附录 B）；CLI 预检时以"错误: 数据驱动配置无效（未执行任何用例）"列出全部问题并以非 0 退出。
+
+---
+
+### 7.9 测试套与分发清单约束（v11.11.0）
+
+**定位**：测试计划是"如何用执行器执行 rodski 用例"的唯一描述。计划自己声明怎么划分测试套、每个套需要什么执行能力、最多同时执行几个套。执行方（rodski-factory 等）是基础设施，只读取计划编译出的分发清单，按 `requires` 匹配执行器。**不得**把具体测试任务写进执行方的配置，也**不得**由执行方自行拆分用例。
+
+#### 7.9.1 结构
+
+```xml
+<test_plan id="shop_full" kind="suite" title="商城全量" max_parallel="2">
+    <suite id="order" title="下单流程" tags="冒烟">
+        <case_dir path="order"/>
+        <case file="order/create.xml" id="ORDER_1" data_driven="OrderMatrix"/>
+    </suite>
+    <suite id="archive" title="归档（停用）" execute="否">
+        <case file="common/extra.xml" id="EXTRA"/>
+    </suite>
+</test_plan>
+```
+
+- **套内顺序执行，套与套之间可以并发分配**。一个套在一个执行器上整体执行，不再拆分。
+- 计划顶层要么全是 `<suite>`，要么全是 `<case>` / `<case_dir>`，不得混用（XSD 强制）。不写 `<suite>` 时整个计划是一个**隐式套 `default`**：用例选择与顺序执行的结果与 v11.10 一致。有两处差别：`--workers` 只调度计划选中的用例文件（§7.9.6），设备队列里不需要设备的计划由本地 worker 执行，不再丢弃（§11.5 第 4a 条）。`--suite default` 在 `run` 与 `queue` 中都等于不过滤。
+- `<suite>` 只能用于 `kind="suite"`；`max_parallel` 同样只能用于 `kind="suite"`；`<suite>` 不能与 `default_execute="是"` 同用（测试套划分必须显式）。
+- `suite@id` 只允许 `[A-Za-z0-9_-]`，计划内唯一。
+- `suite@execute="否"`：整套停用，套内用例记为 `SKIP`，skip reason 为 `suite_execute_false`。
+- `suite@tags`：对执行环境的附加要求（逗号分隔），原样写入清单交给执行方匹配，rodski 不解释。
+- `test_plan@max_parallel`：同一计划同时执行的套数上限（正整数），不写 = 不限（由执行方容量决定）。
+
+#### 7.9.2 用例归属
+
+一条用例只属于一个套。归属裁决优先级：
+
+1. 显式 `<case>` 优先于 `<case_dir>`；
+2. `<case_dir>` 之间，路径较长（更具体）的优先；
+3. 同一优先级被多个套认领 → **报错**（列出冲突的套），不得按书写顺序默认归属。
+
+`execute="否"` 的 `<case_dir>` 不参与认领。同一用例文件中的用例被拆到多个套时输出 `[WARN]`，因为文件内用例的先后依赖要由计划作者保证。
+
+#### 7.9.3 能力聚合（混合用例不拆分）
+
+- 能力只分 4 类粗分类：`web` / `android` / `ios` / `desktop`。接口（`interface`）与数据库（`database`）模型归入 `web`（本机即可执行）。
+- 每条用例的 `requires` 按**整条用例的全部步骤**聚合：`pre_process` / `test_case` / `post_process`、`if` / `loop` 内的步骤、`business_call` 引用的业务模型节点内的步骤都计入；`navigate` / `launch`（不带 model 时）按目标判定（`app://android/...` → android，`app://ios/...` → ios，其他非空目标 → web）；data 整体写成 `GlobalValue.组.变量` 时先解析成变量值再判定，内嵌在其他文本中的引用不解析。`run` 步骤的 model 是 `fun/` 脚本工程名（或空，表示内置函数），不计入能力。
+- `driver_type="mobile"` 按 `--platform` → `globalvalue` 的 `Mobile.Platform` → `DefaultValue.Platform` 确定平台，都没有时报错。桌面模型额外产生 `os:windows` / `os:macos` 标签，写入套的 `tags`。
+- 套的 `requires` 是套内全部用例 `requires` 的并集。**同时需要 web、android、db 的用例需要能同时提供这些能力的执行器**，不得按能力把一条用例拆到多个执行器上。
+- 一个套同时需要 `android` 与 `ios` 时报错（单台设备无法执行），`--allow-cross-platform-plan` 可显式放行。
+
+#### 7.9.4 数据驱动
+
+数据驱动位于计划之下、用例之上（§7.8）：实例跟随模板用例所在的套，套内按驱动表行顺序相邻执行，**不得**把一张驱动表的实例拆到不同套或不同执行器。
+
+#### 7.9.5 分发清单 `rodski.plan-manifest/1`
+
+`rodski plan compile @plan_id [--json]` 输出分发清单（在模块目录下执行）。不加 `--json` 时输出文本摘要。
+
+```json
+{
+  "schema": "rodski.plan-manifest/1",
+  "rodski_version": "11.11.0",
+  "module": "product/shop/full",
+  "plan_id": "shop_full",
+  "digest": "sha256:...",
+  "max_parallel": 2,
+  "implicit_suite": false,
+  "suites": [
+    {"id": "order", "title": "下单流程", "execute": true, "requires": ["android", "web"],
+     "tags": ["冒烟"], "weight": 12,
+     "cases": [{"case_file": "order/create.xml", "case_id": "ORDER_1",
+                "instance_id": "ORDER_1[base]", "requires": ["android", "web"]}]}
+  ],
+  "warnings": [],
+  "skipped": [{"case_file": "common/extra.xml", "case_id": "EXTRA", "reason": "suite_execute_false", "suite_id": "archive"}],
+  "stale_references": []
+}
+```
+
+- `weight` 是套内用例 XML 中 `<test_step>` 数之和（不含业务模型节点内步骤），供执行方估算耗时，不影响执行语义。
+- `digest` 覆盖计划文件、`model/model.xml`、被选中用例的文件、被引用的业务模型文件；**不覆盖** `data.sqlite` 与 `globalvalue.xml`（数据与环境变化不影响分发），与模块所在绝对路径无关。
+- 编译失败时（结构错误、归属冲突、能力无法判定、跨平台套）清单只含 `schema` / `plan_id` / `errors`，命令非 0 退出。错误按阶段报告：计划解析失败或结构错误时只报这一阶段（结构错误一次列出）；结构通过后，归属冲突一次列出；归属通过后，能力与跨平台错误一次列出。修复一个阶段的错误后，下一阶段的错误才会出现。
+
+#### 7.9.6 执行
+
+| 方式 | 语义 |
+|------|------|
+| `rodski run @plan` | 按计划中套的顺序依次执行全部启用套；结果 `<result suite_id>`，`<summary plan_id suites digest>`（`result.xsd` 可选属性） |
+| `rodski run @plan --suite a[,b]` | 只执行指定套（逗号分隔，去重保序）。只能与 `@plan_id` 同用；套不存在或已停用 → 报错 |
+| `rodski run @plan --expect-digest D` | 当前编译 digest 与 D 不一致 → 报错（入队后计划 / 用例被改动） |
+| `rodski run @plan --workers N` | 计划有 `<suite>` 时一套一 worker、套内顺序，并发数 = min(N, `max_parallel`, 启用套数)；能力判断只看本次执行的套（`--suite` 过滤后、启用的）；同时给了 `--model` 时不按套并发，回落顺序执行。隐式计划仍按用例文件调度，但只取计划选中的文件（§23.3） |
+| `rodski queue --plans @plan` | 调度单元是测试套（§11.5）；子进程执行 `rodski run @plan --suite ID --expect-digest D`，`--allow-cross-platform-plan` 与 `--report` / `--data-id` 等执行参数一起透传 |
+| `rodski run @plan`（自动转队列） | `globalvalue` 的 `Mobile` 组配置了多设备时，`run` 自动转 `queue`；本次要执行的套都不需要 `android` / `ios` 时不转，直接在本进程执行；`--no-queue` / `--udid` 也不转 |
+
+`--suite` / `--expect-digest` 不是执行范围 selector，不受 `@plan_id` 与 selector 互斥规则（§7.7）约束；但它们只能与 `@plan_id` 同用。`--dry-run` 按套归属列出选择结果（每项带 `[套 id]`），给了 `--suite` 时只列出指定套。
+
+队列只调度**启用且有可执行用例**的套：套内用例全部 `execute="否"` 时该套不入队，也不在 `summary.json` 中出现；这些用例在编译清单的 `skipped` 中列出。
+
+#### 7.9.7 校验先于副作用
+
+计划结构、用例归属、能力判定、跨平台、`--suite` 合法性、`--expect-digest` 校验全部在编译 / 预检阶段完成。失败时不启动浏览器 / App、不发送请求、不创建结果目录，CLI 列出全部问题并非 0 退出。
+
+测试套错误以普通异常（`PlanSuiteError` / `CapabilityError`，`ValueError` 子类）报告，没有 SKI 码（同 O11，见附录 B）。
 
 ---
 
@@ -2134,9 +2237,10 @@ rodski run @ios_app_smoke --platform ios
    移动端行为与 v11.1.0 **逐字节相同** —— 不自动转队列、不注入并发端口。
    （v11.3.0 起，配置要求多设备时 `rodski run @plan` 会**自动转 `rodski queue`**；
    见下方「设备选择」。）
-2. **一个 plan 只用一个 app 设备**：计划是调度的最小单元，**不得**把一条计划的 case/step 拆到多台设备上执行。该约束由 `PlanQueue` 的粒度**结构性保证**（队列只装 `PlanTask`，无任何 case 级发放 API），不是运行时校验。
-3. **多 plan 动态领取**：多设备并行时，每台设备从队列领取**整个计划**，先跑完的设备回头领下一个。**不得**采用静态均分（预先给每台设备分配固定数量的计划）。
-4. **跨平台计划不得入队**：一条计划同时需要 `android` 与 `ios` 模型时拒绝入队（`--allow-cross-platform-plan` 可显式放行）。`driver_type="mobile"` 视为**平台无关**，两种队列平台均兼容。
+2. **一个调度单元只用一个 app 设备**（v11.11.0 起调度单元是**测试套**，§7.9）：计划写了 `<suite>` 时一个启用且非空的套是一个单元；不写 `<suite>` 时整个计划是一个单元（与 v11.10 相同）。**不得**把一个套的 case/step 拆到多台设备上执行。该约束由 `PlanQueue` 的粒度**结构性保证**（队列只装 `PlanTask`，每个 `PlanTask` 是一个计划或一个套，无任何 case 级发放 API），不是运行时校验。子进程执行 `rodski run @plan --suite ID --expect-digest D`，入队后计划被改动时子进程在副作用前拒绝执行。
+3. **动态领取**：多设备并行时，每台设备从队列领取**一个调度单元**，先跑完的设备回头领下一个。**不得**采用静态均分（预先给每台设备分配固定数量的单元）。同一计划同时在跑的套数不超过该计划的 `max_parallel`（`PlanQueue.claim` 跳过已达上限的计划，领取后面计划的单元）。
+4. **跨平台单元不得入队**：一个套（隐式套即整个计划）同时需要 `android` 与 `ios` 时拒绝入队（`--allow-cross-platform-plan` 可显式放行）；套需要的移动平台与队列 `--platform` 不一致时同样在入队前报错。能力按整条用例聚合（§7.9.3）。
+4a. **无需设备的单元走本地 worker**（v11.11.0）：`requires` 不含 `android` / `ios` 的套（纯 Web / 接口 / DB / 桌面）不占设备，由本地 worker（`local-N`，数量 `--local-slots`，默认 min(单元数, 4)）以 `--no-queue` 执行；`summary.json` 中该单元 `device_udid` 为 null。
 5. **`kind=load` 计划不得混入设备队列**：设备×计划 与 VU×时长 是两个正交的执行模型，串在一起会产生无意义的压测数据。
 
 **`Mobile.UDID` 覆盖顺序（硬约束）**：
@@ -2900,6 +3004,12 @@ GitLab CI / GitHub Actions 的完整接入示例见 `TEST_CASE_WRITING_GUIDE.md`
 - [ ] 压测 `mode="browser"` 报 SKI605 并非 0 退出，不得静默按 api 执行（§21.6）
 - [ ] `rodski data import` 字段集合不一致时整体不写入、退出码 1（§2.4.1）
 - [ ] 数据驱动的校验在启动驱动、发送请求之前完成（§7.8.8）；业务模型 Schema 与图校验先于副作用（§2.7）
+- [ ] 计划顶层 `<suite>` 与 `<case>` / `<case_dir>` 不混用；不写 `<suite>` 的计划行为与 v11.10 一致（隐式套 `default`）（§7.9.1）
+- [ ] 用例归属按"显式 case > 长 case_dir > 短 case_dir"裁决，同级冲突报错（§7.9.2）
+- [ ] 用例能力按整条用例聚合，混合用例不拆分；数据驱动实例不拆到不同套（§7.9.3、§7.9.4）
+- [ ] 分发清单 schema 为 `rodski.plan-manifest/1`，digest 不覆盖 `data.sqlite` / `globalvalue.xml`（§7.9.5）
+- [ ] 设备队列的调度单元是测试套，一个套只用一台设备；无需设备的套走本地 worker；同一计划并发套数不超过 `max_parallel`（§11.5）
+- [ ] 测试套相关校验（结构 / 归属 / 能力 / `--suite` / `--expect-digest`）全部在副作用之前完成（§7.9.7）
 - [ ] 新增错误码已登记到附录 B 与 `ERROR_CODE_MAP`，注册表键与 `error_code` 一致（附录 B）
 
 ---
@@ -2982,7 +3092,7 @@ kind=load 与 kind=suite 是完全独立的执行路径：
 
 - 以**用例文件**为调度单位分给 N 个 worker 进程，每个 worker 独立的浏览器与驱动实例；同一文件内的用例在同一 worker 中按书写顺序执行，保证文件内依赖（共享会话、scenario `depends`、登录态）不被打乱。
 - 结果合并到**同一个运行目录**：`result.xml` / `execution_summary.json` / `junit.xml` / HTML 报告汇总全部用例；用例级产物照常镜像到 `case/{case_file 去 .xml}/`，不同文件互不冲突。合并后的用例集合、状态与顺序执行一致，退出码规则不变。
-- 与 `@plan_id` 兼容（并行执行 plan 选中的文件）；`--workers` 不是执行范围 selector（§7.7）。
+- 与 `@plan_id` 兼容；`--workers` 不是执行范围 selector（§7.7）。v11.11.0 起计划模式只看计划**选中**的用例：计划写了 `<suite>` 时调度单位改为**测试套**（一套一 worker，套内顺序），并发数 = min(N, `max_parallel`, 启用套数)，合并结果按计划中套的顺序排列，停用套记 `SKIP`；隐式计划仍以用例文件为单位，但只调度计划选中的文件（§7.9.6）。
 - `SessionMode=shared_session` 与 `--workers` 同时使用时，共享只发生在每个 worker 内部。
 - 移动端多设备仍走现有队列机制（§11.5），`--workers` 只作用于 Web / 接口 / DB 用例；`--workers 1` 或不指定时为顺序执行。
 
@@ -3104,6 +3214,7 @@ kind=load 与 kind=suite 是完全独立的执行路径：
 | 异常类 | 位置 | 场景 |
 |--------|------|------|
 | `DataDrivenError` | `core/data_driven.py` | 数据驱动配置错误（§7.8.8） |
+| `PlanSuiteError` / `CapabilityError`（`ValueError` 子类） | `core/plan_suites.py` / `core/capability.py` | 测试套结构 / 归属 / 能力判定错误（§7.9.7） |
 | `AutoWaitConfigError`（`ValueError` 子类） | `core/auto_wait.py` | AutoWait 取值非法 / 旧键 `VerifyTimeout`（§13.1） |
 | `BusinessModelError` 及子类（`ValueError` 子类） | `core/business_model.py` | 业务模型解析 / 校验 / 执行 / 断言失败（§2.7） |
 | `PerceptionUnavailableError`（`RuntimeError` 子类） | `vision/perception_interface.py` | 未安装 perception backend 却使用 `vision`（§2.6.8） |

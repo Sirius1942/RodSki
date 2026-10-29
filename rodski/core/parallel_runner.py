@@ -41,6 +41,7 @@ logger = logging.getLogger("rodski")
 
 __all__ = [
     "CaseFileTask",
+    "SuiteTask",
     "discover_case_file_tasks",
     "partition_tasks",
     "merge_worker_results",
@@ -82,6 +83,22 @@ class CaseFileTask(dict):
     @property
     def weight(self) -> int:
         return self["weight"]
+
+
+class SuiteTask(dict):
+    """v11.11.0 测试套调度单元（CORE §7.9）：``suite_id``、``execute``、``weight``、
+    ``cases``（清单中的用例，含 case_file / case_id / instance_id）、``skipped``（停用套的 SKIP 项）。
+
+    一个测试套整体交给一个 worker，套内用例按计划顺序执行；套之间并发。
+    """
+
+    @property
+    def suite_id(self) -> str:
+        return self["suite_id"]
+
+    @property
+    def case_files(self) -> List[str]:
+        return list(dict.fromkeys(c["case_file"] for c in self.get("cases") or []))
 
 
 def _relative_case_file(module_dir: Path, xml_path: Path) -> str:
@@ -203,6 +220,73 @@ def merge_worker_results(
     return merged
 
 
+def _case_titles(module_dir: Path, case_file: str, cache: Dict[str, Dict[str, str]]) -> Dict[str, str]:
+    if case_file not in cache:
+        try:
+            text = (Path(module_dir) / "case" / case_file).read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            text = ""
+        cache[case_file] = {c["case_id"]: c.get("title", "") for c in _parse_cases(text)}
+    return cache[case_file]
+
+
+def merge_suite_results(
+    suites: Sequence[SuiteTask],
+    worker_outputs: Sequence[Dict[str, Any]],
+    module_dir: Path,
+) -> List[Dict[str, Any]]:
+    """v11.11.0：按计划中的测试套顺序合并；套内保持 worker 的执行顺序。
+
+    - 停用套（execute=否）不派 worker，父进程按清单补 SKIP（与顺序执行一致）；
+    - worker 异常时，为该套已选中却没有结果的用例补 FAIL（plan 判定为 SKIP 的补 SKIP）。
+    """
+    by_suite: Dict[str, Dict[str, Any]] = {}
+    for out in worker_outputs:
+        for sid in out.get("suite_filter") or []:
+            by_suite[sid] = out
+    titles: Dict[str, Dict[str, str]] = {}
+    merged: List[Dict[str, Any]] = []
+    for suite in suites:
+        sid = suite.suite_id
+        if not suite.get("execute", True):
+            for item in suite.get("skipped") or []:
+                cf = item.get("case_file", "")
+                merged.append({
+                    "case_id": item.get("case_id", ""),
+                    "title": _case_titles(module_dir, cf, titles).get(item.get("case_id", ""), ""),
+                    "status": "SKIP", "execution_time": 0, "error": item.get("reason", ""),
+                    "screenshot_path": "", "case_file": cf, "suite_id": sid,
+                })
+            continue
+        out = by_suite.get(sid) or {}
+        rows = list(out.get("results") or [])
+        merged.extend(rows)
+        err = out.get("error") if out else "worker 未返回结果"
+        if not err:
+            continue
+        selected = out.get("selected")
+        if selected is None:
+            selected = [{"case_file": c["case_file"], "case_id": c.get("instance_id") or c["case_id"],
+                         "title": _case_titles(module_dir, c["case_file"], titles).get(c["case_id"], ""),
+                         "skip_reason": ""} for c in suite.get("cases") or []]
+        done = {(r.get("case_file", ""), r.get("case_id")) for r in rows}
+        for c in selected:
+            key = (c.get("case_file", ""), c.get("case_id"))
+            if key in done:
+                continue
+            skip_reason = c.get("skip_reason")
+            row = {"case_id": c.get("case_id", ""), "title": c.get("title", ""), "case_file": key[0],
+                   "status": "SKIP" if skip_reason else "FAIL", "execution_time": 0, "screenshot_path": "",
+                   "suite_id": sid}
+            if skip_reason:
+                row["error"] = skip_reason
+            else:
+                row["error_type"] = "WorkerError"
+                row["error"] = f"并行 worker {out.get('worker_id')} 异常，测试套 {sid} 的用例未执行: {err}"
+            merged.append(row)
+    return merged
+
+
 def _to_plain(results: Any) -> Any:
     """把结果转成纯 JSON 数据（跨进程安全；result.xml 本就把每个值写成字符串）。"""
     return json.loads(json.dumps(results, ensure_ascii=False, default=str))
@@ -304,7 +388,11 @@ def worker_entry(spec: Dict[str, Any]) -> Dict[str, Any]:
         # 挂到父进程创建的运行目录；worker 只收集结果，不写 result.xml
         executor.result_writer.attach_run_dir(spec["run_dir"], worker_tag=f"w{worker_id}")
         executor.result_writer.collect_only = True
-        executor.case_file_filter = set(case_files)
+        if spec.get("suite_filter"):
+            # v11.11.0：按测试套调度——用执行器的套过滤（同一文件可能被拆到多个套）
+            executor.suite_filter = list(spec["suite_filter"])
+        else:
+            executor.case_file_filter = set(case_files)
         selector_filters = dict(spec.get("selector_filters") or {})
         executor.selector_filters = selector_filters
         if spec.get("plan_path"):
@@ -330,7 +418,10 @@ def worker_entry(spec: Dict[str, Any]) -> Dict[str, Any]:
                     logger.debug(f"[并行] 写入已选用例清单失败（忽略）: {e}")
 
         executor.on_cases_selected = _on_cases_selected
-        logger.info(f"[并行] worker {worker_id} 开始，负责 {len(case_files)} 个用例文件: {', '.join(case_files)}")
+        if spec.get("suite_filter"):
+            logger.info(f"[并行] worker {worker_id} 开始，负责测试套 {', '.join(spec['suite_filter'])}")
+        else:
+            logger.info(f"[并行] worker {worker_id} 开始，负责 {len(case_files)} 个用例文件: {', '.join(case_files)}")
         results = executor.execute_all_cases(
             filter_tags=selector_filters.get("filter_tags"),
             filter_priority=selector_filters.get("filter_priority"),
@@ -383,28 +474,38 @@ def run_parallel(
     module_dir = Path(module_dir).expanduser().resolve()
     if tasks is None:
         tasks = discover_case_file_tasks(case_path, module_dir)
-    buckets = partition_tasks(tasks, workers)
+    suite_mode = bool(tasks) and isinstance(tasks[0], SuiteTask)
+    if suite_mode:
+        # 一个启用的测试套 = 一个 worker 任务；进程池大小即并发上限（调用方已取
+        # min(--workers, max_parallel, 启用套数)），套多于并发数时排队
+        units = [([t.suite_id], t.case_files) for t in tasks if t.get("execute", True)]
+        pool_size = max(1, min(int(workers or 1), len(units) or 1))
+    else:
+        units = [(None, [t.case_file for t in bucket]) for bucket in partition_tasks(tasks, workers)]
+        pool_size = len(units)
     import shutil
     import tempfile
     selected_dir = tempfile.mkdtemp(prefix="rodski_parallel_")
     specs = []
-    for i, bucket in enumerate(buckets, 1):
+    for i, (suite_filter, case_files) in enumerate(units, 1):
         spec = dict(worker_options)
         spec.update({
             "worker_id": i,
             "case_path": str(case_path),
             "module_dir": str(module_dir),
             "run_dir": str(run_dir),
-            "case_files": [t.case_file for t in bucket],
+            "case_files": case_files,
             # worker 进程崩溃（拿不到返回值）时从这里读回已选用例清单
             "selected_file": str(Path(selected_dir) / f"w{i}_selected.json"),
         })
+        if suite_filter:
+            spec["suite_filter"] = suite_filter
         specs.append(spec)
 
     outputs: List[Dict[str, Any]] = []
     factory = pool_factory or _default_pool_factory
     try:
-        with factory(len(specs)) as pool:
+        with factory(max(1, pool_size)) as pool:
             futures = {pool.submit(worker_fn, spec): spec for spec in specs}
             for fut in as_completed(futures):
                 spec = futures[fut]
@@ -418,6 +519,8 @@ def run_parallel(
                             Path(spec["selected_file"]).read_text(encoding="utf-8"))
                     except (OSError, ValueError):
                         pass  # worker 未走到选择阶段：按文件内全部用例补行
+                if spec.get("suite_filter"):
+                    out["suite_filter"] = spec["suite_filter"]
                 outputs.append(out)
                 if on_worker_done is not None:
                     on_worker_done(out)
@@ -425,4 +528,6 @@ def run_parallel(
         shutil.rmtree(selected_dir, ignore_errors=True)
 
     outputs.sort(key=lambda o: o.get("worker_id") or 0)
+    if suite_mode:
+        return merge_suite_results(tasks, outputs, module_dir), outputs
     return merge_worker_results(tasks, outputs), outputs

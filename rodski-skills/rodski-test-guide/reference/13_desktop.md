@@ -22,15 +22,30 @@
 
 ### 13.2 launch 关键字
 
-启动桌面应用（与 `navigate` 功能相同，场景不同）：
+启动桌面应用要用 **Desktop 模型**（`driver_type="windows"` 或 `"macos"`）：`launch <Desktop模型> <DataID>`，应用路径写在该模型同名数据表的数据行里。
+
+```xml
+<!-- model.xml：只用于启动的 Desktop 模型，不需要元素 -->
+<model name="NotepadApp" driver_type="windows"/>
+<model name="TextEditApp" driver_type="macos"/>
+```
+
+| 数据表 | DataID | 字段 | 说明 |
+|--------|--------|------|------|
+| `NotepadApp` | `A001` | `app_path` = `C:\Windows\System32\notepad.exe` | Windows 只读 `app_path`，且该路径必须存在 |
+| `TextEditApp` | `A001` | `app_name` = `TextEdit`（或 `app_path` = `/System/Applications/TextEdit.app`） | macOS 优先 `app_path`（须存在，用 `open` 打开），否则用 `open -a <app_name>` |
 
 ```xml
 <!-- Windows -->
-<test_step action="launch" model="" data="notepad.exe"/>
+<test_step action="launch" model="NotepadApp" data="A001"/>
 
 <!-- macOS -->
-<test_step action="launch" model="" data="TextEdit.app"/>
+<test_step action="launch" model="TextEditApp" data="A001"/>
 ```
+
+- 数据行既没有 `app_path` 也没有 `app_name` 时报参数错误。启动后框架固定等待约 1 秒。
+- **Web 模型或 `model` 为空时，`launch` 只接受完整的 `http://` / `https://` URL，等同于 `navigate`**；应用名（如 `notepad.exe`）、漏写协议、`ftp://` 等其他值都报参数错误（v11.8.26）。旧写法 `<test_step action="launch" model="" data="notepad.exe"/>` 已不可用。
+- 接口模型不支持 `launch`（报参数错误，请用 `send`）。
 
 ### 13.3 vision_bbox 坐标约定
 
@@ -72,8 +87,7 @@
 ```xml
 <case execute="是" id="d001" title="桌面演示">
   <pre_process>
-    <test_step action="launch" model="" data="notepad.exe"/>
-    <test_step action="wait" model="" data="2"/>
+    <test_step action="launch" model="NotepadApp" data="A001"/>
   </pre_process>
   <test_case>
     <test_step action="type" model="NotepadPage" data="D001"/>
@@ -84,6 +98,8 @@
   </post_process>
 </case>
 ```
+
+`NotepadApp` 模型与数据行见 [§13.2](#132-launch-关键字)。启动后不需要写 `wait`：后续 `type` 查找窗口元素时按 `AutoWait` 自动等待。
 
 ### 13.6 约束
 

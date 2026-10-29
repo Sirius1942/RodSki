@@ -41,7 +41,9 @@ mobile/app/
 ├── case/
 │   ├── login.xml              # 真机验收用例（execute="是"，APP001/002/003）
 │   ├── autowait.xml           # v11.7.0 自动等待验收（AW001 / AW_F01，无固定 wait）
-│   └── mobile_login.xml       # 准备性 scenario 示例（execute="否"）
+│   ├── mobile_login.xml       # 准备性 scenario 示例（execute="否"）
+│   ├── web_app_mix.xml        # v11.9.0 Web + App 混合用例（DD_MIX，数据驱动）
+│   └── web_note.xml           # v11.11.0 纯 Web 用例（WEB_NOTE01，测试套分发的本地 worker）
 ├── data/
 │   ├── data.sqlite            # 唯一测试数据文件
 │   ├── globalvalue.xml        # 移动端全局配置（Android）
@@ -57,13 +59,17 @@ mobile/app/
 │   ├── mobile_smoke.xml       # Android 冒烟
 │   ├── queue_{short_a,long_b,short_c}.xml      # 双模拟器队列验收（v11.2.0）
 │   ├── mixed_{short_a,long_b,short_c}.xml      # iOS 真机+模拟器混跑（v11.3.0）
-│   └── android_queue_{a,b,c}.xml               # Android 真机+模拟器混跑（v11.3.0）
+│   ├── android_queue_{a,b,c}.xml               # Android 真机+模拟器混跑（v11.3.0）
+│   ├── web_app_mix_suite.xml                   # Web + App 混合数据驱动（v11.9.0）
+│   └── plan_suites_android.xml                 # 测试套按设备分发（v11.11.0）
 ├── scripts/
 │   ├── run_dual_device_demo.sh   # 双模拟器并行验收（v11.2.0）
 │   ├── run_mixed_device_demo.sh  # iOS 真机 + 模拟器混跑验收（v11.3.0）
 │   ├── run_android_mixed_demo.sh # Android 真机 + 模拟器混跑验收（v11.3.0）
 │   ├── mock_server.py            # mock 后端（/api/login + /api/orders，MOCK_DELAY_MS 延迟）
 │   ├── run_autowait_acceptance.py # v11.7.0 自动等待验收（模拟器实跑）
+│   ├── run_data_driven_acceptance.py # v11.9.0 Web + App 混合数据驱动验收（DD-10）
+│   ├── run_plan_suites_acceptance.py # v11.11.0 测试套按设备分发验收（PM-01~03，需 2 台设备）
 │   ├── setup_ios.sh              # 单设备 iOS 环境准备
 │   ├── check_device.py
 │   └── init_data.py
@@ -548,6 +554,43 @@ mock 后端延迟响应产生：
 
 脚本自行拉起 mock（P 2500 / N 20000 / D 3000 + 20000）；可用参数 `P` / `N` / `D` 只跑某个场景；、`adb reverse tcp:8000 tcp:$MOCK_PORT`、
 调用 `rodski run --udid ... --trace`，从 `trace.json` 取每步耗时断言；结束时移除 reverse。
+
+## 测试套按设备分发（v11.11.0）
+
+v11.11.0 起队列的调度单元是**测试套**（CORE §7.9）：计划用 `<suite>` 划分，套内用例顺序执行，
+套与套之间分发给不同执行器；一个套只在一台设备上整体执行。不写 `<suite>` 的计划（如上面的
+`android_queue_*`）是一个隐式套，仍按整个计划调度，行为不变。
+
+`plan/plan_suites_android.xml`（`max_parallel="3"`）：
+
+| 测试套 | 用例 | requires | 执行位置 |
+|--------|------|----------|---------|
+| `login_fail` | APP002 | android | 设备 |
+| `order_flow` | APP003 | android | 设备 |
+| `login_ok` | APP001 | android | 设备 |
+| `mix` | DD_MIX（MixMatrix 两个实例） | android, web | 设备：整条用例在同一执行器上，不拆分 |
+| `web_note` | WEB_NOTE01 | web | 本地 worker（不占设备） |
+
+```bash
+cd rodski-demo/mobile/app
+rodski plan compile @plan_suites_android                     # 套 / 能力 / digest
+rodski queue --plans @plan_suites_android --platform android --dry-run
+rodski queue --plans @plan_suites_android --platform android  # 4 个设备套 + 1 个本地套
+rodski run @plan_suites_android --suite login_fail --udid emulator-5554 --no-queue
+```
+
+队列子进程执行 `rodski run @plan_suites_android --suite <套> --expect-digest <编译 digest> ...`；
+`summary.json` 每个单元带 `suite_id`、`digest`，本地单元的 `device_udid` 为 `null`。
+
+一条命令验收（前置：真机 + `emulator-5554` 已装 `com.rodski.demo`、Appium 在 4723；脚本在临时副本上执行，
+mock 起在 18000 并对每台设备 `adb reverse tcp:8000 tcp:18000`）：
+
+```bash
+/usr/local/bin/python3 rodski-demo/mobile/app/scripts/run_plan_suites_acceptance.py
+```
+
+实测（2026-10-28，TAS_AL00 真机 + emulator-5554）：PM-01~03 全部 PASS；排班为
+`web_note@local`、`login_fail`/`login_ok`@真机、`order_flow`/`mix`@模拟器，`peak_parallel=3`。
 
 ## RodSki 数据与校验
 

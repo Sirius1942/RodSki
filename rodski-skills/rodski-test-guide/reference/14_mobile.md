@@ -54,16 +54,19 @@
 </globalvalue>
 ```
 
-| Key | 说明 |
-|-----|------|
-| `Platform` | 平台类型：`android` / `ios` |
-| `AppiumServer` | Appium 服务地址 |
-| `DeviceName` | 设备名称或序列号 |
-| `AppPackage` | Android 包名 |
-| `AppActivity` | Android 启动 Activity |
-| `BundleId` | iOS Bundle ID |
-| `AppTarget` | app:// URI（供 navigate 使用） |
-| `NoReset` | 是否保留应用状态（`true`/`false`） |
+| Key | 说明 | 默认值 |
+|-----|------|--------|
+| `Platform` | 平台类型：`android` / `ios`；`driver_type="mobile"` 模型按它选平台，CLI `--platform` 可覆盖。未设置时回退到 `DefaultValue.Platform` | `android` |
+| `AppiumServer` | Appium 服务地址 | `http://localhost:4723` |
+| `DeviceName` | 设备名称或序列号 | `Android` |
+| `UDID` | 目标设备（透传 `appium:udid`）；多设备并发时必填，否则 Appium 会选第一台设备；CLI `--udid` 可覆盖 | — |
+| `AppPackage` | Android 包名 | — |
+| `AppActivity` | Android 启动 Activity | — |
+| `BundleId` | iOS Bundle ID | — |
+| `AppTarget` | app:// URI（供 navigate 引用，框架本身不读取） | — |
+| `NoReset` | 是否保留应用状态（`true`/`false`） | `false` |
+
+> 多设备调度（自动转 queue）解析平台时目前只读 `Mobile.Platform`，不回退 `DefaultValue.Platform`（当前行为，可能调整）；使用多设备时请在 `Mobile` 组显式写 `Platform`。
 
 > 步骤固定等待统一由 `DefaultValue.WaitTime`（毫秒）控制，`Mobile` 组中不再写 `WaitTime`，见 [§6.4](#64-waittime-与执行策略配置v1160)。
 

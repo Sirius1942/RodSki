@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  测试计划测试套（REQ-016 / CORE §7.9）验收模块。
+  Web 界面 / 接口 / DB 模型在 demosite :8000 上真实执行；
+  AppLogin / IosHome / WinCalc / AnyMobile 只被 case/mixed/ 引用，用于验证能力推导（只编译，不执行）。
+-->
+<models>
+<model name="LoginForm" type="ui" servicename="">
+    <element name="username" type="input"><location type="id">loginUsername</location></element>
+    <element name="password" type="input"><location type="id">loginPassword</location></element>
+    <element name="loginBtn" type="button"><location type="id">loginBtn</location></element>
+</model>
+<model name="NavMenu" type="ui" servicename="">
+    <element name="testLink" type="link"><location type="id">navTest</location></element>
+</model>
+<model name="TestForm" type="ui" servicename="">
+    <element name="username" type="input"><location type="id">username</location></element>
+    <element name="submitBtn" type="button"><location type="id">submitBtn</location></element>
+    <element name="formResult" type="text"><location type="id">formResult</location></element>
+</model>
+<model name="LoginAPI" type="interface" servicename="">
+    <element name="_method" type="http_method"><location type="static">POST</location></element>
+    <element name="_url" type="http_url"><location type="static">http://localhost:8000/api/login</location></element>
+    <element name="username" type="field"><location type="field">username</location></element>
+    <element name="password" type="field"><location type="field">password</location></element>
+</model>
+<model name="LoginResp" type="interface" servicename="">
+    <element name="message" type="field"><location type="field">message</location></element>
+</model>
+<model name="QueryOrder" type="database" connection="orders_db" servicename="">
+    <query name="get_by_no" remark="按订单号查询">
+        <sql>SELECT order_no, customer_name FROM orders WHERE order_no = :order_no</sql>
+    </query>
+    <element name="order_no" type="database"><location type="field">order_no</location></element>
+    <element name="customer_name" type="database"><location type="field">customer_name</location></element>
+</model>
+
+<!-- 以下模型只用于能力推导验收（case/mixed/），不在 demosite 回归中执行 -->
+<model name="AppLogin" type="ui" driver_type="android" servicename="">
+    <element name="username" type="input"><location type="id">com.rodski.demo:id/username</location></element>
+    <element name="loginBtn" type="button"><location type="id">com.rodski.demo:id/login</location></element>
+</model>
+<model name="IosHome" type="ui" driver_type="ios" servicename="">
+    <element name="title" type="text"><location type="id">home_title</location></element>
+</model>
+<model name="WinCalc" type="ui" driver_type="windows" servicename="">
+    <element name="display" type="text"><location type="ocr">0</location></element>
+</model>
+<model name="AnyMobile" type="ui" driver_type="mobile" servicename="">
+    <element name="title" type="text"><location type="id">title</location></element>
+</model>
+</models>

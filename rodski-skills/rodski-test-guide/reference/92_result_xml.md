@@ -2,7 +2,7 @@
 
 ## 附录：测试结果 XML（result.xsd）
 
-`rodski/schemas/result.xsd` 描述框架写入的 **`result/*.xml`**，手工一般**不需要**编写，了解结构即可排查报告问题。
+`rodski/schemas/result.xsd` 描述框架写入的 **`result/rodski_{ts}/result.xml`**，手工一般**不需要**编写，了解结构即可排查报告问题。
 
 | 约束 | 说明 |
 |------|------|
@@ -11,8 +11,9 @@
 | `<summary>` | `total` / `passed` / `failed` 必填；`skipped`、`errors` 等有默认值 |
 | `<summary>` 运行标注 | v11.6.0 新增可选属性 `evidence_mode`（`full` \| `concise`）与 `session_mode`（`isolated` \| `shared_browser` \| `shared_session`），记录本次运行实际生效的记录模式与会话模式；HTML 报告页眉同步显示 |
 | `<results>` 下 `<result>` | `case_id`、`status` 必填；`status` 只能是 `PASS` \| `FAIL` \| `SKIP` \| `ERROR`；`case_file`（v11.5.0 新增，可选）记录该用例所属文件相对 `case/` 的 POSIX 路径，跨文件同 `case_id` 时用于消歧，见 [§3.2.1](#321-用例-id-唯一性v11500)、[§9.8](#98-结果目录说明v11500) |
+| `<result>` 数据驱动属性 | v11.9.0 新增可选属性 `instance_id`、`template_case_id`、`driver`、`data_id`、`instance_title`、`replacements`；数据驱动实例的 `case_id` 与 `instance_id` 均为 `用例ID[DataID]`，见 [§10.10](#1010-计划级数据驱动v1190) |
 
 ---
 
-**文档版本**: v11.6.0
-**最后更新**: 2026-09-29
+**文档版本**: v11.10.0
+**最后更新**: 2026-10-22

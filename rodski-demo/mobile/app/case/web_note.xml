@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  纯 Web 用例（v11.11.0，CORE §7.9）：只用浏览器写订单备注，不需要移动设备。
+  plan/plan_suites_android.xml 把它放进独立测试套 web_note，队列交给本地 worker 执行。
+-->
+<cases step_wait="0" tags="web">
+  <case execute="是" id="WEB_NOTE01" title="后台写订单备注" component_type="界面" priority="P1">
+    <pre_process>
+      <test_step action="navigate" model="" data="GlobalValue.Web.NoteURL"/>
+    </pre_process>
+    <test_case>
+      <test_step action="type" model="WebNote" data="W001"/>
+      <test_step action="verify" model="WebNote" data="WV001"/>
+    </test_case>
+    <post_process>
+      <test_step action="close" model="" data=""/>
+    </post_process>
+  </case>
+</cases>

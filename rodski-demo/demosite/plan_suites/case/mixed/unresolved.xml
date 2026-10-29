@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- driver_type="mobile" 的模型，而本模块 globalvalue 没有 Mobile.Platform → 编译报错（PS-09，只编译） -->
+<cases tags="plan-suites,compile-only">
+    <case execute="是" id="PS_ANY_MOBILE" title="未指定平台的移动端用例" priority="P2">
+        <test_case>
+            <test_step action="verify" model="AnyMobile" data="M001"/>
+        </test_case>
+    </case>
+</cases>

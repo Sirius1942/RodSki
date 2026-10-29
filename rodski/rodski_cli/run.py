@@ -46,26 +46,12 @@ def _normalize_cdp_endpoint(value: Optional[str]) -> str:
 
 
 def _model_driver_types(model_path: Optional[Path]) -> Dict[str, str]:
-    if not model_path or not model_path.exists():
-        return {}
+    # v11.11.0：统一走 core.capability（CORE §7.9.3，全框架唯一的能力推导实现）
     try:
-        root = ET.parse(model_path).getroot()
-    except ET.ParseError:
-        return {}
-    result: Dict[str, str] = {}
-    for model in root.findall("model"):
-        name = (model.get("name") or "").strip()
-        if not name:
-            continue
-        model_type = (model.get("type") or "ui").strip()
-        driver_type = (model.get("driver_type") or "").strip()
-        if driver_type:
-            result[name] = driver_type
-        elif model_type in {"interface", "database"}:
-            result[name] = model_type
-        else:
-            result[name] = "web"
-    return result
+        from ..core.capability import model_driver_types
+    except ImportError:
+        from rodski.core.capability import model_driver_types
+    return model_driver_types(model_path)
 
 
 def _is_mobile_app_target(value: str) -> bool:
@@ -226,7 +212,14 @@ def setup_parser(subparsers):
     parser.add_argument("--workers", type=_parse_workers, default=None, dest="workers", metavar="N",
                         help="按用例文件并行执行，N 个 worker 进程各自独立浏览器；同一文件内的用例在同一 "
                              "worker 中顺序执行，结果合并到同一运行目录。仅作用于 Web / 接口 / DB 用例"
-                             "（默认 1 = 顺序执行）")
+                             "（默认 1 = 顺序执行）；计划写了 <suite> 时按测试套并行（一套一 worker）")
+    # v11.11.0：测试套（CORE §7.9），只能与 @plan_id 同用
+    parser.add_argument("--suite", type=str, default=None, dest="suite", metavar="ID[,ID...]",
+                        help="只执行计划中的指定测试套（逗号分隔）；隐式计划可用 default")
+    parser.add_argument("--expect-digest", type=str, default=None, dest="expect_digest", metavar="DIGEST",
+                        help="执行前校验计划 digest（rodski plan compile --json 输出），不一致即报错不执行")
+    parser.add_argument("--allow-cross-platform-plan", action="store_true", dest="allow_cross_platform_plan",
+                        help="允许同一测试套同时需要 android 与 ios 设备")
 
     # REQ-012: 调试与部分执行参数
     parser.add_argument("--break-at", type=str, default=None, dest="break_at",
@@ -479,6 +472,20 @@ def _apply_mobile_cli_overrides(executor, module_dir: Path, args) -> None:
         logger.info(f"--udid 覆盖：Mobile.UDID = {cli_udid}")
 
 
+def _selected_suites_need_device(args) -> bool:
+    """本次要执行的测试套是否需要 android / ios 设备（v11.11.0）。没有编译清单时按需要处理（兼容 v11.10）。"""
+    compiled = getattr(args, "_compiled_plan", None)
+    if compiled is None:
+        return True
+    wanted = set(getattr(args, "_suite_filter", None) or [])
+    for suite in compiled.manifest["suites"]:
+        if not suite["execute"] or (wanted and suite["id"] not in wanted):
+            continue
+        if {"android", "ios"} & set(suite.get("requires") or []):
+            return True
+    return False
+
+
 def _maybe_dispatch_to_queue(args, module_dir: Path) -> Optional[int]:
     """配置要求多设备时，把 `rodski run` 自动转成 `rodski queue`。
 
@@ -527,6 +534,8 @@ def _maybe_dispatch_to_queue(args, module_dir: Path) -> Optional[int]:
         return None
     if not is_multi_device_configured(mobile_group):
         return None
+    if not _selected_suites_need_device(args):
+        return None                      # 本次选中的测试套都不需要移动设备：直接在本进程执行
 
     print(f"配置检测: Mobile 组要求多设备执行（{_describe_device_config(mobile_group)}）"
           f"，转 `rodski queue` 调度（单设备执行请加 --no-queue）")
@@ -545,7 +554,8 @@ def _maybe_dispatch_to_queue(args, module_dir: Path) -> Optional[int]:
         list_devices=False,
         retry_failed_plans=0,
         no_requeue_on_device_loss=False,
-        allow_cross_platform_plan=False,
+        allow_cross_platform_plan=getattr(args, "allow_cross_platform_plan", False),
+        suites=getattr(args, "_suite_filter", None),
         dry_run=False,
         report=getattr(args, "report", None),
         trace=getattr(args, "trace", False),
@@ -632,6 +642,14 @@ def handle(args):
                     from rodski.core.exceptions import CaseIdRequiresFileError
                 print(f"错误: --case-id 必须与单个用例文件路径一起使用（给定的是目录或非 XML 文件）", file=sys.stderr)
                 return 1
+
+    # v11.11.0 测试套 / digest：同样先于任何副作用（CORE §7.9）
+    suite_errors = _precheck_plan_suites(plan_path, module_dir, args)
+    if suite_errors:
+        print("错误: 测试计划无效（未执行任何用例）:", file=sys.stderr)
+        for line in suite_errors:
+            print(f"  - {line}", file=sys.stderr)
+        return 1
 
     # v11.9.0 计划级数据驱动：校验先于副作用（CORE §7.8.8）——在多设备转发、hooks、创建任何驱动之前完成
     if (getattr(args, "data_id", None) or getattr(args, "exclude_data_id", None)) and plan_path is None:
@@ -816,7 +834,8 @@ def handle(args):
 
     if dry_run:
         return _handle_dry_run(case_path, model_path, verbose, plan_path=plan_path, selector_filters=selector_filters,
-                               module_dir=module_dir, data_id_filters=_data_id_filters(args))
+                               module_dir=module_dir, data_id_filters=_data_id_filters(args),
+                               suite_filter=getattr(args, "_suite_filter", None))
 
     if plan_path is not None:
         _plan_kind = _get_plan_kind(plan_path)
@@ -886,6 +905,7 @@ def _handle_dry_run(
     selector_filters: Optional[Dict[str, Any]] = None,
     module_dir: Optional[Path] = None,
     data_id_filters: Optional[Dict[str, List[str]]] = None,
+    suite_filter: Optional[List[str]] = None,
 ) -> int:
     """验证用例可执行性但不实际执行"""
     try:
@@ -917,7 +937,8 @@ def _handle_dry_run(
             parser = PlanParser(str(plan_path))
             parse = getattr(parser, 'parse', None) or parser.parse_plan
             plan = parse()
-            selection = TestPlanSelection(cases, plan, module_dir=module_dir).select()
+            # v11.11.0：与执行共用测试套选择（CORE §7.9），--suite 只列出指定套
+            selection = _select_plan_for_suites(plan, cases, module_dir, suite_filter)
         except Exception as e:
             print(f"Plan 解析失败: {e}", file=sys.stderr)
             return 1
@@ -958,6 +979,84 @@ def _handle_dry_run(
 
     print(f"\n验证通过: {len(cases)} 个用例可执行")
     return 0
+
+
+def _select_plan_for_suites(plan, cases, module_dir, suite_filter=None) -> Dict[str, Any]:
+    """计划选择（有测试套时按套归属），``suite_filter`` 只保留指定套的条目。"""
+    try:
+        from ..core.plan_suites import select_plan
+    except ImportError:
+        from rodski.core.plan_suites import select_plan
+    selection = select_plan(plan, cases, module_dir)
+    if suite_filter:
+        wanted = set(suite_filter)
+        for key in ("selected", "skipped", "stale_references"):
+            selection[key] = [e for e in selection.get(key, []) or [] if e.get("suite") in wanted]
+    return selection
+
+
+def _precheck_plan_suites(plan_path: Optional[Path], module_dir: Path, args) -> List[str]:
+    """测试套 / digest 执行前校验（v11.11.0，CORE §7.9）。
+
+    通过后在 ``args`` 上留下 ``_suite_filter``（list 或 None）、``_plan_meta``（写入 summary 的
+    plan_id / suites / digest）、``_compiled_plan``（编译过才有）供执行阶段使用。
+    """
+    try:
+        from ..core.plan_parser import PlanParser
+        from ..core import plan_suites
+    except ImportError:
+        from rodski.core.plan_parser import PlanParser
+        from rodski.core import plan_suites
+
+    args._suite_filter = None
+    args._plan_meta = {}
+    args._compiled_plan = None
+    raw_suite = getattr(args, "suite", None)
+    expect_digest = (getattr(args, "expect_digest", None) or "").strip()
+    wanted = [s.strip() for s in (raw_suite or "").split(",") if s.strip()]
+    if plan_path is None:
+        if raw_suite is not None or expect_digest:
+            return ["--suite / --expect-digest 只能与测试计划（@plan_id）一起使用"]
+        return []
+    if raw_suite is not None and not wanted:
+        return ["--suite 需要至少一个测试套 id"]
+
+    try:
+        plan = PlanParser(str(plan_path)).parse_plan()
+    except Exception as e:  # XSD / id 不一致：在任何副作用之前报出
+        return [f"测试计划解析失败: {e}"]
+    errors = plan_suites.check_plan_structure(plan)
+    if errors:
+        return errors
+    plan_id = plan.get("id") or plan_path.stem
+    args._plan_meta = {"plan_id": plan_id}
+    if not (plan_suites.has_suites(plan) or wanted or expect_digest):
+        return []
+
+    compiled = plan_suites.compile_plan(module_dir, plan_id, platform=getattr(args, "platform", None),
+                                        allow_cross_platform=getattr(args, "allow_cross_platform_plan", False))
+    if not compiled.ok:
+        return compiled.errors
+    all_ids = [s["id"] for s in compiled.manifest["suites"]]
+    for sid in wanted:
+        suite = compiled.suite(sid)
+        if suite is None:
+            errors.append(f"测试套不存在: {sid}（计划 {plan_id} 的测试套: {', '.join(all_ids)}）")
+        elif not suite["execute"]:
+            errors.append(f"测试套 {sid} 已停用（execute=\"否\"），不能用 --suite 执行")
+    if expect_digest and expect_digest != compiled.digest:
+        errors.append(f"计划 digest 不一致: 期望 {expect_digest}，当前 {compiled.digest}"
+                      f"（计划 / 模型 / 用例 / 业务模型已变化，请重新 rodski plan compile）")
+    if errors:
+        return errors
+
+    args._compiled_plan = compiled
+    if not compiled.manifest["implicit_suite"]:
+        # 隐式计划只有 default 一个套，--suite default 等于不过滤
+        args._suite_filter = list(dict.fromkeys(wanted)) or None
+        args._plan_meta["suites"] = ",".join(args._suite_filter or all_ids)
+    args._plan_meta["digest"] = compiled.digest
+    return []
 
 
 def _precheck_data_driven(plan_path: Path, case_path: Path, module_dir: Path, args=None) -> List[str]:
@@ -1078,9 +1177,10 @@ def _print_plan_dry_run_selection(plan, selection) -> None:
         """Format case reference with file path when available (v11.5.0)."""
         case_file = entry.get('case_file', '')
         case_id = entry.get('case_id', '')
-        if case_file:
-            return f"{case_file}::{case_id}"
-        return case_id
+        ref = f"{case_file}::{case_id}" if case_file else case_id
+        if entry.get('suite'):
+            ref = f"[{entry['suite']}] {ref}"   # v11.11.0 测试套归属
+        return ref
 
     print("  Selected:")
     for entry in selection.get('selected', []) or []:
@@ -1168,7 +1268,7 @@ def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional
     # v11.6.0 P4：--workers N（N>1）按用例文件并行；不适用的场景回落顺序执行并说明原因
     workers = getattr(args, "workers", None)
     if isinstance(workers, int) and workers > 1:
-        parallel_tasks, fallback_reason = _plan_parallel(case_path, module_dir, args)
+        parallel_tasks, fallback_reason = _plan_parallel(case_path, module_dir, args, plan_path)
         if fallback_reason:
             print(f"提示: --workers {workers} 未生效（{fallback_reason}），按顺序执行")
         else:
@@ -1271,6 +1371,9 @@ def _handle_execute(case_path: Path, module_dir: Path, args, plan_path: Optional
         }
         if plan_path is not None:
             executor.plan_path = str(plan_path)
+        # v11.11.0 测试套：--suite 过滤；summary 记 plan_id / suites / digest
+        executor.suite_filter = getattr(args, "_suite_filter", None)
+        executor.result_writer.run_meta.update(getattr(args, "_plan_meta", None) or {})
         executor.data_id_filters = _data_id_filters(args)
         if getattr(args, "debug", False):
             executor.debug_mode = True
@@ -1438,7 +1541,7 @@ def _write_junit_report(run_dir, output_format: str = "text") -> Optional[Path]:
 _PARALLEL_UNSUPPORTED_DRIVERS = {"android", "ios", "mobile", "windows", "macos", "other"}
 
 
-def _plan_parallel(case_path: Path, module_dir: Path, args):
+def _plan_parallel(case_path: Path, module_dir: Path, args, plan_path: Optional[Path] = None):
     """v11.6.0 --workers：列出可调度的用例文件；返回 (tasks, 回落顺序执行的原因或 None)。"""
     for attr, flag in (("cdp_endpoint", "--cdp"), ("insert_steps", "--insert-step"), ("debug", "--debug"),
                        ("roam", "--roam"), ("trace", "--trace"), ("coverage", "--coverage")):
@@ -1452,6 +1555,12 @@ def _plan_parallel(case_path: Path, module_dir: Path, args):
     )
     if in_process_hooks:
         return [], f"进程内 hook（{', '.join(in_process_hooks)}）无法带进 worker 进程"
+    if plan_path is not None and not getattr(args, "model", None):
+        return _plan_parallel_from_manifest(case_path, module_dir, args, plan_path)
+    compiled = getattr(args, "_compiled_plan", None)
+    if plan_path is not None and compiled is not None and not compiled.manifest["implicit_suite"]:
+        # 测试套清单按模块 model.xml 编译，--model 换了模型时能力判断不再可信：不按套并发
+        return [], "--model 与测试套计划同用时不按套并发（清单按模块 model.xml 编译）"
     model_path = Path(args.model) if getattr(args, "model", None) else module_dir / "model" / "model.xml"
     drivers = set(_model_driver_types(model_path).values()) & _PARALLEL_UNSUPPORTED_DRIVERS
     if drivers:
@@ -1468,6 +1577,58 @@ def _plan_parallel(case_path: Path, module_dir: Path, args):
             continue
         if "app://android/" in text or "app://ios/" in text:
             return [], f"{t['case_file']} 是移动端 App 用例，--workers 只作用于 Web / 接口 / DB 用例"
+    if len(tasks) <= 1:
+        return tasks, "只有 1 个用例文件，调度单位是用例文件"
+    return tasks, None
+
+
+def _plan_parallel_from_manifest(case_path: Path, module_dir: Path, args, plan_path: Path):
+    """计划模式的 --workers（v11.11.0）：只看计划选中的用例。
+
+    - 计划写了 ``<suite>``：调度单位是测试套（一套一 worker，套内顺序），并发上限
+      min(--workers, max_parallel, 启用套数)；返回 ``SuiteTask`` 列表。
+    - 隐式计划：调度单位仍是用例文件，但只取计划选中（含 SKIP）的文件；能力判断看选中用例，
+      不再因模块里其他用例的移动端 / 桌面模型整体回落。
+    """
+    try:
+        from ..core import plan_suites
+        from ..core.parallel_runner import SuiteTask, discover_case_file_tasks
+    except ImportError:
+        from rodski.core import plan_suites
+        from rodski.core.parallel_runner import SuiteTask, discover_case_file_tasks
+
+    compiled = getattr(args, "_compiled_plan", None)
+    if compiled is None:
+        compiled = plan_suites.compile_plan(module_dir, plan_path.stem, platform=getattr(args, "platform", None),
+                                            allow_cross_platform=getattr(args, "allow_cross_platform_plan", False))
+        if not compiled.ok:
+            return [], f"计划编译失败: {'；'.join(compiled.errors)}"
+        args._compiled_plan = compiled
+    manifest = compiled.manifest
+    # 只看本次会执行的套（--suite 过滤后、启用的）：未选中的 Android 套不应让 Web 套回落顺序执行
+    wanted = set(getattr(args, "_suite_filter", None) or [])
+    running = [s for s in manifest["suites"] if s["execute"] and (not wanted or s["id"] in wanted)]
+    caps = sorted({c for s in running for c in s["requires"]} - {"web"})
+    if caps:
+        return [], f"计划选中的用例需要 {'/'.join(caps)} 执行器，--workers 只作用于 Web / 接口 / DB 用例"
+
+    if not manifest["implicit_suite"]:
+        tasks = []
+        for suite in manifest["suites"]:
+            if wanted and suite["id"] not in wanted:
+                continue
+            skipped = [] if suite["execute"] else [
+                s for s in manifest["skipped"] if s.get("suite_id") == suite["id"]]
+            tasks.append(SuiteTask(suite_id=suite["id"], execute=suite["execute"], weight=suite["weight"],
+                                   cases=suite["cases"], skipped=skipped))
+        active = [t for t in tasks if t["execute"]]
+        if len(active) <= 1:
+            return tasks, "只有 1 个启用的测试套，调度单位是测试套"
+        return tasks, None
+
+    files = {c["case_file"] for s in manifest["suites"] for c in s["cases"]}
+    files.update(s["case_file"] for s in manifest["skipped"])
+    tasks = [t for t in discover_case_file_tasks(case_path, module_dir) if t["case_file"] in files]
     if len(tasks) <= 1:
         return tasks, "只有 1 个用例文件，调度单位是用例文件"
     return tasks, None
@@ -1511,6 +1672,7 @@ def _handle_parallel_execute(case_path: Path, module_dir: Path, args, workers: i
 
     writer = ResultWriter(str(module_dir / "result"))
     writer.run_meta = {"evidence_mode": evidence_mode, "session_mode": session_mode}
+    writer.run_meta.update(getattr(args, "_plan_meta", None) or {})
     writer._init_run_dir()
     run_dir = writer.current_run_dir
 
@@ -1528,9 +1690,19 @@ def _handle_parallel_execute(case_path: Path, module_dir: Path, args, workers: i
         "hook_context": getattr(args, "_hook_context", {}) or {},
     }, default=str))
 
-    n_workers = min(workers, len(tasks))
-    msg = (f"并行执行: {n_workers} 个 worker，{len(tasks)} 个用例文件（同一文件内顺序执行），"
-           f"结果目录 {run_dir}")
+    suite_mode = bool(tasks) and "suite_id" in tasks[0]
+    if suite_mode:
+        # v11.11.0：一套一 worker，并发 = min(--workers, max_parallel, 启用套数)（CORE §7.9.4）
+        active = [t for t in tasks if t.get("execute", True)]
+        compiled = getattr(args, "_compiled_plan", None)
+        max_parallel = compiled.manifest.get("max_parallel") if compiled is not None else None
+        n_workers = min(workers, len(active), max_parallel or len(active))
+        msg = (f"并行执行: {n_workers} 个 worker，{len(active)} 个测试套（套内顺序执行"
+               + (f"，max_parallel={max_parallel}" if max_parallel else "") + f"），结果目录 {run_dir}")
+    else:
+        n_workers = min(workers, len(tasks))
+        msg = (f"并行执行: {n_workers} 个 worker，{len(tasks)} 个用例文件（同一文件内顺序执行），"
+               f"结果目录 {run_dir}")
     logger.info(msg)
     if output_format == "text":
         print(msg)
@@ -1539,8 +1711,9 @@ def _handle_parallel_execute(case_path: Path, module_dir: Path, args, workers: i
     def _on_worker_done(out: Dict[str, Any]) -> None:
         res = out.get("results") or []
         ok = sum(1 for r in res if str(r.get("status", "")).upper() == "PASS")
-        line = (f"[worker {out.get('worker_id')}] 完成 {len(out.get('case_files') or [])} 个文件，"
-                f"{ok}/{len(res)} 通过（{out.get('seconds', 0)}s）")
+        unit = (f"测试套 {','.join(out['suite_filter'])}" if out.get("suite_filter")
+                else f"{len(out.get('case_files') or [])} 个文件")
+        line = f"[worker {out.get('worker_id')}] 完成 {unit}，{ok}/{len(res)} 通过（{out.get('seconds', 0)}s）"
         if out.get("error"):
             line += f"，异常: {out['error']}"
         logger.info(line)
@@ -1548,7 +1721,7 @@ def _handle_parallel_execute(case_path: Path, module_dir: Path, args, workers: i
             print(line)
 
     try:
-        results, _outputs = run_parallel(case_path, module_dir, workers, run_dir, worker_options,
+        results, _outputs = run_parallel(case_path, module_dir, n_workers, run_dir, worker_options,
                                          tasks=tasks, on_worker_done=_on_worker_done)
         writer.write_results(results)
     except Exception as e:  # noqa: BLE001

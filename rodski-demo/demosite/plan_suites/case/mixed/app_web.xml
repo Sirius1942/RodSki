@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 混合用例：同一条用例里有 Web 页面、Android App、DB 查询 → 能力需求 = ["android","web"]（PS-07，只编译） -->
+<cases tags="plan-suites,compile-only">
+    <case execute="是" id="PS_MIX_APP" title="Web 下单 → App 查看 → DB 核对" priority="P0">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Demo.URL"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="LoginForm" data="L001"/>
+            <test_step action="type" model="AppLogin" data="A001"/>
+            <test_step action="DB" model="QueryOrder" data="Q001"/>
+        </test_case>
+    </case>
+</cases>

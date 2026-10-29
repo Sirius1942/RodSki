@@ -35,6 +35,10 @@
     <!-- v11.6.0：本次运行的记录模式（full|concise）与会话模式（isolated|shared_browser|shared_session） -->
     <xs:attribute name="evidence_mode" type="xs:string" use="optional"/>
     <xs:attribute name="session_mode" type="xs:string" use="optional"/>
+    <!-- v11.11.0 测试套（CORE §7.9）：计划 ID、本次执行的测试套（逗号分隔）、计划清单 digest -->
+    <xs:attribute name="plan_id" type="xs:string" use="optional"/>
+    <xs:attribute name="suites" type="xs:string" use="optional"/>
+    <xs:attribute name="digest" type="xs:string" use="optional"/>
   </xs:complexType>
 
   <!-- 结果集合类型 -->
@@ -53,6 +57,8 @@
     </xs:sequence>
     <xs:attribute name="case_id" type="xs:string" use="required"/>
     <xs:attribute name="case_file" type="xs:string" use="optional"/>
+    <!-- v11.11.0 用例所属测试套（CORE §7.9）；计划未写 <suite> 时不出现 -->
+    <xs:attribute name="suite_id" type="xs:string" use="optional"/>
     <!-- v11.9.0 计划级数据驱动实例（CORE §7.8.5）：case_id 与 instance_id 均为 用例ID[DataID] -->
     <xs:attribute name="instance_id" type="xs:string" use="optional"/>
     <xs:attribute name="template_case_id" type="xs:string" use="optional"/>

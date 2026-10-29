@@ -6,9 +6,13 @@
       <xs:sequence>
         <xs:element name="debug" type="DebugType" minOccurs="0" maxOccurs="1"/>
         <xs:element name="load_profile" type="LoadProfileType" minOccurs="0" maxOccurs="1"/>
-        <xs:choice minOccurs="0" maxOccurs="unbounded">
-          <xs:element name="case" type="PlanCaseType"/>
-          <xs:element name="case_dir" type="PlanCaseDirType"/>
+        <!-- v11.11.0 测试套（CORE §7.9）：顶层要么全部是 <suite>，要么全部是 <case>/<case_dir>（旧写法 = 隐式套 default），不得混用 -->
+        <xs:choice minOccurs="0">
+          <xs:element name="suite" type="PlanSuiteType" maxOccurs="unbounded"/>
+          <xs:choice maxOccurs="unbounded">
+            <xs:element name="case" type="PlanCaseType"/>
+            <xs:element name="case_dir" type="PlanCaseDirType"/>
+          </xs:choice>
         </xs:choice>
       </xs:sequence>
       <xs:attribute name="id" type="xs:string" use="required"/>
@@ -16,8 +20,29 @@
       <xs:attribute name="kind" type="PlanKindType" use="required"/>
       <xs:attribute name="execute" type="ExecuteType" use="optional" default="是"/>
       <xs:attribute name="default_execute" type="ExecuteType" use="optional" default="否"/>
+      <!-- v11.11.0：同时执行的测试套数量上限；不写 = 不限（由执行方容量决定）；只用于 kind="suite" -->
+      <xs:attribute name="max_parallel" type="xs:positiveInteger" use="optional"/>
     </xs:complexType>
   </xs:element>
+
+  <!-- v11.11.0 测试套：套内用例顺序执行，套与套之间可以并发分配；子元素语义与计划顶层相同（CORE §7.7） -->
+  <xs:complexType name="PlanSuiteType">
+    <xs:choice minOccurs="0" maxOccurs="unbounded">
+      <xs:element name="case" type="PlanCaseType"/>
+      <xs:element name="case_dir" type="PlanCaseDirType"/>
+    </xs:choice>
+    <xs:attribute name="id" type="SuiteIdType" use="required"/>
+    <xs:attribute name="title" type="xs:string" use="optional"/>
+    <xs:attribute name="execute" type="ExecuteType" use="optional" default="是"/>
+    <!-- 对执行环境的附加要求（逗号分隔），透传给执行方匹配，rodski 不解释 -->
+    <xs:attribute name="tags" type="xs:string" use="optional"/>
+  </xs:complexType>
+
+  <xs:simpleType name="SuiteIdType">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[A-Za-z0-9_\-]+"/>
+    </xs:restriction>
+  </xs:simpleType>
 
   <xs:complexType name="DebugType">
     <xs:attribute name="prepare" type="DebugPrepareType" use="optional" default="auto"/>

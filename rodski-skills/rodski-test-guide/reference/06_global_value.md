@@ -64,7 +64,6 @@
 <globalvalue>
   <group name="DefaultValue">
     <var name="URL" value="http://127.0.0.1:5555"/>
-    <var name="BrowserType" value="chromium"/>
     <var name="WaitTime" value="0"/>           <!-- 毫秒；0 = 不做固定等待 -->
     <var name="AutoWait" value="5000"/>        <!-- 毫秒；自动等待：所有查找测试对象步骤的等待上限 -->
     <var name="DialogPolicy" value="fail"/>
@@ -73,7 +72,7 @@
   </group>
   <group name="sqlite_db">
     <var name="type" value="sqlite"/>
-    <var name="database" value="product/DEMO/demo_site/demo.db"/>
+    <var name="database" value="demo.db"/>
   </group>
   <group name="Roam">
     <var name="Enabled" value="否"/>
@@ -103,20 +102,21 @@ GlobalValue.DefaultValue.WaitTime     → "0"
 
 | 组名 | Key | 说明 | 示例值 |
 |------|-----|------|--------|
-| DefaultValue | URL | 测试环境地址 | http://127.0.0.1:5555 |
-| DefaultValue | BrowserType | 浏览器类型 | chromium / firefox / webkit |
+| DefaultValue | URL | 测试环境地址。仅供 `GlobalValue.DefaultValue.URL` 引用，`navigate` 不会自动拼接它；`kind="load"` 压测计划把它当默认 host（未设置时为 `http://localhost`） | http://127.0.0.1:5555 |
 | DefaultValue | WaitTime | 每步执行后的固定等待，单位**毫秒**（v11.6.0 起；旧值 ≤30 暂按秒兼容并告警） | 0 |
 | DefaultValue | AutoWait | **自动等待**：所有驱动、所有查找测试对象步骤（`type` 每个字段、`verify`、`get`、`clear`、`upload_file`、视觉定位）的等待上限，单位**毫秒**，每 1000ms 探测一次；`0` = 关闭自动等待 | `10000`（不设置或空值，v11.10.0） |
 | DefaultValue | DialogPolicy | 未注册处理器的原生弹窗：`accept` / `dismiss` / `fail`（v11.6.0） | fail |
 | DefaultValue | SessionMode | 浏览器会话：`isolated` / `shared_browser` / `shared_session`（v11.6.0） | isolated |
 | DefaultValue | EvidenceMode | 截图证据：`full` / `concise`（v11.6.0） | full |
-| DefaultValue | Headless | 无头模式 | True / False |
+| DefaultValue | Platform | `driver_type="mobile"` 模型的平台回退值：`Mobile.Platform` 未设置时才读取，都没有时为 `android`（见 [§14.3](#143-mobile-globalvalue-配置)） | android / ios |
 | Roam | Enabled | 漫游全局开关；只有 `是` 才允许显式漫游 | 是 / 否 |
 | Roam | MaxVariantsPerCase | 单个基础用例最多执行的漫游变体数 | 5 |
 | Roam | MaxDurationSeconds | 单个漫游会话时长上限（秒） | 120 |
 | Roam | MinConfidenceToAct | 自动执行动作的最低置信度 | 0.6 |
 | Roam | MaxTokenBudget | 自定义/后续 LLM 引擎 token 上限；核心默认引擎不使用 LLM | 20000 |
 | Roam | MaxCostUsd | 自定义/后续 LLM 引擎成本上限（美元） | 0.5 |
+
+> `DefaultValue.BrowserType`、`DefaultValue.Headless` 框架**不读取**：浏览器由 CLI `--browser chromium|firefox|webkit` 决定（默认 chromium），无头模式由 `--headless` 决定（见 [§9.7](#97-运行命令)）。旧配置里保留这两个变量不会报错，但不会生效。
 
 ### 6.4 WaitTime 与执行策略配置（v11.6.0）
 
@@ -216,10 +216,10 @@ DB 关键字最终仍通过 `globalvalue.xml` 中的组读取数据库连接参�
 
 | 组名 | Key | 说明 |
 |------|-----|------|
-| sqlite_db | type | 数据库类型：sqlite / mysql / postgresql / sqlserver |
-| sqlite_db | host | 主机地址（sqlite 不需要） |
+| sqlite_db | type | 数据库类型：sqlite / mysql / postgresql / sqlserver（默认 sqlite） |
+| sqlite_db | host | 主机地址（sqlite 不需要；默认 localhost） |
 | sqlite_db | port | 端口号（sqlite 不需要） |
-| sqlite_db | database | 数据库名或文件路径 |
+| sqlite_db | database | 数据库名或文件路径；SQLite 的相对路径按**测试模块目录**解析（如 `demo.db`） |
 | sqlite_db | username | 用户名 |
 | sqlite_db | password | 密码 |
 

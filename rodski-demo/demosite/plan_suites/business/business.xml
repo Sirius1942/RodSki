@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 只用于能力推导验收：F_APP_OK 路径上的 app_login 节点使用 Android 模型（PS-07）。 -->
+<business_models version="0.1">
+    <business_model id="app_login_flow" name="App 登录流程" version="1" lifecycle="business" idempotent="true">
+        <nodes>
+            <node id="start" title="开始"/>
+            <node id="app_login" title="App 登录">
+                <steps>
+                    <test_step action="type" model="AppLogin" data="${Business.InputDataID}"/>
+                </steps>
+            </node>
+            <node id="done" title="完成"/>
+        </nodes>
+        <edges>
+            <edge from="start" to="app_login"/>
+            <edge from="app_login" to="done"/>
+        </edges>
+        <flows>
+            <flow id="F_APP_OK" type="basic" path="start&gt;app_login&gt;done"/>
+        </flows>
+    </business_model>
+</business_models>

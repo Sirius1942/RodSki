@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 与 shop_full 相同的 3 个启用套，不写 max_parallel：并发数只受 workers 数 / 执行方容量限制（PS-17） -->
+<test_plan id="shop_wide" kind="suite" title="商城全量（不限并发）">
+    <suite id="order" title="下单流程">
+        <case_dir path="order"/>
+        <case file="order/create.xml" id="PS_ORDER_1" data_driven="OrderMatrix"/>
+        <case file="common/login.xml" id="PS_LOGIN_API"/>
+    </suite>
+    <suite id="special" title="特殊订单">
+        <case file="order/special.xml" id="PS_SPECIAL"/>
+    </suite>
+    <suite id="admin" title="后台管理">
+        <case_dir path="admin"/>
+        <case file="common/login.xml" id="PS_LOGIN_UI"/>
+    </suite>
+</test_plan>
