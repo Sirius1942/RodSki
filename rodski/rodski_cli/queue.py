@@ -1,8 +1,9 @@
 """queue 子命令 — 多设备计划队列调度。
 
-把若干计划放进一个队列，由多台设备**动态领取**：先跑完的设备回去领下一个，
-而不是预先分配。计划是调度的最小单元，任何一个计划都只会在一台设备上整体执行
-（「一个 plan 只用一个 app 设备」），不存在把计划拆到多台设备的方式。
+把若干计划编译成调度单元放进一个队列，由多台设备**动态领取**：先跑完的设备回去领下一个，
+而不是预先分配。v11.11.0 起调度单元是**测试套**（计划不写 ``<suite>`` 时是整个计划）：
+一个测试套只在一台设备上整体、顺序执行，不存在把测试套拆到多台设备的方式。
+不需要移动设备的测试套（web / 接口 / DB / 桌面）由本地 worker 执行（``--local-slots``）。
 
     rodski queue --module product/demo --plans @p1,@p2,@p3 \
                  --devices <UDID-A>,<UDID-B> --platform ios
@@ -36,6 +37,7 @@ try:
         resolve_platform,
         select_devices,
     )
+    from ..core.plan_suites import IMPLICIT_SUITE_ID
 except ImportError:                                      # pragma: no cover
     from rodski.core.device_scheduler import (                   # type: ignore[no-redef]
         Device,
@@ -56,6 +58,7 @@ except ImportError:                                      # pragma: no cover
         resolve_platform,
         select_devices,
     )
+    from rodski.core.plan_suites import IMPLICIT_SUITE_ID       # type: ignore[no-redef]
 
 
 def setup_parser(subparsers):
@@ -86,6 +89,10 @@ def setup_parser(subparsers):
     p.add_argument("--allow-cross-platform-plan", action="store_true",
                    dest="allow_cross_platform_plan",
                    help="放行同时需要 android 与 ios 模型的计划（默认拒绝）")
+    p.add_argument("--suite", action="append", dest="suites", default=None, metavar="ID[,ID...]",
+                   help="只调度指定测试套（逗号分隔或多次传入；需计划声明 <suite>）")
+    p.add_argument("--local-slots", type=int, default=None, dest="local_slots",
+                   help="不需要移动设备的测试套的本地并发数（默认 min(单元数, 4)）")
     p.add_argument("--dry-run", action="store_true", dest="dry_run",
                    help="只打印队列与设备分配预检，不实际执行")
 
@@ -173,7 +180,7 @@ def handle(args) -> int:
         return 1
 
     try:
-        device_tasks, _free_tasks = build_tasks(
+        device_tasks, free_tasks = build_tasks(
             plans, platform,
             case_dir=module_dir / "case",
             allow_cross_platform=getattr(args, "allow_cross_platform_plan", False),
@@ -185,9 +192,29 @@ def handle(args) -> int:
         print(f"错误: {e}", file=sys.stderr)
         return 1
 
-    print(f"设备队列: {len(device_tasks)} 个计划 / {len(devices)} 台设备 ({platform})")
+    wanted_suites = _split(getattr(args, "suites", None))
+    if wanted_suites:
+        # 不写 <suite> 的计划是隐式套 default（与 run --suite default 一致）
+        def _sid(t):
+            return t.suite_id or IMPLICIT_SUITE_ID
+        present = {_sid(t) for t in device_tasks + free_tasks}
+        missing = [sid for sid in wanted_suites if sid not in present]
+        if missing:
+            print(f"错误: 测试套不存在、未启用或没有可执行用例: {', '.join(missing)}", file=sys.stderr)
+            return 1
+        device_tasks = [t for t in device_tasks if _sid(t) in wanted_suites]
+        free_tasks = [t for t in free_tasks if _sid(t) in wanted_suites]
+
+    print(f"设备队列: {len(device_tasks)} 个调度单元 / {len(devices)} 台设备 ({platform})")
     for t in device_tasks:
-        print(f"  计划: @{t.plan_id}")
+        print(f"  {_describe_task(t)}")
+    local_slots = 0
+    if free_tasks:
+        raw_slots = getattr(args, "local_slots", None)
+        local_slots = max(1, int(raw_slots)) if raw_slots else min(len(free_tasks), 4)
+        print(f"本地执行（不需要设备）: {len(free_tasks)} 个调度单元 / 本地 worker {local_slots}")
+        for t in free_tasks:
+            print(f"  {_describe_task(t)}")
 
     if getattr(args, "dry_run", False):
         print("\n[dry-run] 仅预检，未执行")
@@ -198,7 +225,8 @@ def handle(args) -> int:
         print("提示: 只有 1 台设备，计划将顺序执行")
 
     scheduler = DeviceScheduler(
-        module_dir, device_tasks, devices,
+        module_dir, device_tasks + free_tasks, devices,
+        local_slots=local_slots,
         max_parallel=getattr(args, "max_parallel", None),
         retry_failed_plans=getattr(args, "retry_failed_plans", 0),
         requeue_on_device_loss=not getattr(args, "no_requeue_on_device_loss", False),
@@ -207,10 +235,14 @@ def handle(args) -> int:
     summary = scheduler.run()
 
     stats = summary["summary"]
-    print(f"\n队列完成: {stats['passed']}/{stats['total_plans']} 计划通过"
+    print(f"\n队列完成: {stats['passed']}/{stats['total_plans']} 个调度单元通过"
           f"（失败 {stats['failed']}，错误 {stats['error']}，未领取 {stats['unclaimed']}）"
           f"，峰值并行 {summary['peak_parallel']}，耗时 {summary['duration']:.1f}s")
     return int(summary["exit_code"])
+
+
+def _describe_task(task: PlanTask) -> str:
+    return f"计划: @{task.plan_id}" + (f"  测试套: {task.suite_id}" if task.suite_id else "")
 
 
 def _list_devices(module_dir: Path, platform: Optional[str]) -> int:
@@ -296,4 +328,7 @@ def _forward_run_args(args) -> List[str]:
         value = getattr(args, attr, None)
         if value:
             forwarded.extend([flag, str(value)])
+    # 子进程 run 的副作用前预检也会检查跨平台套，必须同样放行
+    if getattr(args, "allow_cross_platform_plan", False):
+        forwarded.append("--allow-cross-platform-plan")
     return forwarded

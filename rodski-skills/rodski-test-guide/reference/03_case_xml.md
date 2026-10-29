@@ -6,9 +6,9 @@
 
 每个 `<case>` 下有三个**阶段容器**（见 `case.xsd`）：
 
-1. **`<pre_process>`**（可选）— 预处理，内含 **0～n** 个 `<test_step>`
-2. **`<test_case>`**（**必选，且每个 case 仅 1 个**）— 用例主体，内含 **至少 1 个** `<test_step>`；v6.3.0 起可混合编排裸 `<test_step>` 与 `<scenario>`
-3. **`<post_process>`**（可选）— 后处理，内含 **0～n** 个 `<test_step>`
+1. **`<pre_process>`**（可选）— 预处理，内含 **0～n** 个执行项（`<test_step>`，也可用 `<if>/<elif>/<else>`、`<loop>`、`<business_call>`）
+2. **`<test_case>`**（**必选，且每个 case 仅 1 个**）— 用例主体，内含 **至少 1 个**执行项；v6.3.0 起可混合编排裸 `<test_step>` 与 `<scenario>`
+3. **`<post_process>`**（可选）— 后处理，内含 **0～n** 个执行项（同 `<pre_process>`）
 
 早期单文件格式中「测试步骤」「预期结果」等多行语义，在 XML 中统一为 **`<test_case>` 内多条 `<test_step>`**（先 `type` 再 `verify` 等，按书写顺序执行）。
 
@@ -50,7 +50,7 @@
 | `description` | 否 | 用例描述 | 详细说明（可选） |
 | `component_type` | 否 | 测试类别 | `界面` / `接口` / `数据库`（与 `case.xsd` 一致），仅做分类标记 |
 | `priority` | 否 | 优先级 | `P0` / `P1` / `P2` / `P3`，CLI 可按优先级过滤 |
-| `tags` | 否 | 用例标签 | 逗号分隔；与 `<cases tags>` 合并后参与 `--tags` / `--exclude-tags` 过滤（v11.8.9） |
+| `tags` | 否 | 用例标签 | 逗号分隔；与 `<cases tags>` 合并后参与 `--tag` / `--exclude-tag` 过滤（v11.8.9） |
 | `expect_fail` | 否 | 预期失败 | `是` / `否`（默认 `否`），标记为预期失败的用例失败时不计入 FAIL |
 | `roam` | 否 | 是否允许显式漫游 | `是` / `否`（默认 `否`）。仅 UI 用例可设为 `是`：`component_type` 可为空或为 `界面`；非空且不是 `界面` 时抛 `SKI803` |
 
@@ -152,17 +152,18 @@
 |------|------------------|
 | `close` | 关闭浏览器 |
 | `type` | UI 批量输入 |
-| `verify` | 批量验证（UI / 接口）；严格全匹配，任一字段不一致即步骤失败 |
+| `verify` | 批量验证（UI / 接口 / DB）；默认 `strict`（UI / DB 模型的 `_verify` 行须包含模型全部字段），`match_mode="subset"` 只比较写出的字段；接口模型只比较 `_verify` 行中写出且模型已声明的字段，`status` 恒按 HTTP 状态码比较（[§5.7.3](#573-strict--subset-与-blank)）；任一比较字段不一致即步骤失败 |
 | `wait` | 等待 |
 | `navigate` | 打开 URL |
-| `assert` | 断言 |
+| `launch` | 启动桌面应用：`launch <Desktop模型> <DataID>`（模型 `driver_type="windows\|macos"`，数据行写 `app_path` / `app_name`）；Web 模型或 `model` 为空时只接受 http(s) URL，等同 `navigate`（[§13.2](#132-launch-关键字)） |
+| `assert` | 图片 / 视频视觉断言：`data="assert[type=image\|video,reference=...,threshold=0.8]"`，相似度不足时步骤失败（[§8.1](#81-ui-操作关键字)）；值断言请用 `verify` |
 | `upload_file` | 上传文件 |
 | `clear` | 清空输入 |
 | `get_text` | **已废弃**，请改用 `get` |
 | `get` | 三模式取值：`get ModelName D001`（模型模式，推荐）/ `get #selector`（UI 选择器，低级补充）/ `get var_name`（命名访问） |
 | `evaluate` | 执行 JS 表达式（**仅 Web**，逃生舱，结构化结果保留原类型）；`data="file:fun/js/x.js"` 引用模块内脚本（v11.6.0，见 [§8.7](#87-evaluate--逃生舱与-file-脚本v1160)） |
 | `send` | 发 HTTP 请求 |
-| `set` | 写入命名变量：`set \| key=value`，写入 context.named 并写入 history |
+| `set` | 写入命名变量：`set \| key=value`，写入 context.named，**不进入 Return 历史**（[§7.5](#75-哪些关键字会产生-return-值)） |
 | `DB` | 执行 SQL |
 | `run` | 执行 `fun/` 下脚本 |
 | `check` | 与 `verify` 等价（兼容） |
@@ -225,7 +226,44 @@
 
 | 属性 | 必需 | 说明 |
 |------|------|------|
-| `condition` | 是 | 条件表达式，支持 `${Return[-N]}` 和变量引用 |
+| `condition` | 是 | 条件表达式，语法见下方「条件写法」 |
+
+`<else>` 既可以写在 `<if>` 内部（如上例），也可以和 `<elif>` 一起作为**紧跟在 `</if>` 之后的兄弟元素**；需要多分支时用后一种写法：
+
+```xml
+<test_case>
+  <test_step action="send" model="QueryAPI" data="Q001"/>
+  <if condition="${Return[-1].status} == 200">
+    <test_step action="verify" model="QueryAPI" data="V001"/>
+  </if>
+  <elif condition="${Return[-1].status} == 404">
+    <test_step action="verify" model="QueryAPI" data="V404"/>
+  </elif>
+  <else>
+    <test_step action="screenshot" model="" data="error.png"/>
+  </else>
+</test_case>
+```
+
+**条件写法**
+
+| 类别 | 写法 | 说明 |
+|------|------|------|
+| Return 字段比较 | `${Return[-1].status} == 200`，或 `${Return[-1].status == 200}` | 两种写法等价；字段不存在时取空串；`Return[N]` 下标越界时条件按 False |
+| 变量比较 | `${var} == v` | `var` 可以是 `set` 写入的变量或 `<loop var>` 的循环变量；只能作为比较的操作数，单独写 `${var}` 不会按真值判断 |
+| 比较运算符 | `==` `!=` `>` `<` `>=` `<=` `contains` | `==` / `!=` / `contains` 按字符串比较；`>` `<` `>=` `<=` 按数值比较，两边无法转成数字时条件无法评估。属性里的 `<` 要写成 `&lt;` |
+| 页面状态 | `element_exists(loc)`、`element_not_exists(loc)` | `loc` 写 `类型=值`（类型为 id/class/css/xpath/text/name/tag，如 `xpath=//button`），否则按 CSS 选择器处理 |
+| 页面文字 | `text_contains(文字)`、`text_not_contains(文字)` | 读取页面文字时出错按 False |
+| 上一步 verify | `verify_fail` | 上一个返回值是失败的 verify 结果时为 True |
+| 逻辑组合 | `A AND B`、`A OR B`、`NOT A` | 不区分大小写；引号和括号内的 AND / OR 不拆分 |
+
+**条件无法评估时（当前行为，可能调整）**：
+
+- 引用了未定义的变量、`element_exists` 定位时出错、数值比较两边不是数字等情况，`<if>` 的条件按"无法评估"处理：记录警告并截图，**整个 `if/elif/else` 块都不执行**（包括 `else`），步骤不判失败。
+- `<elif>` 的条件无法评估时只跳过这一个 `elif`，继续评估后面的 `elif`，都不成立时会执行 `else`。
+- 无法识别的写法（不属于上表任何一类）按 **False** 处理，并记录警告"未知条件类型"。
+
+因此不要依赖"条件写错就跳过"：执行日志中每个条件都有一行 `if (...) -> True` / `-> False` / `-> 评估失败（跳过）`，调试时据此确认分支走向。
 
 **嵌套规则**：`<if>` 最多嵌套 2 层（外层 `<if>` 内可再嵌套一层 `<if>`，但第 2 层内不可再嵌套）。
 
@@ -244,5 +282,7 @@
 |------|------|------|
 | `range` | 是 | 循环范围：`1-5` 为闭区间（1 到 5）；`1,2,3` 为逐个列举的取值列表（注意 `1,5` 只循环 1 和 5 两次） |
 | `var` | 否 | 循环变量名，可在内部步骤的 `data` 中通过 `${var}` 引用（如 `D00${i}`） |
+
+`<loop>` 内可以写 `<test_step>`、`<business_call>` 和 `<if>/<elif>/<else>`（v11.8.6），循环变量可直接用在条件里，如 `<if condition="${i} == 3">`。`<loop>` 内不能再嵌套 `<loop>`。
 
 ---

@@ -23,25 +23,24 @@
 |------|------|------|------|
 | `name` | 是 | 模型名称，必须与数据表名一致 | — |
 | `type` | 否 | 模型类别（默认 `ui`） | `ui` / `interface` / `database` |
-| `driver_type` | 否 | 驱动类型，决定使用哪个驱动执行 | `web` / `interface` / `windows` / `macos` / `android` / `ios` / `other` |
+| `driver_type` | 否 | 驱动类型，决定使用哪个驱动执行 | `web` / `interface` / `windows` / `macos` / `android` / `ios` / `mobile`（平台无关移动端，见 [§15.2](#152-driver_typemobile)）/ `other` |
 | `servicename` | 否 | 服务名（保留） | — |
 | `connection` | 否 | 数据库连接组名（仅 `type="database"` 时使用） | GlobalValue 中的组名 |
 
 ### 4.2 元素属性说明
 
-**与 `model.xsd` 一致**：`<element>` 上 **`name` 为唯一必填属性**；`type`（属性）、`value`、`interfacename`、`group` 均为可选（有默认值时可省略）。
+**与 `model.xsd` 一致**：`<element>` 上 **`name` 为唯一必填属性**；`type`（属性）、`interfacename`、`group` 均为可选。每个 `<element>` **至少有 1 个** `<location>` 子节点（`page` 元素、多定位器都按这个规则写）。
 
 | 属性/子节点 | XSD | 实践建议 | 说明 |
 |------------|-----|----------|------|
 | `name` | **必填** | **必填** | 元素名称，**必须与数据表字段 name 一致**（区分大小写） |
-| `type`（element 属性） | 可选 | Web/接口模型建议填 | **完整格式**：驱动类型 `web` / `interface` / `other`。**简化格式**：与 `LocatorType` 相同，表示定位类型，需配合 `value` |
-| `value` | 可选 | 简化格式建议成对出现 | 与简化格式 `type` 配对，表示定位值 |
+| `type`（element 属性） | 可选 | Web/接口模型建议填 | 驱动类型：`web` / `interface` / `android` / `ios` / `mobile` / `other` 等，**不是**定位类型 |
 | `<type>` 子节点 | 可选 | Web 常用 | UI 控件语义：input / button / select / text / textarea |
-| `<location type="...">` | 可选 | 完整格式常用 | `location@type` 取值见 [4.3](#43-定位类型)（`LocatorType`） |
+| `<location type="...">` | **必填（1..n）** | — | `location@type` 取值见 [4.3](#43-定位器类型完整)（`LocatorType`）；写多个时按 `priority` 依次尝试（[4.5](#45-多定位器格式自动切换)） |
 | `<location frame="...">` | 可选 | 元素在 iframe 内时填写 | v11.6.0：定位 `<iframe>` 的 CSS 选择器，多层用 ` >> ` 串联，见 [4.3.5](#435-iframe-内元素locationframev1160) |
 | `<desc>` | 可选 | — | 元素描述，便于维护 |
 
-> **运行时**：除 XSD 外，实际执行仍需要可用的定位信息——**完整格式**建议写 `type="web|interface|other"` + `<location>`；**简化格式**写 `type`（定位类型）+ `value`。
+> `<element>` 上没有 `value` 属性；`<element name="x" type="id" value="..."/>` 这类旧的简化格式已移除（v5.4.0），XSD 校验和解析都会报错（见 [4.4](#44-简化格式--已移除v540)）。
 
 ### 4.3 定位器类型（完整）
 
@@ -66,15 +65,20 @@
 
 | type 值 | 格式 | 说明 | 示例 |
 |---------|------|------|------|
-| `vision` | 图片匹配 | 通过截图/图片模板匹配定位 | `<location type="vision">img/login_btn.png</location>` |
+| `vision` | 语义描述 | 用自然语言描述目标元素，由视觉感知后端（VLM）匹配 | `<location type="vision">登录按钮</location>` |
+| `vision_image` | 参考图路径 | 截图与参考图做模板匹配（离线，不调用 AI） | `<location type="vision_image">img/login_btn.png</location>` |
 | `ocr` | 文字识别 | 通过 OCR 识别文字定位 | `<location type="ocr">登录</location>` |
 | `vision_bbox` | 坐标定位 | 直接使用坐标 `x1,y1,x2,y2` | `<location type="vision_bbox">100,200,150,250</location>` |
 
 **视觉定位器说明**：
 
-- **`vision` 图片定位器**：
-  - 值为图片路径（相对于 `images/` 目录）
-  - 通过图像匹配算法定位
+- **`vision` 语义定位器**：
+  - 值为元素的语义描述（如「登录按钮」），不是图片路径
+  - 需要配置视觉感知后端，见 [第 12 章](#12-视觉定位器vision--vision_bbox) 与 `VISION_LOCATION.md`
+  - 适用于：动态 ID / class、无明显属性的元素
+
+- **`vision_image` 图片模板定位器**：
+  - 值为参考图路径；相对路径按 `model.xml` 所在目录（`model/`）解析，也可写绝对路径
   - 适用于：按钮图标、Logo、固定 UI 元素
 
 - **`ocr` 文字定位器**：
@@ -117,21 +121,27 @@
 
 **示例对比**：
 ```xml
-<!-- 同一个登录按钮，三种定位方式 -->
+<!-- 同一个登录按钮，四种视觉定位方式 -->
 
-<!-- 方式1: 图片匹配 - 使用按钮截图 -->
+<!-- 方式1: 语义描述 - 由视觉感知后端匹配 -->
 <element name="loginBtn" type="web">
     <type>button</type>
-    <location type="vision">img/login_btn.png</location>
+    <location type="vision">登录按钮</location>
 </element>
 
-<!-- 方式2: OCR文字识别 - 识别"登录"二字 -->
+<!-- 方式2: 图片模板匹配 - 使用按钮截图（相对 model/ 目录） -->
+<element name="loginBtn" type="web">
+    <type>button</type>
+    <location type="vision_image">img/login_btn.png</location>
+</element>
+
+<!-- 方式3: OCR文字识别 - 识别"登录"二字 -->
 <element name="loginBtn" type="web">
     <type>button</type>
     <location type="ocr">登录</location>
 </element>
 
-<!-- 方式3: 坐标定位 - Agent探索后生成 -->
+<!-- 方式4: 坐标定位 - Agent探索后生成 -->
 <element name="loginBtn" type="web">
     <type>button</type>
     <location type="vision_bbox">100,200,150,250</location>
@@ -225,6 +235,7 @@ prompt 弹窗填 `accept:输入文本`，例如 `accept:加急` 表示输入「�
 ```
 
 - `frame` 只对 `id` / `class` / `css` / `xpath` / `text` / `tag` / `name` 有效；视觉定位器和 `page` 不接受 `frame`。
+- iframe 内元素在 `type` 数据行中支持 `click` / `double_click` / `right_click` / `hover` / `select【】` / `key_press【】` 和文本输入；写 `scroll` / `scroll【】` / `drag【】` 会直接报参数错误。
 - iframe 找不到时按定位失败报错，错误信息指出是哪一层 frame。
 - `switch_frame` 不是关键字，不能写在 `action` 中。
 

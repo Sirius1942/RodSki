@@ -57,6 +57,7 @@ python3 rodski-demo/run_regression.py --desktop       # 额外执行会操作鼠
 | `ui_actions/` | UI 原子动作（key_press/drag/scroll）、控制值、class/tag/text 定位器、verify 操作符、launch、assert 图片、Return 引用、生成值 | `run_acceptance.py` |
 | `network/` | mock_route/clear_routes、wait_for_response/request_log、JS 覆盖率 | `run_acceptance.py`（仓库根目录执行） |
 | `data_driven/` | 计划级数据驱动（v11.9，CORE §7.8）：driver 表展开实例、部分替换 / BLANK、Web + 接口 + DB、实例隔离与失败隔离、`--data-id`、执行前校验、`create-driver` 等数据命令与旧库迁移、备注 | `run_acceptance.py`（DD-01~07、11~14、17） |
+| `plan_suites/` | 测试计划测试套（v11.11，CORE §7.9）：`<suite>` 划分、归属裁决、能力聚合（混合用例不拆分）、编译清单与 digest、`--suite` / `--expect-digest`、`--workers` 按套并发与 `max_parallel`、数据驱动不拆分 | `run_acceptance.py`（PS-01~21） |
 | `pause_takeover/` | CDP 共享浏览器暂停接管 | `run_demo.py` |
 
 ### `mock_api/`
@@ -70,7 +71,7 @@ python3 rodski-demo/run_regression.py --desktop       # 额外执行会操作鼠
 
 | 模块 | 验收内容 | 规定入口 |
 |------|---------|---------|
-| `app/` | 自建 Android/iOS App、移动端 AutoWait、录像；Web + App 混合用例的数据驱动（v11.9） | `scripts/run_autowait_acceptance.py`、`rodski run case/login.xml --udid emulator-5554`、`scripts/run_data_driven_acceptance.py`（DD-10） |
+| `app/` | 自建 Android/iOS App、移动端 AutoWait、录像；Web + App 混合用例的数据驱动（v11.9）；测试套按设备分发（v11.11） | `scripts/run_autowait_acceptance.py`、`rodski run case/login.xml --udid emulator-5554`、`scripts/run_data_driven_acceptance.py`（DD-10）、`scripts/run_plan_suites_acceptance.py`（PM-01~03，测试套按设备分发，需 2 台设备） |
 | `qq_music/` | 第三方 App 示例 | 需安装 QQ 音乐 APK |
 
 ### `desktop_vision/` 需桌面会话或视觉服务

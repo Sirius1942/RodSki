@@ -14,7 +14,7 @@ v7.3.0 补全了 iOS 原生自动化支持。核心原则：
 
 新增 `driver_type="mobile"` 表示平台无关的移动端模型，运行时由 `--platform` 参数或 `Mobile.Platform` 决定实际平台。
 
-`driver_type` 完整枚举：`web` / `interface` / `database` / `windows` / `macos` / `android` / `ios` / **`mobile`**（v7.3.0 新增）
+`driver_type` 完整枚举：`web` / `interface` / `windows` / `macos` / `android` / `ios` / **`mobile`**（v7.3.0 新增）/ `other`。数据库模型用 `type="database"` 表示，不写 `driver_type`。
 
 ### 15.3 定位器 platform 属性
 

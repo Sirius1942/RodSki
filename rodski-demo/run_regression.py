@@ -124,6 +124,17 @@ def need_android() -> Optional[str]:
     return None
 
 
+def need_two_android() -> Optional[str]:
+    reason = need_android()
+    if reason:
+        return reason
+    out = subprocess.run(["adb", "devices"], capture_output=True, text=True).stdout
+    online = [line for line in out.splitlines()[1:] if line.strip().endswith("device")]
+    if len(online) < 2:
+        return f"测试套分发验收需 2 台 Android 设备（DeviceCount=2），当前 {len(online)} 台"
+    return None
+
+
 def entries() -> List[Entry]:
     L, D, M, P = DEMO / "local", DEMO / "demosite", DEMO / "mobile", DEMO / "plugins"
     E: List[Entry] = []
@@ -163,6 +174,8 @@ def entries() -> List[Entry]:
         Entry("demosite", "demosite/network", [PY, str(D / "network/run_acceptance.py")], service=demosite),
         Entry("demosite", "demosite/data_driven 计划级数据驱动", [PY, str(D / "data_driven/run_acceptance.py")],
               service=demosite),
+        Entry("demosite", "demosite/plan_suites 测试套与分发清单", [PY, str(D / "plan_suites/run_acceptance.py")],
+              service=demosite),
         Entry("demosite", "demosite/load case/", rodski("run", str(D / "load/case"), "--headless"),
               expect="5/5", service=demosite),
         Entry("demosite", "demosite/core_keywords", rodski("run", str(D / "core_keywords/case"), "--headless"),
@@ -181,6 +194,8 @@ def entries() -> List[Entry]:
         Entry("mobile", "mobile/app login.xml", [PY, "-c", _MOBILE_LOGIN_SNIPPET], expect="3/3", blocked=need_android),
         Entry("mobile", "mobile/app Web + App 数据驱动", [PY, str(M / "app/scripts/run_data_driven_acceptance.py")],
               blocked=need_android),
+        Entry("mobile", "mobile/app 测试套按设备分发", [PY, str(M / "app/scripts/run_plan_suites_acceptance.py")],
+              blocked=need_two_android),
         Entry("mobile", "mobile/qq_music", blocked=lambda: "需 com.tencent.qqmusic APK，模拟器未安装"),
     ]
     # desktop_vision

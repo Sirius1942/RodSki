@@ -324,7 +324,7 @@ class ResultWriter:
         summary_elem.set("average_time", summary["average_time"])
         summary_elem.set("start_time", summary["start_time"])
         summary_elem.set("end_time", summary["end_time"])
-        for meta_key in ("evidence_mode", "session_mode"):
+        for meta_key in ("evidence_mode", "session_mode", "plan_id", "suites", "digest"):
             meta_value = (getattr(self, "run_meta", None) or {}).get(meta_key)
             if meta_value:
                 summary_elem.set(meta_key, str(meta_value))
@@ -338,6 +338,9 @@ class ResultWriter:
             case_file = result.get("case_file", "")
             if case_file:
                 result_elem.set("case_file", str(case_file))
+            # v11.11.0 测试套（CORE §7.9）
+            if result.get("suite_id"):
+                result_elem.set("suite_id", str(result["suite_id"]))
             # v11.9.0 计划级数据驱动实例（CORE §7.8.5）：case_id 为 用例ID[DataID]
             if result.get("driver"):
                 for attr in ("instance_id", "template_case_id", "driver", "data_id", "instance_title", "replacements"):

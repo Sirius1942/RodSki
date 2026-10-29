@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Windows 桌面用例 → ["desktop"]，套 tags 自动含 os:windows（PS-07，只编译） -->
+<cases tags="plan-suites,compile-only">
+    <case execute="是" id="PS_WIN" title="Windows 计算器" priority="P2">
+        <test_case>
+            <test_step action="verify" model="WinCalc" data="W001"/>
+        </test_case>
+    </case>
+</cases>

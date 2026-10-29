@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  测试套（CORE §7.9）：套内用例顺序执行，套与套之间可以并发分配；max_parallel=2 → 同时最多执行 2 个套。
+  - order：case_dir order 命中 create.xml / special.xml，但 special.xml::PS_SPECIAL 被 special 套显式写出，显式优先
+  - PS_ORDER_1 按驱动表 OrderMatrix 展开为 2 个实例，实例全部留在 order 套、按行顺序执行
+  - common/login.xml 的两条用例分别属于 order、admin 两个套 → 编译时 [WARN]
+  - archive 套停用：PS_EXTRA 记为 SKIP（suite_execute_false）
+-->
+<test_plan id="shop_full" kind="suite" title="商城全量（测试套）" max_parallel="2">
+    <suite id="order" title="下单流程">
+        <case_dir path="order"/>
+        <case file="order/create.xml" id="PS_ORDER_1" data_driven="OrderMatrix"/>
+        <case file="common/login.xml" id="PS_LOGIN_API"/>
+    </suite>
+    <suite id="special" title="特殊订单">
+        <case file="order/special.xml" id="PS_SPECIAL"/>
+    </suite>
+    <suite id="admin" title="后台管理" tags="后台">
+        <case_dir path="admin"/>
+        <case file="common/login.xml" id="PS_LOGIN_UI"/>
+    </suite>
+    <suite id="archive" title="归档（停用）" execute="否">
+        <case file="common/extra.xml" id="PS_EXTRA"/>
+    </suite>
+</test_plan>

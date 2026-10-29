@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 纯 iOS 用例 → ["ios"]；caps_cross 把它和 PS_MIX_APP 放进同一套 → 跨平台报错（PS-08，只编译） -->
+<cases tags="plan-suites,compile-only">
+    <case execute="是" id="PS_IOS" title="iOS 首页" priority="P1">
+        <test_case>
+            <test_step action="navigate" model="" data="app://ios/com.rodski.demo"/>
+            <test_step action="verify" model="IosHome" data="I001"/>
+        </test_case>
+    </case>
+</cases>

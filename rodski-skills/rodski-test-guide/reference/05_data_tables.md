@@ -16,7 +16,7 @@
 **约束：**
 - 逻辑表名必须与模型名一致
 - 同一逻辑表所有行的字段集合必须完全一致（与 schema 一致）
-- 验证数据表（`_verify` 后缀）`table_kind='verify'`，输入数据表 `table_kind='data'`
+- `table_kind` 取值：`data`（输入数据表）/ `verify`（验证数据表，`_verify` 后缀）/ `driver`（v11.9.0 数据驱动表，见 [§10.10](#1010-计划级数据驱动v1190)）
 - v6.7.6 起，SQLite 数据表严格校验字段一致性。同一逻辑表的每一行必须包含 schema 声明的全部字段。缺字段必须显式填写 BLANK、NULL 或 NONE。
 
 ### 5.2 写入数据的方式
@@ -27,6 +27,8 @@
 rodski data import <module>            # 默认跳过已存在的表
 rodski data import <module> --overwrite  # 覆盖已存在的表
 ```
+
+`import` 读取模块 `data/` 下的 `data.xml` / `data_verify.xml`。写库前逐表校验字段集合：同一张表中有行缺字段时，逐行列出 `表.行: missing=[...]`，**整体不写入**、退出码 1（v11.8.23）。先在 XML 中为缺的字段补 `BLANK` / `NULL` / `NONE` 再导入。
 
 XML 格式（仅用于迁移，不再作为运行时数据源）：
 ```xml
@@ -111,11 +113,17 @@ rodski data show <module> <table> <data_id>
 # 列出逻辑表中的前 N 行
 rodski data query <module> <table> --limit 20
 
-# 校验模块数据层
-rodski data validate <module>
+# 校验模块数据层；--orphans 额外检查未被用例引用的逻辑表与 DataID
+rodski data validate <module> [--orphans]
+
+# 只读导出全部数据（stdout，稳定排序，便于 diff / 评审；默认 yaml）
+rodski data dump <module> [--format yaml|json]
 
 # 从 XML 迁移数据到 data.sqlite
 rodski data import <module> [--overwrite]
+
+# 为逻辑表新增字段，并给所有已有行回填默认值（默认 BLANK）
+rodski data add-field <module> <table> <field> [--default BLANK]
 
 # 行级编辑（v11.6.0）：直接改 data.sqlite，改完即可重跑，无需 import
 rodski data set <module> <table> <data_id> field=value [field=value ...]   # 修改已有行
@@ -173,6 +181,19 @@ verify 中：`BLANK` 在 UI / DB 模型跳过、接口模型期望空字符串�
 
 > **注意**：动作关键字使用中文方括号 **【】** 包裹参数。
 
+#### 不同定位方式支持的动作
+
+| 元素定位方式 | 支持的动作值 | 其他值 |
+|-------------|-------------|--------|
+| 传统定位器（id / css / xpath 等） | 上表全部 | — |
+| iframe 内元素（`location@frame`） | `click` / `double_click` / `right_click` / `hover` / `select【】` / `key_press【】` / 文本输入 | `scroll` / `drag【】` 报参数错误 |
+| 截图匹配命中（`vision` / `vision_image`） | `click` / `double_click` / `right_click` / `hover` / 文本输入（先点击聚焦、全选清空，再输入） | `select【】` / `key_press【】` / `drag【】` 等会被当作普通文本输入 |
+
+**scroll 的注意事项**：
+
+- `scroll` / `scroll【x,y】` 是页面级滚动（`scroll【x,y】` 省略 y 时为 300），不会把该字段对应的元素滚动到可视区；但该字段的元素仍要先定位成功（受 `AutoWait` 约束）。
+- 当前实现按"以 `scroll` 开头"识别滚动动作，因此 `scrolling`、`scroll test` 这类普通文本也会被当成滚动、不会输入（已知问题，可能调整）。需要输入这类文本时暂时避免让值以 `scroll` 开头。
+
 #### key_press 按键参考
 
 `key_press` 支持 Playwright 的所有按键名称：
@@ -187,7 +208,7 @@ verify 中：`BLANK` 在 UI / DB 模型跳过、接口模型期望空字符串�
 | 多键组合 | `Control+Shift+I` | `key_press【Control+Shift+I】` |
 | F 功能键 | `F1` `F5` `F12` | `key_press【F5】` |
 
-> 组合键使用 `+` 连接，修饰键在前、普通键在后。macOS 上 `Control` 对应 `Command` 键行为。
+> 组合键使用 `+` 连接，修饰键在前、普通键在后。
 >
 > 按键作用于该字段对应的元素：Web 驱动先聚焦该元素再按键（v11.8.27 起；此前发往当前焦点元素）。macOS 上组合键中的 `Control` 修饰键按 `Command` 执行（`Control+A` 全选），单独按 `Control` 不转换。
 
@@ -331,7 +352,8 @@ UI 模型的 `verify` 会在自动等待 `DefaultValue.AutoWait` 毫秒内（例
 
 - strict 模式下某行一半以上字段都是 `BLANK` 时，`rodski case lint` 会提示改用 `match_mode="subset"`（INFO）。
 - 缺字段的报错会直接给出这两种修法。
-- 接口模型（v11.8.14 起）不受"全部字段"约束：只比较 `_verify` 行中写出的字段，请求字段与 `_method` / `_url` 等控制元素不用写进 `_verify`；`status` 列即使模型没有声明 `status` 元素也按 HTTP 状态码校验。
+- 接口模型（v11.8.14 起）不受"全部字段"约束：只比较 `_verify` 行中写出、且模型中已声明的字段（`status` 例外），请求字段与 `_method` / `_url` 等 `_` 前缀控制元素不用写进 `_verify`，写了也不比较；`status` 列即使模型没有声明 `status` 元素也按 HTTP 状态码校验。
+- 一行中可比较的字段数为 0 时（例如接口 `_verify` 行只写了 `_` 前缀控制元素或模型未声明的列），步骤报"比较字段数为 0，不允许空校验通过"并失败。
 
 #### 5.7.4 什么时候还用 evaluate
 

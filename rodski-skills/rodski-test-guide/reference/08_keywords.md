@@ -13,10 +13,33 @@
 | **wait** | 等待指定秒数（固定等待，仅用于演示 / 确需固定时长；等异步结果请直接 `verify`） | — | 秒数（如 `3`） |
 | **clear** | 清空输入框 | — | CSS 选择器 |
 | **get** | 三模式取值：model+DataID → 模型元素文本（推荐）；CSS 选择器 → UI 元素文本（低级补充）；变量名 → 命名变量读取 | 模型名（可选） | DataID 或 CSS 选择器 或 变量名 |
-
-> **UI 元素取值推荐方式**：优先使用 `get ModelName DataID`（模型模式）或 `verify` + model + 数据表。`get #selector` 直接获取 UI 元素文本属于低级补充手段，不推荐在常规业务用例主链路中使用。
 | **screenshot** | 手动截图 | — | 文件路径 |
 | **upload_file** | 上传文件 | — | 文件路径 |
+| **launch** | 启动桌面应用（Desktop 模型）；Web 模型或 model 为空时只接受 http(s) URL，等同 navigate，见 [§13.2](#132-launch-关键字) | Desktop 模型名（`driver_type="windows\|macos"`）或空 | DataID（数据行含 `app_path` / `app_name`）或 http(s) URL |
+| **assert** | 图片 / 视频视觉断言，相似度低于阈值时步骤失败（v11.8.17 起） | — | `assert[type=image,reference=...,threshold=0.8]` |
+
+> **UI 元素取值推荐方式**：优先使用 `get ModelName DataID`（模型模式）或 `verify` + model + 数据表。`get #selector` 直接获取 UI 元素文本属于低级补充手段，不推荐在常规业务用例主链路中使用。
+
+**assert 视觉断言参数**（写在 `data` 中，`assert[...]` 包装可省略，逗号分隔 `key=value`）：
+
+| 参数 | 适用 | 说明 |
+|------|------|------|
+| `type` | 全部 | `image`（默认）/ `video` |
+| `reference` | 全部 | 预期图片路径，**必填**；相对路径按 `<模块>/images/assert/` 解析 |
+| `threshold` | 全部 | 相似度阈值，默认 `0.8` |
+| `scope` | 全部 | `full`（全屏，默认）/ `element`（配合 `element_bbox=x,y,w,h`） |
+| `wait` | 全部 | 轮询等待**秒数**，默认 `0`（立即断言） |
+| `video_source` | video | `recording`（本用例录像，默认）或视频文件路径 |
+| `position` | video | 关键帧位置 `start` / `middle` / `end` / `any`（默认） |
+| `time_range` | video | 设计为时间范围 `start,end`（秒）；当前参数解析会在逗号处截断，写了也不生效（已知问题） |
+
+```xml
+<test_step action="assert" model="" data="assert[type=image,reference=login_ok.png,threshold=0.85]"/>
+```
+
+- 图片断言失败时，当前截图保存到 `<模块>/images/assert/failures/`；返回值含 `matched`、`similarity`。
+- 需要 OpenCV 与 numpy（`pip install opencv-python numpy`），rodski 默认依赖不包含它们。
+- `assert` 不做值比较：文本、字段、接口响应、DB 结果的断言一律用 `verify`。
 
 > `click`、`select`、`hover`、`scroll`、`double_click`、`right_click`、`key_press`、`drag` 等 UI 原子动作不作为独立关键字使用，而是写在**数据表的 field 值**中，由 `type` 批量模式自动识别执行。详见 [5.4 批量输入时的特殊值](#54-批量输入时的特殊值)。
 
@@ -187,11 +210,22 @@ DB 用例格式：
 
 | 函数 | 作用 |
 |------|------|
-| `mock_route(url_pattern, status, body, content_type)` / `clear_routes()` | Mock / 清除接口响应（仅 Playwright） |
-| `wait_for_response(url_pattern, timeout)` | 等待网络请求完成 |
-| `start_js_coverage()` / `stop_js_coverage(output)` | JS 覆盖率 |
-| `reset_request_log()` / `get_request_log()` | 请求日志 |
+| `mock_route(url_pattern, status=200, body='', content_type='application/json')` | Mock 接口响应（仅 Playwright）。`url_pattern` 默认按 Playwright glob 匹配（如 `**/api/users`），加 `re:` 前缀表示正则 |
+| `clear_routes()` | 清除全部 mock（需要 Playwright ≥ 1.29，低版本返回 False 并告警） |
+| `wait_for_response(url_pattern, timeout=30)` | 等待**本步骤开始之后**到达、URL **包含** `url_pattern`（子串匹配，不是 glob）的响应；`timeout` 单位秒。返回 `{url, status, body}`，body 能解析为 JSON 时另有 `json`。超时步骤失败，报"等待网络响应超时" |
+| `start_js_coverage()` / `stop_js_coverage(output='coverage.json')` | JS 覆盖率，仅 Chromium（其他浏览器 `start_js_coverage` 返回 `success=False`）；`output` 相对路径按当前工作目录解析 |
 | `save_auth_state(name)` / `use_auth_state(name)` | 登录态复用（v11.6.0），见 [§8.8](#88-登录态复用save_auth_state--use_auth_statev1160) |
+
+只注册了上表这些函数；其他名字会被当作 `fun/` 下的脚本，找不到时报 SKI312。
+
+**`wait_for_response` 的用法**：调用之前已经返回的响应不会被匹配，所以它只适合等待"之后才到达"的异步响应（轮询、延迟请求）。触发请求的动作必须晚于本步骤开始，例如页面在延迟后自动发请求，或用 `evaluate` 发一个延迟的 fetch：
+
+```xml
+<test_step action="evaluate" model="" data="setTimeout(function(){ fetch('/api/orders'); }, 1500)"/>
+<test_step action="run" model="" data="wait_for_response(url_pattern='/api/orders', timeout=10)"/>
+```
+
+先点击按钮、再写 `wait_for_response` 时，如果响应在点击步骤内已经返回，`wait_for_response` 会一直等到超时。
 
 ### 8.7 evaluate — 逃生舱与 file: 脚本（v11.6.0）
 

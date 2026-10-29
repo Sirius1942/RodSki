@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  测试套并发分发（v11.11.0，CORE §7.9）：套内顺序执行，套与套之间由队列分发到不同执行器。
+  - login_fail / order_flow / login_ok：纯 Android，一个套占一台设备
+  - mix：Web + Android 混合用例（含数据驱动 MixMatrix），整条用例需要同时具备浏览器与设备的执行器，不拆分
+  - web_note：纯 Web，不需要设备，由本地 worker 执行
+  验收脚本：scripts/run_plan_suites_acceptance.py
+-->
+<test_plan id="plan_suites_android" kind="suite" title="Android 测试套并发分发" max_parallel="3">
+    <suite id="login_fail" title="登录失败">
+        <case file="login.xml" id="APP002"/>
+    </suite>
+    <suite id="order_flow" title="登录到订单详情">
+        <case file="login.xml" id="APP003"/>
+    </suite>
+    <suite id="login_ok" title="登录成功">
+        <case file="login.xml" id="APP001"/>
+    </suite>
+    <suite id="mix" title="Web + App 混合">
+        <case file="web_app_mix.xml" id="DD_MIX" data_driven="MixMatrix"/>
+    </suite>
+    <suite id="web_note" title="纯 Web 备注">
+        <case file="web_note.xml" id="WEB_NOTE01"/>
+    </suite>
+</test_plan>

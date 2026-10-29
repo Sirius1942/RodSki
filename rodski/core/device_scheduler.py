@@ -2,11 +2,12 @@
 
 设计要点（三条，其余都是推论）：
 
-1. **并行单元 = 计划**。队列里放的对象只有 :class:`PlanTask`（一个计划一个），
-   ``claim()`` 是加锁的 ``deque.popleft()``，不存在任何发放 case/scenario/step
-   的 API —— 「一个 plan 只用一个 app 设备」是**结构上**成立的，不靠运行时校验。
+1. **并行单元 = 测试套**（v11.11.0，CORE §7.9）。队列里放的对象只有 :class:`PlanTask`
+   （一个启用的测试套一个；计划不写 ``<suite>`` 时整个计划一个），由 ``plan compile``
+   同源的编译清单生成。``claim()`` 加锁整体出队，不存在任何发放 case/scenario/step
+   的 API —— 「一个测试套只用一台设备、套内顺序执行」是**结构上**成立的，不靠运行时校验。
 
-2. **隔离单元 = 操作系统进程**。每个 worker 拉起一个 ``rodski run @plan_id``
+2. **隔离单元 = 操作系统进程**。每个 worker 拉起一个 ``rodski run @plan_id [--suite ID]``
    子进程，复用既有的完整链路（合规检查 → hooks → SKIExecutor → appium →
    ResultWriter → 退出码）。不用线程，因为
    ``DriverFactory._drivers`` / ``_driver_configs`` 是进程级 class dict：
@@ -100,17 +101,31 @@ class Device:
 
 @dataclass
 class PlanTask:
-    """队列里的一个整体计划 —— 调度粒度就是它，不可再分。"""
+    """队列里的一个调度单元 —— 计划的一个测试套（v11.11.0），不可再分。
+
+    计划不写 ``<suite>`` 时 ``suite_id`` 为 None，单元就是整个计划（与 v11.10 一致）。
+    """
 
     plan_id: str
     plan_path: Path
     kind: str = "suite"
     attempts: int = 0
     requeued_from: Optional[str] = None
-    device_free: bool = False      # 纯 web 计划：不需要设备，队列外先跑
+    device_free: bool = False      # 不需要移动设备：由本地 worker 执行
+    suite_id: Optional[str] = None
+    digest: str = ""               # 编译清单 digest，子进程用 --expect-digest 校验
+    plan_max_parallel: Optional[int] = None   # 同一计划同时执行的测试套上限
+
+    @property
+    def key(self) -> str:
+        return f"{self.plan_id}/{self.suite_id}" if self.suite_id else self.plan_id
+
+    @property
+    def file_stem(self) -> str:
+        return f"{self.plan_id}__{self.suite_id}" if self.suite_id else self.plan_id
 
     def __str__(self) -> str:
-        return self.plan_id
+        return self.key
 
 
 @dataclass
@@ -124,6 +139,8 @@ class PlanOutcome:
     attempt: int
     status: str                     # PASS | FAIL | ERROR
     exit_code: int
+    suite_id: Optional[str] = None
+    digest: str = ""
     pass_rate: str = ""
     claimed_at: str = ""
     started_at: str = ""
@@ -139,6 +156,8 @@ class PlanOutcome:
     def to_dict(self) -> Dict[str, Any]:
         return {
             "plan_id": self.plan_id,
+            "suite_id": self.suite_id,
+            "digest": self.digest,
             "plan_path": self.plan_path,
             "kind": self.kind,
             "device_udid": self.device_udid,
@@ -160,42 +179,72 @@ class PlanOutcome:
 
 
 class PlanQueue:
-    """动态领取队列：加锁 pop，计划整体出队。
+    """动态领取队列：加锁 pop，调度单元（计划 / 测试套）整体出队。
 
-    刻意**不**提供任何按 case / scenario / step 发放的接口 —— 计划不拆分是
+    刻意**不**提供任何按 case / scenario / step 发放的接口 —— 测试套不拆分是
     由粒度保证的，而不是靠调用方自觉。
+
+    领取时尊重两条约束：
+    - ``device_free``：设备 worker 只领需要设备的单元，本地 worker 只领不需要设备的单元；
+    - ``plan_max_parallel``：同一计划同时在跑的测试套数不超过计划的 ``max_parallel``。
     """
 
     def __init__(self, tasks: Iterable[PlanTask]):
         self._tasks: deque = deque(tasks)
         self._lock = threading.Lock()
-        self._claimed: Dict[str, str] = {}     # plan_id → device_udid
+        self._claimed: Dict[str, str] = {}     # task.key → device_udid
+        self._running: Dict[str, int] = {}     # plan_id → 正在执行的测试套数
 
-    def claim(self, device_udid: str) -> Optional[PlanTask]:
-        """原子领取一个计划；队列空时返回 None。"""
+    def _eligible(self, task: PlanTask, device_free: Optional[bool]) -> bool:
+        if device_free is not None and task.device_free != device_free:
+            return False
+        limit = task.plan_max_parallel
+        return not limit or self._running.get(task.plan_id, 0) < limit
+
+    def claim(self, device_udid: str, *, device_free: Optional[bool] = None) -> Optional[PlanTask]:
+        """原子领取一个单元；没有可领取的单元时返回 None。
+
+        ``device_free=None`` 不区分单元类型（兼容 v11.10 调用方式）。
+        """
         with self._lock:
-            if not self._tasks:
-                return None
-            task = self._tasks.popleft()
-            self._claimed[task.plan_id] = device_udid
-            return task
+            for idx, task in enumerate(self._tasks):
+                if not self._eligible(task, device_free):
+                    continue
+                del self._tasks[idx]
+                self._claimed[task.key] = device_udid
+                self._running[task.plan_id] = self._running.get(task.plan_id, 0) + 1
+                return task
+            return None
+
+    def release(self, task: PlanTask) -> None:
+        """单元执行结束（无论结果）：归还计划并发名额。"""
+        with self._lock:
+            count = self._running.get(task.plan_id, 0) - 1
+            if count > 0:
+                self._running[task.plan_id] = count
+            else:
+                self._running.pop(task.plan_id, None)
+
+    def has_claimable(self, *, device_free: Optional[bool] = None) -> bool:
+        with self._lock:
+            return any(self._eligible(t, device_free) for t in self._tasks)
 
     def requeue(self, task: PlanTask, *, front: bool = False) -> None:
-        """把计划放回队列（掉线重入队用）。"""
+        """把单元放回队列（掉线重入队 / 重试用）。调用方须先 :meth:`release`。"""
         with self._lock:
             if front:
                 self._tasks.appendleft(task)
             else:
                 self._tasks.append(task)
-            self._claimed.pop(task.plan_id, None)
+            self._claimed.pop(task.key, None)
 
     def outstanding(self) -> int:
         with self._lock:
             return len(self._tasks)
 
-    def claimed_by(self, plan_id: str) -> Optional[str]:
+    def claimed_by(self, key: str) -> Optional[str]:
         with self._lock:
-            return self._claimed.get(plan_id)
+            return self._claimed.get(key)
 
 
 # ── 设备发现 ─────────────────────────────────────────────────────────────────
@@ -735,126 +784,100 @@ def is_multi_device_configured(mobile_group: Optional[Dict[str, Any]]) -> bool:
 
 
 # ── 计划预检 ─────────────────────────────────────────────────────────────────
+#
+# v11.11.0 起预检与 `rodski plan compile` 同源：能力由 core.capability 推导（覆盖三阶段、
+# scenario / if / loop、business_call、case_dir 与数据驱动实例），分发单元是测试套。
 
-def _model_driver_types(model_path: Path) -> Dict[str, str]:
-    """读 model.xml 的 name → driver_type 映射（与 run.py 同一语义）。"""
-    if not model_path.exists():
-        return {}
+
+@dataclass
+class QueueUnit:
+    """一个计划编译后的可分发单元（一个启用且非空的测试套）。"""
+
+    suite_id: Optional[str]          # 隐式测试套为 None
+    requires: List[str]
+    device_free: bool
+    cases: int
+
+
+def _compile_for_queue(plan_path: Path, platform: str, *, case_dir: Optional[Path] = None,
+                       allow_cross_platform: bool = False):
     try:
-        root = ET.parse(model_path).getroot()
-    except ET.ParseError:
-        return {}
-    result: Dict[str, str] = {}
-    for model in root.findall("model"):
-        name = (model.get("name") or "").strip()
-        if not name:
-            continue
-        model_type = (model.get("type") or "ui").strip()
-        driver_type = (model.get("driver_type") or "").strip()
-        if driver_type:
-            result[name] = driver_type
-        elif model_type in {"interface", "database"}:
-            result[name] = model_type
-        else:
-            result[name] = "web"
-    return result
+        from .plan_suites import compile_plan
+    except ImportError:                                   # pragma: no cover
+        from rodski.core.plan_suites import compile_plan
+    module_dir = Path(case_dir).parent if case_dir else Path(plan_path).parent.parent
+    return compile_plan(module_dir, Path(plan_path).stem, platform=platform,
+                        allow_cross_platform=allow_cross_platform)
 
 
-def _selected_case_ids(plan: Dict[str, Any]) -> List[str]:
-    """计划里选中执行的 case id（尊重 plan 级与 case 级 execute）。"""
-    if (plan.get("execute") or "是") == "否":
-        return []
-    return [c.get("id", "") for c in (plan.get("cases") or [])
-            if (c.get("execute") or "是") != "否" and c.get("id")]
+def plan_queue_units(compiled, platform: str, *,
+                     allow_cross_platform: bool = False) -> Tuple[List[QueueUnit], List[str]]:
+    """编译清单 → 队列单元。返回 (units, errors)。
 
-
-def collect_plan_driver_types(plan_path: Path, case_dir: Optional[Path] = None) -> set:
-    """汇总一个计划选中用例所涉模型的 driver_type 集合。
-
-    用于跨平台预检：一个计划若同时需要 android 与 ios 模型，任何单台设备都
-    跑不完它 —— 必须在入队前拒绝，而不是让它跑到一半失败。
+    - 需要移动能力且与队列平台一致 → 设备单元；
+    - 需要的移动平台与队列平台不一致 → 错误（不允许跑到一半才失败）；
+    - 不需要移动能力（web / desktop）→ 本地单元（device_free）。
     """
     try:
-        from .plan_parser import PlanParser
+        from .capability import MOBILE_CAPABILITIES
     except ImportError:                                   # pragma: no cover
-        from rodski.core.plan_parser import PlanParser
-
-    try:
-        plan = PlanParser(str(plan_path)).parse_plan()
-    except Exception as e:
-        logger.warning(f"计划 {plan_path.name} 解析失败，跳过 driver_type 预检: {e}")
-        return set()
-
-    selected = set(_selected_case_ids(plan))
-    if not selected:
-        return set()
-
-    case_dir = case_dir or (plan_path.parent.parent / "case")
-    try:
-        from .case_discovery import discover_case_files
-    except ImportError:                                   # pragma: no cover
-        from rodski.core.case_discovery import discover_case_files
-    driver_types: set = set()
-    for xml_file in discover_case_files(case_dir):
-        try:
-            root = ET.parse(xml_file).getroot()
-        except ET.ParseError:
+        from rodski.core.capability import MOBILE_CAPABILITIES
+    manifest = compiled.manifest
+    implicit = bool(manifest.get("implicit_suite"))
+    units: List[QueueUnit] = []
+    errors: List[str] = []
+    for suite in manifest.get("suites", []):
+        if not suite.get("execute") or not suite.get("cases"):
             continue
-        models_in_file: set = set()
-        for elem in root.iter("case"):
-            if (elem.get("id") or "") not in selected:
-                continue
-            for step in elem.iter("test_step"):
-                model_name = (step.get("model") or "").strip()
-                if model_name:
-                    models_in_file.add(model_name)
-        if not models_in_file:
+        sid = None if implicit else suite["id"]
+        label = "计划" if implicit else f"测试套 {suite['id']}"
+        requires = list(suite.get("requires") or [])
+        mobile = sorted(set(requires) & MOBILE_CAPABILITIES)
+        if not mobile:
+            units.append(QueueUnit(sid, requires, True, len(suite["cases"])))
             continue
-        model_map = _model_driver_types(case_dir.parent / "model" / "model.xml")
-        for model_name in models_in_file:
-            driver_types.add(model_map.get(model_name, "web"))
-    return driver_types
+        if len(mobile) == 1 and mobile[0] != platform:
+            errors.append(f"{label} 面向 {mobile[0]}，但队列平台是 {platform}；"
+                          f"请用 --platform {mobile[0]} 或从队列中移除")
+            continue
+        if len(mobile) > 1 and not allow_cross_platform:   # compile 已拦截，防御性保留
+            errors.append(f"{label} 同时需要 {mobile} 设备，单一设备无法执行；"
+                          f"拆分测试套或加 --allow-cross-platform-plan")
+            continue
+        units.append(QueueUnit(sid, requires, False, len(suite["cases"])))
+    return units, errors
 
 
 def check_plan_for_queue(plan_path: Path, platform: str, *,
                          case_dir: Optional[Path] = None,
                          allow_cross_platform: bool = False) -> Tuple[bool, str, bool]:
-    """入队前预检。
+    """入队前预检（整计划视角，兼容 v11.10 接口）。
 
     Returns:
-        (device_free, message, ok) —— device_free 表示这个计划不需要设备。
+        (device_free, message, ok) —— device_free 表示计划的所有测试套都不需要设备。
     """
-    driver_types = collect_plan_driver_types(plan_path, case_dir)
-    # driver_type="mobile" 是平台无关的移动端模型：真正用哪个平台由运行时
-    # Mobile.Platform（子进程的 --platform）决定，故它与任何队列平台都兼容。
-    mobile_types = driver_types & {"android", "ios"}
-    platform_agnostic = "mobile" in driver_types
-
-    if not mobile_types and not platform_agnostic:
-        return True, "无移动端模型，将在设备队列之外执行", True
-
-    if len(mobile_types) > 1:
-        if allow_cross_platform:
-            return False, f"跨平台计划（{sorted(mobile_types)}）已按 --allow-cross-platform-plan 放行", True
-        return False, (f"计划同时需要 {sorted(mobile_types)} 设备，单一设备无法执行；"
-                       f"拆分计划或加 --allow-cross-platform-plan"), False
-
-    if mobile_types:
-        only = next(iter(mobile_types))
-        if only != platform:
-            return False, (f"计划面向 {only}，但队列平台是 {platform}；"
-                           f"请用 --platform {only} 或从队列中移除"), False
-
-    other = driver_types - {"android", "ios", "mobile", "web"}
-    if other:
-        logger.warning(f"计划 {plan_path.name} 还包含非移动驱动类型 {sorted(other)}，将一并执行")
+    compiled = _compile_for_queue(plan_path, platform, case_dir=case_dir,
+                                  allow_cross_platform=allow_cross_platform)
+    if not compiled.ok:
+        return False, "；".join(compiled.errors), False
+    units, errors = plan_queue_units(compiled, platform, allow_cross_platform=allow_cross_platform)
+    if errors:
+        return False, "；".join(errors), False
+    if all(u.device_free for u in units):
+        return True, "无移动端能力，将由本地 worker 执行", True
+    cross = [u for u in units if len(set(u.requires) & {"android", "ios"}) > 1]
+    if cross:
+        return False, "跨平台测试套已按 --allow-cross-platform-plan 放行", True
     return False, "", True
 
 
 # ── 调度器 ───────────────────────────────────────────────────────────────────
 
 class DeviceScheduler:
-    """按计划建队列，多设备动态领取，每设备一个子进程。
+    """按测试套建队列，多设备动态领取，每设备一个子进程。
+
+    ``local_slots`` > 0 时另起若干本地 worker，执行不需要移动设备的单元（``device_free``），
+    子进程以 ``--no-queue`` 运行，不占用设备。
 
     ``runner`` 可注入：签名 ``(device, task, argv, env) -> PlanOutcome``。
     注入后整个调度器不 spawn 任何进程，单元测试因此完全 hermetic。
@@ -868,10 +891,12 @@ class DeviceScheduler:
                  requeue_on_device_loss: bool = True,
                  forward_args: Optional[Sequence[str]] = None,
                  runner: Optional[Callable] = None,
-                 log_sink: Optional[Callable[[str], None]] = None):
+                 log_sink: Optional[Callable[[str], None]] = None,
+                 local_slots: int = 0):
         self.module_dir = Path(module_dir)
         self.result_dir = Path(result_dir) if result_dir else self.module_dir / "result"
         self.devices = list(devices)
+        self.local_slots = max(0, int(local_slots or 0))
         self.max_parallel = max(1, int(max_parallel or len(self.devices) or 1))
         self.retry_failed_plans = max(0, int(retry_failed_plans))
         self.requeue_on_device_loss = requeue_on_device_loss
@@ -903,12 +928,17 @@ class DeviceScheduler:
         self._started_at = _now_iso()
         self._create_queue_dir()
         self._log(f"[queue] 队列目录: {self.queue_dir}")
-        self._log(f"[queue] 计划 {self.queue.outstanding()} 个 / 设备 {len(self.devices)} 台"
-                  f" / 最大并行 {min(self.max_parallel, len(self.devices))}")
+        self._log(f"[queue] 调度单元 {self.queue.outstanding()} 个 / 设备 {len(self.devices)} 台"
+                  f" / 最大并行 {min(self.max_parallel, len(self.devices))}"
+                  + (f" / 本地 worker {self.local_slots}" if self.local_slots else ""))
 
         workers = self.devices[:self.max_parallel]
         threads = [threading.Thread(target=self._worker, args=(d,), name=f"device-{d.udid[:8]}")
                    for d in workers]
+        for i in range(self.local_slots):
+            slot = Device(udid=f"local-{i + 1}", platform="local", name="本地", kind="local")
+            threads.append(threading.Thread(target=self._worker, args=(slot,),
+                                            name=f"local-{i + 1}"))
         try:
             for t in threads:
                 t.start()
@@ -928,14 +958,17 @@ class DeviceScheduler:
         return summary
 
     def _worker(self, device: Device) -> None:
+        local = device.kind == "local"
         while True:
-            task = self.queue.claim(device.udid)
+            task = self.queue.claim(device.udid, device_free=local)
             if task is None:
-                if not self._wait_for_more_work():
+                if not self._wait_for_more_work(local):
                     return
                 continue
-            if self.device_stats.get(device.udid, {}).get("lost"):
-                # 设备已掉线：把计划让给别的设备
+            stats = self.device_stats.get(device.udid)
+            if stats is not None and stats.get("lost"):
+                # 设备已掉线：把单元让给别的设备
+                self.queue.release(task)
                 self.queue.requeue(task, front=True)
                 self._notify_done()
                 return
@@ -945,6 +978,7 @@ class DeviceScheduler:
             try:
                 outcome = self._run_plan(device, task)
             finally:
+                self.queue.release(task)
                 with self._cond:
                     self._busy -= 1
                     self._cond.notify_all()
@@ -952,37 +986,42 @@ class DeviceScheduler:
             with self._lock:
                 self.outcomes.append(outcome)
             if outcome.status == "PASS":
-                self.device_stats[device.udid]["plans_executed"].append(task.plan_id)
+                self._record_executed(device, task)
                 continue
 
-            if outcome.device_lost:
-                self.device_stats[device.udid]["lost"] = True
+            if outcome.device_lost and stats is not None:
+                stats["lost"] = True
                 if self.requeue_on_device_loss and task.attempts < MAX_ATTEMPTS_PER_PLAN:
                     task.requeued_from = device.udid
                     self.queue.requeue(task, front=True)
-                    self._log(f"[queue] 设备掉线，计划 {task.plan_id} 重新入队")
+                    self._log(f"[queue] 设备掉线，{task.key} 重新入队")
                 continue
 
             if task.attempts < MAX_ATTEMPTS_PER_PLAN and self.retry_failed_plans > 0:
                 self.retry_failed_plans -= 1
                 self.queue.requeue(task, front=True)
-                self._log(f"[queue] 计划 {task.plan_id} 失败，重试一次")
+                self._log(f"[queue] {task.key} 失败，重试一次")
                 continue
-            self.device_stats[device.udid]["plans_executed"].append(task.plan_id)
+            self._record_executed(device, task)
 
-    def _wait_for_more_work(self) -> bool:
-        """队列空时阻塞等待新工作。
+    def _record_executed(self, device: Device, task: PlanTask) -> None:
+        stats = self.device_stats.get(device.udid)
+        if stats is not None:
+            stats["plans_executed"].append(task.key)
 
-        Return True 表示可能有新计划（重试/掉线重入队），False 表示可以退出。
-        只有「队列空 且 没有别的 worker 在跑」才真的结束 —— 否则设备掉线导致的
-        重入队计划会在窗口里被落下。
+    def _wait_for_more_work(self, local: bool = False) -> bool:
+        """当前没有可领取的单元时阻塞等待。
+
+        Return True 表示可能有新单元可领（重试 / 掉线重入队 / 计划并发名额释放），
+        False 表示可以退出。只有「没有可领取单元 且 没有别的 worker 在跑」才真的结束 ——
+        否则设备掉线导致的重入队单元会在窗口里被落下。
         """
         with self._cond:
             while self._busy > 0:
-                if self.queue.outstanding() > 0:
+                if self.queue.has_claimable(device_free=local):
                     return True
                 self._cond.wait(timeout=0.1)
-            return self.queue.outstanding() > 0
+            return self.queue.has_claimable(device_free=local)
 
     def _notify_done(self) -> None:
         with self._cond:
@@ -993,7 +1032,7 @@ class DeviceScheduler:
     def _run_plan(self, device: Device, task: PlanTask) -> PlanOutcome:
         task.attempts += 1
         claimed_at = _now_iso()
-        plan_output = self.queue_dir / "plans" / f"{task.plan_id}.json"
+        plan_output = self.queue_dir / "plans" / f"{task.file_stem}.json"
         output_json_rel = ""
         try:
             output_json_rel = str(plan_output.relative_to(self.module_dir))
@@ -1023,9 +1062,11 @@ class DeviceScheduler:
         finished_at = _now_iso()
         outcome = PlanOutcome(
             plan_id=task.plan_id,
+            suite_id=task.suite_id,
+            digest=task.digest,
             plan_path=str(task.plan_path),
             kind=task.kind,
-            device_udid=device.udid if not task.device_free else None,
+            device_udid=device.udid if not (task.device_free or device.kind == "local") else None,
             attempt=task.attempts,
             status=result.get("status", "ERROR"),
             exit_code=int(result.get("exit_code", 1)),
@@ -1041,18 +1082,27 @@ class DeviceScheduler:
             device_lost=bool(result.get("device_lost", False)),
             error=result.get("error", ""),
         )
-        self._log(f"[{device.udid[:8]}] {task.plan_id}: {outcome.status}"
+        self._log(f"[{device.udid[:8]}] {task.key}: {outcome.status}"
                   f" ({outcome.pass_rate or 'n/a'}, {outcome.duration:.1f}s)")
         return outcome
 
     def _build_child_argv(self, device: Device, task: PlanTask,
                           plan_output: Path) -> Tuple[List[str], Dict[str, str]]:
-        """构造子进程 argv —— 子进程执行的就是完整的 `rodski run @plan_id`。"""
-        argv = [sys.executable, "-c", _CHILD_BOOTSTRAP,
-                "run", f"@{task.plan_id}",
-                "--platform", device.platform,
-                "--udid", device.udid,
-                "--output", str(plan_output)]
+        """构造子进程 argv —— 子进程执行的就是完整的 `rodski run @plan_id [--suite ID]`。
+
+        带测试套时附 ``--expect-digest``：入队后计划 / 用例被改动，子进程在副作用前拒绝执行。
+        本地单元不传设备参数，并以 ``--no-queue`` 防止子进程再转队列。
+        """
+        argv = [sys.executable, "-c", _CHILD_BOOTSTRAP, "run", f"@{task.plan_id}"]
+        if task.suite_id:
+            argv.extend(["--suite", task.suite_id])
+        if task.digest:
+            argv.extend(["--expect-digest", task.digest])
+        if device.kind == "local":
+            argv.append("--no-queue")
+        else:
+            argv.extend(["--platform", device.platform, "--udid", device.udid])
+        argv.extend(["--output", str(plan_output)])
         argv.extend(self.forward_args)
 
         env = dict(os.environ)
@@ -1069,7 +1119,7 @@ class DeviceScheduler:
 
     @staticmethod
     def _run_dir_suffix(task: PlanTask, device: Device) -> str:
-        return f"{task.plan_id}_{device.udid[:8]}"
+        return f"{task.file_stem}_{device.udid[:8]}"
 
     def _subprocess_runner(self, device: Device, task: PlanTask,
                            argv: List[str], env: Dict[str, str]) -> Dict[str, Any]:
@@ -1146,6 +1196,7 @@ class DeviceScheduler:
             if self.queue_dir else "",
             "platform": self.devices[0].platform if self.devices else "",
             "max_parallel": min(self.max_parallel, len(self.devices)) if self.devices else 0,
+            "local_slots": self.local_slots,
             "peak_parallel": self._peak_live,
             "duration": round(time.monotonic() - started, 3),
             # 队列级起止时刻由父进程记录（与 per-plan 时间戳同源）。缺了它
@@ -1188,12 +1239,14 @@ def _now_iso() -> str:
 def build_tasks(plans: Sequence[Path], platform: str, *,
                 case_dir: Optional[Path] = None,
                 allow_cross_platform: bool = False) -> Tuple[List[PlanTask], List[PlanTask]]:
-    """把计划路径列表转成 PlanTask，并做入队预检。
+    """把计划编译成调度单元（一个启用且非空的测试套一个 :class:`PlanTask`），并做入队预检。
+
+    计划不写 ``<suite>`` 时整个计划是一个单元（``suite_id=None``），与 v11.10 一致。
 
     Returns:
         (device_tasks, device_free_tasks)
     Raises:
-        MixedPlanKindError / CrossPlatformPlanError
+        MixedPlanKindError / CrossPlatformPlanError（编译错误、跨平台、平台不符都归入后者）
     """
     try:
         from .plan_parser import PlanParser
@@ -1212,14 +1265,19 @@ def build_tasks(plans: Sequence[Path], platform: str, *,
             raise MixedPlanKindError(
                 f"设备队列不支持 kind=load 计划（{plan_path.stem}），请用 `rodski run @{plan_path.stem}` 单独执行")
 
-        device_free, message, ok = check_plan_for_queue(
-            plan_path, platform, case_dir=case_dir,
-            allow_cross_platform=allow_cross_platform)
-        if not ok:
-            raise CrossPlatformPlanError(f"{plan_path.stem}: {message}")
-        if device_free:
-            free_tasks.append(PlanTask(plan_id=plan_path.stem, plan_path=plan_path,
-                                       kind=kind, device_free=True))
-        else:
-            device_tasks.append(PlanTask(plan_id=plan_path.stem, plan_path=plan_path, kind=kind))
+        compiled = _compile_for_queue(plan_path, platform, case_dir=case_dir,
+                                      allow_cross_platform=allow_cross_platform)
+        if not compiled.ok:
+            raise CrossPlatformPlanError(f"{plan_path.stem}: {'；'.join(compiled.errors)}")
+        units, errors = plan_queue_units(compiled, platform,
+                                         allow_cross_platform=allow_cross_platform)
+        if errors:
+            raise CrossPlatformPlanError(f"{plan_path.stem}: {'；'.join(errors)}")
+        manifest = compiled.manifest
+        digest = manifest.get("digest", "")
+        for unit in units:
+            task = PlanTask(plan_id=plan_path.stem, plan_path=plan_path, kind=kind,
+                            device_free=unit.device_free, suite_id=unit.suite_id,
+                            digest=digest, plan_max_parallel=manifest.get("max_parallel"))
+            (free_tasks if unit.device_free else device_tasks).append(task)
     return device_tasks, free_tasks

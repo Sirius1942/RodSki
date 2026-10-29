@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 不写 <suite>：等价于隐式测试套 default，执行行为与 v11.10 一致（PS-11/12/20） -->
+<test_plan id="shop_legacy" kind="suite" title="商城全量（旧写法）">
+    <case_dir path="order"/>
+    <case_dir path="admin"/>
+    <case file="common/login.xml" id="PS_LOGIN_API"/>
+</test_plan>

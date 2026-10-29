@@ -1,7 +1,7 @@
 # Agent 集成指南
 
-**版本**: v11.10.0
-**日期**: 2026-10-22
+**版本**: v11.11.0
+**日期**: 2026-10-28
 **目标读者**: AI Agent 开发者
 
 ---
@@ -118,7 +118,9 @@ for result in root.iter("result"):
 | `rodski capabilities` | 查询框架能力清单；v11.6.0 起含 `pitfalls` 字段（AI 编写契约速查，与 rodski-skills「契约速查」同源） | JSON |
 | `rodski case lint <module>` | 静态检查常见写法问题：固定 `wait`、`WaitTime > 0`、`evaluate` 断言模式、弹窗垫片、`sql`/`query` 均无效等（v11.6.0 规则见 GUIDE §5.7.4 / CORE §1.5） | 文本；有 ERROR 时非 0 退出 |
 | `rodski run <path> --report junit` | 额外生成 `result/{run}/junit.xml`，可与 `html` 逗号并列（v11.6.0） | JUnit XML |
-| `rodski run <path> --workers N` | 按用例文件并行执行，结果合并到同一运行目录（v11.6.0） | 同 `rodski run` |
+| `rodski run <path> --workers N` | 按用例文件并行执行，结果合并到同一运行目录（v11.6.0）；计划写了 `<suite>` 时按测试套并行，受 `max_parallel` 限制（v11.11.0） | 同 `rodski run` |
+| `rodski plan compile @plan_id [--json]` | 编译测试计划：测试套、每套 `requires` / `tags` / 用例、`max_parallel`、digest（v11.11.0，CORE §7.9）；须在模块目录下执行 | 文本；`--json` 输出 `rodski.plan-manifest/1` |
+| `rodski run @plan_id --suite ID[,ID] [--expect-digest D]` | 只执行指定测试套；digest 与当前编译结果不一致时在副作用前报错（v11.11.0） | 同 `rodski run` |
 | `rodski run <path> --session-mode isolated\|shared_browser\|shared_session` | 浏览器会话复用方式（v11.6.0，覆盖 `DefaultValue.SessionMode`） | 同 `rodski run` |
 | `rodski run <path> --evidence full\|concise` | 截图证据模式；`concise` 只保留失败截图，录像不变（v11.6.0） | 同 `rodski run` |
 | `rodski data set <module> <table> <data_id> field=value ...` | 直接修改 `data.sqlite` 中的数据行（另有 `add-row` / `delete-row`，v11.6.0） | 文本 |
@@ -126,9 +128,28 @@ for result in root.iter("result"):
 | `rodski run <path> --trace` | 额外导出 `trace.json`（run / case / keyword 三层 span，含耗时、重试指标）；`rodski roam` 同样支持 | 同 `rodski run` + `trace.json` |
 | `rodski run <path> --cdp <endpoint>` | 附加到已启动的远程调试浏览器（如 `--cdp :9222` 或 `http://127.0.0.1:9222`），复用其页面与登录态；仅 Web 用例生效，附加时 `--headless` / `--browser` 不生效（暂停接管工作流） | 同 `rodski run` |
 | `rodski explore-step --module <dir> --session <id> --action <action> [--model M] [--data D] [--cdp <endpoint>]` | 单步执行一条探索动作并返回结构化结果；另有 `--confidence`、`--reversible` / `--no-reversible`、`--budget-steps`（默认 50）、`--budget-duration`（秒，默认 300）、`--budget-tokens`、`--budget-cost` | JSON（`--output text` 输出文本） |
-| `rodski queue [--module M] [--plans @p1,@p2] [--devices D1,D2] [--platform android\|ios]` | 多设备计划队列：一个计划只在一台设备上执行，空闲设备领取下一个计划；另有 `--max-parallel`、`--list-devices`、`--retry-failed-plans N`、`--no-requeue-on-device-loss`、`--allow-cross-platform-plan`、`--dry-run` | 文本 |
+| `rodski queue [--module M] [--plans @p1,@p2] [--devices D1,D2] [--platform android\|ios]` | 多设备队列：调度单元是测试套（计划不写 `<suite>` 时是整个计划），一个单元只在一台设备上执行，空闲设备领取下一个单元；不需要设备的套由本地 worker 执行（v11.11.0）；另有 `--suite`、`--local-slots`、`--max-parallel`、`--list-devices`、`--retry-failed-plans N`、`--no-requeue-on-device-loss`、`--allow-cross-platform-plan`、`--dry-run` | 文本 |
 
 > `--workers` / `--session-mode` / `--evidence` / `--report` 不是执行范围 selector，可与 `@plan_id` 同用（CORE §7.7）。
+
+### 按测试套分发（v11.11.0，测试工厂等执行方）
+
+测试计划自己描述"如何被执行"：划分测试套、每个套需要的能力、并发上限（CORE §7.9）。执行方只做三件事，**不得**在自身配置中写具体用例的分配：
+
+1. 在模块目录执行 `rodski plan compile @plan_id --json`，读取分发清单（`schema = rodski.plan-manifest/1`）。非 0 退出时清单只有 `errors`，整计划不分发。
+2. 对 `suites` 中 `execute=true` 的每个套，找到能**同时**提供 `requires` 全部能力（`web` / `android` / `ios` / `desktop`）并满足 `tags` 的执行器；同一计划同时执行的套数不超过 `max_parallel`（null = 不限）。套不得再拆分。
+3. 在执行器上运行 `rodski run @plan_id --suite <套id> --expect-digest <digest>`（移动端再加 `--platform` / `--udid`）。digest 不一致说明计划或用例在编译后被改动，命令在副作用前以非 0 退出，执行方应重新编译。
+
+`implicit_suite=true`（计划不写 `<suite>`）时整个计划是一个单元，直接运行 `rodski run @plan_id --expect-digest <digest>`，不传 `--suite`。
+
+结果：`result.xml` 每条 `<result>` 带 `suite_id`，`<summary>` 带 `plan_id` / `suites` / `digest`。本机多设备可直接用 `rodski queue --plans @plan_id --platform android`（按套分发，`--local-slots` 控制无需设备的套的本地并发）。
+
+注意事项：
+
+- 清单编译时用了 `--allow-cross-platform-plan` 放行同时需要 android 与 ios 的套，执行时也要传同一参数，否则 `run` 的预检会拒绝。
+- 执行方自己分配设备时，在执行器上加 `--no-queue`（或 `--udid`），防止模块的多设备配置把 `run` 自动转成本机设备队列。选中的套都不需要 android / ios 时 `run` 不会自动转队列。
+- 套内用例全部停用时该套不会出现在 `rodski queue` 的 `summary.json` 中；这些用例在清单的 `skipped` 里。
+
 
 ### 唯一输入格式
 

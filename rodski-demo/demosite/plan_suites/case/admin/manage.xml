@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 后台管理（admin 套）：界面表单 + DB 查询 -->
+<cases tags="plan-suites">
+    <case execute="是" id="PS_ADMIN_UI" title="后台表单提交" priority="P0">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Demo.URL"/>
+            <test_step action="type" model="LoginForm" data="L001"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="NavMenu" data="N001"/>
+            <test_step action="type" model="TestForm" data="T001"/>
+            <test_step action="verify" model="TestForm" data="V001"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+
+    <case execute="是" id="PS_ADMIN_DB" title="后台订单核对" priority="P1">
+        <test_case>
+            <test_step action="DB" model="QueryOrder" data="Q002"/>
+            <test_step action="verify" model="QueryOrder" data="C002"/>
+            <test_step action="wait" model="" data="2"/>
+        </test_case>
+    </case>
+</cases>

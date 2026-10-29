@@ -118,7 +118,7 @@ class TestPlanQueue:
         """计划不可拆分是**结构性**保证：队列不提供任何按 case/step 发放的接口。"""
         queue = PlanQueue(make_tasks("p1"))
         public = {name for name in dir(queue) if not name.startswith("_")}
-        assert public == {"claim", "requeue", "outstanding", "claimed_by"}
+        assert public == {"claim", "release", "requeue", "outstanding", "claimed_by", "has_claimable"}
 
 
 class TestScheduling:
@@ -378,7 +378,7 @@ class TestPlanPreflight:
         (module / "plan" / f"{plan_id}.xml").write_text(
             f'<?xml version="1.0" encoding="UTF-8"?>\n'
             f'<test_plan id="{plan_id}" title="t" kind="{kind}" execute="是" default_execute="否">\n'
-            + "".join(f'  <case id="{c}" execute="是"/>\n' for c in case_ids)
+            + "".join(f'  <case file="{c}.xml" id="{c}" execute="是"/>\n' for c in case_ids)
             + '</test_plan>\n', encoding="utf-8")
         return module / "plan" / f"{plan_id}.xml"
 

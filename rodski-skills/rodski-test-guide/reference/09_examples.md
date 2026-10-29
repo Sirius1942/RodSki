@@ -5,7 +5,7 @@
 ### 9.1 项目结构
 
 ```text
-product/DEMO/demo_site/
+rodski-demo/demosite/full/
 ├── model/
 │   └── model.xml
 ├── case/
@@ -50,14 +50,14 @@ product/DEMO/demo_site/
   </group>
   <group name="sqlite_db">
     <var name="type" value="sqlite"/>
-    <var name="database" value="product/DEMO/demo_site/demo.db"/>
+    <var name="database" value="demo.db"/>
   </group>
 </globalvalue>
 ```
 
 ### 9.4 data.sqlite（数据表）
 
-所有测试数据（输入表和验证表）均存储在 `data/data.sqlite` 中。输入表 `table_kind='input'`，验证表 `table_kind='verify'`。
+所有测试数据（输入表和验证表）均存储在 `data/data.sqlite` 中。输入表 `table_kind='data'`，验证表 `table_kind='verify'`。
 
 迁移命令：`rodski data import <module>`
 
@@ -96,28 +96,28 @@ rodski run rodski-demo/demosite/full/case/demo_case.xml
 # 方式2：指定 case 目录（递归执行该目录下所有 XML，任意层级，v11.5.0 起）
 rodski run rodski-demo/demosite/full/case/
 
-# 方式2b：指定 case 下的任意子目录（同样递归，v11.5.0 起）
-rodski run rodski-demo/demosite/full/case/order/
+# 方式2b：指定 case 下的任意子目录（同样递归，v11.5.0 起；示意路径）
+rodski run product/shop/order/case/refund/
 
 # 方式3：指定测试模块目录
 rodski run rodski-demo/demosite/full/
 
 # 方式4：文件 + --case-id，只执行该文件中的指定用例（v11.5.0 起，可逗号分隔多个）
-rodski run rodski-demo/demosite/full/case/order/order_basic.xml --case-id TC002
+rodski run rodski-demo/demosite/full/case/demo_case.xml --case-id TC002
 
-# 按标签过滤（OR 匹配，命中任一即可）
-rodski run case/ --tags smoke
-rodski run case/ --tags "smoke,regression"
+# 按标签过滤（OR 匹配，命中任一即可；--tags 为兼容写法）
+rodski run case/ --tag smoke
+rodski run case/ --tag "smoke,regression"
 
 # 按优先级过滤
 rodski run case/ --priority P0
 rodski run case/ --priority "P0,P1"
 
-# 排除标签
-rodski run case/ --exclude-tags slow
+# 排除标签（--exclude-tags 为兼容写法）
+rodski run case/ --exclude-tag slow
 
 # 组合过滤（标签 AND 优先级）
-rodski run case/ --tags smoke --priority P0
+rodski run case/ --tag smoke --priority P0
 
 # 执行后自动生成 HTML 报告
 rodski run case/ --report html
@@ -143,9 +143,33 @@ rodski case lint <module>
 
 # 无头模式
 rodski run case/ --headless
+
+# 指定浏览器（默认 chromium；DefaultValue.BrowserType 不生效）
+rodski run case/ --browser firefox
+
+# 只校验、不执行（解析用例 / 计划并预览执行范围）
+rodski run case/ --dry-run
+
+# 机器可读输出（Agent / CI 解析用）；--verbose 输出详细日志
+rodski run case/ --output-format json
+rodski run case/ --verbose
+
+# 导出 trace.json（run / case / keyword 三层 span + 耗时 / 重试指标）；--report html 也会采集
+rodski run case/ --trace
+
+# 录像（--record-mode auto|screen|playwright|off 等细项默认读取配置）
+rodski run case/ --record
+
+# 移动端：临时切换平台、指定设备（覆盖 Mobile.Platform / Mobile.UDID）
+rodski run case/ --platform ios --udid <设备UDID>
+
+# 附加到已启动的远程调试浏览器，复用其页面与登录态（仅 Web；此时 --headless / --browser 不生效）
+rodski run case/ --cdp :9222
 ```
 
-> `--case-id` 必须与**单个用例文件**路径一起使用；传目录会报 `SKI208 CaseIdRequiresFile`。`--case-id` 与 `@plan_id` 固定互斥（见 §10.6），与 `--tags` / `--priority` 同用时只在指定用例内过滤。
+> `--case-id` 必须与**单个用例文件**路径一起使用；传目录会报 `SKI208 CaseIdRequiresFile`。`--case-id` 与 `@plan_id` 固定互斥（见 §10.6），与 `--tag` / `--priority` 同用时只在指定用例内过滤。
+>
+> `--data-id` / `--exclude-data-id` **只能**与测试计划一起使用（`@plan_id`，或不带路径时的默认计划），用于过滤数据驱动实例；直接对用例文件 / 目录使用会报错并以退出码 1 结束（见 [§10.10](#1010-计划级数据驱动v1190)）。
 >
 > `--workers N` 以**用例文件**为单位分给 N 个进程，同一文件内的用例在同一进程中按顺序执行；结果合并到同一个运行目录（`result.xml`、`junit.xml`、截图镜像目录都在一起）。有先后依赖的用例（如先保存登录态、再使用）请放在同一个文件里。
 
@@ -224,5 +248,27 @@ jobs:
 
 - 退出码：有失败用例时非 0，CI 据此判定失败；`expect_fail="是"` 且确实失败的用例按通过计。
 - CI 里建议 `WaitTime=0`，并用 `--evidence concise` 缩短耗时；需要排查偶发失败时加 `--record` 保留录像。
+
+### 9.10 断点与部分执行参数（REQ-012，能力有限）
+
+`rodski run` 提供以下调试参数（v11.8.0 引入）。**这组能力目前只完成了一小部分**：REQ-012 的 37 条真实验收中只有 1 条通过，交互式断点 / 单步并不可用。下表按当前实际行为列出，行为可能调整；排查失败请优先用 `--trace`、截图 / 录像和 [§10.7](#107-调试计划) 的调试计划。
+
+| 参数 | 设计用途 | 当前实际行为 |
+|------|---------|-------------|
+| `--start-from N` | 从第 N 个步骤开始执行 | **可用**：每个用例内序号小于 N 的步骤不执行，在步骤记录中标为 `skipped`。序号在每个用例内从 1 开始，`pre_process` / `test_case` / `post_process` 连续计数 |
+| `--break-at <断点>` | 在断点处暂停，逗号分隔多个；格式 `step:N`、`scenario:ID`、`node:NAME`、`flow:ID`、`driver:ACTION`、`batch:row:N` | 不生效：断点会被解析，但执行时任何类型都不会命中，也不会暂停 |
+| `--stop-at N` | 执行到第 N 步后停止 | 不生效 |
+| `--step-mode` | 单步执行（**开关**，不带取值） | 不生效 |
+| `--driver-level` | 驱动动作级单步（配合 `--step-mode`） | 不生效 |
+
+```bash
+# 跳过每个用例的前 4 步，从第 5 步开始执行（如 pre_process 已手工准备好）
+rodski run rodski-demo/demosite/full/case/demo_case.xml --case-id TC001 --start-from 5
+```
+
+- 上述任一参数（`--driver-level` 除外）出现时，本次运行开启调试会话。
+- `rodski debug {status|queue|objects|context|get-object <id>}` 用于查看调试会话，但调试会话只存在于 `rodski run` 自身进程中：在另一个终端执行 `rodski debug ...` 看不到它，总是提示 "Debug session is not active"。
+- 同名参数不要混淆：`rodski run --step-mode` 是上表的开关参数；`rodski plan debug-step --step-mode all|from|only` 是生成单步调试计划时的取值参数（见 [§10.7](#107-调试计划)），后者可用。
+- 这组参数与 `@plan_id` 能否同用、是否算执行范围 selector 尚未定义，建议只对单个用例文件使用。
 
 ---

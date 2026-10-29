@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 归档用例：shop_full 的 archive 套 execute="否"，本用例记为 SKIP（reason=suite_execute_false，PS-04） -->
+<cases tags="plan-suites">
+    <case execute="是" id="PS_EXTRA" title="归档检查" priority="P2">
+        <test_case>
+            <test_step action="send" model="LoginAPI" data="D001"/>
+        </test_case>
+    </case>
+</cases>

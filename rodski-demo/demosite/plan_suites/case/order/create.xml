@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 下单流程（order 套）。wait 用于让套之间的执行区间可观测（PS-17/18），不是业务等待。 -->
+<cases tags="plan-suites">
+    <case execute="是" id="PS_ORDER_1" title="登录接口（计划中按 OrderMatrix 数据驱动）" priority="P0">
+        <test_case>
+            <test_step action="send" model="LoginAPI" data="D001"/>
+            <test_step action="verify" model="LoginResp" data="R001"/>
+            <test_step action="wait" model="" data="2"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="PS_ORDER_2" title="订单查询" priority="P1">
+        <test_case>
+            <test_step action="DB" model="QueryOrder" data="Q001"/>
+            <test_step action="verify" model="QueryOrder" data="C001"/>
+            <test_step action="wait" model="" data="2"/>
+        </test_case>
+    </case>
+</cases>

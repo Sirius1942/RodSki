@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 同一个套同时需要 android 与 ios → 编译报错；allow-cross-platform-plan 参数可放行（PS-08） -->
+<test_plan id="caps_cross" kind="suite" title="跨平台套">
+    <suite id="both">
+        <case file="mixed/app_web.xml" id="PS_MIX_APP"/>
+        <case file="mixed/ios.xml" id="PS_IOS"/>
+    </suite>
+</test_plan>

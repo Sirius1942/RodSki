@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 公共登录：shop_full 把两条用例分别写进 order 套和 admin 套，同一文件被拆到两个套 → [WARN]（PS-05） -->
+<cases tags="plan-suites">
+    <case execute="是" id="PS_LOGIN_API" title="接口登录" priority="P0">
+        <test_case>
+            <test_step action="send" model="LoginAPI" data="D001"/>
+            <test_step action="verify" model="LoginResp" data="R001"/>
+        </test_case>
+    </case>
+
+    <case execute="是" id="PS_LOGIN_UI" title="界面登录" priority="P0">
+        <pre_process>
+            <test_step action="navigate" model="" data="GlobalValue.Demo.URL"/>
+        </pre_process>
+        <test_case>
+            <test_step action="type" model="LoginForm" data="L001"/>
+        </test_case>
+        <post_process>
+            <test_step action="close" model="" data=""/>
+        </post_process>
+    </case>
+</cases>

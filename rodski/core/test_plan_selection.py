@@ -524,3 +524,90 @@ class TestPlanSelection:
             "step": step,
             "reason": reason,
         }
+
+
+def _entry_uid(entry_or_case: Dict[str, Any]) -> str:
+    case_file = entry_or_case.get('case_file', '')
+    case_id = entry_or_case.get('case_id', '')
+    return f"{case_file}::{case_id}" if case_file else case_id
+
+
+def scope_plan_cases(
+    plan: Dict[str, Any],
+    cases: List[Dict[str, Any]],
+    selection: Optional[Dict[str, List[Dict[str, Any]]]],
+) -> List[Dict[str, Any]]:
+    """计划限定范围：只保留计划实际触达（选中或显式跳过）的用例。
+
+    ``kind="suite" and default_execute="是"`` 的全量扫描计划不收窄（未提及的用例由选择自动纳入）。
+    """
+    if not selection:
+        return cases
+    if plan.get('kind') == 'suite' and plan.get('default_execute', '否') == '是':
+        return cases
+    touched: Set[str] = set()
+    for entry in selection.get('selected', []) or []:
+        touched.add(_entry_uid(entry))
+    for entry in selection.get('skipped', []) or []:
+        touched.add(_entry_uid(entry))
+    if not touched:
+        return cases
+    return [c for c in cases if _entry_uid(c) in touched]
+
+
+def apply_plan_selection(
+    cases: List[Dict[str, Any]],
+    selection: Optional[Dict[str, List[Dict[str, Any]]]],
+) -> Tuple[List[Dict[str, Any]], Dict[str, str]]:
+    """给用例标注计划选中的 scenario / step，并返回用例级跳过 {case_uid: reason}。"""
+    if not selection:
+        return cases, {}
+
+    case_skips: Dict[str, str] = {}
+    case_has_selection: Dict[str, bool] = {}
+    selected_scenarios: Dict[str, Set[str]] = {}
+    selected_steps: Dict[str, Dict[str, Set[int]]] = {}
+    skipped_scenarios: Dict[str, Dict[str, str]] = {}
+
+    for entry in selection.get('selected', []):
+        case_uid = _entry_uid(entry)
+        case_has_selection[case_uid] = True
+        if entry.get('type') == 'case':
+            selected_scenarios.setdefault(case_uid, set()).add('*')
+        elif entry.get('type') == 'scenario':
+            selected_scenarios.setdefault(case_uid, set()).add(entry.get('scenario_id', ''))
+        elif entry.get('type') == 'step':
+            scenario_id = entry.get('scenario_id', '')
+            selected_scenarios.setdefault(case_uid, set()).add(scenario_id)
+            selected_steps.setdefault(case_uid, {}).setdefault(scenario_id, set()).add(entry.get('step_no'))
+
+    for entry in selection.get('skipped', []):
+        case_uid = _entry_uid(entry)
+        reason = entry.get('reason', 'plan_skipped')
+        if entry.get('type') == 'case':
+            case_skips[case_uid] = reason
+        elif entry.get('type') == 'scenario':
+            skipped_scenarios.setdefault(case_uid, {})[entry.get('scenario_id', '')] = reason
+
+    for case in cases:
+        case_uid = _entry_uid(case)
+        if case_uid in case_skips:
+            continue
+        if not case_has_selection.get(case_uid):
+            case_skips[case_uid] = 'plan_not_selected'
+            continue
+
+        scenario_ids = selected_scenarios.get(case_uid, set())
+        if '*' in scenario_ids:
+            continue
+
+        case['_selected_scenario_ids'] = scenario_ids
+        case['_selected_step_map'] = selected_steps.get(case_uid, {})
+        case_skipped = dict(skipped_scenarios.get(case_uid, {}))
+        for scenario in case.get('scenarios', []) or []:
+            scenario_id = scenario.get('id', '')
+            if scenario_id not in scenario_ids and scenario_id not in case_skipped:
+                case_skipped[scenario_id] = 'plan_not_selected'
+        case['_skipped_scenarios'] = case_skipped
+
+    return cases, case_skips

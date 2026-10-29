@@ -68,11 +68,19 @@ class PlanParser:
 
         cases = []
         case_dirs = []
+        suites = []
         for child in root:
             if child.tag == "case":
                 cases.append(self._parse_case(child))
             elif child.tag == "case_dir":
                 case_dirs.append(self._parse_case_dir(child))
+            elif child.tag == "suite":
+                # v11.11.0 测试套（CORE §7.9）：套内条目同时平铺进 cases / case_dirs（带 suite 键），
+                # 选择、数据驱动等既有逻辑照常读取平铺列表
+                suite = self._parse_suite(child)
+                suites.append(suite)
+                cases.extend(suite["cases"])
+                case_dirs.extend(suite["case_dirs"])
 
         result: Dict[str, Any] = {
             "id": plan_id,
@@ -87,7 +95,37 @@ class PlanParser:
         # load_profile 只在非空时加入，避免影响 kind=suite 的测试期望
         if load_profile:
             result["load_profile"] = load_profile
+        # suites / max_parallel 只在显式声明时加入，未写 <suite> 的计划保持 v11.10 的字典结构
+        if suites:
+            result["suites"] = suites
+        if root.get("max_parallel") is not None:
+            result["max_parallel"] = int(root.get("max_parallel").strip())
         return result
+
+    @staticmethod
+    def _parse_suite(suite_node: ET.Element) -> Dict[str, Any]:
+        """解析 suite 元素（v11.11.0）。"""
+        suite_id = (suite_node.get("id") or "").strip()
+        cases = []
+        case_dirs = []
+        for child in suite_node:
+            if child.tag == "case":
+                entry = PlanParser._parse_case(child)
+                entry["suite"] = suite_id
+                cases.append(entry)
+            elif child.tag == "case_dir":
+                entry = PlanParser._parse_case_dir(child)
+                entry["suite"] = suite_id
+                case_dirs.append(entry)
+        tags = [t.strip() for t in (suite_node.get("tags") or "").split(",") if t.strip()]
+        return {
+            "id": suite_id,
+            "title": (suite_node.get("title") or "").strip(),
+            "execute": (suite_node.get("execute") or "是").strip(),
+            "tags": tags,
+            "cases": cases,
+            "case_dirs": case_dirs,
+        }
 
     @staticmethod
     def _parse_case(case_node: ET.Element) -> Dict[str, Any]:

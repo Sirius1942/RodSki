@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- driver_type="mobile" 而 globalvalue 没有 Mobile.Platform → 编译报错（PS-09） -->
+<test_plan id="caps_unresolved" kind="suite" title="移动端平台未配置">
+    <suite id="mobile"><case file="mixed/unresolved.xml" id="PS_ANY_MOBILE"/></suite>
+</test_plan>

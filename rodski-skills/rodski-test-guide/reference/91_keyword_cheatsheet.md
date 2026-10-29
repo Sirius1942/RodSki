@@ -2,18 +2,19 @@
 
 ## 附录：关键字速查清单
 
-下列 **`action` 取值**与 `rodski/schemas/case.xsd` 中 **`ActionType` 枚举**一致（共 16 个；`check` 为合法枚举值，语义上等同 `verify`）。
+下列 **`action` 取值**与 `rodski/schemas/case.xsd` 中 **`ActionType` 枚举**一致：共 18 个枚举值 = 17 个关键字 + 兼容项 `check`（语义上等同 `verify`）。
 
 ### A. UI 与通用
 
 | 关键字 | 用途 |
 |--------|------|
 | `navigate` | 导航到 URL（无浏览器时自动创建） |
+| `launch` | 启动桌面应用：`launch <Desktop模型> <DataID>`（数据行写 `app_path` / `app_name`）；Web 模型或 model 为空时只接受 http(s) URL，等同 `navigate` |
 | `close` | 关闭浏览器 |
 | `type` | UI 批量输入（PC/移动端统一） |
-| `verify` | 批量验证（UI + 接口通用）；UI 模型自动重试到期望值，支持 `$count` / `$exists` / `$visible` 等原生断言（v11.6.0） |
+| `verify` | 批量验证（UI + 接口 + DB）；UI 模型自动重试到期望值，支持 `$count` / `$exists` / `$visible` 等原生断言（v11.6.0） |
 | `check` | 与 `verify` 等价（XSD 枚举中的兼容项） |
-| `assert` | 断言元素值 |
+| `assert` | 图片 / 视频视觉断言（`type=image\|video`、`reference`、`threshold` 默认 0.8）；值断言请用 `verify` |
 | `wait` | 等待指定秒数（固定等待；等异步结果请直接 `verify`） |
 | `evaluate` | 执行 JS（仅 Web，逃生舱；`file:` 引用 `fun/js/*.js`） |
 | `upload_file` | 上传文件 |

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Android 步骤写在 if 分支里，同样计入能力需求（PS-07，只编译） -->
+<cases tags="plan-suites,compile-only">
+    <case execute="是" id="PS_NESTED" title="条件分支里的 App 步骤" priority="P2">
+        <test_case>
+            <test_step action="send" model="LoginAPI" data="D001"/>
+            <if condition="${Return[-1].status} == 200">
+                <test_step action="type" model="AppLogin" data="A001"/>
+            </if>
+        </test_case>
+    </case>
+</cases>

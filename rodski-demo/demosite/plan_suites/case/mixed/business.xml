@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- business_call：用例自身没有 Android 步骤，引用的业务模型节点里有 → 能力含 android（PS-07，只编译） -->
+<cases tags="plan-suites,compile-only">
+    <case execute="是" id="PS_BIZ" title="业务流程：App 登录" priority="P1">
+        <test_case>
+            <test_step action="send" model="LoginAPI" data="D001"/>
+            <business_call id="app_login" ref="app_login_flow" flow="F_APP_OK" input="BIZ01" expect="BIZ01"/>
+        </test_case>
+    </case>
+</cases>

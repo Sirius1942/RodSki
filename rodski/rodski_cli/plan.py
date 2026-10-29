@@ -32,6 +32,16 @@ def setup_parser(subparsers):
     preview_p = sub.add_parser("preview", help="输出最终执行范围")
     preview_p.add_argument("plan_id")
 
+    # compile（v11.11.0：分发清单，CORE §7.9）
+    compile_p = sub.add_parser("compile", help="编译计划为分发清单（测试套 / 能力需求 / digest），无副作用")
+    compile_p.add_argument("plan_id", help="计划 ID（可带 @ 前缀）")
+    compile_p.add_argument("--json", action="store_true", help="输出 JSON 清单（schema rodski.plan-manifest/1）")
+    compile_p.add_argument("--output", default=None, help="同时把 JSON 清单写入文件")
+    compile_p.add_argument("--platform", default=None, choices=["android", "ios"],
+                           help="driver_type=mobile 的平台（默认读 globalvalue Mobile.Platform）")
+    compile_p.add_argument("--allow-cross-platform-plan", action="store_true", dest="allow_cross_platform_plan",
+                           help="允许一个测试套同时需要 android 与 ios")
+
     # create
     create_p = sub.add_parser("create", help="创建新 plan")
     create_p.add_argument("plan_id")
@@ -300,6 +310,7 @@ def handle(args):
         "show": _handle_show,
         "validate": _handle_validate,
         "preview": _handle_preview,
+        "compile": _handle_compile,
         "create": _handle_create,
         "add-case": _handle_add_case,
         "add-dir": _handle_add_dir,
@@ -317,6 +328,41 @@ def handle(args):
         print(f"未知 plan 子命令: {action}", file=sys.stderr)
         return 1
     return handler(args)
+
+
+def _find_module_dir(start: Path) -> Path:
+    """从 start 向上找模块目录（同时含 plan/ 与 case/）；找不到时返回 start。"""
+    for candidate in [start, *start.parents]:
+        if (candidate / "plan").is_dir() and (candidate / "case").is_dir():
+            return candidate
+    return start
+
+
+def _handle_compile(args):
+    try:
+        from ..core.plan_suites import compile_plan, format_summary
+    except ImportError:
+        from rodski.core.plan_suites import compile_plan, format_summary
+    import json
+
+    module_dir = _find_module_dir(_project_root().resolve())
+    compiled = compile_plan(module_dir, args.plan_id, platform=args.platform,
+                            allow_cross_platform=args.allow_cross_platform_plan)
+    payload = compiled.manifest if compiled.ok else compiled.error_payload()
+    text = json.dumps(payload, ensure_ascii=False, indent=2)
+    if args.output:
+        Path(args.output).write_text(text + "\n", encoding="utf-8")
+    if args.json:
+        print(text)
+        if compiled.ok:
+            for w in compiled.manifest.get("warnings", []):
+                print(f"[WARN] {w}", file=sys.stderr)
+        else:
+            for e in compiled.errors:
+                print(f"[ERROR] {e}", file=sys.stderr)
+    else:
+        print(format_summary(compiled), file=sys.stdout if compiled.ok else sys.stderr)
+    return 0 if compiled.ok else 1
 
 
 def _handle_init(args):
@@ -543,8 +589,11 @@ def _handle_preview(args):
         print("case/ 目录不存在", file=sys.stderr)
         return 1
     cases = CaseParser(str(case_d)).parse_cases()
-    selection = TestPlanSelection(cases, plan, module_dir=case_d.parent)
-    result = selection.select()
+    try:
+        from ..core.plan_suites import select_plan
+    except ImportError:
+        from rodski.core.plan_suites import select_plan
+    result = select_plan(plan, cases, case_d.parent)
 
     selected = result.get("selected", [])
     skipped = result.get("skipped", [])

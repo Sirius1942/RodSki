@@ -472,6 +472,7 @@ class SKIExecutor:
         plan_selection = self._compile_plan_selection(cases)
         cases = self._filter_cases_by_plan_scope(cases, plan_selection)
         cases, plan_case_skips = self._apply_plan_selection(cases, plan_selection)
+        cases, plan_case_skips = self._apply_plan_suites(cases, plan_case_skips, plan_selection)
         # v11.9.0 计划级数据驱动（CORE §7.8）：按计划 <case data_driven> 展开为实例 用例ID[DataID]
         cases = self._expand_data_driven(cases, plan_case_skips)
         # v11.6.0 --workers：worker 进程与顺序执行用同一 case_path 做发现与选择，
@@ -558,9 +559,12 @@ class SKIExecutor:
                     title=case.get('title', ''),
                 )
             try:
+                _case_started = datetime.now()
                 result = self.execute_case(case)
-                if _dd:
-                    self._attach_data_driven_fields(result, case)
+                self._attach_data_driven_fields(result, case)
+                # v11.11.0：结果带用例起止时间（result.xsd 早有字段，此前一直为空）
+                result.setdefault('start_time', _case_started.strftime("%Y-%m-%d %H:%M:%S"))
+                result.setdefault('end_time', datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
                 results.append(result)
 
                 st = result.get('status', '').upper()
@@ -660,8 +664,28 @@ class SKIExecutor:
                 dyn_vars.update(snap['dynamic'])
         ctx.history.clear()
 
+    def _apply_plan_suites(
+        self,
+        cases: List[Dict[str, Any]],
+        plan_case_skips: Dict[str, str],
+        plan_selection: Optional[Dict[str, Any]],
+    ) -> tuple:
+        """v11.11.0 测试套（CORE §7.9）：按套顺序重排、标 _suite_id；--suite 只保留指定套。"""
+        plan = getattr(self, 'plan', None) or {}
+        if not getattr(self, 'plan_path', None) or not plan.get('suites') or not plan_selection:
+            return cases, plan_case_skips
+        from .plan_suites import order_cases_by_suite
+        cases = order_cases_by_suite(plan, cases, plan_selection.get('assignment') or {})
+        suite_filter = getattr(self, 'suite_filter', None)
+        if suite_filter:
+            wanted = set(suite_filter)
+            cases = [c for c in cases if c.get('_suite_id') in wanted]
+        return cases, plan_case_skips
+
     @staticmethod
     def _attach_data_driven_fields(result: Dict[str, Any], case: Dict[str, Any]) -> Dict[str, Any]:
+        if case.get('_suite_id'):
+            result['suite_id'] = case['_suite_id']
         dd = case.get('_data_driven')
         if dd:
             result['instance_id'] = case.get('case_id', '')
@@ -693,26 +717,8 @@ class SKIExecutor:
         """
         if not plan_selection or not getattr(self, 'plan_path', None):
             return cases
-
-        plan = getattr(self, 'plan', None) or {}
-        if plan.get('kind') == 'suite' and plan.get('default_execute', '否') == '是':
-            return cases
-
-        def _uid(entry: Dict[str, Any]) -> str:
-            case_file = entry.get('case_file', '')
-            case_id = entry.get('case_id', '')
-            return f"{case_file}::{case_id}" if case_file else case_id
-
-        touched: Set[str] = set()
-        for entry in plan_selection.get('selected', []) or []:
-            touched.add(_uid(entry))
-        for entry in plan_selection.get('skipped', []) or []:
-            touched.add(_uid(entry))
-
-        if not touched:
-            return cases
-
-        return [c for c in cases if _uid(c) in touched]
+        from .test_plan_selection import scope_plan_cases
+        return scope_plan_cases(getattr(self, 'plan', None) or {}, cases, plan_selection)
 
     def _selector_active(self) -> bool:
         """CLI selector（无 @plan_id 时）是否生效。"""
@@ -731,7 +737,9 @@ class SKIExecutor:
             parser = PlanParser(str(plan_path))
             parse = getattr(parser, 'parse', None) or parser.parse_plan
             plan = parse()
-            selection = TestPlanSelection(cases, plan, module_dir=self.module_dir).select()
+            # v11.11.0：有 <suite> 时按套选择（CORE §7.9）；无 <suite> 等同 TestPlanSelection
+            from .plan_suites import select_plan
+            selection = select_plan(plan, cases, self.module_dir)
             self.plan = plan
             self.plan_selection_result = selection
             return selection
@@ -1104,63 +1112,8 @@ class SKIExecutor:
         selection: Optional[Dict[str, List[Dict[str, Any]]]],
     ) -> tuple[List[Dict[str, Any]], Dict[str, str]]:
         """Annotate cases with plan scenario/step filters and return case-level skips (v11.5.0: by case_uid)."""
-        if not selection:
-            return cases, {}
-
-        # Build case_uid from case_file and case_id
-        def _build_uid(entry_or_case: Dict[str, Any]) -> str:
-            case_file = entry_or_case.get('case_file', '')
-            case_id = entry_or_case.get('case_id', '')
-            return f"{case_file}::{case_id}" if case_file else case_id
-
-        case_skips: Dict[str, str] = {}  # case_uid -> reason
-        case_has_selection: Dict[str, bool] = {}  # case_uid -> bool
-        selected_scenarios: Dict[str, Set[str]] = {}  # case_uid -> Set[scenario_id]
-        selected_steps: Dict[str, Dict[str, Set[int]]] = {}  # case_uid -> scenario_id -> Set[step_no]
-        skipped_scenarios: Dict[str, Dict[str, str]] = {}  # case_uid -> scenario_id -> reason
-
-        for entry in selection.get('selected', []):
-            case_uid = _build_uid(entry)
-            case_has_selection[case_uid] = True
-            if entry.get('type') == 'case':
-                selected_scenarios.setdefault(case_uid, set()).add('*')
-            elif entry.get('type') == 'scenario':
-                selected_scenarios.setdefault(case_uid, set()).add(entry.get('scenario_id', ''))
-            elif entry.get('type') == 'step':
-                scenario_id = entry.get('scenario_id', '')
-                selected_scenarios.setdefault(case_uid, set()).add(scenario_id)
-                selected_steps.setdefault(case_uid, {}).setdefault(scenario_id, set()).add(entry.get('step_no'))
-
-        for entry in selection.get('skipped', []):
-            case_uid = _build_uid(entry)
-            reason = entry.get('reason', 'plan_skipped')
-            if entry.get('type') == 'case':
-                case_skips[case_uid] = reason
-            elif entry.get('type') == 'scenario':
-                skipped_scenarios.setdefault(case_uid, {})[entry.get('scenario_id', '')] = reason
-
-        for case in cases:
-            case_uid = _build_uid(case)
-            if case_uid in case_skips:
-                continue
-            if not case_has_selection.get(case_uid):
-                case_skips[case_uid] = 'plan_not_selected'
-                continue
-
-            scenario_ids = selected_scenarios.get(case_uid, set())
-            if '*' in scenario_ids:
-                continue
-
-            case['_selected_scenario_ids'] = scenario_ids
-            case['_selected_step_map'] = selected_steps.get(case_uid, {})
-            case_skipped = dict(skipped_scenarios.get(case_uid, {}))
-            for scenario in case.get('scenarios', []) or []:
-                scenario_id = scenario.get('id', '')
-                if scenario_id not in scenario_ids and scenario_id not in case_skipped:
-                    case_skipped[scenario_id] = 'plan_not_selected'
-            case['_skipped_scenarios'] = case_skipped
-
-        return cases, case_skips
+        from .test_plan_selection import apply_plan_selection
+        return apply_plan_selection(cases, selection)
 
     def _execute_debug_plan(
         self,
