@@ -96,6 +96,8 @@ rodski-demo/**/perf/*.py.meta
 # rodski-agent:   AI Agent 层，独立发布（见 rodski-agent/pyproject.toml）
 rodski-website/
 rodski-agent/
+# rodski-perception: 视觉感知插件，2026-10-22 迁出为独立仓库（../rodski-perception）
+rodski-perception/
 
 # 发布包目录（仅推送到 GitLab，不推送到 GitHub）
 # 通过 scripts/git_push.sh 自动处理双 remote 推送策略
