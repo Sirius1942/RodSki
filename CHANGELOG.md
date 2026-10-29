@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [11.11.2] - 2026-10-29
+
+### Changed：版本号统一
+
+在 11.11.1 的代码上重新发布，功能无变化。所有版本文件统一为 11.11.2，包括主仓库的 `pyproject.toml`、`rodski/pyproject.toml`、`rodski/__init__.py`、`rodski-skills/VERSION`、`CLAUDE.md`、`rodski-test-guide/SKILL.md`、`rodski-skills/README.md`，以及子项目 `rodski-agent`、`rodski-browser-plugin`。此前 `CLAUDE.md`、技能包和 `rodski-agent` 仍停在 11.11.0。
+
 ## [11.11.1] - 2026-10-29
 
 ### Fixed：PyPI 发布包缺 `rodski` 包
