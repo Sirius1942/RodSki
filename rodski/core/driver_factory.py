@@ -269,8 +269,11 @@ class DriverFactory:
         """
         try:
             from ..drivers.android_driver import AndroidDriver
-        except ImportError:
-            from drivers.android_driver import AndroidDriver
+        except ImportError as e:
+            raise ImportError(
+                f"无法导入 AndroidDriver（{e}），请确保已安装 Appium 客户端: "
+                "pip install Appium-Python-Client"
+            ) from e
         return AndroidDriver(
             device_name=kwargs.get("device_name", "Android"),
             app_package=kwargs.get("app_package"),
@@ -295,8 +298,11 @@ class DriverFactory:
         """
         try:
             from ..drivers.ios_driver import IOSDriver
-        except ImportError:
-            from drivers.ios_driver import IOSDriver
+        except ImportError as e:
+            raise ImportError(
+                f"无法导入 IOSDriver（{e}），请确保已安装 Appium 客户端: "
+                "pip install Appium-Python-Client"
+            ) from e
         return IOSDriver(
             device_name=kwargs.get("device_name", "iPhone"),
             bundle_id=kwargs.get("bundle_id"),

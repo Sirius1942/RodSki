@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [11.11.3] - 2026-11-07
+
+### Fixed：移动端驱动导入失败时报错掩盖真实原因
+
+`DriverFactory` 创建 iOS / Android 驱动时，导入失败后会回退到裸 `from drivers.xxx import ...` 再试一次，最终只报出误导性的 `No module named 'drivers'`，真实原因（如未安装 Appium 客户端）被掩盖。现在直接报出真实原因与安装提示，例如 `无法导入 IOSDriver（No module named 'appium'），请确保已安装 Appium 客户端: pip install Appium-Python-Client`。
+
 ## [11.11.2] - 2026-10-29
 
 ### Changed：版本号统一

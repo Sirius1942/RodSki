@@ -291,3 +291,24 @@ class TestDriverFactoryInterface:
         assert isinstance(driver, MockInterfaceDriver)
         assert driver.base_url == "http://api.example.com"
         assert driver.timeout == 60
+
+class TestMobileDriverImportError:
+    """移动端驱动导入失败时报出真实原因（v11.11.3）
+
+    旧实现导入失败后回退到裸 `from drivers.xxx`，真实原因（如未装 appium）
+    被 `No module named 'drivers'` 掩盖。
+    """
+
+    @pytest.mark.parametrize("method,module", [
+        ("_create_ios_driver", "ios_driver"),
+        ("_create_android_driver", "android_driver"),
+    ])
+    def test_missing_dependency_reports_real_cause(self, method, module):
+        # sys.modules 置 None 让 import 抛 ImportError，模拟依赖缺失
+        with patch.dict("sys.modules", {f"rodski.drivers.{module}": None, f"drivers.{module}": None}):
+            with pytest.raises(ImportError) as ei:
+                getattr(DriverFactory, method)()
+        msg = str(ei.value)
+        assert "Appium-Python-Client" in msg
+        assert module in msg
+        assert "No module named 'drivers'" not in msg
