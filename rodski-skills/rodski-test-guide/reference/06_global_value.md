@@ -106,6 +106,7 @@ GlobalValue.DefaultValue.WaitTime     → "0"
 | DefaultValue | WaitTime | 每步执行后的固定等待，单位**毫秒**（v11.6.0 起；旧值 ≤30 暂按秒兼容并告警） | 0 |
 | DefaultValue | AutoWait | **自动等待**：所有驱动、所有查找测试对象步骤（`type` 每个字段、`verify`、`get`、`clear`、`upload_file`、视觉定位）的等待上限，单位**毫秒**，每 1000ms 探测一次；`0` = 关闭自动等待 | `10000`（不设置或空值，v11.10.0） |
 | DefaultValue | DialogPolicy | 未注册处理器的原生弹窗：`accept` / `dismiss` / `fail`（v11.6.0） | fail |
+| DefaultValue | RunTimeout | `run` 外部脚本的超时，单位**秒**；单步可用 `test_step` 的 `timeout` 属性覆盖（v11.12.0，见 [§8.6](#86-run--沙箱代码执行)） | `300`（不设置） |
 | DefaultValue | SessionMode | 浏览器会话：`isolated` / `shared_browser` / `shared_session`（v11.6.0） | isolated |
 | DefaultValue | EvidenceMode | 截图证据：`full` / `concise`（v11.6.0） | full |
 | DefaultValue | Platform | `driver_type="mobile"` 模型的平台回退值：`Mobile.Platform` 未设置时才读取，都没有时为 `android`（见 [§14.3](#143-mobile-globalvalue-配置)） | android / ios |
