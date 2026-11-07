@@ -115,8 +115,9 @@ product/                    ← 顶层，固定名称
 ### 测试分层约束
 
 - 单元测试：`rodski/tests/`，允许 pytest
-- 验收测试：必须在 `rodski-demo/` 中落地为可执行用例
-- 只有单元测试通过而无 `rodski-demo` 验收用例，**不能判定为验收完成**
+- 验收测试：统一写在系统测试项目 **`../rodski-system-test`**（`~/Projects/rodski-system-test`），rodski 的验收用例放在其 `suites/rodski/rodski-demo/<环境>/<模块>`，运行方式见该项目 `README.md`（先执行 `scripts/setup.sh`）
+- 本仓库 `rodski-demo/` 已于 2026-11-06 迁入系统测试项目，原处暂留待清理：**不再在这里新增或修改验收用例**，改动一律写到系统测试项目
+- 只有单元测试通过而无系统测试项目中的验收用例，**不能判定为验收完成**
 
 ### 合规检查清单（每次提交前）
 
@@ -156,6 +157,7 @@ RodSki/                     ← 主仓库（父仓库，git remote: github / ori
 - 组织方式：`rodski-demo/<环境>/<模块>`，环境 = `local / demosite / mock_api / mobile / desktop_vision / plugins`，共享被测站点在 `rodski-demo/_sites/demosite`；索引见 `rodski-demo/README.md`
 - `rodski-demo/` 中的用例和结构严格遵循 `rodski/docs/TEST_CASE_WRITING_GUIDE.md`
 - ❌ `rodski/examples/` 已废弃，不再使用
+- ⚠️ 2026-11-06 起 `rodski-demo/` 的维护位置是 `../rodski-system-test/suites/rodski/rodski-demo/`，本仓库副本只读暂留，不再修改
 
 ### 禁止使用的旧目录
 
@@ -271,7 +273,8 @@ pytest tests/ -q
 # 运行测试
 python3 rodski/selftest.py
 
-# 运行 Demo 验收
+# 运行 Demo 验收（在系统测试项目中执行）
+cd ../rodski-system-test && scripts/setup.sh && cd suites/rodski
 rodski run rodski-demo/demosite/full/case/        # 主回归（需先启动 rodski-demo/_sites/demosite/app.py）
 python3 rodski-demo/run_regression.py             # 全量 demo 回归，按环境自动起停服务
 
