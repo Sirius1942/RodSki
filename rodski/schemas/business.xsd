@@ -39,6 +39,10 @@
     <xs:attribute name="action" type="xs:string" use="required"/>
     <xs:attribute name="model" type="xs:string" use="optional"/>
     <xs:attribute name="data" type="xs:string" use="optional"/>
+    <!-- v11.12.0: run 外部脚本超时（秒），仅 action="run" 可用 -->
+    <xs:attribute name="timeout" use="optional">
+      <xs:simpleType><xs:restriction base="xs:decimal"><xs:minExclusive value="0"/></xs:restriction></xs:simpleType>
+    </xs:attribute>
   </xs:complexType>
   <xs:complexType name="EdgesType">
     <xs:sequence><xs:element name="edge" type="EdgeType" minOccurs="1" maxOccurs="unbounded"/></xs:sequence>

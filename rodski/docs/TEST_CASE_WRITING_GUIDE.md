@@ -1259,6 +1259,7 @@ GlobalValue.DefaultValue.WaitTime     → "0"
 | DefaultValue | WaitTime | 每步执行后的固定等待，单位**毫秒**（v11.6.0 起；旧值 ≤30 暂按秒兼容并告警） | 0 |
 | DefaultValue | AutoWait | **自动等待**：所有驱动、所有查找测试对象步骤（`type` 每个字段、`verify`、`get`、`clear`、`upload_file`、视觉定位）的等待上限，单位**毫秒**，每 1000ms 探测一次；`0` = 关闭自动等待 | `10000`（不设置或空值，v11.10.0） |
 | DefaultValue | DialogPolicy | 未注册处理器的原生弹窗：`accept` / `dismiss` / `fail`（v11.6.0） | fail |
+| DefaultValue | RunTimeout | `run` 外部脚本的超时，单位**秒**；单步可用 `test_step` 的 `timeout` 属性覆盖（v11.12.0，见 [§8.6](#86-run--沙箱代码执行)） | `300`（不设置） |
 | DefaultValue | SessionMode | 浏览器会话：`isolated` / `shared_browser` / `shared_session`（v11.6.0） | isolated |
 | DefaultValue | EvidenceMode | 截图证据：`full` / `concise`（v11.6.0） | full |
 | DefaultValue | Platform | `driver_type="mobile"` 模型的平台回退值：`Mobile.Platform` 未设置时才读取，都没有时为 `android`（见 [§14.3](#143-mobile-globalvalue-配置)） | android / ios |
@@ -1810,6 +1811,18 @@ DB 用例格式：
 #### 脚本编写规范
 
 脚本通过 `print()` 输出返回值。框架会自动尝试 JSON 解析。
+
+#### 超时与失败输出（v11.12.0）
+
+```xml
+<!-- 单步超时 600 秒 -->
+<test_step action="run" model="sync" data="wait_job.py" timeout="600"/>
+```
+
+- 超时单位为**秒**，优先级：`timeout` 属性 > `globalvalue.xml` 中的 `DefaultValue.RunTimeout` > 300。必须是大于 0 的数字，否则报 SKI312。
+- `timeout` 属性只能写在调用 `fun/` 外部脚本的 `run` 步骤上；写在其他关键字上用例解析报错，写在内置函数调用上报 SKI312（内置函数用自己的参数，如 `wait_for_response(timeout=...)`）。
+- 脚本退出码非 0 时，步骤错误信息包含退出码、stderr 末尾和 stdout 末尾（各最多 30 行），完整输出写入执行日志。所以脚本里用 `print()` 打出的排查信息不会丢。
+- 超时时，错误信息同样带出脚本超时前已输出的内容（框架以不缓冲模式运行子进程，`print()` 的内容不需要手动 flush）。
 
 #### 内置函数（进程内执行，`model` 必须为空）
 

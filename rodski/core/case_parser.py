@@ -255,13 +255,23 @@ class CaseParser:
         """解析 test_step 元素属性
 
         v11.0.0: 新增 match_mode 属性支持
+        v11.12.0: 新增 timeout 属性（秒，仅 run 外部脚本）
         """
-        return {
+        step = {
             'action': str(el.get('action', '') or '').strip(),
             'model': str(el.get('model', '') or '').strip(),
             'data': str(el.get('data', '') or '').strip(),
             'match_mode': str(el.get('match_mode', 'strict') or 'strict').strip(),  # v11.0.0
         }
+        timeout = str(el.get('timeout', '') or '').strip()
+        if timeout:
+            if step['action'].lower() != 'run':
+                raise ValueError(
+                    f"timeout 属性只能用于 run 步骤，当前 action={step['action']} "
+                    f"(data={step['data']})"
+                )
+            step['timeout'] = timeout
+        return step
 
     @staticmethod
     def _parse_business_call_element(el: ET.Element) -> Dict[str, str]:

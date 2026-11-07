@@ -293,7 +293,7 @@ class TestDriverFactoryInterface:
         assert driver.timeout == 60
 
 class TestMobileDriverImportError:
-    """移动端驱动导入失败时报出真实原因（v11.11.3）
+    """移动端驱动导入失败时报出真实原因（v11.12.0）
 
     旧实现导入失败后回退到裸 `from drivers.xxx`，真实原因（如未装 appium）
     被 `No module named 'drivers'` 掩盖。

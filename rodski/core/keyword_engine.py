@@ -1,6 +1,7 @@
 """关键字引擎 - 支持14个操作关键字（UI / API / DB / Code）"""
 import json
 import logging
+import os
 import subprocess
 import sys
 import time
@@ -54,6 +55,61 @@ import re as _re_path
 
 # v11.0.0: 与 data_resolver 同步，支持 .first()/.last()/.length
 _PATH_TOKEN_KE = _re_path.compile(r'(?:(?:\.([A-Za-z0-9_$]+)(?:\(\))?)|(?:\[(-?\d+)\]))')
+
+# run 外部脚本（v11.12.0）：默认超时、报错里附带的输出末尾长度、日志里保留的输出长度
+DEFAULT_RUN_TIMEOUT_S = 300.0
+_RUN_TAIL_LINES = 30
+_RUN_TAIL_CHARS = 3000
+_RUN_LOG_CHARS = 20000
+
+
+def _decode_output(data) -> str:
+    """TimeoutExpired 带出的输出在 POSIX 上是 bytes（即使 text=True），统一转成 str。"""
+    if data is None:
+        return ""
+    if isinstance(data, bytes):
+        return data.decode("utf-8", errors="replace")
+    return str(data)
+
+
+def _tail(text: str, max_lines: int = _RUN_TAIL_LINES, max_chars: int = _RUN_TAIL_CHARS) -> str:
+    """取输出末尾若干行（且不超过 max_chars 字符），被截掉时在开头注明。"""
+    text = (text or "").rstrip()
+    if not text:
+        return ""
+    lines = text.splitlines()
+    kept = lines[-max_lines:]
+    out = "\n".join(kept)
+    if len(out) > max_chars:
+        out = out[-max_chars:]
+        return f"…（前略，仅保留末尾 {max_chars} 字符）\n{out}"
+    if len(kept) < len(lines):
+        return f"…（前略 {len(lines) - len(kept)} 行）\n{out}"
+    return out
+
+
+def _format_output_tail(stdout, stderr, empty_hint: str) -> str:
+    """把 stderr / stdout 末尾拼到报错信息里；两者都为空时给出 empty_hint。"""
+    parts = []
+    for label, text in (("stderr", stderr), ("stdout", stdout)):
+        tail = _tail(text)
+        if tail:
+            parts.append(f"\n--- {label}（末尾） ---\n{tail}")
+    return "".join(parts) if parts else f"\n{empty_hint}"
+
+
+def _log_run_output(level: int, title: str, stdout, stderr) -> None:
+    """把脚本输出写入执行日志（每路最多保留末尾 _RUN_LOG_CHARS 字符）。"""
+    lines = [title]
+    for label, text in (("stdout", stdout), ("stderr", stderr)):
+        text = (text or "").rstrip()
+        if not text:
+            continue
+        if len(text) > _RUN_LOG_CHARS:
+            text = f"…（前略，仅保留末尾 {_RUN_LOG_CHARS} 字符）\n" + text[-_RUN_LOG_CHARS:]
+        lines.append(f"--- {label} ---\n{text}")
+    logger.log(level, "\n".join(lines))
+
 
 # 多设备并发时的端口基址与步长（v11.2.0）
 _WDA_PORT_BASE = 8100
@@ -3447,9 +3503,20 @@ class KeywordEngine:
                     └── xxx.py ← data 列指定
 
         脚本的 stdout 输出自动保存为步骤返回值（尝试 JSON 解析）。
+
+        超时（v11.12.0）：test_step 的 timeout 属性（秒）> DefaultValue.RunTimeout（秒）> 300。
+        失败 / 超时时，报错信息附带 stderr 与 stdout 的末尾部分，完整输出写入执行日志。
         """
         project_name = params.get("model", "")
         code_path = params.get("data", "")
+
+        # timeout 只对外部脚本生效；内置函数各有自己的超时参数
+        if params.get("timeout") not in (None, "") and code_path and not project_name \
+                and self._parse_builtin_call(code_path) is not None:
+            raise InvalidParameterError(
+                keyword="run", param_name="timeout",
+                reason="timeout 属性只对 fun/ 外部脚本生效，内置函数请用函数自身的超时参数"
+            )
 
         # ── 内置函数查找 ──────────────────────────────────────────
         if code_path and not project_name:
@@ -3511,24 +3578,40 @@ class KeywordEngine:
                 reason=f"代码文件不存在: {script_path}"
             )
 
-        logger.info(f"执行代码: {script_path}")
+        timeout = self._resolve_run_timeout(params)
+        logger.info(f"执行代码: {script_path}（超时 {timeout:g}s）")
 
+        # 子进程不缓冲输出：超时被 kill 时，已 print 的内容仍能拿到；统一 UTF-8 避免 Windows 乱码
+        env = dict(os.environ, PYTHONUNBUFFERED="1", PYTHONIOENCODING="utf-8")
         try:
             result = subprocess.run(
                 [sys.executable, str(script_path)] + script_args,
-                capture_output=True, text=True,
+                capture_output=True, text=True, encoding="utf-8", errors="replace",
                 cwd=str(project_dir.resolve()),
-                timeout=300,
+                timeout=timeout,
+                env=env,
             )
-        except subprocess.TimeoutExpired:
-            raise DriverError(f"代码执行超时 (300s): {script_path}")
+        except subprocess.TimeoutExpired as e:
+            stdout, stderr = _decode_output(e.stdout), _decode_output(e.stderr)
+            _log_run_output(logging.ERROR, f"代码执行超时 ({timeout:g}s): {script_path}", stdout, stderr)
+            raise DriverError(
+                f"代码执行超时 ({timeout:g}s): {script_path}；"
+                f"可用 test_step 的 timeout 属性或 DefaultValue.RunTimeout 调整（单位秒）"
+                + _format_output_tail(stdout, stderr, empty_hint="（超时前脚本没有任何输出）")
+            )
 
         if result.returncode != 0:
-            error_msg = result.stderr.strip() or f"退出码: {result.returncode}"
-            logger.error(f"代码执行失败:\n{error_msg}")
-            raise DriverError(f"代码执行失败: {error_msg}")
+            _log_run_output(logging.ERROR, f"代码执行失败（退出码 {result.returncode}）: {script_path}",
+                            result.stdout, result.stderr)
+            raise DriverError(
+                f"代码执行失败（退出码 {result.returncode}）: {script_path}"
+                + _format_output_tail(result.stdout, result.stderr, empty_hint="（脚本没有任何输出）")
+            )
+        if (result.stderr or "").strip():
+            # 成功但有 stderr（警告等）：写日志，便于排查
+            _log_run_output(logging.INFO, f"代码执行成功但有 stderr 输出: {script_path}", "", result.stderr)
 
-        output = result.stdout.strip()
+        output = (result.stdout or "").strip()
         if output:
             try:
                 parsed = json.loads(output)
@@ -3540,6 +3623,27 @@ class KeywordEngine:
 
         logger.info(f"代码执行成功: {script_path}")
         return True
+
+    def _resolve_run_timeout(self, params: Dict) -> float:
+        """run 外部脚本的超时（秒）：test_step 的 timeout 属性 > DefaultValue.RunTimeout > 300。"""
+        step_value = params.get("timeout")
+        if step_value not in (None, ""):
+            source, raw = "test_step 的 timeout 属性", step_value
+        else:
+            raw = ((self._global_vars or {}).get("DefaultValue", {}) or {}).get("RunTimeout")
+            if raw is None or str(raw).strip() == "":
+                return DEFAULT_RUN_TIMEOUT_S
+            source = "DefaultValue.RunTimeout"
+        try:
+            value = float(str(raw).strip())
+        except ValueError:
+            value = -1.0
+        if not value > 0 or value == float("inf"):
+            raise InvalidParameterError(
+                keyword="run", param_name="timeout",
+                reason=f"{source} 必须是大于 0 的秒数，得到: '{raw}'"
+            )
+        return value
 
     @staticmethod
     def _parse_builtin_call(expr: str) -> Optional[tuple]:

@@ -88,6 +88,17 @@ class TestWriteResult:
         assert result_elem.get("status") == "FAIL"
         assert result_elem.get("error_message") == "Element not found"
 
+    def test_multiline_error_message_keeps_newlines(self, result_dir):
+        """多行错误信息（run 脚本的 stdout / stderr）读回后换行与制表符不丢（v11.12.0）。"""
+        msg = "代码执行失败（退出码 1）\n--- stderr（末尾） ---\nTraceback:\n\tline 3\r\n\n--- stdout（末尾） ---\nok"
+        rw = ResultWriter(result_dir)
+        rw.write_result({"case_id": "TC003", "title": "多行", "status": "FAIL", "execution_time": 0.1, "error": msg})
+
+        result_file = next(Path(result_dir).glob("rodski_*/result.xml"))
+        assert "\ue000" not in result_file.read_text(encoding="utf-8")
+        result_elem = ET.parse(result_file).getroot().find("results/result")
+        assert result_elem.get("error_message") == msg.replace("\r\n", "\n")
+
 
     def test_business_result_written_and_schema_valid(self, result_dir):
         """business_call step 的完整结果应落盘，并由 result.xsd 校验。"""

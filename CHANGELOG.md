@@ -1,7 +1,20 @@
 # Changelog
 
 
-## [11.11.3] - 2026-11-07
+## [11.12.0] - 2026-11-07
+
+### Added：run 外部脚本可设置超时，失败 / 超时时带出脚本输出
+
+在 rodski-factory 等环境中执行时，`run` 脚本失败只显示"退出码: 1"、超时看不到任何输出，难以排查。本版改进：
+
+- **失败时**：错误信息包含退出码，以及 stderr、stdout 各自的末尾部分（各最多 30 行 / 3000 字符，截断时注明）。此前只取 stderr，stdout 全部丢弃。完整输出（每路末尾最多 20000 字符）写入 `execution.log`。
+- **超时时**：错误信息带出脚本超时前已输出的内容。子进程以 `PYTHONUNBUFFERED=1` 运行，脚本里的 `print()` 不需要手动 flush；输出统一按 UTF-8 解码（`PYTHONIOENCODING=utf-8`），避免 Windows 执行器乱码。
+- **可设置超时**：`<test_step action="run" ... timeout="600"/>`（秒）> `globalvalue.xml` 中的 `DefaultValue.RunTimeout`（秒）> 默认 300。`timeout` 属性只能用于调用 `fun/` 外部脚本的 `run` 步骤；写在其他关键字上解析报错，写在内置函数调用上或取值非法报 SKI312。`case.xsd`、`business.xsd` 同步增加该属性。
+- 成功但有 stderr 输出（警告等）时，stderr 以 INFO 写入日志。
+
+### Fixed：result.xml 中多行错误信息被挤成一行
+
+`result.xml` 经 minidom 排版时，属性值里的换行和制表符没有转义，任何 XML 解析器读回都会变成空格，多行错误信息（如上面的脚本输出）挤成一行。现在写成 `&#10;` / `&#9;` 字符引用，读回保留原有换行。
 
 ### Fixed：移动端驱动导入失败时报错掩盖真实原因
 

@@ -366,6 +366,8 @@ key 不存在会抛 `InvalidParameterError`。
 ```
 
 - `model` 非空时表示 `fun/` 下的工程名，脚本路径相对该工程目录；脚本的 stdout 作为返回值（尝试按 JSON 解析）。
+- **超时**（v11.12.0）：`<test_step action="run" model="" data="fun/sync/wait_job.py" timeout="600"/>`，单位秒；不写时取 `DefaultValue.RunTimeout`（秒），再不设为 300 秒。`timeout` 只对外部脚本生效，写在其他关键字或内置函数调用上会报错。
+- **失败排查**：退出码非 0 或超时时，错误信息带 stderr 和 stdout 的末尾（各最多 30 行），完整输出在执行日志里；超时时也能看到脚本超时前已打印的内容。
 
 **内置函数**（进程内执行，**`model` 必须为空**）:
 

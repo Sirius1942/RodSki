@@ -17,6 +17,10 @@ from .xml_schema_validator import RodskiXmlValidator
 
 logger = logging.getLogger("rodski")
 
+# 属性值中换行 / 制表符的占位符（Unicode 私用区），见 write_results
+_ATTR_NEWLINE = "\ue000"
+_ATTR_TAB = "\ue001"
+
 
 class ExecutionSummary:
     """执行结果统计"""
@@ -410,9 +414,17 @@ class ResultWriter:
 
         result_file = self.current_run_dir / "result.xml"
 
+        # minidom.toprettyxml 不转义属性里的换行 / 制表符，读回时会被 XML 解析器规范成空格，
+        # 多行错误信息（如 run 脚本的 stdout / stderr）就挤成一行。先换成占位符，排版后再写成字符引用。
+        for elem in root.iter():
+            for key, value in elem.attrib.items():
+                if '\n' in value or '\r' in value or '\t' in value:
+                    elem.set(key, value.replace('\r\n', '\n').replace('\r', '\n')
+                             .replace('\n', _ATTR_NEWLINE).replace('\t', _ATTR_TAB))
         xml_str = minidom.parseString(ET.tostring(root, encoding='unicode')).toprettyxml(indent="  ")
         lines = [line for line in xml_str.split('\n') if line.strip()]
-        result_file.write_text('\n'.join(lines), encoding='utf-8')
+        xml_str = '\n'.join(lines).replace(_ATTR_NEWLINE, '&#10;').replace(_ATTR_TAB, '&#9;')
+        result_file.write_text(xml_str, encoding='utf-8')
 
         logger.info(
             f"结果已写入 {self.current_run_dir.name}/result.xml: "

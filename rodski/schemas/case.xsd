@@ -175,7 +175,15 @@
     <xs:attribute name="model" type="xs:string" use="optional" default=""/>
     <xs:attribute name="data" type="xs:string" use="optional" default=""/>
     <xs:attribute name="match_mode" type="MatchModeType" use="optional" default="strict"/>
+    <!-- v11.12.0: run 外部脚本超时（秒），仅 action="run" 可用；缺省取 DefaultValue.RunTimeout，再缺省 300 -->
+    <xs:attribute name="timeout" type="PositiveSecondsType" use="optional"/>
   </xs:complexType>
+
+  <xs:simpleType name="PositiveSecondsType">
+    <xs:restriction base="xs:decimal">
+      <xs:minExclusive value="0"/>
+    </xs:restriction>
+  </xs:simpleType>
 
   <xs:simpleType name="ExecuteType">
     <xs:restriction base="xs:string">

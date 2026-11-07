@@ -119,8 +119,9 @@ key_press【按键】 / drag【目标】 / scroll / scroll【x,y】
 
 - `model` 为 `fun/` 下的工程名（可空），`data` 为脚本路径，其后以空白分隔的部分作为命令行参数；`data` 开头的 `fun/` 前缀会被去掉，避免 `fun/fun/`。
 - 脚本路径解析后必须位于模块 `fun/` 目录内，越界（`..`、绝对路径、符号链接指向外部）报 SKI312；文件不存在报 SKI312。
-- 以当前 Python 解释器在子进程中执行，工作目录为工程目录（`model` 为空时为 `fun/`），**固定 300s 超时**，超时报 SKI302。
-- 退出码非 0 时步骤失败（SKI302，错误信息取 stderr）；stdout 非空时优先按 JSON 解析后写入 Return，否则存原文本，stdout 为空时 Return 为 `None`。
+- 以当前 Python 解释器在子进程中执行，工作目录为工程目录（`model` 为空时为 `fun/`）；子进程设 `PYTHONUNBUFFERED=1`、`PYTHONIOENCODING=utf-8`，输出按 UTF-8 解码。
+- 超时（v11.12.0）：`test_step` 的 `timeout` 属性（秒，> 0）优先，其次 `DefaultValue.RunTimeout`（秒），都不设为 300s；非法值报 SKI312。`timeout` 属性只能写在 `action="run"` 且调用外部脚本的步骤上，写在其他关键字上解析报错，写在内置函数调用上报 SKI312。超时报 SKI302，错误信息带超时前脚本已输出的 stdout / stderr。
+- 退出码非 0 时步骤失败（SKI302）；错误信息带退出码以及 stderr、stdout 各自的末尾部分（各最多 30 行 / 3000 字符，被截断时注明），完整输出（每路末尾最多 20000 字符）写入执行日志。成功但有 stderr 时 stderr 以 INFO 写入日志；stdout 非空时优先按 JSON 解析后写入 Return，否则存原文本，stdout 为空时 Return 为 `None`。
 
 **in-process 内置函数扩展点（v6.7.6）**：
 
@@ -1329,6 +1330,7 @@ pre_process → test_case → roaming（可选）→ post_process
 | `test_step.model` | 否 | 模型名；DB 场景下也填写数据库模型名，由模型的 `connection` 属性指向连接组 |
 | `test_step.data` | 否 | 数据引用或直接值 |
 | `test_step.match_mode` | 否 | `strict`（默认）/ `subset`，只对 `verify` / `check` 有效（§4.7） |
+| `test_step.timeout` | 否 | 秒（> 0），只对调用 `fun/` 外部脚本的 `run` 有效，覆盖 `DefaultValue.RunTimeout`（默认 300）；写在其他关键字上解析报错（v11.12.0，§2 run 外部脚本约束） |
 | `case.expect_fail` | 否 | `是` / `否`，默认 `否`。为 `是` 时：用例失败记 `PASS`（错误信息前缀 `[预期失败]`），用例成功记 `FAIL`；`expect_fail="是"` 的用例不进入漫游（`ski_executor.py`） |
 | `case.priority` | 否 | `P0` ~ `P3`；参与 `--priority` 选择（逗号分隔多值按 OR，§7.7） |
 | `case.tags` / `cases.tags` | 否 | 逗号分隔；文件级 `<cases tags>` 与用例级 `<case tags>` 合并去重后作为用例标签，参与 `--tag` / `--exclude-tag`（v11.8.9） |

@@ -54,6 +54,7 @@ from .dynamic_executor import DynamicExecutor
 
 from .exceptions import (
     DriverStoppedError,
+    InvalidParameterError,
     AssertionFailedError,
     RoamCaseNotFoundError,
     RoamNotEligibleError,
@@ -2117,6 +2118,8 @@ class SKIExecutor:
                 # Case steps; subset is only relevant to model-driven actions.
                 "match_mode": "subset",
             }
+            if (business_step.attributes or {}).get("timeout"):
+                step_dict["timeout"] = str(business_step.attributes["timeout"]).strip()
             self.execute_step(step_dict, phase_label)
 
             history = self.keyword_engine._context.history
@@ -2452,6 +2455,13 @@ class SKIExecutor:
             # 都要传给 verify，否则恒按 strict 执行
             if step.get('match_mode'):
                 params['match_mode'] = step['match_mode']
+            # v11.12.0: run 外部脚本的超时（秒）
+            if step.get('timeout'):
+                if action_key != 'run':
+                    raise InvalidParameterError(
+                        keyword=action, param_name="timeout",
+                        reason="timeout 属性只能用于 run 步骤")
+                params['timeout'] = step['timeout']
             try:
                 self.keyword_engine.execute(action, params)
             except AssertionFailedError as exc:
